@@ -1,3 +1,23 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import AdminDashboard from './pages/AdminDashboard';
+import SlideSection from './pages/SlideSection';
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/slides" element={<SlideSection />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+
+
 import React, { useState } from 'react';
 import AdminDashboard from './pages/AdminDashboard';
 import NovelsContent from './pages/NovelsContent';
