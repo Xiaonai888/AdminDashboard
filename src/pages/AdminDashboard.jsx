@@ -73,6 +73,10 @@ const styles = `
     white-space: nowrap;
   }
 
+  .sidebar:hover {
+    box-shadow: 10px 0 30px rgba(0,0,0,0.02);
+  }
+
   .sidebar:hover .logo-text {
     opacity: 1;
   }
@@ -131,7 +135,7 @@ const styles = `
   }
 
   .header {
-    height: 70px;
+    height: 75px;
     background: #FFFFFF;
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -151,58 +155,50 @@ const styles = `
     animation: fadeIn 0.4s ease-out;
   }
 
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border);
+    transition: transform 0.2s ease;
+  }
+  .stat-card:hover { transform: translateY(-3px); }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
   .card-panel {
     background: var(--bg-card);
-    border-radius: 20px;
+    border-radius: 16px;
     padding: 24px;
     border: 1px solid var(--border);
-    margin-bottom: 30px;
   }
 
-  .slide-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 20px;
-  }
+  .mock-chart { display: flex; align-items: flex-end; justify-content: space-between; height: 180px; padding-top: 20px; }
+  .chart-bar { width: 10%; background: var(--primary-light); border-radius: 6px 6px 0 0; position: relative; transition: all 0.3s ease; }
+  .chart-bar:hover { background: var(--primary); }
+  .chart-bar.active { background: var(--primary); }
+  .chart-bar span { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; color: var(--text-muted); font-weight: 600;}
 
-  .slide-item {
-    border-radius: 16px;
-    border: 1px solid var(--border);
-    overflow: hidden;
-    transition: all 0.3s ease;
-    background: white;
-  }
-
-  .slide-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 20px -10px rgba(0,0,0,0.1);
-    border-color: var(--primary);
-  }
-
-  .slide-preview {
-    width: 100%;
-    height: 160px;
-    background: #F1F5F9;
-    object-fit: cover;
-  }
-
-  .slide-info { padding: 16px; }
-
-  .action-btn {
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 13px;
-    transition: all 0.2s;
-  }
-
-  .btn-edit { background: var(--primary-light); color: var(--primary); margin-right: 8px; }
-  .btn-delete { background: #FEF2F2; color: var(--danger); }
+  .log-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .log-item:last-child { border: none; }
+  .log-avatar { width: 36px; height: 36px; border-radius: 10px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;}
 
   @media (max-width: 1024px) {
     .sidebar { display: none; }
+    .bento-grid { grid-template-columns: 1fr; }
   }
 `;
 
@@ -216,20 +212,21 @@ const AdminDashboard = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const currentUserRole = 'Owner';
 
-  const slides = [
-    { id: 1, title: 'Epic Fantasy Banner', image: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800', date: '28-11-2024' },
-    { id: 2, title: 'New Arrival: Shadow King', image: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=800', date: '29-11-2024' },
-    { id: 3, title: 'Creator Rewards 2026', image: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=800', date: '30-11-2024' }
+  const chartData = [
+    { day: 'Mon', height: '40%' }, { day: 'Tue', height: '60%' },
+    { day: 'Wed', height: '30%' }, { day: 'Thu', height: '80%' },
+    { day: 'Fri', height: '50%' }, { day: 'Sat', height: '95%', active: true },
+    { day: 'Sun', height: '70%' }
   ];
 
   return (
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
-        <div className="sidebar">
+        <aside className="sidebar">
           <div className="sidebar-logo">
             <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            <span className="logo-text">Shadow</span>
+            <span className="logo-text">Shadow Exclusive</span>
           </div>
           
           <div className="nav-group-label">Overview</div>
@@ -238,8 +235,8 @@ const AdminDashboard = () => {
           <div className="nav-item"><Icon d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /><span className="nav-text">Authors Community</span></div>
 
           <div className="nav-group-label">Visual Media</div>
-          <div className="nav-item"><Icon d="M2 3h20v14H2z M8 21h8 M12 17v4" /><span className="nav-text">Slide</span></div>
-          <div className="nav-item"><Icon d="M3 3h18v18H3z M3 9h18 M9 3v18" /><span className="nav-text">Banner</span></div>
+          <div className="nav-item"><Icon d="M2 3h20v14H2z M8 21h8 M12 17v4" /><span className="nav-text">Slide Section</span></div>
+          <div className="nav-item"><Icon d="M3 3h18v18H3z M3 9h18 M9 3v18" /><span className="nav-text">Banner System</span></div>
           <div className="nav-item"><Icon d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /><span className="nav-text">Advertisement</span></div>
           <div className="nav-item"><Icon d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /><span className="nav-text">Recommended</span></div>
 
@@ -255,26 +252,30 @@ const AdminDashboard = () => {
           <div className="nav-item"><Icon d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3" /><span className="nav-text">Deposit</span></div>
           <div className="nav-item"><Icon d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12" /><span className="nav-text">Withdraw</span></div>
           <div className="nav-item"><Icon d="M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z" /><span className="nav-text">Ranking</span></div>
-        </div>
+        </aside>
 
         <div className="main-content">
           <header className="header">
-            <div><h2 style={{ fontSize: '18px', fontWeight: '600' }}>Welcome back, Xiaonai! 👋</h2></div>
+            <div><h2 style={{ fontSize: '18px', fontWeight: '600' }}>Dashboard Overview</h2></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
               <div style={{ position: 'relative' }}>
-                <input type="text" placeholder="Search..." style={{ background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '9px 14px 9px 38px', width: '280px', outline: 'none', fontSize: '14px' }} />
+                <input type="text" placeholder="Search report..." style={{ background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '9px 14px 9px 38px', width: '280px', outline: 'none', fontSize: '14px' }} />
                 <svg style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} width="16" height="16" fill="none" stroke="#64748B" strokeWidth="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
               </div>
+              <div style={{ position: 'relative', cursor: 'pointer' }}>
+                <Icon d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <span style={{ position: 'absolute', top: '0', right: '1px', width: '8px', height: '8px', background: 'var(--danger)', borderRadius: '50%', border: '2px solid white' }}></span>
+              </div>
               <div style={{ position: 'relative' }}>
-                <div onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: '#F8FAFC', padding: '5px 12px 5px 6px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                  <img src="https://ui-avatars.com/api/?name=Xiaonai+Xiao&background=4F46E5&color=fff&bold=true" alt="User" style={{ width: '34px', height: '34px', borderRadius: '8px', objectFit: 'cover' }} />
-                  <span style={{ fontSize: '14px', fontWeight: '600' }}>Xiaonai</span>
+                <div onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <img src="https://ui-avatars.com/api/?name=Xiaonai+Xiao&background=4F46E5&color=fff&bold=true" alt="Admin" style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover', border: '2px solid #E2E8F0' }} />
                   <Icon d="M6 9l6 6 6-6" />
                 </div>
                 {showProfileMenu && (
                   <div style={{ position: 'absolute', top: '55px', right: '0', background: 'white', borderRadius: '14px', width: '200px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
                     <div style={{ padding: '12px', borderBottom: '1px solid #F1F5F9' }}>
-                      <p style={{ fontWeight: '700', fontSize: '13px' }}>{currentUserRole}</p>
+                      <p style={{ fontWeight: '700', fontSize: '13px' }}>Xiaonai Xiao</p>
+                      <p style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>{currentUserRole}</p>
                     </div>
                     <div style={{ padding: '6px' }}>
                       <div style={{ padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', color: '#475569' }}>Settings</div>
@@ -287,53 +288,99 @@ const AdminDashboard = () => {
           </header>
 
           <main className="content-body">
-            <div className="card-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '700' }}>Slide Section Center</h3>
-                <button style={{ padding: '10px 18px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontSize: '14px' }}>+ New Slide</button>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>TOTAL NOVELS</p>
+                <h3 style={{ fontSize: '28px', fontWeight: '700' }}>1,248</h3>
+                <p style={{ color: 'var(--success)', fontSize: '12px', marginTop: '8px', fontWeight: '600' }}>↑ 12 new this week</p>
               </div>
-              <div className="slide-grid">
-                {slides.map((s) => (
-                  <div key={s.id} className="slide-item">
-                    <img src={s.image} alt={s.title} className="slide-preview" />
-                    <div className="slide-info">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--success)', background: 'var(--success-light)', padding: '2px 8px', borderRadius: '4px' }}>ACTIVE</span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.date}</span>
-                      </div>
-                      <h4 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '16px' }}>{s.title}</h4>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="action-btn btn-edit" style={{ flex: 1 }}>Edit</button>
-                        <button className="action-btn btn-delete">Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="stat-card">
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>ACTIVE READERS</p>
+                <h3 style={{ fontSize: '28px', fontWeight: '700' }}>3,012</h3>
+                <p style={{ color: 'var(--primary)', fontSize: '12px', marginTop: '8px', fontWeight: '600' }}>Live performance</p>
+              </div>
+              <div className="stat-card">
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>DAILY INCOME</p>
+                <h3 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--success)' }}>$50.03</h3>
+                <p style={{ color: 'var(--success)', fontSize: '12px', marginTop: '8px', fontWeight: '600' }}>Collected today</p>
+              </div>
+              <div className="stat-card">
+                <p style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '600', marginBottom: '8px' }}>PENDING REPORTS</p>
+                <h3 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--danger)' }}>05</h3>
+                <p style={{ color: 'var(--danger)', fontSize: '12px', marginTop: '8px', fontWeight: '600' }}>Attention required</p>
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
-               <div className="card-panel">
-                  <h4 style={{ marginBottom: '20px', fontWeight: '700' }}>Quick Stats</h4>
-                  <div style={{ display: 'flex', gap: '20px' }}>
-                    <div style={{ flex: 1, background: 'var(--bg-main)', padding: '15px', borderRadius: '12px' }}>
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Daily Income</p>
-                      <h5 style={{ fontSize: '20px' }}>$50.03</h5>
+            <div className="bento-grid">
+              <section className="card-panel">
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+                  <h4 style={{ fontWeight: '700' }}>Growth Analytics</h4>
+                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600', cursor: 'pointer' }}>View Details</span>
+                </div>
+                <div className="mock-chart">
+                  {chartData.map((data, index) => (
+                    <div key={index} className={`chart-bar ${data.active ? 'active' : ''}`} style={{ height: data.height }}>
+                      <span>{data.day}</span>
                     </div>
-                    <div style={{ flex: 1, background: 'var(--bg-main)', padding: '15px', borderRadius: '12px' }}>
-                      <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Total Novels</p>
-                      <h5 style={{ fontSize: '20px' }}>1,248</h5>
-                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="card-panel">
+                <h4 style={{ fontWeight: '700', marginBottom: '20px' }}>Admin Activity Log</h4>
+                <div className="log-item">
+                  <div className="log-avatar">S</div>
+                  <div>
+                    <p style={{ fontSize: '13px' }}><strong>Sok</strong> approved "Solo Leveling"</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>10 mins ago</p>
                   </div>
-               </div>
-               <div className="card-panel">
-                  <h4 style={{ marginBottom: '20px', fontWeight: '700' }}>System Status</h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--success)', fontSize: '14px', fontWeight: '600' }}>
-                    <div style={{ width: '8px', height: '8px', background: 'var(--success)', borderRadius: '50%' }}></div>
-                    All systems operational
+                </div>
+                <div className="log-item">
+                  <div className="log-avatar" style={{ background: '#6366f1' }}>D</div>
+                  <div>
+                    <p style={{ fontSize: '13px' }}><strong>Dev</strong> deleted reported comment</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>1 hour ago</p>
                   </div>
-               </div>
+                </div>
+                <div className="log-item">
+                  <div className="log-avatar" style={{ background: '#8b5cf6' }}>Y</div>
+                  <div>
+                    <p style={{ fontSize: '13px' }}><strong>You</strong> updated system rules</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>3 hours ago</p>
+                  </div>
+                </div>
+              </section>
             </div>
+
+            <section className="card-panel">
+              <h4 style={{ fontWeight: '700', marginBottom: '20px' }}>Recently Published Novels</h4>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)', fontSize: '13px', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '12px 0' }}>Title</th>
+                      <th style={{ padding: '12px 0' }}>Author</th>
+                      <th style={{ padding: '12px 0' }}>Category</th>
+                      <th style={{ padding: '12px 0' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ fontSize: '14px' }}>
+                    <tr style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '16px 0', fontWeight: '600' }}>Solo Leveling: Ragnarok</td>
+                      <td>Sung Jin</td>
+                      <td>Fantasy</td>
+                      <td><span style={{ background: 'var(--success-light)', color: 'var(--success)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>LIVE</span></td>
+                    </tr>
+                    <tr>
+                      <td style={{ padding: '16px 0', fontWeight: '600' }}>The CEO's Secret</td>
+                      <td>LoveWriter</td>
+                      <td>Romance</td>
+                      <td><span style={{ background: 'var(--success-light)', color: 'var(--success)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>LIVE</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </main>
         </div>
       </div>
