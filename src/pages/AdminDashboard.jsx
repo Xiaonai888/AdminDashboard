@@ -243,30 +243,130 @@ const AdminDashboard = () => {
         {/* === MAIN CONTENT AREA === */}
         <div className="main-content">
           
-          {/* HEADER */}
-          <div className="header">
+          <div className="header" style={{
+            height: '80px',
+            background: '#FFFFFF',
+            borderBottom: '1px solid #E2E8F0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 40px',
+            position: 'sticky',
+            top: '0',
+            zIndex: '100'
+          }}>
             <div>
-               <h2 style={{ fontSize: '20px' }}>Welcome back, Xiaonai! 👋</h2>
+              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#0F172A', letterSpacing: '-0.02em' }}>
+                Welcome back, Xiaonai! 👋
+              </h2>
             </div>
+            
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-              <input type="text" className="search-bar" placeholder="Search authors, novels, reports..." />
-              
-              <svg width="24" height="24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              
-              {/* PROFILE DROPDOWN (Keep your logical structure) */}
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type="text" 
+                  className="search-bar" 
+                  placeholder="Search anything..." 
+                  style={{
+                    background: '#F1F5F9',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '12px',
+                    padding: '10px 16px 10px 40px',
+                    width: '320px',
+                    outline: 'none',
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
+                  }}
+                />
+                <svg style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} width="18" height="18" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </div>
+
+              <div style={{ position: 'relative', cursor: 'pointer', padding: '8px', borderRadius: '10px', transition: 'background 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'} onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}>
+                <svg width="22" height="22" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+                <span style={{ 
+                  position: 'absolute', top: '8px', right: '8px', width: '10px', height: '10px', 
+                  background: '#EF4444', borderRadius: '50%', border: '2px solid white',
+                  animation: 'pulse 2s infinite' 
+                }}></span>
+              </div>
+
               <div style={{ position: 'relative' }}>
                 <div 
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold' }}
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 8px', 
+                    borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#F1F5F9'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  XX
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ 
+                      width: '40px', height: '40px', borderRadius: '10px', 
+                      background: '#4F46E5', overflow: 'hidden', border: '2px solid #E2E8F0' 
+                    }}>
+                      <img src="https://ui-avatars.com/api/?name=Xiaonai+Xiao&background=4F46E5&color=fff&bold=true" alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                    <span style={{ 
+                      position: 'absolute', bottom: '-2px', right: '-2px', width: '12px', height: '12px', 
+                      background: '#10B981', borderRadius: '50%', border: '2px solid white' 
+                    }}></span>
+                  </div>
+                  <svg width="14" height="14" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </div>
+
                 {showProfileMenu && (
-                  <div style={{ position: 'absolute', top: '55px', right: '0', background: 'white', padding: '16px', borderRadius: '12px', width: '200px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontWeight: 'bold' }}>Xiaonai</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>Role: <span style={{ color: 'var(--primary)'}}>{currentUserRole}</span></div>
-                    {currentUserRole === 'Owner' && <div style={{ padding: '8px 0', cursor: 'pointer' }}>⚙️ Settings</div>}
-                    <div style={{ padding: '8px 0', cursor: 'pointer', color: 'var(--danger)' }}>🚪 Logout</div>
+                  <div style={{ 
+                    position: 'absolute', top: '60px', right: '0', background: 'rgba(255, 255, 255, 0.95)', 
+                    backdropFilter: 'blur(10px)', borderRadius: '16px', width: '240px', 
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    border: '1px solid #E2E8F0', overflow: 'hidden', zIndex: '1000',
+                    animation: 'fadeIn 0.2s ease-out'
+                  }}>
+                    <div style={{ padding: '16px', borderBottom: '1px solid #F1F5F9' }}>
+                      <p style={{ fontWeight: '700', fontSize: '15px', color: '#0F172A' }}>Xiaonai Xiao</p>
+                      <p style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>xiaonai888@gmail.com</p>
+                      <div style={{ 
+                        marginTop: '10px', display: 'inline-block', padding: '2px 8px', 
+                        borderRadius: '6px', background: '#EEF2FF', color: '#4F46E5', 
+                        fontSize: '11px', fontWeight: '600', textTransform: 'uppercase'
+                      }}>
+                        {currentUserRole}
+                      </div>
+                    </div>
+                    
+                    <div style={{ padding: '8px' }}>
+                      <div 
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', color: '#475569', fontSize: '14px', transition: 'all 0.2s' }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#4F46E5'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; }}
+                      >
+                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        My Profile
+                      </div>
+                      {currentUserRole === 'Owner' && (
+                        <div 
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', color: '#475569', fontSize: '14px', transition: 'all 0.2s' }}
+                          onMouseOver={(e) => { e.currentTarget.style.background = '#F1F5F9'; e.currentTarget.style.color = '#4F46E5'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#475569'; }}
+                        >
+                          <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                          System Settings
+                        </div>
+                      )}
+                      <div style={{ height: '1px', background: '#F1F5F9', margin: '8px 4px' }}></div>
+                      <div 
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', color: '#EF4444', fontSize: '14px', fontWeight: '600', transition: 'all 0.2s' }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#FEF2F2'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        Sign Out
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
