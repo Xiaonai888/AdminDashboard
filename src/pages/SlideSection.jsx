@@ -35,7 +35,6 @@ const styles = `
     overflow: hidden;
   }
 
-  /* SIDEBAR LOGIC */
   .sidebar {
     width: var(--sidebar-collapsed);
     background: var(--bg-card);
@@ -167,7 +166,6 @@ const styles = `
     animation: fadeIn 0.5s ease-out;
   }
 
-  /* SLIDE TABS */
   .slide-tabs {
     display: flex;
     background: var(--bg-card);
@@ -196,7 +194,6 @@ const styles = `
     background: var(--primary-light);
   }
 
-  /* UPLOAD CARD */
   .upload-card {
     background: var(--bg-card);
     border-radius: 24px;
@@ -250,7 +247,6 @@ const styles = `
 
   .btn-create:hover { transform: translateY(-2px); box-shadow: 0px 15px 30px rgba(79, 70, 229, 0.35); }
 
-  /* TABLE SECTION */
   .section-title {
     font-size: 24px;
     font-weight: 800;
@@ -357,20 +353,44 @@ const SlideSection = () => {
             <span className="logo-text">Shadow Exclusive</span>
           </div>
 
-          <div className="nav-group-label">Core</div>
+          <div className="nav-group-label">Overview</div>
           <div className="nav-item" onClick={() => navigate('/admin')}>
             <Icon d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             <span className="nav-text">Dashboard</span>
           </div>
+          <div className="nav-item" onClick={() => navigate('/novels')}>
+            <Icon d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            <span className="nav-text">Novels Content</span>
+          </div>
 
-          <div className="nav-group-label">Content</div>
+          <div className="nav-group-label">Visual Media</div>
           <div className="nav-item active">
             <Icon d="M2 3h20v14H2z M8 21h8 M12 17v4" />
             <span className="nav-text">Slide Section</span>
           </div>
-          <div className="nav-item" onClick={() => navigate('/novels')}>
-            <Icon d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            <span className="nav-text">Novels Content</span>
+          <div className="nav-item" onClick={() => navigate('/banners')}>
+            <Icon d="M3 3h18v18H3z M3 9h18 M9 3v18" />
+            <span className="nav-text">Banner System</span>
+          </div>
+
+          <div className="nav-group-label">System Admin</div>
+          <div className="nav-item" onClick={() => navigate('/category')}>
+            <Icon d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+            <span className="nav-text">Category</span>
+          </div>
+          <div className="nav-item" onClick={() => navigate('/rule')}>
+            <Icon d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <span className="nav-text">Rule</span>
+          </div>
+          <div className="nav-item" onClick={() => navigate('/account')}>
+            <Icon d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z" />
+            <span className="nav-text">Account</span>
+          </div>
+
+          <div className="nav-group-label">Finance</div>
+          <div className="nav-item" onClick={() => navigate('/income')}>
+            <Icon d="M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+            <span className="nav-text">Income</span>
           </div>
         </aside>
 
@@ -397,7 +417,7 @@ const SlideSection = () => {
             </div>
 
             <div className="upload-card">
-              <h3 style={{ marginBottom: '25px', textAlign: 'left', fontWeight: '800' }}>Home Page Settings</h3>
+              <h3 style={{ marginBottom: '25px', textAlign: 'left', fontWeight: '800', color: 'var(--text-main)' }}>Home Page Settings</h3>
               <div className="drop-zone">
                 <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12" size={30} color="var(--text-muted)" />
                 <p style={{ color: 'var(--text-muted)', fontWeight: '700' }}>Click or drag to upload picture</p>
@@ -454,4 +474,3 @@ const SlideSection = () => {
 };
 
 export default SlideSection;
-```</BrowserRouter>
