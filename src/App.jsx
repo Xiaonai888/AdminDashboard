@@ -1,60 +1,119 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 
-// Import Satellite Pages (អ្នកត្រូវប្រាកដថាអ្នកមាន File ទាំងនេះក្នុង Folder pages)
+// Import actual page files
 import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
-// អ្នកអាច import pages ពិតប្រាកដរបស់អ្នកនៅទីនេះ ឧទាហរណ៍៖
-// import Account from './pages/Account';
 
-// Placeholder សម្រាប់ទំព័រដែលមិនទាន់មាន (ដើម្បីកុំឱ្យ Error ពេល build)
 const PlaceholderPage = ({ title }) => (
-  <div style={{ padding: '40px', textAlign: 'center', color: '#64748B', fontFamily: 'Inter, sans-serif' }}>
-    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🚧</div>
-    <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px', color: '#0F172A' }}>{title} Page</h2>
-    <p style={{ fontSize: '14px' }}>This page is under development for Shadow Exclusive.</p>
+  <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ fontSize: '64px', marginBottom: '20px' }}>🚧</div>
+    <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '10px', color: 'var(--text-main)' }}>{title} Section</h2>
+    <p style={{ fontSize: '15px', color: 'var(--text-muted)' }}>This module is currently being optimized for Shadow Exclusive.</p>
   </div>
 );
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
   :root {
-    --bg-main: #F8FAFC; --bg-card: #FFFFFF; --primary: #4F46E5; --primary-light: #EEF2FF;
-    --text-main: #0F172A; --text-muted: #64748B; --success: #10B981;
-    --border: #E2E8F0; --sidebar-collapsed: 80px; --sidebar-expanded: 260px;
+    --bg-main: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --primary: #4F46E5;
+    --primary-light: #EEF2FF;
+    --text-main: #0F172A;
+    --text-muted: #64748B;
+    --success: #10B981;
+    --border: #E2E8F0;
+    --sidebar-collapsed: 85px;
+    --sidebar-expanded: 280px;
   }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', sans-serif; background: var(--bg-main); }
+  body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); }
+
   .app-layout { display: flex; height: 100vh; overflow: hidden; }
-  
+
   .sidebar {
-    width: var(--sidebar-collapsed); background: var(--bg-card);
-    border-right: 1px solid var(--border); display: flex; flex-direction: column;
-    padding: 20px 14px; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative; z-index: 1000; overflow-y: auto; overflow-x: hidden; flex-shrink: 0;
+    width: var(--sidebar-collapsed);
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 25px 15px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 1000;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
   }
   .sidebar::-webkit-scrollbar { width: 0px; }
-  .sidebar:hover { width: var(--sidebar-expanded); box-shadow: 10px 0 30px rgba(0,0,0,0.04); }
-  .sidebar-logo { min-height: 40px; display: flex; align-items: center; gap: 12px; margin-bottom: 30px; padding-left: 10px; }
-  .logo-text { font-size: 18px; font-weight: 700; color: var(--primary); opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+  .sidebar:hover { width: var(--sidebar-expanded); box-shadow: 15px 0 40px rgba(0,0,0,0.04); }
+
+  .sidebar-logo { 
+    min-height: 50px; 
+    display: flex; 
+    align-items: center; 
+    gap: 15px; 
+    margin-bottom: 40px; 
+    padding-left: 12px; 
+  }
+  .logo-text { 
+    font-size: 20px; 
+    font-weight: 800; 
+    color: var(--primary); 
+    opacity: 0; 
+    transition: opacity 0.2s; 
+    white-space: nowrap; 
+  }
   .sidebar:hover .logo-text { opacity: 1; }
-  .nav-group-label { font-size: 10px; font-weight: 800; color: var(--text-muted); margin: 20px 0 8px 12px; white-space: nowrap; opacity: 0; transition: opacity 0.2; text-transform: uppercase; letter-spacing: 1px; }
+
+  .nav-group-label { 
+    font-size: 11px; 
+    font-weight: 800; 
+    color: var(--text-muted); 
+    margin: 25px 0 10px 15px; 
+    white-space: nowrap; 
+    opacity: 0; 
+    transition: opacity 0.2s; 
+    text-transform: uppercase; 
+    letter-spacing: 1.2px; 
+  }
   .sidebar:hover .nav-group-label { opacity: 1; }
-  .nav-item { display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px; color: var(--text-muted); font-weight: 500; cursor: pointer; transition: all 0.2s ease; margin-bottom: 2px; white-space: nowrap; font-size: 14px; text-decoration: none;}
-  .nav-item:hover, .nav-item.active { background: var(--primary-light); color: var(--primary); }
-  .nav-text { margin-left: 14px; opacity: 0; transition: opacity 0.2s; }
+
+  .nav-item { 
+    display: flex; 
+    align-items: center; 
+    min-height: 48px; 
+    padding: 0 15px; 
+    border-radius: 12px; 
+    color: var(--text-muted); 
+    font-weight: 600; 
+    cursor: pointer; 
+    transition: all 0.2s ease; 
+    margin-bottom: 5px; 
+    white-space: nowrap; 
+    font-size: 15px; 
+    text-decoration: none;
+  }
+  .nav-item:hover, .nav-item.active { 
+    background: var(--primary-light); 
+    color: var(--primary); 
+  }
+
+  .nav-text { margin-left: 16px; opacity: 0; transition: opacity 0.2s; }
   .sidebar:hover .nav-text { opacity: 1; }
-  .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .page-content { flex: 1; overflow-y: auto; }
+
+  .main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .page-content { flex: 1; overflow-y: auto; background: var(--bg-main); }
 `;
 
-const Icon = ({ d, size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: `${size}px`, flexShrink: 0 }}>
+const Icon = ({ d, size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: `${size}px`, flexShrink: 0 }}>
     <path d={d} />
   </svg>
 );
 
-// រចនាសម្ព័ន្ធ Menu របស់អ្នក (រក្សាទុកទិន្នន័យចាស់របស់អ្នកទាំងអស់)
 const navItems = {
   overview: [
     { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
@@ -82,14 +141,12 @@ const navItems = {
   ],
 };
 
-// Component layout សម្រាប់គ្រប់ទំព័រ (ដែលមាន Sidebar)
 const MainLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
     <div className="app-layout">
-      {/* Sidebar (រក្សាទុកកូដរចនាប័ទ្មរបស់អ្នកទាំងអស់) */}
       <aside className="sidebar">
         <div className="sidebar-logo">
           <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
@@ -141,14 +198,13 @@ export default function App() {
     <Router>
       <style>{styles}</style>
       <Routes>
-        {/* បើចូលមកកាន់ / ឱ្យវា Navigate ទៅ Dashboard ភ្លាម */}
         <Route path="/" element={<Navigate to="/admin" replace />} />
         
-        {/* ទំព័រពិតប្រាកដដែលអ្នកមាន File រួចហើយ */}
+        {/* Actual Pages */}
         <Route path="/admin" element={<MainLayout><AdminDashboard /></MainLayout>} />
         <Route path="/slides" element={<MainLayout><SlideSection /></MainLayout>} />
         
-        {/* Placeholders សម្រាប់ទំព័រដែលមិនទាន់មាន File */}
+        {/* Placeholder Routes */}
         <Route path="/novels" element={<MainLayout><PlaceholderPage title="Novels Content" /></MainLayout>} />
         <Route path="/authors" element={<MainLayout><PlaceholderPage title="Authors Community" /></MainLayout>} />
         <Route path="/banners" element={<MainLayout><PlaceholderPage title="Banner System" /></MainLayout>} />
@@ -164,7 +220,6 @@ export default function App() {
         <Route path="/withdraw" element={<MainLayout><PlaceholderPage title="Withdraw" /></MainLayout>} />
         <Route path="/ranking" element={<MainLayout><PlaceholderPage title="Ranking" /></MainLayout>} />
 
-        {/* បើវាយ Link ផ្តេសផ្តាស ឱ្យត្រឡប់មក Dashboard */}
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </Router>
