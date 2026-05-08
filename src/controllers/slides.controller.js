@@ -126,8 +126,8 @@ export async function getSlides(req, res) {
       .select('*')
       .eq('section_key', sectionKey)
 
-    // Frontend normal API: show only active slides.
-    // AdminDashboard with include_inactive=true: show active + inactive slides.
+    // Frontend normal API: show ACTIVE slides only.
+    // AdminDashboard API with include_inactive=true: show ACTIVE + INACTIVE slides.
     if (!includeInactive) {
       query = query.eq('is_active', true)
     }
@@ -355,14 +355,12 @@ export async function getSlideActivityLogs(req, res) {
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    let query = supabase
+    const { data, error, count } = await supabase
       .from('admin_activity_logs')
       .select('*', { count: 'exact' })
       .eq('entity', 'slides')
       .order('created_at', { ascending: false })
       .range(from, to)
-
-    const { data, error, count } = await query
 
     if (error) throw error
 
