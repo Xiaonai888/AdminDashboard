@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SECTION_KEY = 'home_top_slider';
 const SLOTS = [1, 2, 3, 4, 5, 6, 7];
+const LOG_PAGE_SIZE = 20;
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -18,6 +19,7 @@ const styles = `
   .editor-panel{position:sticky;top:92px}.editor-body{padding:20px}.selected-preview{aspect-ratio:16/9;border-radius:16px;border:1px solid var(--border);background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden;margin-bottom:16px}.selected-preview img{width:100%;height:100%;object-fit:cover}.selected-preview-empty{height:100%;display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:13px;font-weight:800}.field-label{display:block;font-size:12px;font-weight:900;color:#334155;margin:12px 0 7px}.input,.textarea{width:100%;padding:13px 14px;border-radius:13px;border:1px solid var(--border);outline:none;background:#F8FAFC;font-size:14px;font-family:inherit}.textarea{min-height:86px;resize:vertical}.input:focus,.textarea:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
   .upload-box{border:1.5px dashed #CBD5E1;background:#F8FAFC;border-radius:15px;padding:15px;margin-top:12px;cursor:pointer;text-align:center}.upload-box:hover{border-color:var(--primary);background:var(--light)}.upload-title{font-size:13px;font-weight:900}.upload-help{margin-top:4px;font-size:11.5px;color:var(--muted)}.toggle-row{margin-top:14px;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:space-between}.toggle-title{font-size:13px;font-weight:900}.toggle-help{margin-top:3px;font-size:11.5px;color:var(--muted)}.switch{width:48px;height:28px;border-radius:999px;background:#CBD5E1;padding:3px;border:none;cursor:pointer}.switch.on{background:var(--success)}.switch-thumb{width:22px;height:22px;border-radius:50%;background:#fff;display:block;transition:.2s;box-shadow:0 2px 6px rgba(15,23,42,.18)}.switch.on .switch-thumb{transform:translateX(20px)}
   .btn-row{display:grid;gap:10px;margin-top:16px}.btn-primary,.btn-secondary{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled{opacity:.55;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}.message{padding:12px 14px;border-radius:13px;margin-bottom:14px;font-size:13px;font-weight:800;line-height:1.45}.message.success{background:var(--successBg);color:#047857}.message.error{background:var(--dangerBg);color:#B91C1C}.message.info{background:var(--light);color:var(--primary)}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
+  .danger-note{color:#B91C1C;font-size:12px;font-weight:800;margin-top:8px}.btn-danger{background:var(--dangerBg)!important;color:#B91C1C!important;border:1px solid #FECACA!important}.btn-warning{background:#FEF3C7!important;color:#92400E!important;border:1px solid #FDE68A!important}.actor-box{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:9px 11px}.actor-box label{font-size:12px;font-weight:900;color:var(--muted)}.actor-input{border:none;outline:none;background:#F8FAFC;border-radius:10px;padding:9px 10px;font-size:13px;font-weight:700;min-width:150px}.logs-panel{margin-top:24px}.logs-list{padding:10px 18px 18px}.log-item{display:grid;grid-template-columns:140px 100px 1fr 130px;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid #F1F5F9}.log-time{font-size:12px;color:var(--muted);font-weight:700}.log-action{font-size:11px;font-weight:900;padding:6px 9px;border-radius:999px;text-align:center;background:#F1F5F9;color:#334155}.log-action.create{background:var(--successBg);color:#047857}.log-action.update,.log-action.visibility{background:var(--light);color:var(--primary)}.log-action.delete{background:var(--dangerBg);color:#B91C1C}.log-main{font-size:13px;font-weight:800}.log-sub{font-size:12px;color:var(--muted);margin-top:3px}.log-actor{font-size:12px;color:#334155;font-weight:800;text-align:right}.pager{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:0 18px 18px}.pager button{border:1px solid var(--border);background:#fff;padding:9px 12px;border-radius:11px;font-weight:900;cursor:pointer}.pager button:disabled{opacity:.45;cursor:not-allowed}.pager span{font-size:12px;color:var(--muted);font-weight:800}
   @media(max-width:1200px){.manager-shell{grid-template-columns:1fr}.editor-panel{position:static}}@media(max-width:900px){.content-body{padding:22px 16px}.header{padding:0 18px}.slots-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.slots-grid{grid-template-columns:1fr}}
 `;
 
@@ -84,6 +86,11 @@ function getLatestSlide(slides, slotNumber) {
     .sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))[0] || null;
 }
 
+function formatTime(value) {
+  if (!value) return 'Unknown time';
+  return new Date(value).toLocaleString();
+}
+
 export default function SlideSection() {
   const fileInputRef = useRef(null);
   const [selectedSlot, setSelectedSlot] = useState(1);
@@ -96,13 +103,18 @@ export default function SlideSection() {
   const [localPreviewUrl, setLocalPreviewUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const [actorName, setActorName] = useState(() => localStorage.getItem('shadow_admin_actor') || 'Admin');
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsTotalPages, setLogsTotalPages] = useState(1);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const slotMap = useMemo(() => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}), [slides]);
   const selectedSlide = slotMap[selectedSlot];
 
   const fetchSlides = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/slides?section_key=${SECTION_KEY}`);
+      const res = await fetch(`${API_URL}/api/slides?section_key=${SECTION_KEY}&include_inactive=true`);
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to fetch slides');
       setSlides(data.slides || []);
@@ -111,7 +123,31 @@ export default function SlideSection() {
     }
   };
 
-  useEffect(() => { fetchSlides(); }, []);
+  const fetchActivityLogs = async (page = logsPage) => {
+    try {
+      setLogsLoading(true);
+      const res = await fetch(`${API_URL}/api/slides/logs?page=${page}&limit=${LOG_PAGE_SIZE}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to load records');
+
+      setActivityLogs(data.logs || []);
+      setLogsPage(data.page || page);
+      setLogsTotalPages(data.totalPages || 1);
+    } catch (error) {
+      setActivityLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSlides();
+    fetchActivityLogs(1);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('shadow_admin_actor', actorName || 'Admin');
+  }, [actorName]);
 
   useEffect(() => {
     const slide = slotMap[selectedSlot];
@@ -131,9 +167,14 @@ export default function SlideSection() {
     setLocalPreviewUrl(URL.createObjectURL(file));
   };
 
+  const refreshAfterAction = async () => {
+    await fetchSlides();
+    await fetchActivityLogs(1);
+  };
+
   const handleSaveSlide = async () => {
-    if (!selectedFile) {
-      setMessage({ type: 'info', text: 'Choose an image before saving. This version saves a new image record for the selected slot.' });
+    if (!selectedSlide && !selectedFile) {
+      setMessage({ type: 'error', text: 'Choose an image first. A new slide slot needs an image.' });
       return;
     }
 
@@ -141,23 +182,89 @@ export default function SlideSection() {
       setLoading(true);
       setMessage(null);
       const formData = new FormData();
-      formData.append('image', selectedFile);
+      if (selectedFile) formData.append('image', selectedFile);
       formData.append('section_key', SECTION_KEY);
       formData.append('title', title || `Home Slide ${selectedSlot}`);
       formData.append('subtitle', subtitle);
       formData.append('link_url', linkUrl || '/');
       formData.append('order_index', String(selectedSlot));
       formData.append('is_active', String(isActive));
+      formData.append('admin_actor', actorName || 'Admin');
 
-      const res = await fetch(`${API_URL}/api/slides`, { method: 'POST', body: formData });
+      const isUpdating = Boolean(selectedSlide?.id);
+      const url = isUpdating ? `${API_URL}/api/slides/${selectedSlide.id}` : `${API_URL}/api/slides`;
+      const method = isUpdating ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'X-Admin-Actor': actorName || 'Admin' },
+        body: formData,
+      });
+
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to save slide');
 
-      setMessage({ type: 'success', text: `Slide ${selectedSlot} saved successfully.` });
+      setMessage({ type: 'success', text: `Slide ${selectedSlot} ${isUpdating ? 'updated' : 'created'} successfully.` });
       setSelectedFile(null);
       setLocalPreviewUrl('');
       if (fileInputRef.current) fileInputRef.current.value = '';
-      await fetchSlides();
+      await refreshAfterAction();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSlide = async () => {
+    if (!selectedSlide?.id) {
+      setMessage({ type: 'info', text: `Slide ${selectedSlot} is already empty.` });
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete Slide ${selectedSlot}? It will be hidden from the homepage.`);
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      setMessage(null);
+      const res = await fetch(`${API_URL}/api/slides/${selectedSlide.id}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Actor': actorName || 'Admin' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to delete slide');
+      setMessage({ type: 'success', text: `Slide ${selectedSlot} deleted / hidden successfully.` });
+      await refreshAfterAction();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickVisibility = async () => {
+    if (!selectedSlide?.id) {
+      setMessage({ type: 'info', text: 'This slot has no slide yet.' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage(null);
+      const formData = new FormData();
+      formData.append('is_active', String(isActive));
+      formData.append('admin_actor', actorName || 'Admin');
+
+      const res = await fetch(`${API_URL}/api/slides/${selectedSlide.id}`, {
+        method: 'PUT',
+        headers: { 'X-Admin-Actor': actorName || 'Admin' },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to update visibility');
+      setMessage({ type: 'success', text: `Slide ${selectedSlot} visibility updated.` });
+      await refreshAfterAction();
     } catch (error) {
       setMessage({ type: 'error', text: error.message });
     } finally {
@@ -188,8 +295,14 @@ export default function SlideSection() {
           <header className="header"><h2>Slide Management</h2></header>
           <main className="content-body">
             <div className="page-title-row">
-              <h1>Home Slides Manager</h1>
-              <p>Manage homepage hero slides, featured visuals, and promotional links.</p>
+              <div>
+                <h1>Home Slides Manager</h1>
+                <p>Manage homepage hero slides, featured visuals, and promotional links.</p>
+              </div>
+              <div className="actor-box">
+                <label>Editor</label>
+                <input className="actor-input" value={actorName} onChange={(e) => setActorName(e.target.value)} placeholder="Admin name" />
+              </div>
             </div>
 
             <div className="manager-shell">
@@ -235,11 +348,51 @@ export default function SlideSection() {
                     <button type="button" className={`switch ${isActive ? 'on' : ''}`} onClick={() => setIsActive((value) => !value)} aria-label="Toggle slide visibility"><span className="switch-thumb" /></button>
                   </div>
 
-                  <div className="btn-row"><button className="btn-primary" onClick={handleSaveSlide} disabled={loading}>{loading ? 'Saving...' : `Save Slide ${selectedSlot}`}</button><button className="btn-secondary" type="button" onClick={handleResetForm}>Reset Form</button></div>
-                  <div className="note-box">This UI is prepared for fixed 7-slot management. The current backend still saves a new record when replacing an image; the next backend update should make each slot save over its existing record.</div>
+                  <div className="btn-row">
+                    <button className="btn-primary" onClick={handleSaveSlide} disabled={loading}>{loading ? 'Saving...' : `Save Slide ${selectedSlot}`}</button>
+                    <button className="btn-warning" onClick={handleQuickVisibility} disabled={loading || !selectedSlide}>{loading ? 'Saving...' : 'Apply Visibility'}</button>
+                    <button className="btn-secondary" type="button" onClick={handleResetForm} disabled={loading}>Reset Form</button>
+                    <button className="btn-danger" type="button" onClick={handleDeleteSlide} disabled={loading || !selectedSlide}>Delete / Hide Slide</button>
+                  </div>
+                  <div className="note-box">Replace image keeps the new image active for this slot. Old image files are not removed from Supabase Storage by this UI. This is safer while testing; storage cleanup can be added later after the system is stable.</div>
                 </div>
               </section>
             </div>
+
+
+            <section className="panel logs-panel">
+              <div className="panel-header">
+                <div>
+                  <h3>Slide Records</h3>
+                  <p>Recent slide actions. Records are loaded 20 per page and old records are cleaned after 30 days by the backend.</p>
+                </div>
+                <button className="btn-secondary" type="button" onClick={() => fetchActivityLogs(logsPage)} disabled={logsLoading}>{logsLoading ? 'Loading...' : 'Refresh'}</button>
+              </div>
+
+              <div className="logs-list">
+                {activityLogs.length === 0 ? (
+                  <div className="note-box">No records yet, or backend record logging is not installed yet.</div>
+                ) : (
+                  activityLogs.map((log) => (
+                    <div className="log-item" key={log.id}>
+                      <div className="log-time">{formatTime(log.created_at)}</div>
+                      <div className={`log-action ${String(log.action || '').toLowerCase()}`}>{log.action || 'ACTION'}</div>
+                      <div>
+                        <div className="log-main">{log.title || `Slide ${log.order_index || '-'}`}</div>
+                        <div className="log-sub">Slot {log.order_index || '-'} • {log.details?.message || log.details?.link_url || 'No extra detail'}</div>
+                      </div>
+                      <div className="log-actor">{log.actor || 'Admin'}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pager">
+                <button type="button" disabled={logsLoading || logsPage <= 1} onClick={() => fetchActivityLogs(logsPage - 1)}>Previous</button>
+                <span>Page {logsPage} / {logsTotalPages}</span>
+                <button type="button" disabled={logsLoading || logsPage >= logsTotalPages} onClick={() => fetchActivityLogs(logsPage + 1)}>Next</button>
+              </div>
+            </section>
           </main>
         </div>
       </div>
