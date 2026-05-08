@@ -1,1047 +1,366 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SECTION_KEY = 'home_top_slider';
+const SLOTS = [1, 2, 3, 4, 5, 6, 7];
+const LOG_PAGE_SIZE = 20;
+
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-  :root {
-    --bg-main: #F8FAFC;
-    --bg-card: #FFFFFF;
-    --primary: #4F46E5;
-    --primary-light: #EEF2FF;
-    --text-main: #0F172A;
-    --text-muted: #64748B;
-    --success: #10B981;
-    --success-light: #D1FAE5;
-    --warning: #F59E0B;
-    --danger: #EF4444;
-    --danger-light: #FEE2E2;
-    --border: #E2E8F0;
-    --sidebar-collapsed: 80px;
-    --sidebar-expanded: 260px;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes barGrow {
-    from { transform: scaleY(0); }
-    to { transform: scaleY(1); }
-  }
-
-  .dashboard-wrapper {
-    display: flex;
-    height: 100vh;
-    font-family: 'Inter', sans-serif;
-    background-color: var(--bg-main);
-    color: var(--text-main);
-    overflow: hidden;
-  }
-
-  /* ===== SIDEBAR ===== */
-  .sidebar {
-    width: var(--sidebar-collapsed);
-    background: var(--bg-card);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 20px 14px;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    z-index: 1000;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .sidebar::-webkit-scrollbar { width: 0px; }
-
-  .sidebar:hover {
-    width: var(--sidebar-expanded);
-    box-shadow: 10px 0 30px rgba(0,0,0,0.04);
-  }
-
-  .sidebar-logo {
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 30px;
-    padding-left: 10px;
-  }
-
-  .logo-text {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--primary);
-    opacity: 0;
-    transition: opacity 0.2s;
-    white-space: nowrap;
-  }
-
-  .sidebar:hover .logo-text { opacity: 1; }
-
-  .nav-group-label {
-    font-size: 10px;
-    font-weight: 800;
-    color: var(--text-muted);
-    margin: 20px 0 8px 12px;
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .sidebar:hover .nav-group-label { opacity: 1; }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 12px;
-    border-radius: 10px;
-    color: var(--text-muted);
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-bottom: 2px;
-    white-space: nowrap;
-    font-size: 14px;
-  }
-
-  .nav-item:hover, .nav-item.active {
-    background: var(--primary-light);
-    color: var(--primary);
-  }
-
-  .nav-text {
-    margin-left: 14px;
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .sidebar:hover .nav-text { opacity: 1; }
-
-  /* ===== MAIN CONTENT ===== */
-  .main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
-
-  /* ===== HEADER ===== */
-  .header {
-    height: 70px;
-    background: #FFFFFF;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 36px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .header-left h2 {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--text-main);
-  }
-
-  /* Search Bar */
-  .search-wrap {
-    position: relative;
-  }
-
-  .search-input {
-    background: #F1F5F9;
-    border: 1.5px solid transparent;
-    border-radius: 12px;
-    padding: 9px 14px 9px 40px;
-    width: 300px;
-    outline: none;
-    font-size: 13.5px;
-    font-family: 'Inter', sans-serif;
-    color: var(--text-main);
-    transition: all 0.2s;
-  }
-
-  .search-input:focus {
-    background: #fff;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
-    width: 340px;
-  }
-
-  .search-input::placeholder { color: #94A3B8; }
-
-  .search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #94A3B8;
-    pointer-events: none;
-  }
-
-  /* Search dropdown */
-  .search-dropdown {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    width: 340px;
-    background: #fff;
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.1);
-    overflow: hidden;
-    z-index: 999;
-    animation: fadeIn 0.15s ease;
-  }
-
-  .search-section-title {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--text-muted);
-    padding: 10px 14px 6px;
-  }
-
-  .search-result-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 14px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .search-result-item:hover { background: #F8FAFC; }
-
-  .search-result-icon {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-
-  .search-result-item .info { flex: 1; min-width: 0; }
-  .search-result-item .name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .search-result-item .sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
-
-  .search-badge {
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 20px;
-  }
-
-  /* Profile */
-  .profile-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    padding: 5px 8px;
-    border-radius: 12px;
-    transition: background 0.15s;
-  }
-
-  .profile-btn:hover { background: #F1F5F9; }
-
-  .profile-avatar {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #4F46E5, #7C3AED);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
-    border: 2px solid #E2E8F0;
-    flex-shrink: 0;
-  }
-
-  .profile-menu {
-    position: absolute;
-    top: calc(100% + 10px);
-    right: 0;
-    background: white;
-    border-radius: 16px;
-    width: 220px;
-    box-shadow: 0 16px 40px rgba(0,0,0,0.12);
-    border: 1px solid #E2E8F0;
-    overflow: hidden;
-    animation: fadeIn 0.15s ease;
-    z-index: 200;
-  }
-
-  .profile-menu-header {
-    padding: 16px;
-    background: linear-gradient(135deg, #F0F0FF, #EEF2FF);
-    border-bottom: 1px solid #E0E7FF;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .profile-menu-avatar {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #4F46E5, #7C3AED);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: 700;
-    font-size: 15px;
-    flex-shrink: 0;
-  }
-
-  .profile-menu-name { font-weight: 700; font-size: 14px; }
-  .profile-menu-role { font-size: 11px; color: var(--primary); font-weight: 600; }
-
-  .profile-menu-body { padding: 8px; }
-
-  .profile-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 13.5px;
-    color: #475569;
-    font-weight: 500;
-    transition: background 0.15s;
-  }
-
-  .profile-menu-item:hover { background: #F1F5F9; }
-  .profile-menu-item.danger { color: #EF4444; }
-  .profile-menu-item.danger:hover { background: #FEF2F2; }
-
-  .profile-menu-divider { height: 1px; background: #F1F5F9; margin: 4px 0; }
-
-  /* ===== CONTENT BODY ===== */
-  .content-body {
-    padding: 28px 36px;
-    max-width: 1600px;
-    width: 100%;
-    margin: 0 auto;
-    animation: fadeIn 0.4s ease-out;
-  }
-
-  .welcome-row {
-    margin-bottom: 24px;
-  }
-
-  .welcome-row h1 {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--text-main);
-  }
-
-  .welcome-row p {
-    font-size: 13.5px;
-    color: var(--text-muted);
-    margin-top: 3px;
-  }
-
-  /* ===== STAT CARDS ===== */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-    margin-bottom: 28px;
-  }
-
-  .stat-card {
-    background: var(--bg-card);
-    border-radius: 16px;
-    padding: 22px 24px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid var(--border);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-  }
-
-  .stat-card-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-  }
-
-  .stat-label {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .stat-icon-box {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
-  .stat-trend {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  /* ===== BENTO GRID ===== */
-  .bento-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
-    margin-bottom: 24px;
-  }
-
-  .card-panel {
-    background: var(--bg-card);
-    border-radius: 16px;
-    padding: 22px 24px;
-    border: 1px solid var(--border);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  }
-
-  .panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-
-  .panel-header h4 { font-weight: 700; font-size: 15px; }
-
-  .panel-link {
-    font-size: 12px;
-    color: var(--primary);
-    font-weight: 600;
-    cursor: pointer;
-    padding: 4px 10px;
-    border-radius: 8px;
-    transition: background 0.15s;
-  }
-
-  .panel-link:hover { background: var(--primary-light); }
-
-  /* Chart */
-  .chart-wrap {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    height: 160px;
-    padding-top: 10px;
-  }
-
-  .chart-col {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    height: 100%;
-    justify-content: flex-end;
-    gap: 6px;
-  }
-
-  .chart-bar-wrap {
-    width: 100%;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    flex: 1;
-  }
-
-  .chart-bar {
-    width: 80%;
-    border-radius: 6px 6px 0 0;
-    transition: all 0.3s ease;
-    transform-origin: bottom;
-    animation: barGrow 0.6s ease-out forwards;
-  }
-
-  .chart-day {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-
-  /* Log Items */
-  .log-list { display: flex; flex-direction: column; gap: 14px; }
-
-  .log-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .log-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-
-  .log-text { font-size: 13px; line-height: 1.5; }
-  .log-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-  .view-all-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    margin-top: 16px;
-    padding: 10px;
-    border-radius: 10px;
-    background: #F8FAFC;
-    border: 1px solid var(--border);
-    color: var(--primary);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .view-all-btn:hover { background: var(--primary-light); }
-
-  /* ===== NOVELS TABLE ===== */
-  .novels-table-wrap { overflow-x: auto; }
-
-  .novels-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-  }
-
-  .novels-table thead tr {
-    border-bottom: 1.5px solid var(--border);
-  }
-
-  .novels-table th {
-    padding: 10px 12px;
-    text-align: left;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .novels-table td {
-    padding: 14px 12px;
-    border-bottom: 1px solid #F8FAFC;
-    vertical-align: middle;
-  }
-
-  .novels-table tr:last-child td { border-bottom: none; }
-
-  .novels-table tr:hover td { background: #FAFBFF; }
-
-  .novel-title-cell {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .live-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--success);
-    margin-right: 6px;
-    box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 2px rgba(16,185,129,0.2); }
-    50% { box-shadow: 0 0 0 5px rgba(16,185,129,0.1); }
-  }
-
-  .status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 11px;
-    border-radius: 20px;
-    font-size: 11.5px;
-    font-weight: 700;
-  }
-
-  .badge-published {
-    background: var(--success-light);
-    color: var(--success);
-  }
-
-  .badge-pending {
-    background: #FEF3C7;
-    color: #D97706;
-  }
-
-  @media (max-width: 768px) {
-    .bento-grid { grid-template-columns: 1fr; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .content-body { padding: 20px 16px; }
-    .header { padding: 0 16px; }
-    .search-input { width: 200px; }
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--success:#10B981;--successBg:#D1FAE5;--danger:#EF4444;--dangerBg:#FEE2E2;--side:80px;--sideOpen:260px}
+  *{box-sizing:border-box;margin:0;padding:0} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+  .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}.sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s;flex-shrink:0}.sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.05)}
+  .sidebar-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px}.logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px}.sidebar:hover .logo-text,.sidebar:hover .nav-text,.sidebar:hover .nav-group-label{opacity:1}.nav-group-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--soft);white-space:nowrap}.nav-item{height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:600;white-space:nowrap}.nav-item:hover,.nav-item.active{background:var(--light);color:var(--primary)}.nav-text{opacity:0;margin-left:14px;transition:.2s}
+  .main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900}.content-body{padding:28px 36px 48px;max-width:1600px;margin:0 auto}.page-title-row{margin-bottom:22px}.page-title-row h1{font-size:27px;font-weight:900;letter-spacing:-.04em}.page-title-row p{font-size:13.5px;color:var(--muted);margin-top:5px}
+  .manager-shell{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,.7fr);gap:24px;align-items:start}.panel{background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:0 8px 28px rgba(15,23,42,.06);overflow:hidden}.panel-header{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;align-items:center}.panel-header h3{font-size:16px;font-weight:900}.panel-header p{font-size:12.5px;color:var(--muted);margin-top:4px}.count-pill{font-size:12px;font-weight:800;color:var(--primary);background:var(--light);border:1px solid #E0E7FF;padding:7px 11px;border-radius:999px}
+  .slots-grid{padding:18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.slot-card{border:1px solid var(--border);border-radius:18px;background:#fff;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit;transition:.18s;box-shadow:0 2px 10px rgba(15,23,42,.04)}.slot-card:hover{transform:translateY(-2px);border-color:#C7D2FE;box-shadow:0 14px 34px rgba(79,70,229,.12)}.slot-card.selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.14),0 14px 34px rgba(79,70,229,.16)}
+  .slot-preview{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden}.slot-preview img{width:100%;height:100%;object-fit:cover;display:block}.empty-preview{height:100%;display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:12px;font-weight:800}.slot-number,.slot-status{position:absolute;top:10px;z-index:2;border-radius:999px;font-size:10.5px;font-weight:900;padding:6px 9px;backdrop-filter:blur(8px)}.slot-number{left:10px;background:rgba(15,23,42,.78);color:#fff}.slot-status{right:10px}.slot-status.active{background:rgba(209,250,229,.92);color:#047857}.slot-status.inactive{background:rgba(254,226,226,.92);color:#B91C1C}.slot-status.empty{background:rgba(241,245,249,.92);color:#475569}.slot-meta{padding:13px 14px 15px}.slot-title{font-size:13.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.slot-link{margin-top:4px;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .editor-panel{position:sticky;top:92px}.editor-body{padding:20px}.selected-preview{aspect-ratio:16/9;border-radius:16px;border:1px solid var(--border);background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden;margin-bottom:16px}.selected-preview img{width:100%;height:100%;object-fit:cover}.selected-preview-empty{height:100%;display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:13px;font-weight:800}.field-label{display:block;font-size:12px;font-weight:900;color:#334155;margin:12px 0 7px}.input,.textarea{width:100%;padding:13px 14px;border-radius:13px;border:1px solid var(--border);outline:none;background:#F8FAFC;font-size:14px;font-family:inherit}.textarea{min-height:86px;resize:vertical}.input:focus,.textarea:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+  .upload-box{border:1.5px dashed #CBD5E1;background:#F8FAFC;border-radius:15px;padding:15px;margin-top:12px;cursor:pointer;text-align:center}.upload-box:hover{border-color:var(--primary);background:var(--light)}.upload-title{font-size:13px;font-weight:900}.upload-help{margin-top:4px;font-size:11.5px;color:var(--muted)}.toggle-row{margin-top:14px;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:space-between}.toggle-title{font-size:13px;font-weight:900}.toggle-help{margin-top:3px;font-size:11.5px;color:var(--muted)}.switch{width:48px;height:28px;border-radius:999px;background:#CBD5E1;padding:3px;border:none;cursor:pointer}.switch.on{background:var(--success)}.switch-thumb{width:22px;height:22px;border-radius:50%;background:#fff;display:block;transition:.2s;box-shadow:0 2px 6px rgba(15,23,42,.18)}.switch.on .switch-thumb{transform:translateX(20px)}
+  .btn-row{display:grid;gap:10px;margin-top:16px}.btn-primary,.btn-secondary{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled,.btn-danger:disabled{opacity:.55;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}.message{padding:12px 14px;border-radius:13px;margin-bottom:14px;font-size:13px;font-weight:800;line-height:1.45}.message.success{background:var(--successBg);color:#047857}.message.error{background:var(--dangerBg);color:#B91C1C}.message.info{background:var(--light);color:var(--primary)}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
+  .danger-note{color:#B91C1C;font-size:12px;font-weight:800;margin-top:8px}.btn-danger{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit;background:#FFF1F2!important;color:#BE123C!important;border:1px solid #FECDD3!important}.btn-danger:hover{background:#FFE4E6!important}.btn-warning{background:#FEF3C7!important;color:#92400E!important;border:1px solid #FDE68A!important}.actor-box{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:9px 11px}.actor-box label{font-size:12px;font-weight:900;color:var(--muted)}.actor-input{border:none;outline:none;background:#F8FAFC;border-radius:10px;padding:9px 10px;font-size:13px;font-weight:700;min-width:150px}.logs-panel{margin-top:24px}.logs-list{padding:10px 18px 18px}.log-item{display:grid;grid-template-columns:140px 100px 1fr 130px;gap:14px;align-items:center;padding:13px 0;border-bottom:1px solid #F1F5F9}.log-time{font-size:12px;color:var(--muted);font-weight:700}.log-action{font-size:11px;font-weight:900;padding:6px 9px;border-radius:999px;text-align:center;background:#F1F5F9;color:#334155}.log-action.create{background:var(--successBg);color:#047857}.log-action.update,.log-action.visibility{background:var(--light);color:var(--primary)}.log-action.delete{background:var(--dangerBg);color:#B91C1C}.log-main{font-size:13px;font-weight:800}.log-sub{font-size:12px;color:var(--muted);margin-top:3px}.log-actor{font-size:12px;color:#334155;font-weight:800;text-align:right}.pager{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:0 18px 18px}.pager button{border:1px solid var(--border);background:#fff;padding:9px 12px;border-radius:11px;font-weight:900;cursor:pointer}.pager button:disabled{opacity:.45;cursor:not-allowed}.pager span{font-size:12px;color:var(--muted);font-weight:800}
+  @media(max-width:1200px){.manager-shell{grid-template-columns:1fr}.editor-panel{position:static}}@media(max-width:900px){.content-body{padding:22px 16px}.header{padding:0 18px}.slots-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.slots-grid{grid-template-columns:1fr}}
 `;
 
 const Icon = ({ d, size = 20, color }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-    stroke={color || "currentColor"} strokeWidth={2.2}
-    strokeLinecap="round" strokeLinejoin="round"
-    style={{ minWidth: `${size}px`, flexShrink: 0 }}>
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || 'currentColor'} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: `${size}px`, flexShrink: 0 }}>
     <path d={d} />
   </svg>
 );
 
-const AdminDashboard = () => {
+const navItems = {
+  overview: [
+    { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
+    { path: '/novels', label: 'Novels Content', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
+    { path: '/authors', label: 'Authors Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  ],
+  visualMedia: [
+    { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
+    { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
+    { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
+    { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  ],
+  systemAdmin: [
+    { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
+    { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+    { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
+    { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
+  ],
+  finance: [
+    { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+    { path: '/history', label: 'History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { path: '/deposit', label: 'Deposit', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3' },
+    { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12' },
+    { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z' },
+  ],
+};
+
+function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const currentUserName = 'Xiaonai Xiao';
-  const currentUserRole = 'Owner';
+  const renderGroup = (items) => items.map((item) => (
+    <div key={item.path} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+      <Icon d={item.icon} size={20} />
+      <span className="nav-text">{item.label}</span>
+    </div>
+  ));
 
-  const chartData = [
-    { day: 'Mon', value: 42, color: '#10B981' },
-    { day: 'Tue', value: 65, color: '#10B981' },
-    { day: 'Wed', value: 30, color: '#EF4444' },
-    { day: 'Thu', value: 82, color: '#10B981' },
-    { day: 'Fri', value: 50, color: '#10B981' },
-    { day: 'Sat', value: 98, color: '#4F46E5', active: true },
-    { day: 'Sun', value: 70, color: '#10B981' },
-  ];
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
+        <span className="logo-text">Shadow Exclusive</span>
+      </div>
+      <span className="nav-group-label">Overview</span>{renderGroup(navItems.overview)}
+      <span className="nav-group-label">Visual Media</span>{renderGroup(navItems.visualMedia)}
+      <span className="nav-group-label">System Admin</span>{renderGroup(navItems.systemAdmin)}
+      <span className="nav-group-label">Finance & Growth</span>{renderGroup(navItems.finance)}
+    </aside>
+  );
+}
 
-  const maxVal = Math.max(...chartData.map(d => d.value));
+function getLatestSlide(slides, slotNumber) {
+  return slides
+    .filter((slide) => Number(slide.order_index) === slotNumber)
+    .sort((a, b) => new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0))[0] || null;
+}
 
-  const searchResults = {
-    novels: [
-      { id: 1, name: 'Solo Leveling: Ragnarok', sub: 'Sung Jin · Action / Fantasy', color: '#EEF2FF', icon: '📖', badge: 'Live', badgeColor: '#D1FAE5', badgeText: '#10B981' },
-      { id: 2, name: 'The CEO\'s Secret', sub: 'LoveWriter · Romance', color: '#FDF2F8', icon: '📖', badge: 'Live', badgeColor: '#D1FAE5', badgeText: '#10B981' },
-    ],
-    authors: [
-      { id: 1, name: 'Sung Jin', sub: 'Author · 12 novels', color: '#F0FDF4', icon: '✍️' },
-      { id: 2, name: 'LoveWriter', sub: 'Author · 8 novels', color: '#FFF7ED', icon: '✍️' },
-    ],
-    reports: [
-      { id: 1, name: 'Spam comment report', sub: 'Pending · 2 hours ago', color: '#FEF3C7', icon: '⚠️', badge: 'Pending', badgeColor: '#FEF3C7', badgeText: '#D97706' },
-    ]
+function formatTime(value) {
+  if (!value) return 'Unknown time';
+  return new Date(value).toLocaleString();
+}
+
+export default function SlideSection() {
+  const fileInputRef = useRef(null);
+  const [selectedSlot, setSelectedSlot] = useState(1);
+  const [slides, setSlides] = useState([]);
+  const [title, setTitle] = useState('');
+  const [subtitle, setSubtitle] = useState('');
+  const [linkUrl, setLinkUrl] = useState('/story/1');
+  const [isActive, setIsActive] = useState(true);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [localPreviewUrl, setLocalPreviewUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [actorName, setActorName] = useState(() => localStorage.getItem('shadow_admin_actor') || 'Admin');
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsTotalPages, setLogsTotalPages] = useState(1);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  const slotMap = useMemo(() => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}), [slides]);
+  const selectedSlide = slotMap[selectedSlot];
+
+  const fetchSlides = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/slides?section_key=${SECTION_KEY}&include_inactive=true`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to fetch slides');
+      setSlides(data.slides || []);
+    } catch (error) {
+      setMessage({ type: 'error', text: `Cannot load slides: ${error.message}` });
+    }
   };
 
-  const filteredSearch = searchQuery.length > 0 ? {
-    novels: searchResults.novels.filter(n => n.name.toLowerCase().includes(searchQuery.toLowerCase())),
-    authors: searchResults.authors.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())),
-    reports: searchResults.reports.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())),
-  } : searchResults;
+  const fetchActivityLogs = async (page = logsPage) => {
+    try {
+      setLogsLoading(true);
+      const res = await fetch(`${API_URL}/api/slides/logs?page=${page}&limit=${LOG_PAGE_SIZE}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to load records');
 
-  const hasResults = filteredSearch.novels.length + filteredSearch.authors.length + filteredSearch.reports.length > 0;
-
-  const navItems = {
-    overview: [
-      { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-      { path: '/novels', label: 'Novels Content', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
-      { path: '/authors', label: 'Authors Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
-    ],
-    visualMedia: [
-      { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
-      { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
-      { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
-      { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-    ],
-    systemAdmin: [
-      { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
-      { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
-      { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
-      { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
-    ],
-    finance: [
-      { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
-      { path: '/history', label: 'History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-      { path: '/deposit', label: 'Deposit', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3' },
-      { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12' },
-      { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z' },
-    ],
+      setActivityLogs(data.logs || []);
+      setLogsPage(data.page || page);
+      setLogsTotalPages(data.totalPages || 1);
+    } catch (error) {
+      setActivityLogs([]);
+    } finally {
+      setLogsLoading(false);
+    }
   };
 
-  const stats = [
-    {
-      label: 'Total Novels', value: '1,248',
-      trend: '+12 this week', trendUp: true,
-      icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-      iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
-    },
-    {
-      label: 'Active Readers Today', value: '3,012',
-      trend: '+15% vs yesterday', trendUp: true,
-      icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
-      iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#0F172A',
-    },
-    {
-      label: 'Daily Income', value: '$50.03',
-      trend: 'Trending up', trendUp: true,
-      icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
-      iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#10B981',
-    },
-    {
-      label: 'Pending Reports', value: '5',
-      trend: 'Needs attention', trendUp: false,
-      icon: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
-      iconBg: '#FEF2F2', iconColor: '#EF4444', valueColor: '#EF4444',
-    },
-  ];
+  useEffect(() => {
+    fetchSlides();
+    fetchActivityLogs(1);
+  }, []);
 
-  const novels = [
-    { title: 'Solo Leveling: Ragnarok', author: 'Sung Jin', category: 'Action / Fantasy', status: 'Published' },
-    { title: "The CEO's Secret", author: 'LoveWriter', category: 'Romance', status: 'Published' },
-    { title: 'Dragon\'s Oath', author: 'KingScribe', category: 'Fantasy', status: 'Published' },
-  ];
+  useEffect(() => {
+    localStorage.setItem('shadow_admin_actor', actorName || 'Admin');
+  }, [actorName]);
 
-  const activityLog = [
-    { initial: 'S', name: 'Sok', action: 'Approved novel "Solo Leveling"', time: '10 mins ago', bg: '#4F46E5' },
-    { initial: 'D', name: 'Dev', action: 'Deleted reported comment', time: '1 hour ago', bg: '#6366f1' },
-    { initial: 'Y', name: 'You', action: 'Updated system rules', time: '3 hours ago', bg: '#8b5cf6' },
-  ];
+  useEffect(() => {
+    const slide = slotMap[selectedSlot];
+    setTitle(slide?.title || '');
+    setSubtitle(slide?.subtitle || '');
+    setLinkUrl(slide?.link_url || '/story/1');
+    setIsActive(slide?.is_active ?? true);
+    setSelectedFile(null);
+    setLocalPreviewUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [selectedSlot, slotMap]);
 
-  const getHour = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    setLocalPreviewUrl(URL.createObjectURL(file));
   };
+
+  const refreshAfterAction = async () => {
+    await fetchSlides();
+    await fetchActivityLogs(1);
+  };
+
+  const handleSaveSlide = async () => {
+    if (!selectedSlide && !selectedFile) {
+      setMessage({ type: 'error', text: 'Choose an image first. A new slide slot needs an image.' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage(null);
+      const formData = new FormData();
+      if (selectedFile) formData.append('image', selectedFile);
+      formData.append('section_key', SECTION_KEY);
+      formData.append('title', title || `Home Slide ${selectedSlot}`);
+      formData.append('subtitle', subtitle);
+      formData.append('link_url', linkUrl || '/');
+      formData.append('order_index', String(selectedSlot));
+      formData.append('is_active', String(isActive));
+      formData.append('admin_actor', actorName || 'Admin');
+
+      const isUpdating = Boolean(selectedSlide?.id);
+      const url = isUpdating ? `${API_URL}/api/slides/${selectedSlide.id}` : `${API_URL}/api/slides`;
+      const method = isUpdating ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'X-Admin-Actor': actorName || 'Admin' },
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to save slide');
+
+      setMessage({ type: 'success', text: `Slide ${selectedSlot} ${isUpdating ? 'updated' : 'created'} successfully.` });
+      setSelectedFile(null);
+      setLocalPreviewUrl('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await refreshAfterAction();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSlide = async () => {
+    if (!selectedSlide?.id) {
+      setMessage({ type: 'info', text: `Slide ${selectedSlot} is already empty.` });
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete Slide ${selectedSlot}? This will remove this slide from the homepage and admin list.`);
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      setMessage(null);
+      const res = await fetch(`${API_URL}/api/slides/${selectedSlide.id}`, {
+        method: 'DELETE',
+        headers: { 'X-Admin-Actor': actorName || 'Admin' },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Failed to delete slide');
+      setMessage({ type: 'success', text: `Slide ${selectedSlot} deleted successfully.` });
+      await refreshAfterAction();
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetForm = () => {
+    const slide = slotMap[selectedSlot];
+    setTitle(slide?.title || '');
+    setSubtitle(slide?.subtitle || '');
+    setLinkUrl(slide?.link_url || '/story/1');
+    setIsActive(slide?.is_active ?? true);
+    setSelectedFile(null);
+    setLocalPreviewUrl('');
+    setMessage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const currentPreview = localPreviewUrl || selectedSlide?.image_url || '';
 
   return (
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
-        {/* SIDEBAR */}
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
-            <span className="logo-text">Shadow Exclusive</span>
-          </div>
-
-          <span className="nav-group-label">Overview</span>
-          {navItems.overview.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-
-          <span className="nav-group-label">Visual Media</span>
-          {navItems.visualMedia.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-
-          <span className="nav-group-label">System Admin</span>
-          {navItems.systemAdmin.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-
-          <span className="nav-group-label">Finance & Growth</span>
-          {navItems.finance.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-        </aside>
-
-        {/* MAIN CONTENT */}
+        <Sidebar />
         <div className="main-content">
-          {/* HEADER */}
-          <header className="header">
-            <div className="header-left">
-              <h2>Dashboard Overview</h2>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              {/* Search */}
-              <div className="search-wrap">
-                <svg className="search-icon" width={16} height={16} fill="none" stroke="#94A3B8" strokeWidth={2.5}>
-                  <circle cx={7} cy={7} r={5} />
-                  <line x1={11} y1={11} x2={15} y2={15} />
-                </svg>
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Search authors, novels, reports..."
-                  value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }}
-                  onFocus={() => setShowSearchDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
-                />
-                {showSearchDropdown && hasResults && (
-                  <div className="search-dropdown">
-                    {filteredSearch.novels.length > 0 && (
-                      <>
-                        <div className="search-section-title">Novels</div>
-                        {filteredSearch.novels.map(item => (
-                          <div className="search-result-item" key={item.id}>
-                            <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
-                            <div className="info">
-                              <div className="name">{item.name}</div>
-                              <div className="sub">{item.sub}</div>
-                            </div>
-                            {item.badge && (
-                              <span className="search-badge" style={{ background: item.badgeColor, color: item.badgeText }}>{item.badge}</span>
-                            )}
-                          </div>
-                        ))}
-                      </>
-                    )}
-                    {filteredSearch.authors.length > 0 && (
-                      <>
-                        <div className="search-section-title">Authors</div>
-                        {filteredSearch.authors.map(item => (
-                          <div className="search-result-item" key={item.id}>
-                            <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
-                            <div className="info">
-                              <div className="name">{item.name}</div>
-                              <div className="sub">{item.sub}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                    {filteredSearch.reports.length > 0 && (
-                      <>
-                        <div className="search-section-title">Reports</div>
-                        {filteredSearch.reports.map(item => (
-                          <div className="search-result-item" key={item.id}>
-                            <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
-                            <div className="info">
-                              <div className="name">{item.name}</div>
-                              <div className="sub">{item.sub}</div>
-                            </div>
-                            {item.badge && (
-                              <span className="search-badge" style={{ background: item.badgeColor, color: item.badgeText }}>{item.badge}</span>
-                            )}
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Notifications */}
-              <div style={{ position: 'relative', cursor: 'pointer', padding: '6px', borderRadius: '10px' }}
-                className="notif-btn">
-                <Icon d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0" size={20} color="#64748B" />
-                <span style={{
-                  position: 'absolute', top: '4px', right: '4px',
-                  width: '8px', height: '8px', background: 'var(--danger)',
-                  borderRadius: '50%', border: '2px solid white'
-                }} />
-              </div>
-
-              {/* Profile */}
-              <div style={{ position: 'relative' }}>
-                <div className="profile-btn" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-                  <div className="profile-avatar">
-                    {currentUserName.charAt(0)}
-                  </div>
-                  <Icon d="M6 9l6 6 6-6" size={16} color="#64748B" />
-                </div>
-
-                {showProfileMenu && (
-                  <div className="profile-menu">
-                    <div className="profile-menu-header">
-                      <div className="profile-menu-avatar">{currentUserName.charAt(0)}</div>
-                      <div>
-                        <div className="profile-menu-name">{currentUserName}</div>
-                        <div className="profile-menu-role">{currentUserRole}</div>
-                      </div>
-                    </div>
-                    <div className="profile-menu-body">
-                      <div className="profile-menu-item">
-                        <Icon d="M12 20h9 M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" size={15} />
-                        Edit Profile
-                      </div>
-                      <div className="profile-menu-item">
-                        <Icon d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" size={15} />
-                        Settings
-                      </div>
-                      <div className="profile-menu-divider" />
-                      <div className="profile-menu-item danger">
-                        <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9" size={15} color="#EF4444" />
-                        Sign Out
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </header>
-
-          {/* CONTENT */}
+          <header className="header"><h2>Slide Management</h2></header>
           <main className="content-body">
-            <div className="welcome-row">
-              <h1>{getHour()}, {currentUserName.split(' ')[0]}! 👋</h1>
-              <p>Here's what's happening on Shadow Exclusive today.</p>
-            </div>
-
-            {/* STAT CARDS */}
-            <div className="stats-grid">
-              {stats.map((s, i) => (
-                <div className="stat-card" key={i}>
-                  <div className="stat-card-top">
-                    <span className="stat-label">{s.label}</span>
-                    <div className="stat-icon-box" style={{ background: s.iconBg }}>
-                      <Icon d={s.icon} size={18} color={s.iconColor} />
-                    </div>
-                  </div>
-                  <div className="stat-value" style={{ color: s.valueColor }}>{s.value}</div>
-                  <div className="stat-trend" style={{ color: s.trendUp ? 'var(--success)' : 'var(--danger)' }}>
-                    <Icon d={s.trendUp
-                      ? 'M23 6l-9.5 9.5-5-5L1 18'
-                      : 'M23 18l-9.5-9.5-5 5L1 6'
-                    } size={13} color={s.trendUp ? '#10B981' : '#EF4444'} />
-                    {s.trend}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* BENTO GRID */}
-            <div className="bento-grid">
-              {/* Chart */}
-              <section className="card-panel">
-                <div className="panel-header">
-                  <h4>Reader Growth (Last 7 Days)</h4>
-                  <span className="panel-link">View Report</span>
-                </div>
-                <div className="chart-wrap">
-                  {chartData.map((d, i) => (
-                    <div className="chart-col" key={i}>
-                      <div className="chart-bar-wrap">
-                        <div
-                          className="chart-bar"
-                          style={{
-                            height: `${(d.value / maxVal) * 100}%`,
-                            background: d.active
-                              ? 'linear-gradient(180deg, #4F46E5, #7C3AED)'
-                              : d.value < 40
-                                ? 'linear-gradient(180deg, #FCA5A5, #FEE2E2)'
-                                : 'linear-gradient(180deg, #6EE7B7, #D1FAE5)',
-                            animationDelay: `${i * 0.08}s`,
-                          }}
-                        />
-                      </div>
-                      <span className="chart-day">{d.day}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* Activity Log */}
-              <section className="card-panel">
-                <div className="panel-header">
-                  <h4>Admin Activity Log</h4>
-                </div>
-                <div className="log-list">
-                  {activityLog.map((log, i) => (
-                    <div className="log-item" key={i}>
-                      <div className="log-avatar" style={{ background: log.bg }}>{log.initial}</div>
-                      <div>
-                        <div className="log-text"><strong>{log.name}</strong> {log.action}</div>
-                        <div className="log-time">{log.time}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="view-all-btn">View All Logs</div>
-              </section>
-            </div>
-
-            {/* Recently Published Novels */}
-            <section className="card-panel">
-              <div className="panel-header">
-                <h4>Recently Published Novels <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>(Live)</span></h4>
-                <span className="panel-link">View All</span>
+            <div className="page-title-row">
+              <div>
+                <h1>Home Slides Manager</h1>
+                <p>Manage homepage hero slides, featured visuals, and promotional links.</p>
               </div>
-              <div className="novels-table-wrap">
-                <table className="novels-table">
-                  <thead>
-                    <tr>
-                      <th>Novel Title</th>
-                      <th>Author</th>
-                      <th>Category</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {novels.map((novel, i) => (
-                      <tr key={i}>
-                        <td>
-                          <div className="novel-title-cell">
-                            <span className="live-dot" />
-                            <span style={{ fontWeight: 600 }}>{novel.title}</span>
-                          </div>
-                        </td>
-                        <td style={{ color: '#475569' }}>{novel.author}</td>
-                        <td style={{ color: '#475569' }}>{novel.category}</td>
-                        <td>
-                          <span className={`status-badge badge-${novel.status.toLowerCase()}`}>
-                            {novel.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="actor-box">
+                <label>Editor</label>
+                <input className="actor-input" value={actorName} onChange={(e) => setActorName(e.target.value)} placeholder="Admin name" />
+              </div>
+            </div>
+
+            <div className="manager-shell">
+              <section className="panel">
+                <div className="panel-header">
+                  <div><h3>Slide Slots</h3><p>Seven fixed homepage slots. Select a card to manage its content.</p></div>
+                  <span className="count-pill">{slides.length} records</span>
+                </div>
+                <div className="slots-grid">
+                  {SLOTS.map((slot) => {
+                    const slide = slotMap[slot];
+                    const statusClass = !slide ? 'empty' : slide.is_active === false ? 'inactive' : 'active';
+                    return (
+                      <button type="button" key={slot} className={`slot-card ${selectedSlot === slot ? 'selected' : ''}`} onClick={() => setSelectedSlot(slot)}>
+                        <div className="slot-preview">
+                          <span className="slot-number">Slide {slot}</span>
+                          <span className={`slot-status ${statusClass}`}>{!slide ? 'EMPTY' : slide.is_active === false ? 'INACTIVE' : 'ACTIVE'}</span>
+                          {slide?.image_url ? <img src={slide.image_url} alt={slide.title || `Slide ${slot}`} /> : <div className="empty-preview">No image assigned</div>}
+                        </div>
+                        <div className="slot-meta"><div className="slot-title">{slide?.title || `Slide ${slot}`}</div><div className="slot-link">{slide?.link_url || 'No link set'}</div></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="panel editor-panel">
+                <div className="panel-header"><div><h3>Edit Slide {selectedSlot}</h3><p>Update the selected homepage slide slot.</p></div></div>
+                <div className="editor-body">
+                  {message && <div className={`message ${message.type}`}>{message.text}</div>}
+                  <div className="selected-preview">{currentPreview ? <img src={currentPreview} alt={`Slide ${selectedSlot} preview`} /> : <div className="selected-preview-empty">No image selected</div>}</div>
+                  <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
+                    <div className="upload-title">Choose or replace image</div><div className="upload-help">Recommended: 1920×1080, JPG, PNG, or WEBP.</div>
+                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+                  </div>
+
+                  <label className="field-label">Title</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
+                  <label className="field-label">Subtitle</label><textarea className="textarea" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Short slide subtitle or note" />
+                  <label className="field-label">Link</label><input className="input" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Redirect link e.g. /story/1" />
+
+                  <div className="toggle-row">
+                    <div><div className="toggle-title">Slide visibility</div><div className="toggle-help">{isActive ? 'Visible on homepage' : 'Hidden from homepage'}</div></div>
+                    <button type="button" className={`switch ${isActive ? 'on' : ''}`} onClick={() => setIsActive((value) => !value)} aria-label="Toggle slide visibility"><span className="switch-thumb" /></button>
+                  </div>
+
+                  <div className="btn-row">
+                    <button className="btn-primary" onClick={handleSaveSlide} disabled={loading}>{loading ? 'Saving...' : `Save Slide ${selectedSlot}`}</button>
+                    <button className="btn-secondary" type="button" onClick={handleResetForm} disabled={loading}>Reset Form</button>
+                    <button className="btn-danger" type="button" onClick={handleDeleteSlide} disabled={loading || !selectedSlide}>Delete Slide</button>
+                  </div>
+                  <div className="note-box">Use Save Slide to update title, link, image, and visibility. Turning visibility off only hides the slide from the homepage; it does not delete it. Delete Slide removes the slide record.</div>
+                </div>
+              </section>
+            </div>
+
+
+            <section className="panel logs-panel">
+              <div className="panel-header">
+                <div>
+                  <h3>Slide Records</h3>
+                  <p>Recent slide actions. Records are loaded 20 per page and old records are cleaned after 30 days by the backend.</p>
+                </div>
+                <button className="btn-secondary" type="button" onClick={() => fetchActivityLogs(logsPage)} disabled={logsLoading}>{logsLoading ? 'Loading...' : 'Refresh'}</button>
+              </div>
+
+              <div className="logs-list">
+                {activityLogs.length === 0 ? (
+                  <div className="note-box">No records yet, or backend record logging is not installed yet.</div>
+                ) : (
+                  activityLogs.map((log) => (
+                    <div className="log-item" key={log.id}>
+                      <div className="log-time">{formatTime(log.created_at)}</div>
+                      <div className={`log-action ${String(log.action || '').toLowerCase()}`}>{log.action || 'ACTION'}</div>
+                      <div>
+                        <div className="log-main">{log.title || `Slide ${log.order_index || '-'}`}</div>
+                        <div className="log-sub">Slot {log.order_index || '-'} • {log.details?.message || log.details?.link_url || 'No extra detail'}</div>
+                      </div>
+                      <div className="log-actor">{log.actor || 'Admin'}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pager">
+                <button type="button" disabled={logsLoading || logsPage <= 1} onClick={() => fetchActivityLogs(logsPage - 1)}>Previous</button>
+                <span>Page {logsPage} / {logsTotalPages}</span>
+                <button type="button" disabled={logsLoading || logsPage >= logsTotalPages} onClick={() => fetchActivityLogs(logsPage + 1)}>Next</button>
               </div>
             </section>
           </main>
@@ -1049,6 +368,4 @@ const AdminDashboard = () => {
       </div>
     </>
   );
-};
-
-export default AdminDashboard;
+}
