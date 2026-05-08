@@ -20,9 +20,7 @@ function getActor(req) {
     req.get('x-admin-actor') ||
     req.get('x-admin-name') ||
     req.body?.admin_actor ||
-    req.body?.admin_name ||
     req.query?.admin_actor ||
-    req.query?.admin_name ||
     'Admin'
   )
 }
@@ -58,32 +56,36 @@ async function createActivityLog({ action, actor, slide, details = {} }) {
       details,
     })
   } catch (error) {
-    // Do not break slide actions just because logging failed.
     console.warn('CREATE ACTIVITY LOG WARNING:', error.message)
   }
 }
 
-function getStoragePathFromPublicUrl(publicUrl) {
-  if (!publicUrl || typeof publicUrl !== 'string') return null
+function extractStoragePathFromPublicUrl(publicUrl) {
+  if (!publicUrl) return null
 
   const marker = `/storage/v1/object/public/${BUCKET}/`
   const markerIndex = publicUrl.indexOf(marker)
+
   if (markerIndex === -1) return null
 
-  return decodeURIComponent(publicUrl.slice(markerIndex + marker.length))
+  const encodedPath = publicUrl.slice(markerIndex + marker.length)
+
+  try {
+    return decodeURIComponent(encodedPath)
+  } catch {
+    return encodedPath
+  }
 }
 
-async function deleteStorageImage(publicUrl) {
+async function deleteImageFromStorage(publicUrl) {
   try {
-    const storagePath = getStoragePathFromPublicUrl(publicUrl)
+    const storagePath = extractStoragePathFromPublicUrl(publicUrl)
     if (!storagePath) return
 
     const { error } = await supabase.storage.from(BUCKET).remove([storagePath])
-    if (error) {
-      console.warn('DELETE STORAGE IMAGE WARNING:', error.message)
-    }
+    if (error) throw error
   } catch (error) {
-    console.warn('DELETE STORAGE IMAGE WARNING:', error.message)
+    console.warn('DELETE IMAGE WARNING:', error.message)
   }
 }
 
@@ -123,11 +125,11 @@ export async function getSlides(req, res) {
       .eq('section_key', sectionKey)
       .order('order_index', { ascending: true })
       .order('updated_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
 
-    // IMPORTANT:
-    // Frontend should call without include_inactive, so it only sees active slides.
-    // AdminDashboard calls include_inactive=true, so inactive slides stay visible in Slide Slots.
+    // Important:
+    // Frontend calls /api/slides normally, so it should see ACTIVE slides only.
+    // AdminDashboard calls /api/slides?include_inactive=true, so it should see ACTIVE + INACTIVE slides.
     if (!includeInactive) {
       query = query.eq('is_active', true)
     }
@@ -196,7 +198,6 @@ export async function createSlide(req, res) {
         message: `Created Slide ${data.order_index}`,
         link_url: data.link_url,
         is_active: data.is_active,
-        image_added: true,
       },
     })
 
@@ -218,6 +219,14 @@ export async function updateSlide(req, res) {
   try {
     const actor = getActor(req)
     const { id } = req.params
+
+    const { data: oldSlide, error: oldSlideError } = await supabase
+      .from('slides')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (oldSlideError) throw oldSlideError
 
     const updatePayload = {
       updated_at: new Date().toISOString(),
@@ -253,9 +262,7 @@ export async function updateSlide(req, res) {
     if (error) throw error
 
     const changedFields = Object.keys(updatePayload).filter((field) => field !== 'updated_at')
-    const isVisibilityOnly =
-      changedFields.length === 1 &&
-      changedFields[0] === 'is_active'
+    const isVisibilityOnly = changedFields.length === 1 && changedFields[0] === 'is_active'
 
     await createActivityLog({
       action: isVisibilityOnly ? 'VISIBILITY' : 'UPDATE',
@@ -263,11 +270,14 @@ export async function updateSlide(req, res) {
       slide: data,
       details: {
         message: isVisibilityOnly
-          ? `Changed Slide ${data.order_index} visibility`
+          ? `Changed Slide ${data.order_index} visibility to ${data.is_active ? 'ACTIVE' : 'INACTIVE'}`
           : `Updated Slide ${data.order_index}`,
         changed_fields: changedFields,
-        link_url: data.link_url,
+        previous_is_active: oldSlide?.is_active,
         is_active: data.is_active,
+        previous_title: oldSlide?.title,
+        title: data.title,
+        link_url: data.link_url,
         image_replaced: Boolean(req.file),
       },
     })
@@ -291,34 +301,32 @@ export async function deleteSlide(req, res) {
     const actor = getActor(req)
     const { id } = req.params
 
-    // Get the slide first, so we can log it and remove its storage image.
-    const { data: existingSlide, error: readError } = await supabase
+    const { data: existingSlide, error: existingError } = await supabase
       .from('slides')
       .select('*')
       .eq('id', id)
       .single()
 
-    if (readError) throw readError
+    if (existingError) throw existingError
 
-    const { error: deleteError } = await supabase
+    const { error } = await supabase
       .from('slides')
       .delete()
       .eq('id', id)
 
-    if (deleteError) throw deleteError
+    if (error) throw error
 
-    // Only Delete Slide removes the storage image.
-    // Turning visibility off does NOT call this function and does NOT delete the slide.
-    await deleteStorageImage(existingSlide.image_url)
+    await deleteImageFromStorage(existingSlide?.image_url)
 
     await createActivityLog({
       action: 'DELETE',
       actor,
       slide: existingSlide,
       details: {
-        message: `Deleted Slide ${existingSlide.order_index}`,
-        hard_delete: true,
-        image_removed_from_storage: true,
+        message: `Deleted Slide ${existingSlide?.order_index}`,
+        deleted: true,
+        title: existingSlide?.title || '',
+        link_url: existingSlide?.link_url || '',
       },
     })
 
@@ -357,14 +365,20 @@ export async function getSlideActivityLogs(req, res) {
     if (error) throw error
 
     const records = (data || []).map((record) => ({
-      ...record,
-      // These aliases make the records compatible with the AdminDashboard UI.
-      slide_title: record.title,
+      id: record.id,
+      action: record.action,
+      actor: record.actor || 'Admin',
+      order_index: record.order_index,
+      slide_title: record.title || '',
       details:
         typeof record.details === 'string'
           ? record.details
           : record.details?.message || JSON.stringify(record.details || {}),
+      created_at: record.created_at,
     }))
+
+    const total = count || 0
+    const totalPages = Math.max(Math.ceil(total / limit), 1)
 
     res.status(200).json({
       ok: true,
@@ -372,9 +386,9 @@ export async function getSlideActivityLogs(req, res) {
       logs: records,
       page,
       limit,
-      total: count || 0,
-      total_pages: Math.max(Math.ceil((count || 0) / limit), 1),
-      totalPages: Math.max(Math.ceil((count || 0) / limit), 1),
+      total,
+      total_pages: totalPages,
+      totalPages,
     })
   } catch (error) {
     console.error('GET SLIDE ACTIVITY LOGS ERROR:', error)
