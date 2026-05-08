@@ -117,29 +117,31 @@ async function uploadImage(file) {
 export async function getSlides(req, res) {
   try {
     const sectionKey = req.query.section_key || 'home_top_slider'
-    const includeInactive = req.query.include_inactive === 'true'
+    const includeInactive =
+      req.query.include_inactive === 'true' ||
+      req.query.includeInactive === 'true'
 
     let query = supabase
       .from('slides')
       .select('*')
       .eq('section_key', sectionKey)
-      .order('order_index', { ascending: true })
-      .order('updated_at', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false })
 
-    // Important:
-    // Frontend calls /api/slides normally, so it should see ACTIVE slides only.
-    // AdminDashboard calls /api/slides?include_inactive=true, so it should see ACTIVE + INACTIVE slides.
+    // Frontend normal API: show only active slides.
+    // AdminDashboard with include_inactive=true: show active + inactive slides.
     if (!includeInactive) {
       query = query.eq('is_active', true)
     }
 
     const { data, error } = await query
+      .order('order_index', { ascending: true })
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false })
 
     if (error) throw error
 
     res.status(200).json({
       ok: true,
+      include_inactive: includeInactive,
       slides: data || [],
     })
   } catch (error) {
