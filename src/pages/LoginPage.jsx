@@ -14,10 +14,26 @@ function makeVerifyCode() {
   return code;
 }
 
+function getFriendlyError(message) {
+  if (!message) return 'Login failed. Please try again.';
+
+  const lowerMessage = message.toLowerCase();
+
+  if (lowerMessage.includes('invalid admin email') || lowerMessage.includes('invalid admin login')) {
+    return 'Email or password is incorrect.';
+  }
+
+  if (lowerMessage.includes('environment') || lowerMessage.includes('configured') || lowerMessage.includes('missing')) {
+    return 'Admin login is not configured correctly on the backend.';
+  }
+
+  return message;
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  const existingToken = localStorage.getItem('shadow_admin_token') || sessionStorage.getItem('shadow_admin_token');
+  const existingToken = sessionStorage.getItem('shadow_admin_token');
   const rememberedEmail = localStorage.getItem('shadow_admin_email') || '';
 
   const [email, setEmail] = useState(rememberedEmail);
@@ -44,13 +60,27 @@ export default function LoginPage() {
     event.preventDefault();
     setError('');
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter admin email and password.');
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+    const cleanVerifyInput = verifyInput.trim().toUpperCase();
+
+    if (!cleanEmail) {
+      setError('Please enter your admin email.');
       return;
     }
 
-    if (verifyInput.trim().toUpperCase() !== verifyCode) {
-      setError('Verification code is incorrect.');
+    if (!cleanPassword) {
+      setError('Please enter your password.');
+      return;
+    }
+
+    if (!cleanVerifyInput) {
+      setError('Please enter the verify code.');
+      return;
+    }
+
+    if (cleanVerifyInput !== verifyCode) {
+      setError('Verify code is incorrect. Please type the code shown in the box.');
       refreshVerifyCode();
       return;
     }
@@ -64,32 +94,39 @@ export default function LoginPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email.trim(),
+          email: cleanEmail,
           password,
         }),
       });
 
-      const data = await response.json();
+      let data = null;
 
-      if (!response.ok || !data.ok || !data.token) {
-        setError(data.message || 'Login failed.');
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok || !data?.ok || !data?.token) {
+        setError(getFriendlyError(data?.message));
         refreshVerifyCode();
         return;
       }
 
       if (rememberEmail) {
-        localStorage.setItem('shadow_admin_email', email.trim());
-        localStorage.setItem('shadow_admin_token', data.token);
-        sessionStorage.removeItem('shadow_admin_token');
+        localStorage.setItem('shadow_admin_email', cleanEmail);
       } else {
         localStorage.removeItem('shadow_admin_email');
-        sessionStorage.setItem('shadow_admin_token', data.token);
-        localStorage.removeItem('shadow_admin_token');
       }
+
+      // Token is stored in sessionStorage only.
+      // Closing the browser/tab logs admin out automatically.
+      sessionStorage.setItem('shadow_admin_token', data.token);
+      localStorage.removeItem('shadow_admin_token');
 
       navigate('/admin', { replace: true });
     } catch (error) {
-      setError('Cannot connect to backend API.');
+      setError('Cannot connect to backend API. Please check VITE_API_URL or backend status.');
       refreshVerifyCode();
     } finally {
       setLoading(false);
@@ -98,8 +135,8 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.card}>
-        <div style={styles.logo}>SHADOW ADMIN</div>
+      <main style={styles.card}>
+        <div style={styles.brand}>SHADOW ADMIN</div>
 
         <h1 style={styles.title}>Admin Login</h1>
         <p style={styles.subtitle}>Enter your admin credentials to continue.</p>
@@ -179,7 +216,7 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-      </div>
+      </main>
     </div>
   );
 }
@@ -190,7 +227,7 @@ const styles = {
     display: 'grid',
     placeItems: 'center',
     padding: 24,
-    background: 'linear-gradient(135deg, #0F172A 0%, #111827 45%, #1E1B4B 100%)',
+    background: 'linear-gradient(135deg, #0F172A 0%, #111827 48%, #1E1B4B 100%)',
     fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     color: '#0F172A',
   },
@@ -202,16 +239,13 @@ const styles = {
     padding: 34,
     boxShadow: '0 24px 70px rgba(0,0,0,0.28)',
   },
-  logo: {
+  brand: {
     display: 'inline-flex',
-    padding: '7px 11px',
-    borderRadius: 999,
-    background: '#EEF2FF',
-    color: '#4F46E5',
-    fontSize: 11,
+    padding: '0 0 18px',
+    color: '#111827',
+    fontSize: 12,
     fontWeight: 900,
-    letterSpacing: 1,
-    marginBottom: 20,
+    letterSpacing: 1.4,
   },
   title: {
     margin: 0,
@@ -308,10 +342,10 @@ const styles = {
     border: 0,
     borderRadius: 16,
     padding: '15px 18px',
-    background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
+    background: '#000000',
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: 900,
-    boxShadow: '0 12px 26px rgba(79,70,229,0.32)',
+    boxShadow: '0 12px 26px rgba(0,0,0,0.22)',
   },
 };
