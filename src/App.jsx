@@ -5,6 +5,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
 import NovelsContent from './pages/NovelsContent';
 import AuthorsCommunity from './pages/AuthorsCommunity';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function ComingSoon({ title }) {
   return (
@@ -37,27 +39,35 @@ function ComingSoon({ title }) {
   );
 }
 
+function ProtectedPage({ children }) {
+  return <ProtectedRoute>{children}</ProtectedRoute>;
+}
+
 export default function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Navigate to="/admin" replace />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/slides" element={<SlideSection />} />
-        <Route path="/novels" element={<NovelsContent />} />
-        <Route path="/authors" element={<AuthorsCommunity />} />
-        <Route path="/banners" element={<ComingSoon title="Banner System" />} />
-        <Route path="/advertisement" element={<ComingSoon title="Advertisement" />} />
-        <Route path="/recommended" element={<ComingSoon title="Recommended" />} />
-        <Route path="/category" element={<ComingSoon title="Category" />} />
-        <Route path="/rule" element={<ComingSoon title="Rule" />} />
-        <Route path="/account" element={<ComingSoon title="Account" />} />
-        <Route path="/block-list" element={<ComingSoon title="Block List" />} />
-        <Route path="/income" element={<ComingSoon title="Income" />} />
-        <Route path="/history" element={<ComingSoon title="History" />} />
-        <Route path="/deposit" element={<ComingSoon title="Deposit" />} />
-        <Route path="/withdraw" element={<ComingSoon title="Withdraw" />} />
-        <Route path="/ranking" element={<ComingSoon title="Ranking" />} />
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route path="/admin" element={<ProtectedPage><AdminDashboard /></ProtectedPage>} />
+        <Route path="/slides" element={<ProtectedPage><SlideSection /></ProtectedPage>} />
+        <Route path="/novels" element={<ProtectedPage><NovelsContent /></ProtectedPage>} />
+        <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
+        <Route path="/banners" element={<ProtectedPage><ComingSoon title="Banner System" /></ProtectedPage>} />
+        <Route path="/advertisement" element={<ProtectedPage><ComingSoon title="Advertisement" /></ProtectedPage>} />
+        <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
+        <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
+        <Route path="/rule" element={<ProtectedPage><ComingSoon title="Rule" /></ProtectedPage>} />
+        <Route path="/account" element={<ProtectedPage><ComingSoon title="Account" /></ProtectedPage>} />
+        <Route path="/block-list" element={<ProtectedPage><ComingSoon title="Block List" /></ProtectedPage>} />
+        <Route path="/income" element={<ProtectedPage><ComingSoon title="Income" /></ProtectedPage>} />
+        <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
+        <Route path="/deposit" element={<ProtectedPage><ComingSoon title="Deposit" /></ProtectedPage>} />
+        <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
+        <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
+
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </Router>
   );
