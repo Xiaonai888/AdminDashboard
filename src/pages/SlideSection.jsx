@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SECTION_KEY = 'home_top_slider';
@@ -93,6 +93,10 @@ function formatTime(value) {
   return new Date(value).toLocaleString();
 }
 
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token');
+}
+
 export default function SlideSection() {
   const fileInputRef = useRef(null);
   const [selectedSlot, setSelectedSlot] = useState(1);
@@ -109,23 +113,47 @@ export default function SlideSection() {
   const [records, setRecords] = useState([]);
   const [recordPage, setRecordPage] = useState(1);
   const [recordTotalPages, setRecordTotalPages] = useState(1);
+  const [authExpired, setAuthExpired] = useState(false);
 
   const slotMap = useMemo(() => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}), [slides]);
   const selectedSlide = slotMap[selectedSlot];
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('shadow_admin_token');
+    localStorage.removeItem('shadow_admin_token');
+    setAuthExpired(true);
+  };
+
   const apiFetch = async (url, options = {}) => {
+    const token = getAdminToken();
+
+    const headers = {
+      ...(options.headers || {}),
+      'X-Admin-Name': 'Admin',
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        ...(options.headers || {}),
-        'X-Admin-Name': 'Admin',
-      },
+      headers,
     });
 
     const data = await response.json().catch(() => ({}));
+
+    if (response.status === 401 || response.status === 403) {
+      sessionStorage.removeItem('shadow_admin_token');
+      localStorage.removeItem('shadow_admin_token');
+      setAuthExpired(true);
+      throw new Error('Admin session expired. Please login again.');
+    }
+
     if (!response.ok || data.ok === false) {
       throw new Error(data.message || 'Request failed');
     }
+
     return data;
   };
 
@@ -265,13 +293,20 @@ export default function SlideSection() {
 
   const currentPreview = localPreviewUrl || selectedSlide?.image_url || '';
 
+  if (authExpired) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
         <Sidebar />
         <div className="main-content">
-          <header className="header"><h2>Slide Management</h2></header>
+          <header className="header" style={{ justifyContent: 'space-between' }}>
+            <h2>Slide Management</h2>
+            <button className="page-btn" type="button" onClick={handleLogout}>Logout</button>
+          </header>
           <main className="content-body">
             <div className="page-title-row">
               <h1>Home Slides Manager</h1>
