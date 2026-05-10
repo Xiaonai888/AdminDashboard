@@ -118,12 +118,6 @@ export default function SlideSection() {
   const slotMap = useMemo(() => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}), [slides]);
   const selectedSlide = slotMap[selectedSlot];
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('shadow_admin_token');
-    localStorage.removeItem('shadow_admin_token');
-    setAuthExpired(true);
-  };
-
   const apiFetch = async (url, options = {}) => {
     const token = getAdminToken();
 
@@ -303,9 +297,8 @@ export default function SlideSection() {
       <div className="dashboard-wrapper">
         <Sidebar />
         <div className="main-content">
-          <header className="header" style={{ justifyContent: 'space-between' }}>
+          <header className="header">
             <h2>Slide Management</h2>
-            <button className="page-btn" type="button" onClick={handleLogout}>Logout</button>
           </header>
           <main className="content-body">
             <div className="page-title-row">
