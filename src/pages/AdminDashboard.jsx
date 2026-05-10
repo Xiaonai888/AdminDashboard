@@ -644,6 +644,13 @@ const AdminDashboard = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  const handleSignOut = () => {
+    sessionStorage.removeItem('shadow_admin_token');
+    localStorage.removeItem('shadow_admin_token');
+    navigate('/login', { replace: true });
+  };
+
   const currentUserName = 'Xiaonai Xiao';
   const currentUserRole = 'Owner';
 
@@ -915,7 +922,7 @@ const AdminDashboard = () => {
                         Settings
                       </div>
                       <div className="profile-menu-divider" />
-                      <div className="profile-menu-item danger">
+                      <div className="profile-menu-item danger" onClick={handleSignOut}>
                         <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9" size={15} color="#EF4444" />
                         Sign Out
                       </div>
