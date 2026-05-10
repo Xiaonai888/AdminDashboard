@@ -10,9 +10,10 @@ export default function ProtectedRoute({ children }) {
     let isMounted = true;
 
     async function verifyToken() {
-      const token = localStorage.getItem('shadow_admin_token') || sessionStorage.getItem('shadow_admin_token');
+      const token = sessionStorage.getItem('shadow_admin_token');
 
       if (!token) {
+        localStorage.removeItem('shadow_admin_token');
         if (isMounted) setStatus('guest');
         return;
       }
@@ -27,14 +28,16 @@ export default function ProtectedRoute({ children }) {
         const data = await response.json();
 
         if (!response.ok || !data.ok) {
-          localStorage.removeItem('shadow_admin_token');
           sessionStorage.removeItem('shadow_admin_token');
+          localStorage.removeItem('shadow_admin_token');
           if (isMounted) setStatus('guest');
           return;
         }
 
         if (isMounted) setStatus('allowed');
       } catch (error) {
+        sessionStorage.removeItem('shadow_admin_token');
+        localStorage.removeItem('shadow_admin_token');
         if (isMounted) setStatus('guest');
       }
     }
