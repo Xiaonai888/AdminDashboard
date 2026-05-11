@@ -833,12 +833,6 @@ useEffect(() => {
     { title: 'Dragon\'s Oath', author: 'KingScribe', category: 'Fantasy', status: 'Published' },
   ];
 
-  const activityLog = [
-    { initial: 'S', name: 'Sok', action: 'Approved novel "Solo Leveling"', time: '10 mins ago', bg: '#4F46E5' },
-    { initial: 'D', name: 'Dev', action: 'Deleted reported comment', time: '1 hour ago', bg: '#6366f1' },
-    { initial: 'Y', name: 'You', action: 'Updated system rules', time: '3 hours ago', bg: '#8b5cf6' },
-  ];
-
   const getHour = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good morning';
