@@ -1099,9 +1099,13 @@ useEffect(() => {
   )}
 </div>
 
-<div className="view-all-btn" onClick={() => navigate('/admin-logs')}>
+<button
+  type="button"
+  className="view-all-btn"
+  onClick={() => navigate('/admin-logs')}
+>
   View All Logs
-</div>
+</button>
               </section>
             </div>
 
