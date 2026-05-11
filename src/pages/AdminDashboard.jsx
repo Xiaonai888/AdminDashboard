@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -637,6 +638,58 @@ const Icon = ({ d, size = 20, color }) => (
     <path d={d} />
   </svg>
 );
+
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token');
+}
+
+function getLogInitial(record) {
+  const actor = record?.actor || 'Admin';
+  return actor.charAt(0).toUpperCase();
+}
+
+function getLogColor(action) {
+  const value = String(action || '').toUpperCase();
+
+  if (value === 'DELETE') return '#EF4444';
+  if (value === 'CREATE') return '#10B981';
+  if (value === 'VISIBILITY') return '#F59E0B';
+  if (value === 'UPDATE') return '#4F46E5';
+
+  return '#6366F1';
+}
+
+function formatLogTime(value) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes} min${diffMinutes > 1 ? 's' : ''} ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+  return date.toLocaleString();
+}
+
+function getLogText(record) {
+  const action = String(record?.action || 'UPDATE').toUpperCase();
+  const title = record?.slide_title || (record?.order_index ? `Slide ${record.order_index}` : 'item');
+  const detail = record?.details || '';
+
+  if (detail) return detail;
+  if (action === 'DELETE') return `Deleted ${title}`;
+  if (action === 'CREATE') return `Created ${title}`;
+  if (action === 'VISIBILITY') return `Changed visibility for ${title}`;
+
+  return `Updated ${title}`;
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
