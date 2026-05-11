@@ -706,6 +706,36 @@ const [activityLogLoading, setActivityLogLoading] = useState(true);
     navigate('/login', { replace: true });
   };
 
+  const fetchActivityLogs = async () => {
+  try {
+    setActivityLogLoading(true);
+
+    const token = getAdminToken();
+    const response = await fetch(`${API_URL}/api/slides/records?page=1&limit=3`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'X-Admin-Name': 'Admin',
+      },
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Failed to load admin activity logs');
+    }
+
+    setActivityLog(data.records || []);
+  } catch (error) {
+    setActivityLog([]);
+  } finally {
+    setActivityLogLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchActivityLogs();
+}, []);
+
   const currentUserName = 'Xiaonai Xiao';
   const currentUserRole = 'Owner';
 
