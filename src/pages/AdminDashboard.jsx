@@ -697,6 +697,8 @@ const AdminDashboard = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [activityLog, setActivityLog] = useState([]);
+const [activityLogLoading, setActivityLogLoading] = useState(true);
 
   const handleSignOut = () => {
     sessionStorage.removeItem('shadow_admin_token');
