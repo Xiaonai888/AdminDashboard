@@ -1078,17 +1078,30 @@ useEffect(() => {
                   <h4>Admin Activity Log</h4>
                 </div>
                 <div className="log-list">
-                  {activityLog.map((log, i) => (
-                    <div className="log-item" key={i}>
-                      <div className="log-avatar" style={{ background: log.bg }}>{log.initial}</div>
-                      <div>
-                        <div className="log-text"><strong>{log.name}</strong> {log.action}</div>
-                        <div className="log-time">{log.time}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="view-all-btn">View All Logs</div>
+  {activityLogLoading ? (
+    <div className="log-time">Loading activity logs...</div>
+  ) : activityLog.length === 0 ? (
+    <div className="log-time">No activity logs yet.</div>
+  ) : (
+    activityLog.map((log) => (
+      <div className="log-item" key={log.id}>
+        <div className="log-avatar" style={{ background: getLogColor(log.action) }}>
+          {getLogInitial(log)}
+        </div>
+        <div>
+          <div className="log-text">
+            <strong>{log.actor || 'Admin'}</strong> {getLogText(log)}
+          </div>
+          <div className="log-time">{formatLogTime(log.created_at)}</div>
+        </div>
+      </div>
+    ))
+  )}
+</div>
+
+<div className="view-all-btn" onClick={() => navigate('/admin-logs')}>
+  View All Logs
+</div>
               </section>
             </div>
 
