@@ -1102,7 +1102,7 @@ useEffect(() => {
 <button
   type="button"
   className="view-all-btn"
-  onClick={() => navigate('/admin-logs')}
+  onClick={() => navigate('/admin/activity-logs')}
 >
   View All Logs
 </button>
