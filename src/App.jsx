@@ -7,6 +7,7 @@ import NovelsContent from './pages/NovelsContent';
 import AuthorsCommunity from './pages/AuthorsCommunity';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminActivityLogsPage from "./pages/Admin/AdminActivityLogsPage";
 
 function ComingSoon({ title }) {
   return (
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/deposit" element={<ProtectedPage><ComingSoon title="Deposit" /></ProtectedPage>} />
         <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
+        <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
