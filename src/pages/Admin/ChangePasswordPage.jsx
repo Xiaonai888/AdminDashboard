@@ -3,6 +3,26 @@ import { useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
+function EyeIcon({ hidden = false }) {
+  if (hidden) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M3 3L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M10.7 10.7A2 2 0 0 0 13.3 13.3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4.88C17 4.88 20.73 8.11 22 12C21.5 13.53 20.55 14.92 19.31 16.03" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M6.61 6.61C4.44 7.76 2.79 9.66 2 12C3.27 15.89 7 19.12 12 19.12C13.48 19.12 14.84 18.84 16.04 18.34" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M2 12C3.27 8.11 7 4.88 12 4.88C17 4.88 20.73 8.11 22 12C20.73 15.89 17 19.12 12 19.12C7 19.12 3.27 15.89 2 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 15A3 3 0 1 0 12 9A3 3 0 0 0 12 15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function ChangePasswordPage() {
   const navigate = useNavigate()
 
@@ -10,6 +30,12 @@ export default function ChangePasswordPage() {
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
+  })
+
+  const [showPassword, setShowPassword] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
   })
 
   const [loading, setLoading] = useState(false)
@@ -26,6 +52,13 @@ export default function ChangePasswordPage() {
 
     setMessage('')
     setError('')
+  }
+
+  const togglePassword = (field) => {
+    setShowPassword((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }))
   }
 
   const handleSubmit = async (event) => {
@@ -76,6 +109,33 @@ export default function ChangePasswordPage() {
     navigate('/login', { replace: true })
   }
 
+  const PasswordInput = ({ label, name, placeholder, autoComplete }) => (
+    <label style={styles.label}>
+      {label}
+      <div style={styles.passwordWrap}>
+        <input
+          style={styles.inputWithIcon}
+          type={showPassword[name] ? 'text' : 'password'}
+          name={name}
+          value={form[name]}
+          onChange={handleChange}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+        />
+
+        <button
+          type="button"
+          style={styles.eyeButton}
+          onClick={() => togglePassword(name)}
+          aria-label={showPassword[name] ? 'Hide password' : 'Show password'}
+          title={showPassword[name] ? 'Hide password' : 'Show password'}
+        >
+          <EyeIcon hidden={showPassword[name]} />
+        </button>
+      </div>
+    </label>
+  )
+
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -94,44 +154,26 @@ export default function ChangePasswordPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.label}>
-            Current Password
-            <input
-              style={styles.input}
-              type="password"
-              name="currentPassword"
-              value={form.currentPassword}
-              onChange={handleChange}
-              placeholder="Enter current password"
-              autoComplete="current-password"
-            />
-          </label>
+          <PasswordInput
+            label="Current Password"
+            name="currentPassword"
+            placeholder="Enter current password"
+            autoComplete="current-password"
+          />
 
-          <label style={styles.label}>
-            New Password
-            <input
-              style={styles.input}
-              type="password"
-              name="newPassword"
-              value={form.newPassword}
-              onChange={handleChange}
-              placeholder="Enter new password"
-              autoComplete="new-password"
-            />
-          </label>
+          <PasswordInput
+            label="New Password"
+            name="newPassword"
+            placeholder="Enter new password"
+            autoComplete="new-password"
+          />
 
-          <label style={styles.label}>
-            Confirm New Password
-            <input
-              style={styles.input}
-              type="password"
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm new password"
-              autoComplete="new-password"
-            />
-          </label>
+          <PasswordInput
+            label="Confirm New Password"
+            name="confirmPassword"
+            placeholder="Confirm new password"
+            autoComplete="new-password"
+          />
 
           {error ? <div style={styles.errorBox}>{error}</div> : null}
           {message ? <div style={styles.successBox}>{message}</div> : null}
@@ -177,11 +219,16 @@ const styles = {
     border: 'none',
     background: '#EEF2FF',
     color: '#4F46E5',
-    padding: '9px 13px',
+    minHeight: 36,
+    padding: '0 13px',
     borderRadius: 10,
     fontWeight: 700,
     cursor: 'pointer',
     marginBottom: 22,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: '1',
   },
   header: {
     display: 'flex',
@@ -223,15 +270,39 @@ const styles = {
     fontWeight: 700,
     color: '#334155',
   },
-  input: {
+  passwordWrap: {
+    position: 'relative',
+    width: '100%',
+  },
+  inputWithIcon: {
+    width: '100%',
     height: 46,
     border: '1.5px solid #E2E8F0',
     borderRadius: 12,
-    padding: '0 14px',
+    padding: '0 48px 0 14px',
     fontSize: 14,
     outline: 'none',
     color: '#0F172A',
     background: '#FFFFFF',
+    lineHeight: '46px',
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 9,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: 34,
+    height: 34,
+    border: 'none',
+    borderRadius: 9,
+    background: '#F1F5F9',
+    color: '#475569',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+    lineHeight: 1,
   },
   submitButton: {
     height: 48,
@@ -243,6 +314,11 @@ const styles = {
     fontWeight: 800,
     cursor: 'pointer',
     marginTop: 6,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: '1',
+    padding: 0,
   },
   logoutButton: {
     height: 44,
@@ -253,6 +329,11 @@ const styles = {
     fontSize: 13,
     fontWeight: 800,
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    lineHeight: '1',
+    padding: 0,
   },
   errorBox: {
     background: '#FEF2F2',
