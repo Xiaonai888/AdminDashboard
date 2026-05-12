@@ -8,6 +8,8 @@ import AuthorsCommunity from './pages/AuthorsCommunity';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminActivityLogsPage from "./pages/Admin/AdminActivityLogsPage";
+import ChangePasswordPage from "./pages/Admin/ChangePasswordPage";
+
 
 function ComingSoon({ title }) {
   return (
@@ -68,6 +70,7 @@ export default function App() {
         <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
+        <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
