@@ -1,9 +1,573 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
-const menuItems = [
+const globalStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg-main: #F8FAFC;
+    --bg-card: #FFFFFF;
+    --primary: #4F46E5;
+    --primary-light: #EEF2FF;
+    --text-main: #0F172A;
+    --text-muted: #64748B;
+    --border: #E2E8F0;
+    --sidebar-collapsed: 80px;
+    --sidebar-expanded: 260px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-main);
+  }
+
+  .dashboard-wrapper {
+    display: flex;
+    height: 100vh;
+    background: var(--bg-main);
+    overflow: hidden;
+  }
+
+  .sidebar {
+    width: var(--sidebar-collapsed);
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 14px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    z-index: 1000;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-shrink: 0;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    width: 0px;
+  }
+
+  .sidebar:hover {
+    width: var(--sidebar-expanded);
+    box-shadow: 10px 0 30px rgba(0,0,0,0.04);
+  }
+
+  .sidebar-logo {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 30px;
+    padding-left: 10px;
+  }
+
+  .logo-text {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--primary);
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  .sidebar:hover .logo-text {
+    opacity: 1;
+  }
+
+  .nav-group-label {
+    font-size: 10px;
+    font-weight: 800;
+    color: #94A3B8;
+    margin: 20px 0 8px 12px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .sidebar:hover .nav-group-label {
+    opacity: 1;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    font-size: 14px;
+  }
+
+  .nav-item:hover,
+  .nav-item.active {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  .nav-text {
+    margin-left: 14px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .sidebar:hover .nav-text {
+    opacity: 1;
+  }
+
+  .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .header {
+    height: 70px;
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 36px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header h2 {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 0;
+  }
+
+  .content-body {
+    padding: 28px 36px 48px;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .settings-shell {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 22px;
+    align-items: start;
+  }
+
+  .settings-side-panel,
+  .settings-content-panel {
+    background: #FFFFFF;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    box-shadow: 0 8px 28px rgba(15,23,42,0.06);
+  }
+
+  .settings-side-panel {
+    padding: 18px;
+    position: sticky;
+    top: 96px;
+  }
+
+  .settings-title-block {
+    padding: 6px 8px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .settings-kicker {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: var(--primary);
+  }
+
+  .settings-title {
+    margin: 8px 0 0;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .settings-subtitle {
+    margin: 8px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .settings-tab-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .settings-tab {
+    width: 100%;
+    border: none;
+    background: transparent;
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .settings-tab:hover {
+    background: #F8FAFC;
+    transform: translateX(3px);
+  }
+
+  .settings-tab.active {
+    background: linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%);
+    box-shadow: 0 10px 28px rgba(79,70,229,0.13);
+    transform: translateX(4px);
+  }
+
+  .settings-tab.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 4px;
+    border-radius: 999px;
+    background: var(--primary);
+  }
+
+  .settings-tab-icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 14px;
+    background: #F1F5F9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    transition: transform 0.18s ease, background 0.18s ease;
+  }
+
+  .settings-tab:hover .settings-tab-icon {
+    transform: scale(1.05);
+    background: #EEF2FF;
+  }
+
+  .settings-tab.active .settings-tab-icon {
+    background: #E0E7FF;
+    transform: scale(1.06);
+  }
+
+  .settings-tab-main {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .settings-tab-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: space-between;
+  }
+
+  .settings-tab-title {
+    font-size: 14px;
+    font-weight: 900;
+    color: #0F172A;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .settings-tab-desc {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: #64748B;
+    line-height: 1.35;
+  }
+
+  .soon-badge {
+    font-size: 10px;
+    font-weight: 900;
+    color: #64748B;
+    background: #F1F5F9;
+    border-radius: 999px;
+    padding: 4px 7px;
+  }
+
+  .settings-content-panel {
+    min-height: 560px;
+    padding: 30px;
+  }
+
+  .content-head {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 26px;
+  }
+
+  .content-head-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 16px;
+    background: #EEF2FF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 23px;
+  }
+
+  .content-head h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .content-head p {
+    margin: 6px 0 0;
+    color: #64748B;
+    font-size: 14px;
+  }
+
+  .password-form {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    animation: fadeSoft 0.22s ease;
+  }
+
+  @keyframes fadeSoft {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .field-label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0F172A;
+    width: 100%;
+  }
+
+  .password-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .password-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 46px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 12px;
+    padding: 0 50px 0 14px;
+    font-size: 14px;
+    outline: none;
+    color: #0F172A;
+    background: #FFFFFF;
+    line-height: 46px;
+    display: block;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .password-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+  }
+
+  .eye-button {
+    position: absolute;
+    right: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 10px;
+    background: #F1F5F9;
+    color: #475569;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .primary-button {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 12px;
+    background: #0F172A;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    margin-top: 4px;
+    box-shadow: 0 14px 30px rgba(15,23,42,0.18);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .primary-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 36px rgba(15,23,42,0.22);
+  }
+
+  .primary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .logout-other-button {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #CBD5E1;
+    border-radius: 12px;
+    background: #F8FAFC;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+
+  .message-box {
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 700;
+  }
+
+  .message-box.error {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+  }
+
+  .message-box.success {
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #047857;
+  }
+
+  .coming-soon-panel {
+    border: 1px dashed #CBD5E1;
+    border-radius: 20px;
+    padding: 34px;
+    text-align: center;
+    background: #F8FAFC;
+    animation: fadeSoft 0.22s ease;
+  }
+
+  .coming-soon-icon {
+    font-size: 34px;
+    margin-bottom: 10px;
+  }
+
+  .coming-soon-panel h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 900;
+  }
+
+  .coming-soon-panel p {
+    margin: 8px auto 0;
+    color: #64748B;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 420px;
+  }
+
+  @media (max-width: 980px) {
+    .settings-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .settings-side-panel {
+      position: static;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .content-body {
+      padding: 20px 16px 36px;
+    }
+
+    .header {
+      padding: 0 18px;
+    }
+
+    .settings-content-panel,
+    .settings-side-panel {
+      border-radius: 18px;
+      padding: 18px;
+    }
+  }
+`
+
+const navItems = {
+  overview: [
+    { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
+    { path: '/novels', label: 'Novels Content', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
+    { path: '/authors', label: 'Authors Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  ],
+  visualMedia: [
+    { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
+    { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
+    { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
+    { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  ],
+  systemAdmin: [
+    { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
+    { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+    { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
+    { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
+  ],
+  finance: [
+    { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+    { path: '/history', label: 'History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { path: '/deposit', label: 'Deposit', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3' },
+    { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12' },
+    { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z' },
+  ],
+}
+
+const settingsTabs = [
   {
     key: 'password',
     title: 'Change Password',
@@ -48,6 +612,22 @@ const menuItems = [
   },
 ]
 
+const Icon = ({ d, size = 20, color }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke={color || 'currentColor'}
+    strokeWidth={2.2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ minWidth: `${size}px`, flexShrink: 0 }}
+  >
+    <path d={d} />
+  </svg>
+)
+
 function EyeIcon({ hidden = false }) {
   if (hidden) {
     return (
@@ -68,6 +648,44 @@ function EyeIcon({ hidden = false }) {
   )
 }
 
+function Sidebar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const renderGroup = (items) =>
+    items.map((item) => (
+      <div
+        key={item.path}
+        className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+        onClick={() => navigate(item.path)}
+      >
+        <Icon d={item.icon} size={20} />
+        <span className="nav-text">{item.label}</span>
+      </div>
+    ))
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
+        <span className="logo-text">Shadow Exclusive</span>
+      </div>
+
+      <span className="nav-group-label">Overview</span>
+      {renderGroup(navItems.overview)}
+
+      <span className="nav-group-label">Visual Media</span>
+      {renderGroup(navItems.visualMedia)}
+
+      <span className="nav-group-label">System Admin</span>
+      {renderGroup(navItems.systemAdmin)}
+
+      <span className="nav-group-label">Finance & Growth</span>
+      {renderGroup(navItems.finance)}
+    </aside>
+  )
+}
+
 function PasswordField({
   label,
   name,
@@ -79,11 +697,11 @@ function PasswordField({
   onToggle,
 }) {
   return (
-    <label style={styles.label}>
+    <label className="field-label">
       {label}
-      <div style={styles.passwordWrap}>
+      <div className="password-wrap">
         <input
-          style={styles.inputWithIcon}
+          className="password-input"
           type={visible ? 'text' : 'password'}
           name={name}
           value={value}
@@ -94,7 +712,7 @@ function PasswordField({
 
         <button
           type="button"
-          style={styles.eyeButton}
+          className="eye-button"
           onClick={() => onToggle(name)}
           aria-label={visible ? 'Hide password' : 'Show password'}
           title={visible ? 'Hide password' : 'Show password'}
@@ -182,7 +800,7 @@ function ChangePasswordPanel() {
   }
 
   return (
-    <form onSubmit={handleSubmit} style={styles.passwordForm}>
+    <form onSubmit={handleSubmit} className="password-form">
       <PasswordField
         label="Current Password"
         name="currentPassword"
@@ -216,399 +834,96 @@ function ChangePasswordPanel() {
         onToggle={togglePassword}
       />
 
-      {error ? <div style={styles.errorBox}>{error}</div> : null}
-      {message ? <div style={styles.successBox}>{message}</div> : null}
+      {error ? <div className="message-box error">{error}</div> : null}
+      {message ? <div className="message-box success">{message}</div> : null}
 
-      <button type="submit" style={styles.primaryButton} disabled={loading}>
+      <button type="submit" className="primary-button" disabled={loading}>
         {loading ? 'Changing...' : 'Change Password'}
+      </button>
+
+      <button type="button" className="logout-other-button" disabled>
+        Logout Other Devices
       </button>
     </form>
   )
 }
 
 export default function AdminSettingsPage() {
-  const navigate = useNavigate()
   const [activeKey, setActiveKey] = useState('password')
-
-  const activeItem = menuItems.find((item) => item.key === activeKey) || menuItems[0]
+  const activeTab = settingsTabs.find((tab) => tab.key === activeKey) || settingsTabs[0]
 
   return (
-    <div style={styles.page}>
-      <div style={styles.shell}>
-        <button type="button" style={styles.backButton} onClick={() => navigate('/admin')}>
-          ← Back to Dashboard
-        </button>
+    <>
+      <style>{globalStyles}</style>
 
-        <div style={styles.layout}>
-          <aside style={styles.sidebar}>
-            <div style={styles.sidebarHeader}>
-              <p style={styles.kicker}>ADMIN SETTINGS</p>
-              <h1 style={styles.sidebarTitle}>Settings</h1>
-              <p style={styles.sidebarText}>Security, login, and admin protection.</p>
-            </div>
+      <div className="dashboard-wrapper">
+        <Sidebar />
 
-            <nav style={styles.nav}>
-              {menuItems.map((item) => {
-                const active = item.key === activeKey
+        <div className="main-content">
+          <header className="header">
+            <h2>Admin Settings</h2>
+          </header>
 
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setActiveKey(item.key)}
-                    style={{
-                      ...styles.navItem,
-                      ...(active ? styles.navItemActive : {}),
-                    }}
-                  >
-                    {active ? <span style={styles.activeLine} /> : null}
-
-                    <span
-                      style={{
-                        ...styles.navIcon,
-                        ...(active ? styles.navIconActive : {}),
-                      }}
-                    >
-                      {item.icon}
-                    </span>
-
-                    <span style={styles.navTextWrap}>
-                      <span style={styles.navTitleRow}>
-                        <span style={styles.navTitle}>{item.title}</span>
-                        {!item.available ? <span style={styles.soonBadge}>Soon</span> : null}
-                      </span>
-                      <span style={styles.navSubtitle}>{item.subtitle}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </nav>
-          </aside>
-
-          <main style={styles.content}>
-            <div style={styles.contentHeader}>
-              <div style={styles.contentIcon}>{activeItem.icon}</div>
-              <div>
-                <h2 style={styles.contentTitle}>{activeItem.title}</h2>
-                <p style={styles.contentSubtitle}>{activeItem.subtitle}</p>
-              </div>
-            </div>
-
-            <div key={activeKey} style={styles.contentBody}>
-              {activeKey === 'password' ? (
-                <ChangePasswordPanel />
-              ) : (
-                <div style={styles.comingSoonPanel}>
-                  <div style={styles.comingSoonIcon}>🛠️</div>
-                  <h3 style={styles.comingSoonTitle}>Coming Soon</h3>
-                  <p style={styles.comingSoonText}>
-                    This security feature is prepared in the settings menu, but it is not active yet.
+          <main className="content-body">
+            <div className="settings-shell">
+              <section className="settings-side-panel">
+                <div className="settings-title-block">
+                  <p className="settings-kicker">ADMIN SETTINGS</p>
+                  <h1 className="settings-title">Settings</h1>
+                  <p className="settings-subtitle">
+                    Security, login, and admin protection.
                   </p>
                 </div>
-              )}
+
+                <div className="settings-tab-list">
+                  {settingsTabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={`settings-tab ${activeKey === tab.key ? 'active' : ''}`}
+                      onClick={() => setActiveKey(tab.key)}
+                    >
+                      <span className="settings-tab-icon">{tab.icon}</span>
+
+                      <span className="settings-tab-main">
+                        <span className="settings-tab-title-row">
+                          <span className="settings-tab-title">{tab.title}</span>
+                          {!tab.available ? <span className="soon-badge">Soon</span> : null}
+                        </span>
+
+                        <span className="settings-tab-desc">{tab.subtitle}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="settings-content-panel">
+                <div className="content-head">
+                  <div className="content-head-icon">{activeTab.icon}</div>
+
+                  <div>
+                    <h1>{activeTab.title}</h1>
+                    <p>{activeTab.subtitle}</p>
+                  </div>
+                </div>
+
+                {activeKey === 'password' ? (
+                  <ChangePasswordPanel />
+                ) : (
+                  <div className="coming-soon-panel">
+                    <div className="coming-soon-icon">🛠️</div>
+                    <h3>Coming Soon</h3>
+                    <p>
+                      This security feature is prepared in the settings menu, but it is not active yet.
+                    </p>
+                  </div>
+                )}
+              </section>
             </div>
           </main>
         </div>
       </div>
-    </div>
+    </>
   )
-}
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #F8FAFC 0%, #EEF2FF 100%)',
-    padding: 24,
-    fontFamily: 'Inter, sans-serif',
-    color: '#0F172A',
-  },
-  shell: {
-    width: 'min(1180px, 100%)',
-    margin: '0 auto',
-  },
-  backButton: {
-    border: 'none',
-    background: '#FFFFFF',
-    color: '#4F46E5',
-    minHeight: 38,
-    padding: '0 15px',
-    borderRadius: 12,
-    fontWeight: 800,
-    cursor: 'pointer',
-    marginBottom: 18,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    lineHeight: 1,
-    boxShadow: '0 8px 24px rgba(79, 70, 229, 0.10)',
-  },
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: '330px 1fr',
-    gap: 20,
-    alignItems: 'stretch',
-  },
-  sidebar: {
-    background: 'rgba(255,255,255,0.92)',
-    border: '1px solid #E2E8F0',
-    borderRadius: 24,
-    padding: 18,
-    boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
-    position: 'sticky',
-    top: 20,
-    alignSelf: 'start',
-  },
-  sidebarHeader: {
-    padding: '8px 8px 16px',
-    borderBottom: '1px solid #E2E8F0',
-    marginBottom: 12,
-  },
-  kicker: {
-    margin: 0,
-    fontSize: 11,
-    fontWeight: 900,
-    letterSpacing: '0.13em',
-    color: '#4F46E5',
-  },
-  sidebarTitle: {
-    margin: '8px 0 0',
-    fontSize: 28,
-    fontWeight: 950,
-    letterSpacing: '-0.04em',
-  },
-  sidebarText: {
-    margin: '8px 0 0',
-    color: '#64748B',
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  navItem: {
-    width: '100%',
-    position: 'relative',
-    border: 'none',
-    background: 'transparent',
-    borderRadius: 16,
-    padding: '12px 12px 12px 14px',
-    display: 'flex',
-    gap: 12,
-    alignItems: 'center',
-    textAlign: 'left',
-    cursor: 'pointer',
-    color: '#334155',
-    transition: 'background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, color 0.18s ease',
-  },
-  navItemActive: {
-    background: 'linear-gradient(135deg, #EEF2FF 0%, #FFFFFF 100%)',
-    color: '#0F172A',
-    boxShadow: '0 10px 28px rgba(79, 70, 229, 0.14)',
-    transform: 'translateX(4px)',
-  },
-  activeLine: {
-    position: 'absolute',
-    left: 0,
-    top: 12,
-    bottom: 12,
-    width: 4,
-    borderRadius: 999,
-    background: '#4F46E5',
-  },
-  navIcon: {
-    width: 42,
-    height: 42,
-    minWidth: 42,
-    borderRadius: 14,
-    background: '#F1F5F9',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 20,
-    transition: 'transform 0.18s ease, background 0.18s ease',
-  },
-  navIconActive: {
-    background: '#E0E7FF',
-    transform: 'scale(1.06)',
-  },
-  navTextWrap: {
-    minWidth: 0,
-    flex: 1,
-  },
-  navTitleRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 8,
-    alignItems: 'center',
-  },
-  navTitle: {
-    fontSize: 14,
-    fontWeight: 900,
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  navSubtitle: {
-    display: 'block',
-    marginTop: 3,
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 1.35,
-  },
-  soonBadge: {
-    fontSize: 10,
-    fontWeight: 900,
-    color: '#64748B',
-    background: '#F1F5F9',
-    borderRadius: 999,
-    padding: '4px 7px',
-  },
-  content: {
-    minHeight: 560,
-    background: 'rgba(255,255,255,0.94)',
-    border: '1px solid #E2E8F0',
-    borderRadius: 24,
-    padding: 30,
-    boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
-  },
-  contentHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-    paddingBottom: 22,
-    borderBottom: '1px solid #E2E8F0',
-  },
-  contentIcon: {
-    width: 48,
-    height: 48,
-    minWidth: 48,
-    borderRadius: 16,
-    background: '#EEF2FF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 23,
-  },
-  contentTitle: {
-    margin: 0,
-    fontSize: 26,
-    fontWeight: 950,
-    letterSpacing: '-0.04em',
-  },
-  contentSubtitle: {
-    margin: '6px 0 0',
-    color: '#64748B',
-    fontSize: 14,
-  },
-  contentBody: {
-    paddingTop: 26,
-    animation: 'fadeIn 0.25s ease',
-  },
-  passwordForm: {
-    maxWidth: 520,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 15,
-  },
-  label: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 7,
-    fontSize: 13,
-    fontWeight: 800,
-    color: '#0F172A',
-    width: '100%',
-  },
-  passwordWrap: {
-    position: 'relative',
-    width: '100%',
-  },
-  inputWithIcon: {
-    boxSizing: 'border-box',
-    width: '100%',
-    height: 46,
-    border: '1.5px solid #CBD5E1',
-    borderRadius: 12,
-    padding: '0 50px 0 14px',
-    fontSize: 14,
-    outline: 'none',
-    color: '#0F172A',
-    background: '#FFFFFF',
-    lineHeight: '46px',
-    display: 'block',
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 9,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: 34,
-    height: 34,
-    border: 'none',
-    borderRadius: 10,
-    background: '#F1F5F9',
-    color: '#475569',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    lineHeight: 1,
-  },
-  primaryButton: {
-    width: '100%',
-    height: 48,
-    border: 'none',
-    borderRadius: 12,
-    background: '#0F172A',
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 900,
-    cursor: 'pointer',
-    marginTop: 4,
-    boxShadow: '0 14px 30px rgba(15, 23, 42, 0.18)',
-  },
-  errorBox: {
-    background: '#FEF2F2',
-    border: '1px solid #FECACA',
-    color: '#B91C1C',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  successBox: {
-    background: '#ECFDF5',
-    border: '1px solid #A7F3D0',
-    color: '#047857',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  comingSoonPanel: {
-    border: '1px dashed #CBD5E1',
-    borderRadius: 20,
-    padding: 34,
-    textAlign: 'center',
-    background: '#F8FAFC',
-  },
-  comingSoonIcon: {
-    fontSize: 34,
-    marginBottom: 10,
-  },
-  comingSoonTitle: {
-    margin: 0,
-    fontSize: 20,
-    fontWeight: 950,
-  },
-  comingSoonText: {
-    margin: '8px auto 0',
-    color: '#64748B',
-    fontSize: 14,
-    lineHeight: 1.6,
-    maxWidth: 420,
-  },
 }
