@@ -23,6 +23,44 @@ function EyeIcon({ hidden = false }) {
   )
 }
 
+function PasswordField({
+  label,
+  name,
+  value,
+  visible,
+  placeholder,
+  autoComplete,
+  onChange,
+  onToggle,
+}) {
+  return (
+    <label style={styles.label}>
+      {label}
+      <div style={styles.passwordWrap}>
+        <input
+          style={styles.inputWithIcon}
+          type={visible ? 'text' : 'password'}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+        />
+
+        <button
+          type="button"
+          style={styles.eyeButton}
+          onClick={() => onToggle(name)}
+          aria-label={visible ? 'Hide password' : 'Show password'}
+          title={visible ? 'Hide password' : 'Show password'}
+        >
+          <EyeIcon hidden={visible} />
+        </button>
+      </div>
+    </label>
+  )
+}
+
 export default function ChangePasswordPage() {
   const navigate = useNavigate()
 
@@ -106,33 +144,6 @@ export default function ChangePasswordPage() {
     navigate('/login', { replace: true })
   }
 
-  const PasswordInput = ({ label, name, placeholder, autoComplete }) => (
-    <label style={styles.label}>
-      {label}
-      <div style={styles.passwordWrap}>
-        <input
-          style={styles.inputWithIcon}
-          type={showPassword[name] ? 'text' : 'password'}
-          name={name}
-          value={form[name]}
-          onChange={handleChange}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-        />
-
-        <button
-          type="button"
-          style={styles.eyeButton}
-          onClick={() => togglePassword(name)}
-          aria-label={showPassword[name] ? 'Hide password' : 'Show password'}
-          title={showPassword[name] ? 'Hide password' : 'Show password'}
-        >
-          <EyeIcon hidden={showPassword[name]} />
-        </button>
-      </div>
-    </label>
-  )
-
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -151,25 +162,37 @@ export default function ChangePasswordPage() {
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <PasswordInput
+          <PasswordField
             label="Current Password"
             name="currentPassword"
+            value={form.currentPassword}
+            visible={showPassword.currentPassword}
             placeholder="Enter current password"
             autoComplete="current-password"
+            onChange={handleChange}
+            onToggle={togglePassword}
           />
 
-          <PasswordInput
+          <PasswordField
             label="New Password"
             name="newPassword"
+            value={form.newPassword}
+            visible={showPassword.newPassword}
             placeholder="Enter new password"
             autoComplete="new-password"
+            onChange={handleChange}
+            onToggle={togglePassword}
           />
 
-          <PasswordInput
+          <PasswordField
             label="Confirm New Password"
             name="confirmPassword"
+            value={form.confirmPassword}
+            visible={showPassword.confirmPassword}
             placeholder="Confirm new password"
             autoComplete="new-password"
+            onChange={handleChange}
+            onToggle={togglePassword}
           />
 
           {error ? <div style={styles.errorBox}>{error}</div> : null}
