@@ -1,7 +1,126 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+
+const styles = `
+  .password-form {
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .password-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0F172A;
+    width: 100%;
+  }
+
+  .password-wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  .password-input {
+    width: 100%;
+    height: 46px;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 12px;
+    padding: 0 50px 0 14px;
+    font-size: 14px;
+    outline: none;
+    color: #0F172A;
+    background: #FFFFFF;
+    line-height: 46px;
+    display: block;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .password-input:focus {
+    border-color: #4F46E5;
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.10);
+  }
+
+  .eye-button {
+    position: absolute;
+    right: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 10px;
+    background: #F1F5F9;
+    color: #475569;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .change-password-button {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 12px;
+    background: #0F172A;
+    color: #FFFFFF;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    margin-top: 4px;
+    box-shadow: 0 14px 30px rgba(15,23,42,0.18);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .change-password-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 36px rgba(15,23,42,0.22);
+  }
+
+  .change-password-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .logout-other-button {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #CBD5E1;
+    border-radius: 12px;
+    background: #F8FAFC;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: not-allowed;
+    opacity: 0.75;
+  }
+
+  .password-message {
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 700;
+  }
+
+  .password-message.error {
+    background: #FEF2F2;
+    border: 1px solid #FECACA;
+    color: #B91C1C;
+  }
+
+  .password-message.success {
+    background: #ECFDF5;
+    border: 1px solid #A7F3D0;
+    color: #047857;
+  }
+`
 
 function EyeIcon({ hidden = false }) {
   if (hidden) {
@@ -23,22 +142,13 @@ function EyeIcon({ hidden = false }) {
   )
 }
 
-function PasswordField({
-  label,
-  name,
-  value,
-  visible,
-  placeholder,
-  autoComplete,
-  onChange,
-  onToggle,
-}) {
+function PasswordInput({ label, name, value, visible, placeholder, autoComplete, onChange, onToggle }) {
   return (
-    <label style={styles.label}>
+    <label className="password-field">
       {label}
-      <div style={styles.passwordWrap}>
+      <div className="password-wrap">
         <input
-          style={styles.inputWithIcon}
+          className="password-input"
           type={visible ? 'text' : 'password'}
           name={name}
           value={value}
@@ -49,7 +159,7 @@ function PasswordField({
 
         <button
           type="button"
-          style={styles.eyeButton}
+          className="eye-button"
           onClick={() => onToggle(name)}
           aria-label={visible ? 'Hide password' : 'Show password'}
           title={visible ? 'Hide password' : 'Show password'}
@@ -61,47 +171,26 @@ function PasswordField({
   )
 }
 
-export default function ChangePasswordPage() {
-  const navigate = useNavigate()
-
-  const [form, setForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  })
-
-  const [showPassword, setShowPassword] = useState({
-    currentPassword: false,
-    newPassword: false,
-    confirmPassword: false,
-  })
-
+export default function ChangePasswordSection() {
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [showPassword, setShowPassword] = useState({ currentPassword: false, newPassword: false, confirmPassword: false })
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
   const handleChange = (event) => {
     const { name, value } = event.target
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-
+    setForm((prev) => ({ ...prev, [name]: value }))
     setMessage('')
     setError('')
   }
 
   const togglePassword = (field) => {
-    setShowPassword((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }))
+    setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }))
   }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-
     setLoading(true)
     setMessage('')
     setError('')
@@ -121,264 +210,38 @@ export default function ChangePasswordPage() {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to validate password change')
+        throw new Error(data.message || 'Failed to change password')
       }
 
-      setMessage('Password validation passed.')
-
-      setForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      })
+      setMessage(data.message || 'Admin password changed successfully')
+      setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch (err) {
-      setError(err.message || 'Failed to validate password change')
+      setError(err.message || 'Failed to change password')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('shadow_admin_token')
-    localStorage.removeItem('shadow_admin_token')
-    navigate('/login', { replace: true })
-  }
-
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <button type="button" style={styles.backButton} onClick={() => navigate('/admin')}>
-          ← Back to Dashboard
+    <>
+      <style>{styles}</style>
+
+      <form onSubmit={handleSubmit} className="password-form">
+        <PasswordInput label="Current Password" name="currentPassword" value={form.currentPassword} visible={showPassword.currentPassword} placeholder="Enter current password" autoComplete="current-password" onChange={handleChange} onToggle={togglePassword} />
+        <PasswordInput label="New Password" name="newPassword" value={form.newPassword} visible={showPassword.newPassword} placeholder="Enter new password" autoComplete="new-password" onChange={handleChange} onToggle={togglePassword} />
+        <PasswordInput label="Confirm New Password" name="confirmPassword" value={form.confirmPassword} visible={showPassword.confirmPassword} placeholder="Confirm new password" autoComplete="new-password" onChange={handleChange} onToggle={togglePassword} />
+
+        {error ? <div className="password-message error">{error}</div> : null}
+        {message ? <div className="password-message success">{message}</div> : null}
+
+        <button type="submit" className="change-password-button" disabled={loading}>
+          {loading ? 'Changing...' : 'Change Password'}
         </button>
 
-        <div style={styles.header}>
-          <div style={styles.iconBox}>🔐</div>
-          <div style={styles.headerText}>
-            <h1 style={styles.title}>Change Admin Password</h1>
-            <p style={styles.subtitle}>
-              Validate your current password before updating it.
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <PasswordField
-            label="Current Password"
-            name="currentPassword"
-            value={form.currentPassword}
-            visible={showPassword.currentPassword}
-            placeholder="Enter current password"
-            autoComplete="current-password"
-            onChange={handleChange}
-            onToggle={togglePassword}
-          />
-
-          <PasswordField
-            label="New Password"
-            name="newPassword"
-            value={form.newPassword}
-            visible={showPassword.newPassword}
-            placeholder="Enter new password"
-            autoComplete="new-password"
-            onChange={handleChange}
-            onToggle={togglePassword}
-          />
-
-          <PasswordField
-            label="Confirm New Password"
-            name="confirmPassword"
-            value={form.confirmPassword}
-            visible={showPassword.confirmPassword}
-            placeholder="Confirm new password"
-            autoComplete="new-password"
-            onChange={handleChange}
-            onToggle={togglePassword}
-          />
-
-          {error ? <div style={styles.errorBox}>{error}</div> : null}
-          {message ? <div style={styles.successBox}>{message}</div> : null}
-
-          <button type="submit" style={styles.submitButton} disabled={loading}>
-            {loading ? 'Checking...' : 'Validate Password Change'}
-          </button>
-
-          <button type="button" style={styles.logoutButton} onClick={handleLogout}>
-            Logout After Render Password Update
-          </button>
-        </form>
-      </div>
-    </div>
+        <button type="button" className="logout-other-button" disabled>
+          Logout Other Devices
+        </button>
+      </form>
+    </>
   )
-}
-
-const styles = {
-  page: {
-    minHeight: '100vh',
-    background: '#F8FAFC',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    fontFamily: 'Inter, sans-serif',
-    color: '#0F172A',
-  },
-  card: {
-    width: 'min(520px, 100%)',
-    background: '#FFFFFF',
-    border: '1px solid #E2E8F0',
-    borderRadius: 20,
-    padding: 28,
-    boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
-    overflow: 'hidden',
-  },
-  backButton: {
-    border: 'none',
-    background: '#EEF2FF',
-    color: '#4F46E5',
-    minHeight: 34,
-    padding: '0 13px',
-    borderRadius: 10,
-    fontWeight: 700,
-    cursor: 'pointer',
-    marginBottom: 24,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    lineHeight: '1',
-  },
-  header: {
-    display: 'flex',
-    gap: 14,
-    alignItems: 'center',
-    marginBottom: 26,
-  },
-  headerText: {
-    minWidth: 0,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    minWidth: 44,
-    borderRadius: 14,
-    background: '#EEF2FF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 23,
-  },
-  title: {
-    margin: 0,
-    fontSize: 23,
-    fontWeight: 800,
-    lineHeight: 1.15,
-    letterSpacing: '-0.02em',
-  },
-  subtitle: {
-    margin: '6px 0 0',
-    color: '#475569',
-    fontSize: 14,
-    lineHeight: 1.45,
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 15,
-    width: '100%',
-  },
-  label: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 7,
-    fontSize: 13,
-    fontWeight: 800,
-    color: '#0F172A',
-    width: '100%',
-  },
-  passwordWrap: {
-    position: 'relative',
-    width: '100%',
-  },
-  inputWithIcon: {
-    boxSizing: 'border-box',
-    width: '100%',
-    height: 46,
-    border: '1.5px solid #CBD5E1',
-    borderRadius: 12,
-    padding: '0 50px 0 14px',
-    fontSize: 14,
-    outline: 'none',
-    color: '#0F172A',
-    background: '#FFFFFF',
-    lineHeight: '46px',
-    display: 'block',
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 9,
-    top: '50%',
-    transform: 'translateY(-50%)',
-    width: 34,
-    height: 34,
-    border: 'none',
-    borderRadius: 10,
-    background: '#F1F5F9',
-    color: '#475569',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    lineHeight: 1,
-  },
-  submitButton: {
-    width: '100%',
-    height: 48,
-    border: 'none',
-    borderRadius: 12,
-    background: '#0F172A',
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 800,
-    cursor: 'pointer',
-    marginTop: 4,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    lineHeight: '1',
-    padding: 0,
-  },
-  logoutButton: {
-    width: '100%',
-    height: 44,
-    border: '1px solid #FCA5A5',
-    borderRadius: 12,
-    background: '#FEF2F2',
-    color: '#DC2626',
-    fontSize: 13,
-    fontWeight: 800,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    lineHeight: '1',
-    padding: 0,
-  },
-  errorBox: {
-    background: '#FEF2F2',
-    border: '1px solid #FECACA',
-    color: '#B91C1C',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  successBox: {
-    background: '#ECFDF5',
-    border: '1px solid #A7F3D0',
-    color: '#047857',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
 }
