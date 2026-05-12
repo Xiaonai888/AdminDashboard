@@ -7,7 +7,6 @@ const styles = `
     padding: 34px;
     text-align: center;
     background: #F8FAFC;
-    animation: fadeSoft 0.22s ease;
   }
 
   .coming-soon-icon {
@@ -15,13 +14,14 @@ const styles = `
     margin-bottom: 10px;
   }
 
-  .coming-soon-panel h3 {
+  .coming-soon-title {
+    margin: 0;
     font-size: 20px;
     font-weight: 900;
-    margin: 0;
+    color: #0F172A;
   }
 
-  .coming-soon-panel p {
+  .coming-soon-text {
     margin: 8px auto 0;
     color: #64748B;
     font-size: 14px;
@@ -37,8 +37,10 @@ export default function ComingSoonSection() {
 
       <div className="coming-soon-panel">
         <div className="coming-soon-icon">🛠️</div>
-        <h3>Coming Soon</h3>
-        <p>This security feature is prepared in the settings menu, but it is not active yet.</p>
+        <h3 className="coming-soon-title">Coming Soon</h3>
+        <p className="coming-soon-text">
+          This security feature is prepared in the settings menu, but it is not active yet.
+        </p>
       </div>
     </>
   )
