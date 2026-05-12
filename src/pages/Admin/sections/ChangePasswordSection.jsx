@@ -298,7 +298,7 @@ export default function ChangePasswordSection() {
         {message ? <div className="message-box success">{message}</div> : null}
 
         <button type="submit" className="primary-button" disabled={loading}>
-          {loading ? 'Changing...' : 'Change Password'}
+          {loading ? 'Changing...' : 'Change Password TEST'}
         </button>
 
         <button type="button" className="logout-other-button" disabled>
