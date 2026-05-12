@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
-const globalStyles = `
+const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
   :root {
@@ -18,16 +18,8 @@ const globalStyles = `
     --sidebar-expanded: 260px;
   }
 
-  * {
-    box-sizing: border-box;
-  }
-
-  body {
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-    background: var(--bg-main);
-    color: var(--text-main);
-  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); }
 
   .dashboard-wrapper {
     display: flex;
@@ -51,9 +43,7 @@ const globalStyles = `
     flex-shrink: 0;
   }
 
-  .sidebar::-webkit-scrollbar {
-    width: 0px;
-  }
+  .sidebar::-webkit-scrollbar { width: 0px; }
 
   .sidebar:hover {
     width: var(--sidebar-expanded);
@@ -78,9 +68,7 @@ const globalStyles = `
     white-space: nowrap;
   }
 
-  .sidebar:hover .logo-text {
-    opacity: 1;
-  }
+  .sidebar:hover .logo-text { opacity: 1; }
 
   .nav-group-label {
     font-size: 10px;
@@ -94,9 +82,7 @@ const globalStyles = `
     letter-spacing: 1px;
   }
 
-  .sidebar:hover .nav-group-label {
-    opacity: 1;
-  }
+  .sidebar:hover .nav-group-label { opacity: 1; }
 
   .nav-item {
     display: flex;
@@ -125,9 +111,7 @@ const globalStyles = `
     transition: opacity 0.2s;
   }
 
-  .sidebar:hover .nav-text {
-    opacity: 1;
-  }
+  .sidebar:hover .nav-text { opacity: 1; }
 
   .main-content {
     flex: 1;
@@ -152,7 +136,6 @@ const globalStyles = `
     font-size: 17px;
     font-weight: 800;
     color: var(--text-main);
-    margin: 0;
   }
 
   .content-body {
@@ -162,50 +145,65 @@ const globalStyles = `
     margin: 0 auto;
   }
 
+  .page-title-row {
+    margin-bottom: 22px;
+  }
+
+  .page-title-row h1 {
+    font-size: 27px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .page-title-row p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin-top: 5px;
+  }
+
   .settings-shell {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 320px minmax(0, 1fr);
     gap: 22px;
     align-items: start;
   }
 
-  .settings-side-panel,
-  .settings-content-panel {
+  .settings-tabs,
+  .settings-panel {
     background: #FFFFFF;
     border: 1px solid var(--border);
     border-radius: 22px;
     box-shadow: 0 8px 28px rgba(15,23,42,0.06);
   }
 
-  .settings-side-panel {
+  .settings-tabs {
     padding: 18px;
     position: sticky;
-    top: 96px;
+    top: 92px;
   }
 
-  .settings-title-block {
+  .settings-tabs-head {
     padding: 6px 8px 16px;
     border-bottom: 1px solid var(--border);
     margin-bottom: 12px;
   }
 
   .settings-kicker {
-    margin: 0;
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0.12em;
     color: var(--primary);
   }
 
-  .settings-title {
-    margin: 8px 0 0;
+  .settings-heading {
+    margin-top: 8px;
     font-size: 26px;
     font-weight: 900;
     letter-spacing: -0.04em;
   }
 
-  .settings-subtitle {
-    margin: 8px 0 0;
+  .settings-desc {
+    margin-top: 8px;
     color: var(--text-muted);
     font-size: 13px;
     line-height: 1.5;
@@ -315,12 +313,12 @@ const globalStyles = `
     padding: 4px 7px;
   }
 
-  .settings-content-panel {
+  .settings-panel {
     min-height: 560px;
     padding: 30px;
   }
 
-  .content-head {
+  .settings-panel-head {
     display: flex;
     gap: 14px;
     align-items: center;
@@ -329,7 +327,7 @@ const globalStyles = `
     margin-bottom: 26px;
   }
 
-  .content-head-icon {
+  .settings-panel-icon {
     width: 48px;
     height: 48px;
     min-width: 48px;
@@ -341,15 +339,14 @@ const globalStyles = `
     font-size: 23px;
   }
 
-  .content-head h1 {
-    margin: 0;
+  .settings-panel-head h2 {
     font-size: 26px;
     font-weight: 900;
     letter-spacing: -0.04em;
   }
 
-  .content-head p {
-    margin: 6px 0 0;
+  .settings-panel-head p {
+    margin-top: 6px;
     color: #64748B;
     font-size: 14px;
   }
@@ -363,14 +360,8 @@ const globalStyles = `
   }
 
   @keyframes fadeSoft {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .field-label {
@@ -500,7 +491,6 @@ const globalStyles = `
   }
 
   .coming-soon-panel h3 {
-    margin: 0;
     font-size: 20px;
     font-weight: 900;
   }
@@ -514,26 +504,15 @@ const globalStyles = `
   }
 
   @media (max-width: 980px) {
-    .settings-shell {
-      grid-template-columns: 1fr;
-    }
-
-    .settings-side-panel {
-      position: static;
-    }
+    .settings-shell { grid-template-columns: 1fr; }
+    .settings-tabs { position: static; }
   }
 
   @media (max-width: 640px) {
-    .content-body {
-      padding: 20px 16px 36px;
-    }
-
-    .header {
-      padding: 0 18px;
-    }
-
-    .settings-content-panel,
-    .settings-side-panel {
+    .content-body { padding: 20px 16px 36px; }
+    .header { padding: 0 18px; }
+    .settings-panel,
+    .settings-tabs {
       border-radius: 18px;
       padding: 18px;
     }
@@ -556,6 +535,7 @@ const navItems = {
     { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
     { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
     { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
+    { path: '/admin/settings', label: 'Settings', icon: 'M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.82 1.43V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.82-1.43 1.65 1.65 0 0 0-1-.33 1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1.43-.82H2.75a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.43-.82A1.65 1.65 0 0 0 4.6 7a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 10.82 2.84V2.75a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .82 1.43 1.65 1.65 0 0 0 1 .33 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .35.11.69.33 1 .21.31.52.53.88.62h.09a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.43.82c-.22.31-.33.65-.33 1z' },
     { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
   ],
   finance: [
@@ -568,48 +548,12 @@ const navItems = {
 }
 
 const settingsTabs = [
-  {
-    key: 'password',
-    title: 'Change Password',
-    subtitle: 'Update your admin login password',
-    icon: '🔐',
-    available: true,
-  },
-  {
-    key: '2fa',
-    title: 'Two-Factor Authentication',
-    subtitle: 'Email or app verification code',
-    icon: '🛡️',
-    available: false,
-  },
-  {
-    key: 'passkey',
-    title: 'Passkey',
-    subtitle: 'Device passkey or biometrics',
-    icon: '🔑',
-    available: false,
-  },
-  {
-    key: 'devices',
-    title: 'Login Devices',
-    subtitle: 'Signed-in browsers and devices',
-    icon: '💻',
-    available: false,
-  },
-  {
-    key: 'history',
-    title: 'Login History',
-    subtitle: 'Recent sign-ins and IP records',
-    icon: '📍',
-    available: false,
-  },
-  {
-    key: 'alerts',
-    title: 'Security Alerts',
-    subtitle: 'Failed login and risk alerts',
-    icon: '🚨',
-    available: false,
-  },
+  { key: 'password', title: 'Change Password', subtitle: 'Update your admin login password', icon: '🔐', available: true },
+  { key: '2fa', title: 'Two-Factor Authentication', subtitle: 'Email or app verification code', icon: '🛡️', available: false },
+  { key: 'passkey', title: 'Passkey', subtitle: 'Device passkey or biometrics', icon: '🔑', available: false },
+  { key: 'devices', title: 'Login Devices', subtitle: 'Signed-in browsers and devices', icon: '💻', available: false },
+  { key: 'history', title: 'Login History', subtitle: 'Recent sign-ins and IP records', icon: '📍', available: false },
+  { key: 'alerts', title: 'Security Alerts', subtitle: 'Failed login and risk alerts', icon: '🚨', available: false },
 ]
 
 const Icon = ({ d, size = 20, color }) => (
@@ -854,7 +798,7 @@ export default function AdminSettingsPage() {
 
   return (
     <>
-      <style>{globalStyles}</style>
+      <style>{styles}</style>
 
       <div className="dashboard-wrapper">
         <Sidebar />
@@ -865,14 +809,17 @@ export default function AdminSettingsPage() {
           </header>
 
           <main className="content-body">
+            <div className="page-title-row">
+              <h1>Settings</h1>
+              <p>Manage admin account security, login protection, and access tools.</p>
+            </div>
+
             <div className="settings-shell">
-              <section className="settings-side-panel">
-                <div className="settings-title-block">
+              <section className="settings-tabs">
+                <div className="settings-tabs-head">
                   <p className="settings-kicker">ADMIN SETTINGS</p>
-                  <h1 className="settings-title">Settings</h1>
-                  <p className="settings-subtitle">
-                    Security, login, and admin protection.
-                  </p>
+                  <h2 className="settings-heading">Security</h2>
+                  <p className="settings-desc">Choose a security section to manage.</p>
                 </div>
 
                 <div className="settings-tab-list">
@@ -898,12 +845,12 @@ export default function AdminSettingsPage() {
                 </div>
               </section>
 
-              <section className="settings-content-panel">
-                <div className="content-head">
-                  <div className="content-head-icon">{activeTab.icon}</div>
+              <section className="settings-panel">
+                <div className="settings-panel-head">
+                  <div className="settings-panel-icon">{activeTab.icon}</div>
 
                   <div>
-                    <h1>{activeTab.title}</h1>
+                    <h2>{activeTab.title}</h2>
                     <p>{activeTab.subtitle}</p>
                   </div>
                 </div>
@@ -914,9 +861,7 @@ export default function AdminSettingsPage() {
                   <div className="coming-soon-panel">
                     <div className="coming-soon-icon">🛠️</div>
                     <h3>Coming Soon</h3>
-                    <p>
-                      This security feature is prepared in the settings menu, but it is not active yet.
-                    </p>
+                    <p>This security feature is prepared in the settings menu, but it is not active yet.</p>
                   </div>
                 )}
               </section>
