@@ -24,6 +24,28 @@ const styles = `
     color: var(--settings-text);
     padding: 28px 34px 46px;
   }
+  .settings-back-button {
+  border: none;
+  background: #EEF2FF;
+  color: #4F46E5;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.10);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.settings-back-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.16);
+}
 
   .settings-container {
     width: min(1180px, 100%);
