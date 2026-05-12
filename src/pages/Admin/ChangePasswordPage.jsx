@@ -86,10 +86,7 @@ export default function ChangePasswordPage() {
         throw new Error(data.message || 'Failed to validate password change')
       }
 
-      setMessage(
-        data.message ||
-          'Password validation passed. Update ADMIN_PASSWORD in Render environment variables, then redeploy backend.'
-      )
+      setMessage('Password validation passed.')
 
       setForm({
         currentPassword: '',
@@ -145,10 +142,10 @@ export default function ChangePasswordPage() {
 
         <div style={styles.header}>
           <div style={styles.iconBox}>🔐</div>
-          <div>
+          <div style={styles.headerText}>
             <h1 style={styles.title}>Change Admin Password</h1>
             <p style={styles.subtitle}>
-              Validate your current password before updating ADMIN_PASSWORD in Render.
+              Validate your current password before updating it.
             </p>
           </div>
         </div>
@@ -186,11 +183,6 @@ export default function ChangePasswordPage() {
             Logout After Render Password Update
           </button>
         </form>
-
-        <div style={styles.noteBox}>
-          <strong>Important:</strong> This page validates the password only. After success, go to
-          Render → Shadow-Backend → Environment → update ADMIN_PASSWORD → redeploy backend.
-        </div>
       </div>
     </div>
   )
@@ -203,28 +195,29 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: 20,
     fontFamily: 'Inter, sans-serif',
     color: '#0F172A',
   },
   card: {
-    width: 'min(540px, 100%)',
+    width: 'min(520px, 100%)',
     background: '#FFFFFF',
     border: '1px solid #E2E8F0',
     borderRadius: 20,
     padding: 28,
-    boxShadow: '0 16px 40px rgba(15, 23, 42, 0.08)',
+    boxShadow: '0 18px 48px rgba(15, 23, 42, 0.08)',
+    overflow: 'hidden',
   },
   backButton: {
     border: 'none',
     background: '#EEF2FF',
     color: '#4F46E5',
-    minHeight: 36,
+    minHeight: 34,
     padding: '0 13px',
     borderRadius: 10,
     fontWeight: 700,
     cursor: 'pointer',
-    marginBottom: 22,
+    marginBottom: 24,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -234,57 +227,67 @@ const styles = {
     display: 'flex',
     gap: 14,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 26,
+  },
+  headerText: {
+    minWidth: 0,
   },
   iconBox: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
+    minWidth: 44,
     borderRadius: 14,
     background: '#EEF2FF',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 24,
+    fontSize: 23,
   },
   title: {
     margin: 0,
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: 800,
+    lineHeight: 1.15,
+    letterSpacing: '-0.02em',
   },
   subtitle: {
     margin: '6px 0 0',
-    color: '#64748B',
+    color: '#475569',
     fontSize: 14,
-    lineHeight: 1.5,
+    lineHeight: 1.45,
   },
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 14,
+    gap: 15,
+    width: '100%',
   },
   label: {
     display: 'flex',
     flexDirection: 'column',
     gap: 7,
     fontSize: 13,
-    fontWeight: 700,
-    color: '#334155',
+    fontWeight: 800,
+    color: '#0F172A',
+    width: '100%',
   },
   passwordWrap: {
     position: 'relative',
     width: '100%',
   },
   inputWithIcon: {
+    boxSizing: 'border-box',
     width: '100%',
     height: 46,
-    border: '1.5px solid #E2E8F0',
+    border: '1.5px solid #CBD5E1',
     borderRadius: 12,
-    padding: '0 48px 0 14px',
+    padding: '0 50px 0 14px',
     fontSize: 14,
     outline: 'none',
     color: '#0F172A',
     background: '#FFFFFF',
     lineHeight: '46px',
+    display: 'block',
   },
   eyeButton: {
     position: 'absolute',
@@ -294,7 +297,7 @@ const styles = {
     width: 34,
     height: 34,
     border: 'none',
-    borderRadius: 9,
+    borderRadius: 10,
     background: '#F1F5F9',
     color: '#475569',
     cursor: 'pointer',
@@ -305,15 +308,16 @@ const styles = {
     lineHeight: 1,
   },
   submitButton: {
+    width: '100%',
     height: 48,
     border: 'none',
     borderRadius: 12,
-    background: '#4F46E5',
+    background: '#0F172A',
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 800,
     cursor: 'pointer',
-    marginTop: 6,
+    marginTop: 4,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -321,6 +325,7 @@ const styles = {
     padding: 0,
   },
   logoutButton: {
+    width: '100%',
     height: 44,
     border: '1px solid #FCA5A5',
     borderRadius: 12,
@@ -352,15 +357,5 @@ const styles = {
     padding: 12,
     fontSize: 13,
     lineHeight: 1.5,
-  },
-  noteBox: {
-    marginTop: 18,
-    background: '#FFFBEB',
-    border: '1px solid #FDE68A',
-    color: '#92400E',
-    borderRadius: 12,
-    padding: 13,
-    fontSize: 13,
-    lineHeight: 1.6,
   },
 }
