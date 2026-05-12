@@ -301,9 +301,17 @@ export default function AdminSettingsPage() {
       <div className="settings-page">
         <div className="settings-container">
           <div className="settings-top">
-            <h1>Settings</h1>
-            <p>Manage admin account security, login protection, and access tools.</p>
-          </div>
+  <button
+    type="button"
+    className="settings-back-button"
+    onClick={() => window.location.href = '/admin'}
+  >
+    ← Back to Dashboard
+  </button>
+
+  <h1>Settings</h1>
+  <p>Manage admin account security, login protection, and access tools.</p>
+</div>
 
           <div className="settings-layout">
             <aside className="settings-sidebar">
