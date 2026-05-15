@@ -913,9 +913,8 @@ export default function BannerSystem() {
     const token = getAdminToken();
 
     const headers = {
-      ...(options.headers || {}),
-      'X-Admin-Name': 'Admin',
-    };
+  ...(options.headers || {}),
+};
 
     if (token) {
       headers.Authorization = `Bearer ${token}`;
