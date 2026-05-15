@@ -2,9 +2,46 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const SECTION_KEY = 'shadow_spotlight';
-const SLOTS = [1, 2, 3, 4, 5, 6];
 const RECORDS_PER_PAGE = 20;
+
+const BANNER_SECTIONS = {
+  shadow_spotlight: {
+    label: 'Shadow Spotlight',
+    sectionKey: 'shadow_spotlight',
+    slots: [1, 2, 3, 4, 5, 6],
+    slotLabel: 'Banner',
+    titlePrefix: 'Shadow Spotlight',
+    description: 'Six fixed banner slots. These banners scroll by hand on the reader website.',
+    helpText: 'Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.',
+    defaultTitle: 'Shadow Spotlight',
+    defaultLink: '/story/1',
+    enabled: true,
+  },
+  editor_weekly_picks: {
+    label: 'Editor’s Weekly Picks',
+    sectionKey: 'editor_weekly_picks',
+    slots: [1, 2, 3],
+    slotLabel: 'Banner',
+    titlePrefix: 'Editor Weekly Pick',
+    description: 'Three fixed banner slots for the Editor’s Weekly Picks section.',
+    helpText: 'Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.',
+    defaultTitle: 'Editor Weekly Pick',
+    defaultLink: '/story/1',
+    enabled: true,
+  },
+  event_perks_hub: {
+    label: 'Event & Perks Hub',
+    sectionKey: 'event_perks_hub',
+    slots: [1, 2, 3],
+    slotLabel: 'Banner',
+    titlePrefix: 'Event Perks Hub',
+    description: 'Three fixed banner slots for Event & Perks Hub.',
+    helpText: 'Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.',
+    defaultTitle: 'Event Perks Hub',
+    defaultLink: '/event',
+    enabled: false,
+  },
+};
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -28,7 +65,11 @@ const styles = `
     --sideOpen:260px;
   }
 
-  * { box-sizing:border-box; margin:0; padding:0; }
+  * {
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+  }
 
   body {
     font-family:Inter, sans-serif;
@@ -828,12 +869,12 @@ function getRecordActionClass(action) {
   return 'default';
 }
 
-function normalizeRecordText(record) {
+function normalizeRecordText(record, sectionKey) {
   return (
     record.description ||
     record.detail ||
     record.message ||
-    `${record.section_key || SECTION_KEY} banner action`
+    `${record.section_key || sectionKey} banner action`
   );
 }
 
@@ -841,12 +882,14 @@ export default function BannerSystem() {
   const fileInputRef = useRef(null);
 
   const [activeType, setActiveType] = useState('shadow_spotlight');
+  const activeConfig = BANNER_SECTIONS[activeType];
+
   const [selectedSlot, setSelectedSlot] = useState(1);
   const [banners, setBanners] = useState([]);
 
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [linkUrl, setLinkUrl] = useState('/story/1');
+  const [linkUrl, setLinkUrl] = useState(activeConfig.defaultLink);
   const [isActive, setIsActive] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [localPreviewUrl, setLocalPreviewUrl] = useState('');
@@ -860,8 +903,8 @@ export default function BannerSystem() {
   const [authExpired, setAuthExpired] = useState(false);
 
   const slotMap = useMemo(
-    () => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestBanner(banners, slot) }), {}),
-    [banners]
+    () => activeConfig.slots.reduce((acc, slot) => ({ ...acc, [slot]: getLatestBanner(banners, slot) }), {}),
+    [banners, activeConfig.slots]
   );
 
   const selectedBanner = slotMap[selectedSlot];
@@ -899,21 +942,21 @@ export default function BannerSystem() {
     return data;
   };
 
-  const fetchBanners = async () => {
+  const fetchBanners = async (sectionKey = activeConfig.sectionKey) => {
     try {
-      const data = await apiFetch(`${API_URL}/api/slides?section_key=${SECTION_KEY}&include_inactive=true`);
+      const data = await apiFetch(`${API_URL}/api/slides?section_key=${sectionKey}&include_inactive=true`);
       setBanners(data.slides || []);
     } catch (error) {
       setMessage({ type: 'error', text: `Cannot load banners: ${error.message}` });
     }
   };
 
-  const fetchRecords = async (page = recordPage) => {
+  const fetchRecords = async (page = recordPage, sectionKey = activeConfig.sectionKey) => {
     try {
       setRecordsLoading(true);
 
       const data = await apiFetch(
-        `${API_URL}/api/slides/records?page=${page}&limit=${RECORDS_PER_PAGE}&section_key=${SECTION_KEY}`
+        `${API_URL}/api/slides/records?page=${page}&limit=${RECORDS_PER_PAGE}&section_key=${sectionKey}`
       );
 
       setRecords(data.records || []);
@@ -921,32 +964,50 @@ export default function BannerSystem() {
       setRecordTotalPages(data.total_pages || 1);
     } catch (error) {
       setRecords([]);
+      setRecordPage(1);
+      setRecordTotalPages(1);
     } finally {
       setRecordsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchBanners();
-    fetchRecords(1);
-  }, []);
+    setSelectedSlot(1);
+    setBanners([]);
+    setRecords([]);
+    setRecordPage(1);
+    setRecordTotalPages(1);
+    setMessage(null);
+    setTitle('');
+    setSubtitle('');
+    setLinkUrl(activeConfig.defaultLink);
+    setIsActive(true);
+    setSelectedFile(null);
+    setLocalPreviewUrl('');
+
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    fetchBanners(activeConfig.sectionKey);
+    fetchRecords(1, activeConfig.sectionKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeType]);
 
   useEffect(() => {
     const banner = slotMap[selectedSlot];
 
     setTitle(banner?.title || '');
     setSubtitle(banner?.subtitle || '');
-    setLinkUrl(banner?.link_url || '/story/1');
+    setLinkUrl(banner?.link_url || activeConfig.defaultLink);
     setIsActive(banner?.is_active ?? true);
     setSelectedFile(null);
     setLocalPreviewUrl('');
 
     if (fileInputRef.current) fileInputRef.current.value = '';
-  }, [selectedSlot, slotMap]);
+  }, [selectedSlot, slotMap, activeConfig.defaultLink]);
 
   const refreshAll = async () => {
-    await fetchBanners();
-    await fetchRecords(recordPage);
+    await fetchBanners(activeConfig.sectionKey);
+    await fetchRecords(recordPage, activeConfig.sectionKey);
   };
 
   const handleFileChange = (event) => {
@@ -971,8 +1032,8 @@ export default function BannerSystem() {
 
       if (selectedFile) formData.append('image', selectedFile);
 
-      formData.append('section_key', SECTION_KEY);
-      formData.append('title', title || `Shadow Spotlight ${selectedSlot}`);
+      formData.append('section_key', activeConfig.sectionKey);
+      formData.append('title', title || `${activeConfig.titlePrefix} ${selectedSlot}`);
       formData.append('subtitle', subtitle);
       formData.append('link_url', linkUrl || '/');
       formData.append('order_index', String(selectedSlot));
@@ -986,8 +1047,8 @@ export default function BannerSystem() {
       setMessage({
         type: 'success',
         text: isActive
-          ? `Shadow Spotlight ${selectedSlot} saved and visible on frontend.`
-          : `Shadow Spotlight ${selectedSlot} saved as inactive and hidden from frontend.`,
+          ? `${activeConfig.titlePrefix} ${selectedSlot} saved and visible on frontend.`
+          : `${activeConfig.titlePrefix} ${selectedSlot} saved as inactive and hidden from frontend.`,
       });
 
       setSelectedFile(null);
@@ -1005,11 +1066,14 @@ export default function BannerSystem() {
 
   const handleDeleteBanner = async () => {
     if (!selectedBanner) {
-      setMessage({ type: 'info', text: `Shadow Spotlight ${selectedSlot} is already empty.` });
+      setMessage({ type: 'info', text: `${activeConfig.titlePrefix} ${selectedSlot} is already empty.` });
       return;
     }
 
-    const confirmed = window.confirm(`Delete Shadow Spotlight ${selectedSlot}? This removes it from AdminDashboard and the frontend.`);
+    const confirmed = window.confirm(
+      `Delete ${activeConfig.titlePrefix} ${selectedSlot}? This removes it from AdminDashboard and the frontend.`
+    );
+
     if (!confirmed) return;
 
     try {
@@ -1018,10 +1082,10 @@ export default function BannerSystem() {
 
       await apiFetch(`${API_URL}/api/slides/${selectedBanner.id}`, { method: 'DELETE' });
 
-      setMessage({ type: 'success', text: `Shadow Spotlight ${selectedSlot} deleted successfully.` });
+      setMessage({ type: 'success', text: `${activeConfig.titlePrefix} ${selectedSlot} deleted successfully.` });
       setTitle('');
       setSubtitle('');
-      setLinkUrl('/story/1');
+      setLinkUrl(activeConfig.defaultLink);
       setIsActive(true);
       setSelectedFile(null);
       setLocalPreviewUrl('');
@@ -1041,13 +1105,18 @@ export default function BannerSystem() {
 
     setTitle(banner?.title || '');
     setSubtitle(banner?.subtitle || '');
-    setLinkUrl(banner?.link_url || '/story/1');
+    setLinkUrl(banner?.link_url || activeConfig.defaultLink);
     setIsActive(banner?.is_active ?? true);
     setSelectedFile(null);
     setLocalPreviewUrl('');
     setMessage(null);
 
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleChangeType = (type) => {
+    if (!BANNER_SECTIONS[type]?.enabled) return;
+    setActiveType(type);
   };
 
   const currentPreview = localPreviewUrl || selectedBanner?.image_url || '';
@@ -1071,39 +1140,35 @@ export default function BannerSystem() {
           <main className="content-body">
             <div className="page-title-row">
               <h1>Banner System</h1>
-              <p>Manage manual-scroll homepage banners. This step builds Shadow Spotlight first.</p>
+              <p>Manage manual-scroll homepage banners. Shadow Spotlight and Editor’s Weekly Picks are active.</p>
             </div>
 
             <div className="banner-tabs">
-              <button
-                type="button"
-                className={`banner-tab ${activeType === 'shadow_spotlight' ? 'active' : ''}`}
-                onClick={() => setActiveType('shadow_spotlight')}
-              >
-                Shadow Spotlight
-              </button>
-
-              <button type="button" className="banner-tab disabled" disabled>
-                Editor’s Weekly Picks
-              </button>
-
-              <button type="button" className="banner-tab disabled" disabled>
-                Event & Perks Hub
-              </button>
+              {Object.entries(BANNER_SECTIONS).map(([key, section]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`banner-tab ${activeType === key ? 'active' : ''} ${!section.enabled ? 'disabled' : ''}`}
+                  disabled={!section.enabled}
+                  onClick={() => handleChangeType(key)}
+                >
+                  {section.label}
+                </button>
+              ))}
             </div>
 
             <div className="manager-shell">
               <section className="panel">
                 <div className="panel-header">
                   <div>
-                    <h3>Shadow Spotlight Banner Slots</h3>
-                    <p>Six fixed banner slots. These banners scroll by hand on the reader website.</p>
+                    <h3>{activeConfig.label} Banner Slots</h3>
+                    <p>{activeConfig.description}</p>
                   </div>
                   <span className="count-pill">{banners.length} records</span>
                 </div>
 
                 <div className="slots-grid">
-                  {SLOTS.map((slot) => {
+                  {activeConfig.slots.map((slot) => {
                     const banner = slotMap[slot];
                     const statusClass = !banner ? 'empty' : banner.is_active === false ? 'inactive' : 'active';
 
@@ -1115,20 +1180,22 @@ export default function BannerSystem() {
                         onClick={() => setSelectedSlot(slot)}
                       >
                         <div className="slot-preview">
-                          <span className="slot-number">Banner {slot}</span>
+                          <span className="slot-number">
+                            {activeConfig.slotLabel} {slot}
+                          </span>
                           <span className={`slot-status ${statusClass}`}>
                             {!banner ? 'EMPTY' : banner.is_active === false ? 'INACTIVE' : 'ACTIVE'}
                           </span>
 
                           {banner?.image_url ? (
-                            <img src={banner.image_url} alt={banner.title || `Shadow Spotlight ${slot}`} />
+                            <img src={banner.image_url} alt={banner.title || `${activeConfig.titlePrefix} ${slot}`} />
                           ) : (
                             <div className="empty-preview">No image assigned</div>
                           )}
                         </div>
 
                         <div className="slot-meta">
-                          <div className="slot-title">{banner?.title || `Shadow Spotlight ${slot}`}</div>
+                          <div className="slot-title">{banner?.title || `${activeConfig.titlePrefix} ${slot}`}</div>
                           <div className="slot-link">{banner?.link_url || 'No link set'}</div>
                         </div>
                       </button>
@@ -1140,8 +1207,10 @@ export default function BannerSystem() {
               <section className="panel editor-panel">
                 <div className="panel-header">
                   <div>
-                    <h3>Edit Banner {selectedSlot}</h3>
-                    <p>Update the selected Shadow Spotlight banner slot.</p>
+                    <h3>
+                      Edit {activeConfig.slotLabel} {selectedSlot}
+                    </h3>
+                    <p>Update the selected {activeConfig.label} banner slot.</p>
                   </div>
                 </div>
 
@@ -1150,7 +1219,7 @@ export default function BannerSystem() {
 
                   <div className="selected-preview">
                     {currentPreview ? (
-                      <img src={currentPreview} alt={`Shadow Spotlight ${selectedSlot} preview`} />
+                      <img src={currentPreview} alt={`${activeConfig.titlePrefix} ${selectedSlot} preview`} />
                     ) : (
                       <div className="selected-preview-empty">No image selected</div>
                     )}
@@ -1158,7 +1227,7 @@ export default function BannerSystem() {
 
                   <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
                     <div className="upload-title">Choose or replace image</div>
-                    <div className="upload-help">Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.</div>
+                    <div className="upload-help">{activeConfig.helpText}</div>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -1173,7 +1242,7 @@ export default function BannerSystem() {
                     className="input"
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
-                    placeholder={`Shadow Spotlight ${selectedSlot} title`}
+                    placeholder={`${activeConfig.titlePrefix} ${selectedSlot} title`}
                   />
 
                   <label className="field-label">Subtitle</label>
@@ -1212,7 +1281,7 @@ export default function BannerSystem() {
 
                   <div className="btn-row">
                     <button className="btn-primary" onClick={handleSaveBanner} disabled={loading}>
-                      {loading ? 'Saving...' : `Save Banner ${selectedSlot}`}
+                      {loading ? 'Saving...' : `Save ${activeConfig.slotLabel} ${selectedSlot}`}
                     </button>
 
                     <button className="btn-secondary" type="button" onClick={handleResetForm} disabled={loading}>
@@ -1238,7 +1307,7 @@ export default function BannerSystem() {
                   <p>Recent banner actions. Records are shown 20 per page and old records are cleaned after 30 days by the backend.</p>
                 </div>
 
-                <button className="page-btn" type="button" onClick={() => fetchRecords(recordPage)} disabled={recordsLoading}>
+                <button className="page-btn" type="button" onClick={() => fetchRecords(recordPage, activeConfig.sectionKey)} disabled={recordsLoading}>
                   {recordsLoading ? 'Loading...' : 'Refresh'}
                 </button>
               </div>
@@ -1259,7 +1328,7 @@ export default function BannerSystem() {
                         </div>
 
                         <div className="record-detail">
-                          {normalizeRecordText(record)}
+                          {normalizeRecordText(record, activeConfig.sectionKey)}
                         </div>
 
                         <div className="record-time">
@@ -1276,7 +1345,7 @@ export default function BannerSystem() {
                   className="page-btn"
                   type="button"
                   disabled={recordPage <= 1 || recordsLoading}
-                  onClick={() => fetchRecords(recordPage - 1)}
+                  onClick={() => fetchRecords(recordPage - 1, activeConfig.sectionKey)}
                 >
                   Previous
                 </button>
@@ -1289,7 +1358,7 @@ export default function BannerSystem() {
                   className="page-btn"
                   type="button"
                   disabled={recordPage >= recordTotalPages || recordsLoading}
-                  onClick={() => fetchRecords(recordPage + 1)}
+                  onClick={() => fetchRecords(recordPage + 1, activeConfig.sectionKey)}
                 >
                   Next
                 </button>
