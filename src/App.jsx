@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
-import NovelsContent from './pages/NovelsContent';
+import ShadowExclusive from './pages/ShadowExclusive';
 import AuthorsCommunity from './pages/AuthorsCommunity';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -36,7 +36,7 @@ function ComingSoon({ title }) {
         <div style={{ fontSize: 28, marginBottom: 10 }}>🛠️</div>
         <h1 style={{ fontSize: 22, marginBottom: 8 }}>{title}</h1>
         <p style={{ color: '#64748B', lineHeight: 1.6 }}>
-          This page route is ready. We can build this section after the realtime Slide Section works.
+          This page route is ready. We can build this section after the realtime system works.
         </p>
       </div>
     </div>
@@ -56,7 +56,7 @@ export default function App() {
 
         <Route path="/admin" element={<ProtectedPage><AdminDashboard /></ProtectedPage>} />
         <Route path="/slides" element={<ProtectedPage><SlideSection /></ProtectedPage>} />
-        <Route path="/novels" element={<ProtectedPage><NovelsContent /></ProtectedPage>} />
+        <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusive /></ProtectedPage>} />
         <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
         <Route path="/banners" element={<ProtectedPage><ComingSoon title="Banner System" /></ProtectedPage>} />
         <Route path="/advertisement" element={<ProtectedPage><ComingSoon title="Advertisement" /></ProtectedPage>} />
