@@ -4,7 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
 import BannerSystem from './pages/BannerSystem';
-import ShadowExclusive from './pages/ShadowExclusive';
+import ShadowExclusiveAdmin from './pages/ShadowExclusiveAdmin';
 import AuthorsCommunity from './pages/AuthorsCommunity';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -58,7 +58,7 @@ export default function App() {
         <Route path="/admin" element={<ProtectedPage><AdminDashboard /></ProtectedPage>} />
         <Route path="/slides" element={<ProtectedPage><SlideSection /></ProtectedPage>} />
         <Route path="/banners" element={<ProtectedPage><BannerSystem /></ProtectedPage>} />
-        <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusive /></ProtectedPage>} />
+        <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusiveAdmin /></ProtectedPage>} />
         <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
         <Route path="/advertisement" element={<ProtectedPage><ComingSoon title="Advertisement" /></ProtectedPage>} />
         <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
