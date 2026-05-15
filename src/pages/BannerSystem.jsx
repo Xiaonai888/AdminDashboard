@@ -39,7 +39,7 @@ const BANNER_SECTIONS = {
     helpText: 'Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.',
     defaultTitle: 'Event Perks Hub',
     defaultLink: '/event',
-    enabled: false,
+    enabled: true,
   },
 };
 
@@ -1140,7 +1140,7 @@ export default function BannerSystem() {
           <main className="content-body">
             <div className="page-title-row">
               <h1>Banner System</h1>
-              <p>Manage manual-scroll homepage banners. Shadow Spotlight and Editor’s Weekly Picks are active.</p>
+              <p>Manage manual-scroll homepage banners for Shadow Spotlight, Editor’s Weekly Picks, and Event & Perks Hub.</p>
             </div>
 
             <div className="banner-tabs">
