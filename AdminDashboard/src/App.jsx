@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
+import BannerSystem from './pages/BannerSystem';
 import ShadowExclusive from './pages/ShadowExclusive';
 import AuthorsCommunity from './pages/AuthorsCommunity';
 import LoginPage from './pages/LoginPage';
@@ -10,7 +11,6 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminActivityLogsPage from "./pages/Admin/AdminActivityLogsPage";
 import ChangePasswordPage from "./pages/Admin/ChangePasswordPage";
 import AdminSettingsPage from "./pages/Admin/AdminSettingsPage";
-import ShadowExclusive from './pages/ShadowExclusive';
 
 
 function ComingSoon({ title }) {
@@ -57,9 +57,9 @@ export default function App() {
 
         <Route path="/admin" element={<ProtectedPage><AdminDashboard /></ProtectedPage>} />
         <Route path="/slides" element={<ProtectedPage><SlideSection /></ProtectedPage>} />
+        <Route path="/banners" element={<ProtectedPage><BannerSystem /></ProtectedPage>} />
         <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusive /></ProtectedPage>} />
         <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
-        <Route path="/banners" element={<ProtectedPage><ComingSoon title="Banner System" /></ProtectedPage>} />
         <Route path="/advertisement" element={<ProtectedPage><ComingSoon title="Advertisement" /></ProtectedPage>} />
         <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
         <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
@@ -74,7 +74,6 @@ export default function App() {
         <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
-        <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusive /></ProtectedPage>} />
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
