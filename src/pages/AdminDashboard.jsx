@@ -546,20 +546,20 @@ const styles = `
 
   .view-all-btn:hover { background: var(--primary-light); }
 
-  /* ===== NOVELS TABLE ===== */
-  .novels-table-wrap { overflow-x: auto; }
+  /* ===== SHADOW EXCLUSIVE TABLE ===== */
+  .exclusive-table-wrap { overflow-x: auto; }
 
-  .novels-table {
+  .exclusive-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
   }
 
-  .novels-table thead tr {
+  .exclusive-table thead tr {
     border-bottom: 1.5px solid var(--border);
   }
 
-  .novels-table th {
+  .exclusive-table th {
     padding: 10px 12px;
     text-align: left;
     font-size: 12px;
@@ -569,17 +569,17 @@ const styles = `
     letter-spacing: 0.5px;
   }
 
-  .novels-table td {
+  .exclusive-table td {
     padding: 14px 12px;
     border-bottom: 1px solid #F8FAFC;
     vertical-align: middle;
   }
 
-  .novels-table tr:last-child td { border-bottom: none; }
+  .exclusive-table tr:last-child td { border-bottom: none; }
 
-  .novels-table tr:hover td { background: #FAFBFF; }
+  .exclusive-table tr:hover td { background: #FAFBFF; }
 
-  .novel-title-cell {
+  .exclusive-title-cell {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -619,6 +619,21 @@ const styles = `
   .badge-pending {
     background: #FEF3C7;
     color: #D97706;
+  }
+
+  .badge-approved {
+    background: var(--success-light);
+    color: var(--success);
+  }
+
+  .badge-rejected {
+    background: var(--danger-light);
+    color: var(--danger);
+  }
+
+  .badge-removed {
+    background: #F1F5F9;
+    color: #475569;
   }
 
   @media (max-width: 768px) {
@@ -752,26 +767,26 @@ useEffect(() => {
   const maxVal = Math.max(...chartData.map(d => d.value));
 
   const searchResults = {
-    novels: [
-      { id: 1, name: 'Solo Leveling: Ragnarok', sub: 'Sung Jin · Action / Fantasy', color: '#EEF2FF', icon: '📖', badge: 'Live', badgeColor: '#D1FAE5', badgeText: '#10B981' },
-      { id: 2, name: 'The CEO\'s Secret', sub: 'LoveWriter · Romance', color: '#FDF2F8', icon: '📖', badge: 'Live', badgeColor: '#D1FAE5', badgeText: '#10B981' },
+    exclusive: [
+      { id: 1, name: 'The Crown Behind the Shadow', sub: 'Pending review · Fantasy · EP 28', color: '#FFF7ED', icon: '👑', badge: 'Pending', badgeColor: '#FEF3C7', badgeText: '#D97706' },
+      { id: 2, name: 'My Contract With the Cold Duke', sub: 'Approved · Romance · EP 34', color: '#EEF2FF', icon: '💎', badge: 'Approved', badgeColor: '#D1FAE5', badgeText: '#10B981' },
     ],
     authors: [
-      { id: 1, name: 'Sung Jin', sub: 'Author · 12 novels', color: '#F0FDF4', icon: '✍️' },
-      { id: 2, name: 'LoveWriter', sub: 'Author · 8 novels', color: '#FFF7ED', icon: '✍️' },
+      { id: 1, name: 'Sung Jin', sub: 'Author · 12 stories', color: '#F0FDF4', icon: '✍️' },
+      { id: 2, name: 'LoveWriter', sub: 'Author · 8 stories', color: '#FFF7ED', icon: '✍️' },
     ],
     reports: [
-      { id: 1, name: 'Spam comment report', sub: 'Pending · 2 hours ago', color: '#FEF3C7', icon: '⚠️', badge: 'Pending', badgeColor: '#FEF3C7', badgeText: '#D97706' },
+      { id: 1, name: 'Exclusive consent request', sub: 'Pending · 2 hours ago', color: '#FEF3C7', icon: '⚠️', badge: 'Pending', badgeColor: '#FEF3C7', badgeText: '#D97706' },
     ]
   };
 
   const filteredSearch = searchQuery.length > 0 ? {
-    novels: searchResults.novels.filter(n => n.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    exclusive: searchResults.exclusive.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase())),
     authors: searchResults.authors.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())),
     reports: searchResults.reports.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())),
   } : searchResults;
 
-  const hasResults = filteredSearch.novels.length + filteredSearch.authors.length + filteredSearch.reports.length > 0;
+  const hasResults = filteredSearch.exclusive.length + filteredSearch.authors.length + filteredSearch.reports.length > 0;
 
   const navItems = {
     overview: [
@@ -802,13 +817,13 @@ useEffect(() => {
 
   const stats = [
     {
-      label: 'Total Novels', value: '1,248',
-      trend: '+12 this week', trendUp: true,
+      label: 'Exclusive Stories', value: '18',
+      trend: '+3 pending review', trendUp: true,
       icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
       iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
     },
     {
-      label: 'Active Readers Today', value: '3,012',
+      label: 'Premium Readers Today', value: '3,012',
       trend: '+15% vs yesterday', trendUp: true,
       icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
       iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#0F172A',
@@ -820,17 +835,17 @@ useEffect(() => {
       iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#10B981',
     },
     {
-      label: 'Pending Reports', value: '5',
+      label: 'Consent Requests', value: '5',
       trend: 'Needs attention', trendUp: false,
       icon: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
       iconBg: '#FEF2F2', iconColor: '#EF4444', valueColor: '#EF4444',
     },
   ];
 
-  const novels = [
-    { title: 'Solo Leveling: Ragnarok', author: 'Sung Jin', category: 'Action / Fantasy', status: 'Published' },
-    { title: "The CEO's Secret", author: 'LoveWriter', category: 'Romance', status: 'Published' },
-    { title: 'Dragon\'s Oath', author: 'KingScribe', category: 'Fantasy', status: 'Published' },
+  const exclusiveStories = [
+    { title: 'The Crown Behind the Shadow', author: 'Shadow Author', section: 'Featured / Premium Fantasy', status: 'Approved' },
+    { title: 'My Contract With the Cold Duke', author: 'Lina Moon', section: 'Popular Exclusive / Premium Romance', status: 'Approved' },
+    { title: 'After Midnight, I Became Royalty', author: 'Kai Story', section: 'New Exclusive', status: 'Pending' },
   ];
 
   const getHour = () => {
@@ -902,7 +917,7 @@ useEffect(() => {
                 <input
                   type="text"
                   className="search-input"
-                  placeholder="Search authors, novels, reports..."
+                  placeholder="Search exclusive stories, authors, reports..."
                   value={searchQuery}
                   onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }}
                   onFocus={() => setShowSearchDropdown(true)}
@@ -910,10 +925,10 @@ useEffect(() => {
                 />
                 {showSearchDropdown && hasResults && (
                   <div className="search-dropdown">
-                    {filteredSearch.novels.length > 0 && (
+                    {filteredSearch.exclusive.length > 0 && (
                       <>
-                        <div className="search-section-title">Novels</div>
-                        {filteredSearch.novels.map(item => (
+                        <div className="search-section-title">Shadow Exclusive</div>
+                        {filteredSearch.exclusive.map(item => (
                           <div className="search-result-item" key={item.id}>
                             <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
                             <div className="info">
@@ -1109,36 +1124,36 @@ useEffect(() => {
               </section>
             </div>
 
-            {/* Recently Published Novels */}
+            {/* Shadow Exclusive Workflow */}
             <section className="card-panel">
               <div className="panel-header">
-                <h4>Recently Published Novels <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>(Live)</span></h4>
-                <span className="panel-link">View All</span>
+                <h4>Shadow Exclusive Workflow <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>(Review)</span></h4>
+                <span className="panel-link" onClick={() => navigate('/shadow-exclusive')}>Open Manager</span>
               </div>
-              <div className="novels-table-wrap">
-                <table className="novels-table">
+              <div className="exclusive-table-wrap">
+                <table className="exclusive-table">
                   <thead>
                     <tr>
-                      <th>Novel Title</th>
+                      <th>Story Title</th>
                       <th>Author</th>
-                      <th>Category</th>
+                      <th>Exclusive Section</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {novels.map((novel, i) => (
+                    {exclusiveStories.map((story, i) => (
                       <tr key={i}>
                         <td>
-                          <div className="novel-title-cell">
+                          <div className="exclusive-title-cell">
                             <span className="live-dot" />
-                            <span style={{ fontWeight: 600 }}>{novel.title}</span>
+                            <span style={{ fontWeight: 600 }}>{story.title}</span>
                           </div>
                         </td>
-                        <td style={{ color: '#475569' }}>{novel.author}</td>
-                        <td style={{ color: '#475569' }}>{novel.category}</td>
+                        <td style={{ color: '#475569' }}>{story.author}</td>
+                        <td style={{ color: '#475569' }}>{story.section}</td>
                         <td>
-                          <span className={`status-badge badge-${novel.status.toLowerCase()}`}>
-                            {novel.status}
+                          <span className={`status-badge badge-${story.status.toLowerCase()}`}>
+                            {story.status}
                           </span>
                         </td>
                       </tr>
