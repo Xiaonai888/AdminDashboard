@@ -250,10 +250,10 @@ const styles = `
   }
 
   .genre-dark-btn {
-    background:var(--dark);
-    color:#fff;
-    box-shadow:0 10px 22px rgba(15,23,42,.18);
-  }
+  background:linear-gradient(135deg, #4F46E5, #6D5DF6);
+  color:#fff;
+  box-shadow:0 10px 22px rgba(79,70,229,.24);
+}
 
   .genre-ghost-btn {
     background:#fff;
@@ -497,8 +497,9 @@ const styles = `
   }
 
   .genre-switch input:checked + .genre-slider {
-    background:var(--dark);
-  }
+  background:#10B981;
+  box-shadow:0 0 0 4px rgba(16,185,129,.12);
+}
 
   .genre-switch input:checked + .genre-slider:before {
     transform:translateX(22px);
