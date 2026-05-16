@@ -47,6 +47,8 @@ const styles = `
     --border:#E2E8F0;
     --primary:#4F46E5;
     --primaryLight:#EEF2FF;
+    --accent:#4F46E5;
+    --accentLight:#EEF2FF;
     --dark:#0F172A;
     --success:#16A34A;
     --successBg:#DCFCE7;
@@ -250,6 +252,7 @@ const styles = `
   .genre-dark-btn {
     background:var(--dark);
     color:#fff;
+    box-shadow:0 10px 22px rgba(15,23,42,.18);
   }
 
   .genre-ghost-btn {
@@ -293,6 +296,39 @@ const styles = `
     border-radius:18px;
     padding:18px;
     transition:.2s ease;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .genre-stat-card:before {
+    content:'';
+    position:absolute;
+    inset:0;
+    background:linear-gradient(135deg, var(--statSoft), transparent 48%);
+    opacity:.65;
+    pointer-events:none;
+  }
+
+  .genre-stat-top {
+    position:relative;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+  }
+
+  .genre-stat-icon {
+    width:36px;
+    height:36px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--statBg);
+    color:var(--statColor);
+    font-size:15px;
+    font-weight:950;
+    flex-shrink:0;
   }
 
   .genre-stat-card:hover {
@@ -309,6 +345,7 @@ const styles = `
   }
 
   .genre-stat-value {
+    position:relative;
     margin-top:10px;
     font-size:28px;
     font-weight:950;
@@ -316,6 +353,7 @@ const styles = `
   }
 
   .genre-stat-note {
+    position:relative;
     margin-top:5px;
     color:var(--soft);
     font-size:12.5px;
@@ -530,10 +568,10 @@ const styles = `
   }
 
   .genre-chip.selected {
-    background:var(--dark);
+    background:var(--accent);
     color:#fff;
-    border-color:var(--dark);
-    box-shadow:0 10px 22px rgba(15,23,42,.18);
+    border-color:var(--accent);
+    box-shadow:0 10px 22px rgba(79,70,229,.22);
   }
 
   .genre-chip.locked {
@@ -607,9 +645,10 @@ const styles = `
 
   .genre-filter-btn:hover,
   .genre-filter-btn.active {
-    background:var(--dark);
+    background:var(--accent);
     color:#fff;
-    border-color:var(--dark);
+    border-color:var(--accent);
+    box-shadow:0 8px 18px rgba(79,70,229,.18);
   }
 
   .genre-table-wrap {
@@ -683,8 +722,8 @@ const styles = `
   }
 
   .genre-badge.featured {
-    background:#0F172A;
-    color:#fff;
+    background:var(--accentLight);
+    color:var(--accent);
   }
 
   .genre-row-actions {
@@ -895,10 +934,42 @@ export default function GenreManagementPage() {
     const storyCount = genres.reduce((sum, genre) => sum + Number(genre.story_count || 0), 0)
 
     return [
-      { label: 'Total Genres', value: total, note: 'All created genres' },
-      { label: 'Active Genres', value: active, note: 'Available for stories' },
-      { label: 'For You Tabs', value: `${selectedGenreIds.length + 1}/12`, note: 'Today plus selected genres' },
-      { label: 'Stories Using Genres', value: storyCount, note: 'Based on current story data' },
+      {
+        label: 'Total Genres',
+        value: total,
+        note: 'All created genres',
+        icon: '▦',
+        bg: '#EEF2FF',
+        color: '#4F46E5',
+        soft: '#F5F3FF',
+      },
+      {
+        label: 'Active Genres',
+        value: active,
+        note: 'Available for stories',
+        icon: '✓',
+        bg: '#DCFCE7',
+        color: '#16A34A',
+        soft: '#F0FDF4',
+      },
+      {
+        label: 'For You Tabs',
+        value: `${selectedGenreIds.length + 1}/12`,
+        note: 'Today plus selected genres',
+        icon: '◆',
+        bg: '#F3E8FF',
+        color: '#7C3AED',
+        soft: '#FAF5FF',
+      },
+      {
+        label: 'Stories Using Genres',
+        value: storyCount,
+        note: 'Based on current story data',
+        icon: '↗',
+        bg: '#FEF3C7',
+        color: '#D97706',
+        soft: '#FFFBEB',
+      },
     ]
   }, [genres, selectedGenreIds])
 
@@ -1192,8 +1263,19 @@ export default function GenreManagementPage() {
 
             <div className="genre-stat-grid">
               {stats.map((item) => (
-                <div className="genre-stat-card" key={item.label}>
-                  <div className="genre-stat-label">{item.label}</div>
+                <div
+                  className="genre-stat-card"
+                  key={item.label}
+                  style={{
+                    '--statBg': item.bg,
+                    '--statColor': item.color,
+                    '--statSoft': item.soft,
+                  }}
+                >
+                  <div className="genre-stat-top">
+                    <div className="genre-stat-label">{item.label}</div>
+                    <div className="genre-stat-icon">{item.icon}</div>
+                  </div>
                   <div className="genre-stat-value">{item.value}</div>
                   <div className="genre-stat-note">{item.note}</div>
                 </div>
