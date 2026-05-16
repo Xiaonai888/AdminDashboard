@@ -783,7 +783,6 @@ const navItems = {
     { path: '/authors', label: 'Authors Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
   ],
   visualMedia: [
-   visualMedia: [
   { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
   { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
   { path: '/genres', label: 'Genre', icon: 'M4 6h16M4 12h16M4 18h16' },
