@@ -322,11 +322,21 @@ const styles = `
     font-weight:700;
   }
 
-  .genre-grid {
+  .genre-control-grid {
     display:grid;
-    grid-template-columns:380px minmax(0, 1fr);
+    grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:18px;
-    align-items:start;
+    align-items:stretch;
+    margin-bottom:18px;
+  }
+
+  .genre-control-grid .genre-card {
+    height:100%;
+  }
+
+  .genre-stack {
+    display:grid;
+    gap:18px;
   }
 
   .genre-card {
@@ -715,6 +725,22 @@ const styles = `
     transform:none;
   }
 
+  .genre-table-footer {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    border-top:1px solid var(--border);
+    background:#fff;
+  }
+
+  .genre-table-footer span {
+    color:var(--muted);
+    font-size:12.5px;
+    font-weight:800;
+  }
+
   .genre-record-list {
     display:grid;
     gap:10px;
@@ -774,7 +800,7 @@ const styles = `
       grid-template-columns:repeat(2, minmax(0, 1fr));
     }
 
-    .genre-grid {
+    .genre-control-grid {
       grid-template-columns:1fr;
     }
   }
@@ -813,6 +839,7 @@ export default function GenreManagementPage() {
   const [editingId, setEditingId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState('all')
+  const [showAllGenres, setShowAllGenres] = useState(false)
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -893,6 +920,8 @@ export default function GenreManagementPage() {
       return matchKeyword && matchFilter
     })
   }, [genres, searchQuery, filter, featuredIdSet])
+
+  const visibleGenres = showAllGenres ? filteredGenres : filteredGenres.slice(0, 5)
 
   function pushRecord(title, detail) {
     setRecords((current) => [
@@ -1138,8 +1167,8 @@ export default function GenreManagementPage() {
         <main className="genre-main">
           <header className="genre-header">
             <h2>Genre Management</h2>
-            <button className="genre-primary-btn" type="button" onClick={saveFeaturedTabs} disabled={saving}>
-              {saving ? 'Saving...' : 'Save For You Tabs'}
+            <button className="genre-dark-btn" type="button" onClick={saveFeaturedTabs} disabled={saving}>
+              {saving ? 'Saving...' : 'Save Tabs'}
             </button>
           </header>
 
@@ -1171,76 +1200,76 @@ export default function GenreManagementPage() {
               ))}
             </div>
 
-            <div className="genre-grid">
-              <div className="genre-card">
-                <div className="genre-card-head">
-                  <div>
-                    <h3>{editingId ? 'Edit Genre' : 'Create Genre'}</h3>
-                    <p>{editingId ? 'Update selected genre information.' : 'Add a new story genre.'}</p>
+            <div className="genre-stack">
+              <div className="genre-control-grid">
+                <div className="genre-card">
+                  <div className="genre-card-head">
+                    <div>
+                      <h3>{editingId ? 'Edit Genre' : 'Create Genre'}</h3>
+                      <p>{editingId ? 'Update selected genre information.' : 'Add a new story genre.'}</p>
+                    </div>
+                  </div>
+
+                  <div className="genre-card-body">
+                    <form onSubmit={handleSubmit}>
+                      <div className="genre-field">
+                        <label className="genre-label">Name</label>
+                        <input
+                          className="genre-input"
+                          value={form.name}
+                          onChange={(event) => handleNameChange(event.target.value)}
+                          placeholder="Romance"
+                          required
+                        />
+                      </div>
+
+                      <div className="genre-field">
+                        <label className="genre-label">Slug</label>
+                        <input
+                          className="genre-input"
+                          value={form.slug}
+                          onChange={(event) => setForm((current) => ({ ...current, slug: slugify(event.target.value) }))}
+                          placeholder="romance"
+                          required
+                        />
+                      </div>
+
+                      <div className="genre-field">
+                        <label className="genre-label">Sort Order</label>
+                        <input
+                          className="genre-input"
+                          type="number"
+                          value={form.sort_order}
+                          onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))}
+                        />
+                      </div>
+
+                      <div className="genre-switch-row">
+                        <span className="genre-switch-label">Active Genre</span>
+                        <label className="genre-switch">
+                          <input
+                            type="checkbox"
+                            checked={form.is_active}
+                            onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
+                          />
+                          <span className="genre-slider" />
+                        </label>
+                      </div>
+
+                      <div className="genre-form-actions">
+                        <button className="genre-dark-btn" type="submit" disabled={saving}>
+                          {saving ? 'Saving...' : editingId ? 'Update Genre' : 'Create Genre'}
+                        </button>
+                        {editingId && (
+                          <button className="genre-ghost-btn" type="button" onClick={resetForm}>
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    </form>
                   </div>
                 </div>
 
-                <div className="genre-card-body">
-                  <form onSubmit={handleSubmit}>
-                    <div className="genre-field">
-                      <label className="genre-label">Name</label>
-                      <input
-                        className="genre-input"
-                        value={form.name}
-                        onChange={(event) => handleNameChange(event.target.value)}
-                        placeholder="Romance"
-                        required
-                      />
-                    </div>
-
-                    <div className="genre-field">
-                      <label className="genre-label">Slug</label>
-                      <input
-                        className="genre-input"
-                        value={form.slug}
-                        onChange={(event) => setForm((current) => ({ ...current, slug: slugify(event.target.value) }))}
-                        placeholder="romance"
-                        required
-                      />
-                    </div>
-
-                    <div className="genre-field">
-                      <label className="genre-label">Sort Order</label>
-                      <input
-                        className="genre-input"
-                        type="number"
-                        value={form.sort_order}
-                        onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))}
-                      />
-                    </div>
-
-                    <div className="genre-switch-row">
-                      <span className="genre-switch-label">Active Genre</span>
-                      <label className="genre-switch">
-                        <input
-                          type="checkbox"
-                          checked={form.is_active}
-                          onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
-                        />
-                        <span className="genre-slider" />
-                      </label>
-                    </div>
-
-                    <div className="genre-form-actions">
-                      <button className="genre-dark-btn" type="submit" disabled={saving}>
-                        {saving ? 'Saving...' : editingId ? 'Update Genre' : 'Create Genre'}
-                      </button>
-                      {editingId && (
-                        <button className="genre-ghost-btn" type="button" onClick={resetForm}>
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gap: 18 }}>
                 <div className="genre-card">
                   <div className="genre-card-head">
                     <div>
@@ -1253,9 +1282,7 @@ export default function GenreManagementPage() {
                   <div className="genre-card-body">
                     <div className="genre-tab-tools">
                       <div className="genre-counter">Selected genres appear as black buttons</div>
-                      <button className="genre-primary-btn" type="button" onClick={saveFeaturedTabs} disabled={saving}>
-                        Save Tabs
-                      </button>
+                      <div className="genre-counter">Today + {selectedGenreIds.length} genres selected</div>
                     </div>
 
                     <div className="genre-chip-wrap">
@@ -1280,44 +1307,52 @@ export default function GenreManagementPage() {
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="genre-card">
-                  <div className="genre-card-head">
-                    <div>
-                      <h3>All Genres</h3>
-                      <p>Search, filter, edit, disable, or delete unused genres.</p>
-                    </div>
+              <div className="genre-card">
+                <div className="genre-card-head">
+                  <div>
+                    <h3>All Genres</h3>
+                    <p>Search, filter, edit, disable, or delete unused genres.</p>
+                  </div>
+                </div>
+
+                <div className="genre-toolbar">
+                  <div className="genre-search">
+                    <span>⌕</span>
+                    <input
+                      value={searchQuery}
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value)
+                        setShowAllGenres(false)
+                      }}
+                      placeholder="Search genre by name or slug..."
+                    />
                   </div>
 
-                  <div className="genre-toolbar">
-                    <div className="genre-search">
-                      <span>⌕</span>
-                      <input
-                        value={searchQuery}
-                        onChange={(event) => setSearchQuery(event.target.value)}
-                        placeholder="Search genre by name or slug..."
-                      />
-                    </div>
-
-                    <div className="genre-filter-row">
-                      {['all', 'active', 'disabled', 'featured'].map((item) => (
-                        <button
-                          key={item}
-                          type="button"
-                          className={`genre-filter-btn ${filter === item ? 'active' : ''}`}
-                          onClick={() => setFilter(item)}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="genre-filter-row">
+                    {['all', 'active', 'disabled', 'featured'].map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`genre-filter-btn ${filter === item ? 'active' : ''}`}
+                        onClick={() => {
+                          setFilter(item)
+                          setShowAllGenres(false)
+                        }}
+                      >
+                        {item}
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  {loading ? (
-                    <div className="genre-empty">Loading genres...</div>
-                  ) : filteredGenres.length === 0 ? (
-                    <div className="genre-empty">No genre found</div>
-                  ) : (
+                {loading ? (
+                  <div className="genre-empty">Loading genres...</div>
+                ) : filteredGenres.length === 0 ? (
+                  <div className="genre-empty">No genre found</div>
+                ) : (
+                  <>
                     <div className="genre-table-wrap">
                       <table className="genre-table">
                         <thead>
@@ -1332,7 +1367,7 @@ export default function GenreManagementPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredGenres.map((genre) => {
+                          {visibleGenres.map((genre) => {
                             const isFeatured = featuredIdSet.has(genre.id)
                             const hasStories = Number(genre.story_count || 0) > 0
 
@@ -1375,38 +1410,46 @@ export default function GenreManagementPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    <div className="genre-table-footer">
+                      <span>Showing {visibleGenres.length} of {filteredGenres.length} genres</span>
+                      {filteredGenres.length > 5 && (
+                        <button className="genre-ghost-btn" type="button" onClick={() => setShowAllGenres((current) => !current)}>
+                          {showAllGenres ? 'Show Less' : 'View All Genres'}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="genre-card">
+                <div className="genre-card-head">
+                  <div>
+                    <h3>Recent Genre Records</h3>
+                    <p>Latest genre changes from this admin session.</p>
+                  </div>
+                </div>
+
+                <div className="genre-card-body">
+                  {records.length === 0 ? (
+                    <div className="genre-empty">No recent genre records yet</div>
+                  ) : (
+                    <div className="genre-record-list">
+                      {records.map((record) => (
+                        <div className="genre-record-item" key={record.id}>
+                          <div className="genre-record-dot">✓</div>
+                          <div>
+                            <div className="genre-record-title">{record.title}</div>
+                            <div className="genre-record-sub">{record.detail} · {record.time}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-
-                <div className="genre-card">
-                  <div className="genre-card-head">
-                    <div>
-                      <h3>Recent Genre Records</h3>
-                      <p>Latest genre changes from this admin session.</p>
-                    </div>
-                  </div>
-
-                  <div className="genre-card-body">
-                    {records.length === 0 ? (
-                      <div className="genre-empty">No recent genre records yet</div>
-                    ) : (
-                      <div className="genre-record-list">
-                        {records.map((record) => (
-                          <div className="genre-record-item" key={record.id}>
-                            <div className="genre-record-dot">✓</div>
-                            <div>
-                              <div className="genre-record-title">{record.title}</div>
-                              <div className="genre-record-sub">{record.detail} · {record.time}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
-            </div>
-          </div>
+            </div>          </div>
         </main>
       </div>
     </>
