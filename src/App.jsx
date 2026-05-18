@@ -12,7 +12,7 @@ import AdminActivityLogsPage from "./pages/Admin/AdminActivityLogsPage";
 import ChangePasswordPage from "./pages/Admin/ChangePasswordPage";
 import AdminSettingsPage from "./pages/Admin/AdminSettingsPage";
 import GenreManagementPage from './pages/GenreManagementPage';
-
+import CommentModerationPage from './pages/CommentModerationPage';
 
 function ComingSoon({ title }) {
   return (
@@ -76,6 +76,7 @@ export default function App() {
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
         <Route path="/genres" element={<ProtectedPage><GenreManagementPage /></ProtectedPage>} />
+        <Route path="/comments" element={<ProtectedPage><CommentModerationPage /></ProtectedPage>} />
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
