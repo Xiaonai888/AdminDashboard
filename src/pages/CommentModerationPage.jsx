@@ -27,549 +27,87 @@ function Icon({ d, size = 20 }) {
 
 function formatDate(value) {
   if (!value) return '-'
-
   const date = new Date(value)
-
   if (Number.isNaN(date.getTime())) return '-'
-
   return date.toLocaleString()
 }
 
-function statusLabel(comment) {
-  return comment?.is_hidden ? 'Hidden' : 'Visible'
+function isErrorMessage(value) {
+  const text = String(value || '').toLowerCase()
+  return text.includes('failed') || text.includes('required') || text.includes('not found') || text.includes('invalid') || text.includes('error')
 }
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-  :root {
-    --bg:#F8FAFC;
-    --card:#FFFFFF;
-    --text:#0F172A;
-    --muted:#64748B;
-    --soft:#94A3B8;
-    --border:#E2E8F0;
-    --primary:#4F46E5;
-    --primaryLight:#EEF2FF;
-    --success:#16A34A;
-    --successBg:#DCFCE7;
-    --danger:#EF4444;
-    --dangerBg:#FEE2E2;
-    --warning:#F59E0B;
-    --warningBg:#FEF3C7;
-    --side:80px;
-    --sideOpen:260px;
-  }
-
-  * {
-    box-sizing:border-box;
-  }
-
-  body {
-    margin:0;
-    background:var(--bg);
-    font-family:Inter, sans-serif;
-    color:var(--text);
-  }
-
-  .comment-shell {
-    height:100vh;
-    min-height:100vh;
-    display:flex;
-    background:var(--bg);
-    overflow:hidden;
-  }
-
-  .comment-sidebar {
-    width:var(--side);
-    background:#fff;
-    border-right:1px solid var(--border);
-    padding:20px 14px;
-    overflow:auto;
-    overflow-x:hidden;
-    transition:.25s ease;
-    flex-shrink:0;
-  }
-
-  .comment-sidebar:hover {
-    width:var(--sideOpen);
-    box-shadow:10px 0 30px rgba(15,23,42,.06);
-  }
-
-  .comment-sidebar::-webkit-scrollbar {
-    width:0;
-  }
-
-  .comment-logo {
-    height:40px;
-    display:flex;
-    align-items:center;
-    gap:12px;
-    margin-bottom:28px;
-    padding-left:10px;
-    color:var(--primary);
-  }
-
-  .comment-logo-text {
-    opacity:0;
-    white-space:nowrap;
-    color:var(--primary);
-    font-weight:900;
-    font-size:18px;
-    transition:.2s;
-  }
-
-  .comment-sidebar:hover .comment-logo-text,
-  .comment-sidebar:hover .comment-nav-text,
-  .comment-sidebar:hover .comment-nav-label {
-    opacity:1;
-  }
-
-  .comment-nav-label {
-    opacity:0;
-    display:block;
-    margin:18px 0 8px 12px;
-    font-size:10px;
-    font-weight:900;
-    text-transform:uppercase;
-    letter-spacing:1px;
-    color:var(--soft);
-    white-space:nowrap;
-    transition:.2s;
-  }
-
-  .comment-nav-item {
-    height:44px;
-    display:flex;
-    align-items:center;
-    border-radius:12px;
-    padding:0 12px;
-    color:var(--muted);
-    cursor:pointer;
-    margin-bottom:2px;
-    font-weight:700;
-    white-space:nowrap;
-    transition:.18s ease;
-  }
-
-  .comment-nav-item:hover,
-  .comment-nav-item.active {
-    background:var(--primaryLight);
-    color:var(--primary);
-    transform:translateX(2px);
-  }
-
-  .comment-nav-text {
-    opacity:0;
-    margin-left:14px;
-    transition:.2s;
-  }
-
-  .comment-main {
-    flex:1;
-    overflow:auto;
-  }
-
-  .comment-header {
-    height:70px;
-    background:#fff;
-    border-bottom:1px solid var(--border);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:0 36px;
-    position:sticky;
-    top:0;
-    z-index:10;
-  }
-
-  .comment-header h2 {
-    margin:0;
-    font-size:17px;
-    font-weight:900;
-  }
-
-  .comment-content {
-    padding:28px 36px 50px;
-    max-width:1600px;
-    margin:0 auto;
-  }
-
-  .comment-page-top {
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:18px;
-    margin-bottom:22px;
-  }
-
-  .comment-page-top h1 {
-    margin:0;
-    font-size:28px;
-    font-weight:950;
-    letter-spacing:-.04em;
-  }
-
-  .comment-page-top p {
-    margin:7px 0 0;
-    color:var(--muted);
-    font-size:13.5px;
-    font-weight:700;
-    line-height:1.6;
-  }
-
-  .comment-refresh-btn {
-    height:42px;
-    padding:0 16px;
-    border:none;
-    border-radius:13px;
-    background:var(--primary);
-    color:white;
-    font-weight:950;
-    cursor:pointer;
-    box-shadow:0 12px 24px rgba(79,70,229,.22);
-  }
-
-  .comment-refresh-btn:disabled {
-    opacity:.6;
-    cursor:not-allowed;
-  }
-
-  .comment-stats {
-    display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
-    gap:14px;
-    margin-bottom:18px;
-  }
-
-  .comment-stat-card {
-    background:#fff;
-    border:1px solid var(--border);
-    border-radius:20px;
-    padding:17px 18px;
-    box-shadow:0 6px 22px rgba(15,23,42,.04);
-  }
-
-  .comment-stat-label {
-    color:var(--muted);
-    font-size:11px;
-    font-weight:950;
-    text-transform:uppercase;
-    letter-spacing:.07em;
-  }
-
-  .comment-stat-value {
-    margin-top:8px;
-    font-size:25px;
-    font-weight:950;
-  }
-
-  .comment-panel {
-    background:#fff;
-    border:1px solid var(--border);
-    border-radius:24px;
-    box-shadow:0 8px 28px rgba(15,23,42,.05);
-    overflow:hidden;
-    margin-bottom:22px;
-  }
-
-  .comment-panel-head {
-    padding:18px 20px;
-    border-bottom:1px solid var(--border);
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:14px;
-  }
-
-  .comment-panel-head h3 {
-    margin:0;
-    font-size:16px;
-    font-weight:950;
-  }
-
-  .comment-panel-head p {
-    margin:4px 0 0;
-    color:var(--muted);
-    font-size:12.5px;
-    font-weight:700;
-  }
-
-  .comment-toolbar {
-    padding:16px 20px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    border-bottom:1px solid var(--border);
-    background:#fff;
-  }
-
-  .comment-search {
-    position:relative;
-    width:min(520px, 100%);
-  }
-
-  .comment-search span {
-    position:absolute;
-    left:13px;
-    top:50%;
-    transform:translateY(-50%);
-    color:var(--soft);
-    font-size:14px;
-  }
-
-  .comment-search input {
-    width:100%;
-    height:42px;
-    border:1px solid var(--border);
-    border-radius:13px;
-    padding:0 14px 0 38px;
-    outline:none;
-    font-weight:750;
-    color:var(--text);
-  }
-
-  .comment-filter-row {
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-  }
-
-  .comment-filter-btn {
-    height:34px;
-    border-radius:999px;
-    padding:0 12px;
-    border:1px solid var(--border);
-    background:#fff;
-    color:var(--muted);
-    font-size:12px;
-    font-weight:950;
-    cursor:pointer;
-  }
-
-  .comment-filter-btn.active,
-  .comment-filter-btn:hover {
-    background:var(--primary);
-    color:#fff;
-    border-color:var(--primary);
-  }
-
-  .comment-table-wrap {
-    overflow:auto;
-  }
-
-  .comment-table {
-    width:100%;
-    border-collapse:collapse;
-    font-size:13.5px;
-  }
-
-  .comment-table th {
-    text-align:left;
-    padding:13px 14px;
-    background:#F8FAFC;
-    color:#64748B;
-    font-size:11.5px;
-    text-transform:uppercase;
-    letter-spacing:.06em;
-    font-weight:950;
-    white-space:nowrap;
-  }
-
-  .comment-table td {
-    padding:15px 14px;
-    border-top:1px solid #F1F5F9;
-    vertical-align:top;
-  }
-
-  .comment-text {
-    max-width:480px;
-    font-weight:700;
-    line-height:1.55;
-    color:#334155;
-  }
-
-  .comment-story {
-    font-weight:950;
-    color:var(--text);
-  }
-
-  .comment-muted {
-    margin-top:3px;
-    color:var(--muted);
-    font-weight:700;
-    font-size:12px;
-  }
-
-  .comment-user {
-    font-weight:950;
-    color:var(--text);
-  }
-
-  .comment-badge {
-    display:inline-flex;
-    align-items:center;
-    height:26px;
-    border-radius:999px;
-    padding:0 10px;
-    font-size:11.5px;
-    font-weight:950;
-  }
-
-  .comment-badge.visible {
-    background:var(--successBg);
-    color:var(--success);
-  }
-
-  .comment-badge.hidden {
-    background:var(--warningBg);
-    color:#B45309;
-  }
-
-  .comment-actions {
-    display:flex;
-    justify-content:flex-end;
-    gap:8px;
-    flex-wrap:wrap;
-  }
-
-  .comment-small-btn {
-    height:34px;
-    border-radius:10px;
-    padding:0 11px;
-    font-size:12px;
-    font-weight:950;
-    cursor:pointer;
-    transition:.16s ease;
-  }
-
-  .comment-small-btn.hide {
-    background:#fff;
-    border:1px solid #FCD34D;
-    color:#B45309;
-  }
-
-  .comment-small-btn.unhide {
-    background:#fff;
-    border:1px solid #86EFAC;
-    color:#15803D;
-  }
-
-  .comment-small-btn.ban {
-    background:#fff;
-    border:1px solid #FCA5A5;
-    color:#DC2626;
-  }
-
-  .comment-small-btn.delete {
-    background:var(--dangerBg);
-    border:1px solid #FCA5A5;
-    color:#DC2626;
-  }
-
-  .comment-small-btn:disabled {
-    opacity:.45;
-    cursor:not-allowed;
-  }
-
-  .comment-empty {
-    padding:34px;
-    text-align:center;
-    color:var(--muted);
-    font-weight:850;
-  }
-
-  .comment-record-list {
-    display:grid;
-    gap:10px;
-    padding:18px 20px 20px;
-  }
-
-  .comment-record-item {
-    display:flex;
-    gap:12px;
-    align-items:flex-start;
-    padding:13px;
-    border:1px solid #F1F5F9;
-    border-radius:14px;
-    background:#fff;
-  }
-
-  .comment-record-icon {
-    width:34px;
-    height:34px;
-    border-radius:12px;
-    background:#EEF2FF;
-    color:var(--primary);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-weight:950;
-    flex-shrink:0;
-  }
-
-  .comment-record-title {
-    font-weight:950;
-    color:var(--text);
-    font-size:13px;
-  }
-
-  .comment-record-sub {
-    margin-top:3px;
-    color:var(--muted);
-    font-weight:650;
-    font-size:12px;
-    line-height:1.5;
-  }
-
-  .comment-message {
-    padding:12px 14px;
-    border-radius:14px;
-    margin-bottom:16px;
-    font-size:13px;
-    font-weight:850;
-  }
-
-  .comment-message.success {
-    background:var(--successBg);
-    color:var(--success);
-  }
-
-  .comment-message.error {
-    background:var(--dangerBg);
-    color:var(--danger);
-  }
-
-  @media (max-width:1180px) {
-    .comment-stats {
-      grid-template-columns:repeat(2,minmax(0,1fr));
-    }
-
-    .comment-toolbar {
-      flex-direction:column;
-      align-items:stretch;
-    }
-  }
-
-  @media (max-width:760px) {
-    .comment-header {
-      padding:0 18px;
-    }
-
-    .comment-content {
-      padding:22px 18px 40px;
-    }
-
-    .comment-page-top {
-      flex-direction:column;
-      align-items:stretch;
-    }
-
-    .comment-stats {
-      grid-template-columns:1fr;
-    }
-  }
+  :root{--bg:#F8FAFC;--card:#fff;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--primary:#4F46E5;--primaryLight:#EEF2FF;--success:#16A34A;--successBg:#DCFCE7;--danger:#EF4444;--dangerBg:#FEE2E2;--warning:#F59E0B;--warningBg:#FEF3C7;--side:80px;--sideOpen:260px}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
+  .comment-shell{height:100vh;min-height:100vh;display:flex;background:var(--bg);overflow:hidden}
+  .comment-sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s ease;flex-shrink:0}
+  .comment-sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.06)}
+  .comment-sidebar::-webkit-scrollbar{width:0}
+  .comment-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px;color:var(--primary)}
+  .comment-logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px;transition:.2s}
+  .comment-sidebar:hover .comment-logo-text,.comment-sidebar:hover .comment-nav-text,.comment-sidebar:hover .comment-nav-label{opacity:1}
+  .comment-nav-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--soft);white-space:nowrap;transition:.2s}
+  .comment-nav-item{height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:700;white-space:nowrap;transition:.18s ease}
+  .comment-nav-item:hover,.comment-nav-item.active{background:var(--primaryLight);color:var(--primary)}
+  .comment-nav-text{opacity:0;margin-left:14px;transition:.2s}
+  .comment-main{flex:1;overflow:auto}
+  .comment-header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}
+  .comment-header h2{margin:0;font-size:17px;font-weight:900}
+  .comment-content{padding:28px 36px 50px;max-width:1600px;margin:0 auto}
+  .comment-page-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}
+  .comment-page-top h1{margin:0;font-size:28px;font-weight:950;letter-spacing:-.04em}
+  .comment-page-top p{margin:7px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}
+  .comment-refresh-btn,.comment-search-btn{height:42px;padding:0 16px;border:none;border-radius:13px;background:var(--primary);color:white;font-weight:950;cursor:pointer;box-shadow:0 12px 24px rgba(79,70,229,.22)}
+  .comment-refresh-btn:disabled,.comment-search-btn:disabled{opacity:.6;cursor:not-allowed}
+  .comment-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+  .comment-stat-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:17px 18px;box-shadow:0 6px 22px rgba(15,23,42,.04)}
+  .comment-stat-label{color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
+  .comment-stat-value{margin-top:8px;font-size:25px;font-weight:950}
+  .comment-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden;margin-bottom:22px}
+  .comment-panel-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .comment-panel-head h3{margin:0;font-size:16px;font-weight:950}
+  .comment-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
+  .comment-toolbar{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);background:#fff}
+  .comment-search-area{display:flex;align-items:center;gap:10px;width:min(640px,100%)}
+  .comment-search{position:relative;flex:1}
+  .comment-search span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px}
+  .comment-search input{width:100%;height:42px;border:1px solid var(--border);border-radius:13px;padding:0 14px 0 38px;outline:none;font-weight:750;color:var(--text)}
+  .comment-filter-row{display:flex;gap:8px;flex-wrap:wrap}
+  .comment-filter-btn{height:34px;border-radius:999px;padding:0 12px;border:1px solid var(--border);background:#fff;color:var(--muted);font-size:12px;font-weight:950;cursor:pointer}
+  .comment-filter-btn.active,.comment-filter-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .comment-table-wrap{overflow:auto}
+  .comment-table{width:100%;border-collapse:collapse;font-size:13.5px}
+  .comment-table th{text-align:left;padding:13px 14px;background:#F8FAFC;color:#64748B;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;white-space:nowrap}
+  .comment-table td{padding:15px 14px;border-top:1px solid #F1F5F9;vertical-align:top}
+  .comment-text{max-width:480px;font-weight:700;line-height:1.55;color:#334155}
+  .comment-story{font-weight:950;color:var(--text)}
+  .comment-muted{margin-top:3px;color:var(--muted);font-weight:700;font-size:12px}
+  .comment-user{font-weight:950;color:var(--text)}
+  .comment-badge{display:inline-flex;align-items:center;height:26px;border-radius:999px;padding:0 10px;font-size:11.5px;font-weight:950}
+  .comment-badge.visible{background:var(--successBg);color:var(--success)}
+  .comment-badge.hidden{background:var(--warningBg);color:#B45309}
+  .comment-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+  .comment-small-btn{height:34px;border-radius:10px;padding:0 11px;font-size:12px;font-weight:950;cursor:pointer;transition:.16s ease}
+  .comment-small-btn.hide{background:#fff;border:1px solid #FCD34D;color:#B45309}
+  .comment-small-btn.unhide{background:#fff;border:1px solid #86EFAC;color:#15803D}
+  .comment-small-btn.ban{background:#fff;border:1px solid #FCA5A5;color:#DC2626}
+  .comment-small-btn.delete{background:var(--dangerBg);border:1px solid #FCA5A5;color:#DC2626}
+  .comment-small-btn:disabled{opacity:.45;cursor:not-allowed}
+  .comment-empty{padding:34px;text-align:center;color:var(--muted);font-weight:850}
+  .comment-record-list{display:grid;gap:10px;padding:18px 20px 20px}
+  .comment-record-item{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid #F1F5F9;border-radius:14px;background:#fff}
+  .comment-record-icon{width:34px;height:34px;border-radius:12px;background:#EEF2FF;color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:950;flex-shrink:0}
+  .comment-record-title{font-weight:950;color:var(--text);font-size:13px}
+  .comment-record-sub{margin-top:3px;color:var(--muted);font-weight:650;font-size:12px;line-height:1.5}
+  .comment-message{padding:12px 14px;border-radius:14px;margin-bottom:16px;font-size:13px;font-weight:850}
+  .comment-message.success{background:var(--successBg);color:var(--success)}
+  .comment-message.error{background:var(--dangerBg);color:var(--danger)}
+  @media(max-width:1180px){.comment-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.comment-toolbar{flex-direction:column;align-items:stretch}.comment-search-area{width:100%}}
+  @media(max-width:760px){.comment-header{padding:0 18px}.comment-content{padding:22px 18px 40px}.comment-page-top{flex-direction:column;align-items:stretch}.comment-stats{grid-template-columns:1fr}.comment-search-area{flex-direction:column;align-items:stretch}}
 `
 
 export default function CommentModerationPage() {
@@ -578,10 +116,11 @@ export default function CommentModerationPage() {
 
   const [comments, setComments] = useState([])
   const [records, setRecords] = useState([])
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [activeSearch, setActiveSearch] = useState('')
   const [status, setStatus] = useState('all')
-  const [loading, setLoading] = useState(true)
-  const [recordsLoading, setRecordsLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [recordsLoading, setRecordsLoading] = useState(false)
   const [busyId, setBusyId] = useState('')
   const [message, setMessage] = useState('')
 
@@ -634,14 +173,14 @@ export default function CommentModerationPage() {
     ]
   }, [comments])
 
-  const loadComments = async () => {
+  const loadComments = async (searchValue = activeSearch, statusValue = status) => {
     setLoading(true)
     setMessage('')
 
     try {
       const params = new URLSearchParams({
-        search: searchQuery,
-        status,
+        search: searchValue,
+        status: statusValue,
         limit: '80',
       })
 
@@ -687,20 +226,24 @@ export default function CommentModerationPage() {
   }
 
   const reloadAll = async () => {
-    await Promise.all([loadComments(), loadRecords()])
+    await Promise.all([loadComments(activeSearch, status), loadRecords()])
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadComments()
-    }, 260)
-
-    return () => clearTimeout(timer)
-  }, [searchQuery, status])
-
-  useEffect(() => {
+    loadComments('', 'all')
     loadRecords()
   }, [])
+
+  const handleSearch = () => {
+    const value = searchInput.trim()
+    setActiveSearch(value)
+    loadComments(value, status)
+  }
+
+  const handleStatusChange = (nextStatus) => {
+    setStatus(nextStatus)
+    loadComments(activeSearch, nextStatus)
+  }
 
   const runAction = async (comment, action) => {
     if (!comment?.id || busyId) return
@@ -806,7 +349,7 @@ export default function CommentModerationPage() {
           </div>
 
           {message ? (
-            <div className={`comment-message ${message.toLowerCase().includes('failed') || message.toLowerCase().includes('required') ? 'error' : 'success'}`}>
+            <div className={`comment-message ${isErrorMessage(message) ? 'error' : 'success'}`}>
               {message}
             </div>
           ) : null}
@@ -829,13 +372,22 @@ export default function CommentModerationPage() {
             </div>
 
             <div className="comment-toolbar">
-              <div className="comment-search">
-                <span>⌕</span>
-                <input
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search comment, story title, username..."
-                />
+              <div className="comment-search-area">
+                <div className="comment-search">
+                  <span>⌕</span>
+                  <input
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') handleSearch()
+                    }}
+                    placeholder="Search comment, story title, username..."
+                  />
+                </div>
+
+                <button type="button" className="comment-search-btn" onClick={handleSearch} disabled={loading}>
+                  Search
+                </button>
               </div>
 
               <div className="comment-filter-row">
@@ -844,7 +396,7 @@ export default function CommentModerationPage() {
                     key={item}
                     type="button"
                     className={`comment-filter-btn ${status === item ? 'active' : ''}`}
-                    onClick={() => setStatus(item)}
+                    onClick={() => handleStatusChange(item)}
                   >
                     {item.toUpperCase()}
                   </button>
@@ -892,7 +444,7 @@ export default function CommentModerationPage() {
 
                         <td>
                           <span className={`comment-badge ${comment.is_hidden ? 'hidden' : 'visible'}`}>
-                            {statusLabel(comment)}
+                            {comment.is_hidden ? 'Hidden' : 'Visible'}
                           </span>
                         </td>
 
