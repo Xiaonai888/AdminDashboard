@@ -13,6 +13,7 @@ import ChangePasswordPage from "./pages/Admin/ChangePasswordPage";
 import AdminSettingsPage from "./pages/Admin/AdminSettingsPage";
 import GenreManagementPage from './pages/GenreManagementPage';
 import CommentModerationPage from './pages/CommentModerationPage';
+import PaymentControlPage from './pages/PaymentControlPage';
 
 function ComingSoon({ title }) {
   return (
@@ -69,7 +70,7 @@ export default function App() {
         <Route path="/block-list" element={<ProtectedPage><ComingSoon title="Block List" /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><ComingSoon title="Income" /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
-        <Route path="/deposit" element={<ProtectedPage><ComingSoon title="Deposit" /></ProtectedPage>} />
+        <Route path="/deposit" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
