@@ -47,7 +47,7 @@ const styles = `
   .comment-page-top p{margin:7px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}
   .comment-back-btn,.comment-search-btn{height:42px;padding:0 16px;border:none;border-radius:13px;background:var(--primary);color:white;font-weight:950;cursor:pointer;box-shadow:0 12px 24px rgba(79,70,229,.22)}
   .comment-back-btn{background:#fff;color:var(--text);border:1px solid var(--border);box-shadow:none}.comment-search-btn:disabled{opacity:.6;cursor:not-allowed}
-  .comment-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden;margin-bottom:22px}
+  .comment-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:visible;margin-bottom:22px}
   .comment-panel-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:14px}
   .comment-panel-head h3{margin:0;font-size:16px;font-weight:950}.comment-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
   .comment-search-wrap{padding:20px}.comment-search-row{display:flex;gap:10px;max-width:760px}
@@ -61,22 +61,26 @@ const styles = `
   .story-title{font-size:15px;font-weight:950;color:var(--text);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .story-meta{margin-top:5px;color:var(--muted);font-size:12px;font-weight:750}.story-pill-row{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap}
   .story-pill{height:26px;display:inline-flex;align-items:center;border-radius:999px;padding:0 10px;background:#F8FAFC;border:1px solid var(--border);font-size:11.5px;font-weight:900;color:var(--muted)}
-  .selected-story{display:flex;gap:16px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);background:#fff}
+  .selected-story{display:flex;gap:16px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);background:#fff;border-radius:24px 24px 0 0}
   .selected-story-cover{width:74px;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#EEF2FF;flex-shrink:0}.selected-story-cover img{width:100%;height:100%;object-fit:cover}
   .selected-story h3{margin:0;font-size:22px;font-weight:950;line-height:1.25}.selected-story p{margin:6px 0 0;color:var(--muted);font-size:12.5px;font-weight:800}
-  .comment-list{padding:18px 20px;display:grid;gap:12px}.comment-card{display:flex;gap:12px;padding:14px;border:1px solid #F1F5F9;border-radius:18px;background:#fff;position:relative}
+  .comment-control-bar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff}
+  .comment-control-search{position:relative;width:min(420px,100%)}.comment-control-search span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--soft)}
+  .comment-control-search input{width:100%;height:40px;border:1px solid var(--border);border-radius:12px;padding:0 12px 0 34px;outline:none;font-weight:750;color:var(--text)}
+  .sort-row{display:flex;gap:8px;flex-wrap:wrap}.sort-btn{height:34px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:0 13px;color:var(--muted);font-size:12px;font-weight:950;cursor:pointer}.sort-btn.active,.sort-btn:hover{background:var(--primary);border-color:var(--primary);color:#fff}
+  .comment-list{padding:18px 20px;display:grid;gap:12px;overflow:visible}.comment-card{display:flex;gap:12px;padding:14px;border:1px solid #F1F5F9;border-radius:18px;background:#fff;position:relative;overflow:visible}
   .comment-avatar{width:42px;height:42px;border-radius:50%;overflow:hidden;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:950;flex-shrink:0}.comment-avatar img{width:100%;height:100%;object-fit:cover}
   .comment-body{min-width:0;flex:1}.comment-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.comment-user{font-size:13.5px;font-weight:950;color:var(--text)}.comment-date{margin-top:2px;color:var(--muted);font-size:11.5px;font-weight:750}
   .comment-text{margin-top:9px;color:#334155;font-size:13.5px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word}
   .comment-badge{display:inline-flex;align-items:center;height:24px;border-radius:999px;padding:0 9px;font-size:11px;font-weight:950}.comment-badge.visible{background:var(--successBg);color:var(--success)}.comment-badge.hidden{background:var(--warningBg);color:#B45309}
   .dot-btn{width:34px;height:34px;border-radius:50%;border:none;background:#F8FAFC;color:var(--muted);cursor:pointer;font-weight:950}
-  .dot-menu{position:absolute;right:12px;top:48px;width:168px;border:1px solid var(--border);background:#fff;border-radius:14px;box-shadow:0 18px 35px rgba(15,23,42,.13);overflow:hidden;z-index:5}
-  .dot-menu button{width:100%;height:42px;border:none;background:#fff;text-align:left;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}.dot-menu button:hover{background:#F8FAFC}.dot-menu button.danger{color:var(--danger)}
+  .dot-menu{position:absolute;right:12px;top:54px;width:190px;border:1px solid var(--border);background:#fff;border-radius:14px;box-shadow:0 22px 45px rgba(15,23,42,.18);overflow:hidden;z-index:50}
+  .dot-menu button{width:100%;height:44px;border:none;background:#fff;text-align:left;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}.dot-menu button:hover{background:#F8FAFC}.dot-menu button.danger{color:var(--danger)}
   .comment-empty{padding:36px;text-align:center;color:var(--muted);font-weight:850}
   .comment-record-list{display:grid;gap:10px;padding:18px 20px 20px}.comment-record-item{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid #F1F5F9;border-radius:14px;background:#fff}
   .comment-record-icon{width:34px;height:34px;border-radius:12px;background:#EEF2FF;color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:950;flex-shrink:0}
   .comment-record-title{font-weight:950;color:var(--text);font-size:13px}.comment-record-sub{margin-top:3px;color:var(--muted);font-weight:650;font-size:12px;line-height:1.5}
-  @media(max-width:900px){.story-grid{grid-template-columns:1fr}.comment-search-row{flex-direction:column}.comment-content{padding:22px 18px 40px}.comment-header{padding:0 18px}.selected-story{align-items:flex-start}.selected-story h3{font-size:18px}}
+  @media(max-width:900px){.story-grid{grid-template-columns:1fr}.comment-search-row,.comment-control-bar{flex-direction:column;align-items:stretch}.comment-content{padding:22px 18px 40px}.comment-header{padding:0 18px}.selected-story{align-items:flex-start}.selected-story h3{font-size:18px}.comment-control-search{width:100%}}
 `
 
 export default function CommentModerationPage() {
@@ -88,6 +92,8 @@ export default function CommentModerationPage() {
   const [selectedStory, setSelectedStory] = useState(null)
   const [comments, setComments] = useState([])
   const [records, setRecords] = useState([])
+  const [commentSearch, setCommentSearch] = useState('')
+  const [sortMode, setSortMode] = useState('new')
   const [loadingStories, setLoadingStories] = useState(false)
   const [loadingComments, setLoadingComments] = useState(false)
   const [recordsLoading, setRecordsLoading] = useState(false)
@@ -130,6 +136,34 @@ export default function CommentModerationPage() {
     'X-Admin-Name': 'Admin',
   }
 
+  const filteredComments = useMemo(() => {
+    const keyword = commentSearch.trim().toLowerCase()
+
+    let list = [...comments]
+
+    if (keyword) {
+      list = list.filter((comment) => {
+        const values = [
+          comment.text,
+          comment.user?.name,
+          comment.user?.username,
+        ]
+
+        return values.some((value) => String(value || '').toLowerCase().includes(keyword))
+      })
+    }
+
+    if (sortMode === 'old') {
+      list.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    } else if (sortMode === 'most') {
+      list.sort((a, b) => Number(b.likes || 0) - Number(a.likes || 0) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    } else {
+      list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+
+    return list
+  }, [comments, commentSearch, sortMode])
+
   const totalVisible = useMemo(() => comments.filter((comment) => !comment.is_hidden).length, [comments])
   const totalHidden = useMemo(() => comments.filter((comment) => comment.is_hidden).length, [comments])
 
@@ -163,6 +197,8 @@ export default function CommentModerationPage() {
     setMessage('')
     setSelectedStory(null)
     setComments([])
+    setCommentSearch('')
+    setOpenMenuId('')
 
     if (!value) {
       setStories([])
@@ -196,6 +232,8 @@ export default function CommentModerationPage() {
     setSelectedStory(story)
     setStories([])
     setComments([])
+    setCommentSearch('')
+    setOpenMenuId('')
     setMessage('')
     setLoadingComments(true)
 
@@ -273,6 +311,7 @@ export default function CommentModerationPage() {
   const goBackToSearch = () => {
     setSelectedStory(null)
     setComments([])
+    setCommentSearch('')
     setOpenMenuId('')
     setMessage('')
   }
@@ -395,11 +434,34 @@ export default function CommentModerationPage() {
                 </div>
               </div>
 
+              <div className="comment-control-bar">
+                <div className="comment-control-search">
+                  <span>⌕</span>
+                  <input
+                    value={commentSearch}
+                    onChange={(event) => setCommentSearch(event.target.value)}
+                    placeholder="Search comment in this story..."
+                  />
+                </div>
+
+                <div className="sort-row">
+                  <button type="button" className={`sort-btn ${sortMode === 'new' ? 'active' : ''}`} onClick={() => setSortMode('new')}>
+                    New
+                  </button>
+                  <button type="button" className={`sort-btn ${sortMode === 'old' ? 'active' : ''}`} onClick={() => setSortMode('old')}>
+                    Old
+                  </button>
+                  <button type="button" className={`sort-btn ${sortMode === 'most' ? 'active' : ''}`} onClick={() => setSortMode('most')}>
+                    Most
+                  </button>
+                </div>
+              </div>
+
               <div className="comment-list">
                 {loadingComments ? (
                   <div className="comment-empty">Loading comments...</div>
-                ) : comments.length ? (
-                  comments.map((comment) => (
+                ) : filteredComments.length ? (
+                  filteredComments.map((comment) => (
                     <div className="comment-card" key={comment.id}>
                       <div className="comment-avatar">
                         {comment.user?.avatar_url ? <img src={comment.user.avatar_url} alt={comment.user?.name || 'Reader'} /> : (comment.user?.name || 'R').charAt(0).toUpperCase()}
