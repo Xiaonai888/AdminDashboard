@@ -9,17 +9,7 @@ function getAdminToken() {
 
 function Icon({ d, size = 20 }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ minWidth: size, flexShrink: 0 }}
-    >
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: size, flexShrink: 0 }}>
       <path d={d} />
     </svg>
   )
@@ -39,88 +29,69 @@ function isErrorMessage(value) {
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
   :root{--bg:#F8FAFC;--card:#fff;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--primary:#4F46E5;--primaryLight:#EEF2FF;--success:#16A34A;--successBg:#DCFCE7;--danger:#EF4444;--dangerBg:#FEE2E2;--warning:#F59E0B;--warningBg:#FEF3C7;--side:80px;--sideOpen:260px}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
   .comment-shell{height:100vh;min-height:100vh;display:flex;background:var(--bg);overflow:hidden}
   .comment-sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s ease;flex-shrink:0}
-  .comment-sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.06)}
-  .comment-sidebar::-webkit-scrollbar{width:0}
+  .comment-sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.06)}.comment-sidebar::-webkit-scrollbar{width:0}
   .comment-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px;color:var(--primary)}
   .comment-logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px;transition:.2s}
   .comment-sidebar:hover .comment-logo-text,.comment-sidebar:hover .comment-nav-text,.comment-sidebar:hover .comment-nav-label{opacity:1}
   .comment-nav-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--soft);white-space:nowrap;transition:.2s}
   .comment-nav-item{height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:700;white-space:nowrap;transition:.18s ease}
   .comment-nav-item:hover,.comment-nav-item.active{background:var(--primaryLight);color:var(--primary)}
-  .comment-nav-text{opacity:0;margin-left:14px;transition:.2s}
-  .comment-main{flex:1;overflow:auto}
+  .comment-nav-text{opacity:0;margin-left:14px;transition:.2s}.comment-main{flex:1;overflow:auto}
   .comment-header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}
-  .comment-header h2{margin:0;font-size:17px;font-weight:900}
-  .comment-content{padding:28px 36px 50px;max-width:1600px;margin:0 auto}
-  .comment-page-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}
-  .comment-page-top h1{margin:0;font-size:28px;font-weight:950;letter-spacing:-.04em}
+  .comment-header h2{margin:0;font-size:17px;font-weight:900}.comment-content{padding:28px 36px 50px;max-width:1300px;margin:0 auto}
+  .comment-page-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:22px}.comment-page-top h1{margin:0;font-size:28px;font-weight:950;letter-spacing:-.04em}
   .comment-page-top p{margin:7px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}
-  .comment-refresh-btn,.comment-search-btn{height:42px;padding:0 16px;border:none;border-radius:13px;background:var(--primary);color:white;font-weight:950;cursor:pointer;box-shadow:0 12px 24px rgba(79,70,229,.22)}
-  .comment-refresh-btn:disabled,.comment-search-btn:disabled{opacity:.6;cursor:not-allowed}
-  .comment-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
-  .comment-stat-card{background:#fff;border:1px solid var(--border);border-radius:20px;padding:17px 18px;box-shadow:0 6px 22px rgba(15,23,42,.04)}
-  .comment-stat-label{color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.07em}
-  .comment-stat-value{margin-top:8px;font-size:25px;font-weight:950}
+  .comment-back-btn,.comment-search-btn{height:42px;padding:0 16px;border:none;border-radius:13px;background:var(--primary);color:white;font-weight:950;cursor:pointer;box-shadow:0 12px 24px rgba(79,70,229,.22)}
+  .comment-back-btn{background:#fff;color:var(--text);border:1px solid var(--border);box-shadow:none}.comment-search-btn:disabled{opacity:.6;cursor:not-allowed}
   .comment-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden;margin-bottom:22px}
   .comment-panel-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:14px}
-  .comment-panel-head h3{margin:0;font-size:16px;font-weight:950}
-  .comment-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
-  .comment-toolbar{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);background:#fff}
-  .comment-search-area{display:flex;align-items:center;gap:10px;width:min(640px,100%)}
-  .comment-search{position:relative;flex:1}
-  .comment-search span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px}
-  .comment-search input{width:100%;height:42px;border:1px solid var(--border);border-radius:13px;padding:0 14px 0 38px;outline:none;font-weight:750;color:var(--text)}
-  .comment-filter-row{display:flex;gap:8px;flex-wrap:wrap}
-  .comment-filter-btn{height:34px;border-radius:999px;padding:0 12px;border:1px solid var(--border);background:#fff;color:var(--muted);font-size:12px;font-weight:950;cursor:pointer}
-  .comment-filter-btn.active,.comment-filter-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
-  .comment-table-wrap{overflow:auto}
-  .comment-table{width:100%;border-collapse:collapse;font-size:13.5px}
-  .comment-table th{text-align:left;padding:13px 14px;background:#F8FAFC;color:#64748B;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:950;white-space:nowrap}
-  .comment-table td{padding:15px 14px;border-top:1px solid #F1F5F9;vertical-align:top}
-  .comment-text{max-width:480px;font-weight:700;line-height:1.55;color:#334155}
-  .comment-story{font-weight:950;color:var(--text)}
-  .comment-muted{margin-top:3px;color:var(--muted);font-weight:700;font-size:12px}
-  .comment-user{font-weight:950;color:var(--text)}
-  .comment-badge{display:inline-flex;align-items:center;height:26px;border-radius:999px;padding:0 10px;font-size:11.5px;font-weight:950}
-  .comment-badge.visible{background:var(--successBg);color:var(--success)}
-  .comment-badge.hidden{background:var(--warningBg);color:#B45309}
-  .comment-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
-  .comment-small-btn{height:34px;border-radius:10px;padding:0 11px;font-size:12px;font-weight:950;cursor:pointer;transition:.16s ease}
-  .comment-small-btn.hide{background:#fff;border:1px solid #FCD34D;color:#B45309}
-  .comment-small-btn.unhide{background:#fff;border:1px solid #86EFAC;color:#15803D}
-  .comment-small-btn.ban{background:#fff;border:1px solid #FCA5A5;color:#DC2626}
-  .comment-small-btn.delete{background:var(--dangerBg);border:1px solid #FCA5A5;color:#DC2626}
-  .comment-small-btn:disabled{opacity:.45;cursor:not-allowed}
-  .comment-empty{padding:34px;text-align:center;color:var(--muted);font-weight:850}
-  .comment-record-list{display:grid;gap:10px;padding:18px 20px 20px}
-  .comment-record-item{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid #F1F5F9;border-radius:14px;background:#fff}
+  .comment-panel-head h3{margin:0;font-size:16px;font-weight:950}.comment-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
+  .comment-search-wrap{padding:20px}.comment-search-row{display:flex;gap:10px;max-width:760px}
+  .comment-search{position:relative;flex:1}.comment-search span{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px}
+  .comment-search input{width:100%;height:46px;border:1px solid var(--border);border-radius:14px;padding:0 14px 0 38px;outline:none;font-weight:750;color:var(--text)}
+  .comment-message{padding:12px 14px;border-radius:14px;margin-bottom:16px;font-size:13px;font-weight:850}.comment-message.success{background:var(--successBg);color:var(--success)}.comment-message.error{background:var(--dangerBg);color:var(--danger)}
+  .story-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 20px 20px}.story-card{display:flex;gap:14px;padding:12px;border:1px solid var(--border);border-radius:18px;background:#fff;cursor:pointer;text-align:left;transition:.16s ease;width:100%}
+  .story-card:hover{transform:translateY(-2px);border-color:#C7D2FE;box-shadow:0 10px 24px rgba(79,70,229,.08)}
+  .story-cover{width:70px;aspect-ratio:2/3;border-radius:14px;overflow:hidden;background:#EEF2FF;flex-shrink:0}.story-cover img{width:100%;height:100%;object-fit:cover}
+  .story-cover-empty{height:100%;display:flex;align-items:center;justify-content:center;color:var(--primary)}
+  .story-title{font-size:15px;font-weight:950;color:var(--text);line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .story-meta{margin-top:5px;color:var(--muted);font-size:12px;font-weight:750}.story-pill-row{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap}
+  .story-pill{height:26px;display:inline-flex;align-items:center;border-radius:999px;padding:0 10px;background:#F8FAFC;border:1px solid var(--border);font-size:11.5px;font-weight:900;color:var(--muted)}
+  .selected-story{display:flex;gap:16px;align-items:center;padding:18px 20px;border-bottom:1px solid var(--border);background:#fff}
+  .selected-story-cover{width:74px;aspect-ratio:2/3;border-radius:16px;overflow:hidden;background:#EEF2FF;flex-shrink:0}.selected-story-cover img{width:100%;height:100%;object-fit:cover}
+  .selected-story h3{margin:0;font-size:22px;font-weight:950;line-height:1.25}.selected-story p{margin:6px 0 0;color:var(--muted);font-size:12.5px;font-weight:800}
+  .comment-list{padding:18px 20px;display:grid;gap:12px}.comment-card{display:flex;gap:12px;padding:14px;border:1px solid #F1F5F9;border-radius:18px;background:#fff;position:relative}
+  .comment-avatar{width:42px;height:42px;border-radius:50%;overflow:hidden;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:950;flex-shrink:0}.comment-avatar img{width:100%;height:100%;object-fit:cover}
+  .comment-body{min-width:0;flex:1}.comment-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.comment-user{font-size:13.5px;font-weight:950;color:var(--text)}.comment-date{margin-top:2px;color:var(--muted);font-size:11.5px;font-weight:750}
+  .comment-text{margin-top:9px;color:#334155;font-size:13.5px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .comment-badge{display:inline-flex;align-items:center;height:24px;border-radius:999px;padding:0 9px;font-size:11px;font-weight:950}.comment-badge.visible{background:var(--successBg);color:var(--success)}.comment-badge.hidden{background:var(--warningBg);color:#B45309}
+  .dot-btn{width:34px;height:34px;border-radius:50%;border:none;background:#F8FAFC;color:var(--muted);cursor:pointer;font-weight:950}
+  .dot-menu{position:absolute;right:12px;top:48px;width:168px;border:1px solid var(--border);background:#fff;border-radius:14px;box-shadow:0 18px 35px rgba(15,23,42,.13);overflow:hidden;z-index:5}
+  .dot-menu button{width:100%;height:42px;border:none;background:#fff;text-align:left;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}.dot-menu button:hover{background:#F8FAFC}.dot-menu button.danger{color:var(--danger)}
+  .comment-empty{padding:36px;text-align:center;color:var(--muted);font-weight:850}
+  .comment-record-list{display:grid;gap:10px;padding:18px 20px 20px}.comment-record-item{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid #F1F5F9;border-radius:14px;background:#fff}
   .comment-record-icon{width:34px;height:34px;border-radius:12px;background:#EEF2FF;color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:950;flex-shrink:0}
-  .comment-record-title{font-weight:950;color:var(--text);font-size:13px}
-  .comment-record-sub{margin-top:3px;color:var(--muted);font-weight:650;font-size:12px;line-height:1.5}
-  .comment-message{padding:12px 14px;border-radius:14px;margin-bottom:16px;font-size:13px;font-weight:850}
-  .comment-message.success{background:var(--successBg);color:var(--success)}
-  .comment-message.error{background:var(--dangerBg);color:var(--danger)}
-  @media(max-width:1180px){.comment-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.comment-toolbar{flex-direction:column;align-items:stretch}.comment-search-area{width:100%}}
-  @media(max-width:760px){.comment-header{padding:0 18px}.comment-content{padding:22px 18px 40px}.comment-page-top{flex-direction:column;align-items:stretch}.comment-stats{grid-template-columns:1fr}.comment-search-area{flex-direction:column;align-items:stretch}}
+  .comment-record-title{font-weight:950;color:var(--text);font-size:13px}.comment-record-sub{margin-top:3px;color:var(--muted);font-weight:650;font-size:12px;line-height:1.5}
+  @media(max-width:900px){.story-grid{grid-template-columns:1fr}.comment-search-row{flex-direction:column}.comment-content{padding:22px 18px 40px}.comment-header{padding:0 18px}.selected-story{align-items:flex-start}.selected-story h3{font-size:18px}}
 `
 
 export default function CommentModerationPage() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const [searchInput, setSearchInput] = useState('')
+  const [stories, setStories] = useState([])
+  const [selectedStory, setSelectedStory] = useState(null)
   const [comments, setComments] = useState([])
   const [records, setRecords] = useState([])
-  const [searchInput, setSearchInput] = useState('')
-  const [activeSearch, setActiveSearch] = useState('')
-  const [status, setStatus] = useState('all')
-  const [loading, setLoading] = useState(false)
+  const [loadingStories, setLoadingStories] = useState(false)
+  const [loadingComments, setLoadingComments] = useState(false)
   const [recordsLoading, setRecordsLoading] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState('')
   const [busyId, setBusyId] = useState('')
   const [message, setMessage] = useState('')
 
@@ -159,49 +130,8 @@ export default function CommentModerationPage() {
     'X-Admin-Name': 'Admin',
   }
 
-  const stats = useMemo(() => {
-    const total = comments.length
-    const visible = comments.filter((comment) => !comment.is_hidden).length
-    const hidden = comments.filter((comment) => comment.is_hidden).length
-    const users = new Set(comments.map((comment) => comment.user_id).filter(Boolean)).size
-
-    return [
-      { label: 'Total Comments', value: total },
-      { label: 'Visible', value: visible },
-      { label: 'Hidden', value: hidden },
-      { label: 'Users', value: users },
-    ]
-  }, [comments])
-
-  const loadComments = async (searchValue = activeSearch, statusValue = status) => {
-    setLoading(true)
-    setMessage('')
-
-    try {
-      const params = new URLSearchParams({
-        search: searchValue,
-        status: statusValue,
-        limit: '80',
-      })
-
-      const response = await fetch(`${API_URL}/api/admin/comments?${params.toString()}`, {
-        headers: requestHeaders,
-      })
-
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load comments')
-      }
-
-      setComments(Array.isArray(data.comments) ? data.comments : [])
-    } catch (error) {
-      setComments([])
-      setMessage(error.message || 'Failed to load comments')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const totalVisible = useMemo(() => comments.filter((comment) => !comment.is_hidden).length, [comments])
+  const totalHidden = useMemo(() => comments.filter((comment) => comment.is_hidden).length, [comments])
 
   const loadRecords = async () => {
     setRecordsLoading(true)
@@ -213,9 +143,7 @@ export default function CommentModerationPage() {
 
       const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load owner report')
-      }
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load owner report')
 
       setRecords(Array.isArray(data.records) ? data.records : [])
     } catch {
@@ -225,24 +153,69 @@ export default function CommentModerationPage() {
     }
   }
 
-  const reloadAll = async () => {
-    await Promise.all([loadComments(activeSearch, status), loadRecords()])
-  }
-
   useEffect(() => {
-    loadComments('', 'all')
     loadRecords()
   }, [])
 
-  const handleSearch = () => {
+  const searchStories = async () => {
     const value = searchInput.trim()
-    setActiveSearch(value)
-    loadComments(value, status)
+
+    setMessage('')
+    setSelectedStory(null)
+    setComments([])
+
+    if (!value) {
+      setStories([])
+      setMessage('Please enter a story title to search.')
+      return
+    }
+
+    setLoadingStories(true)
+
+    try {
+      const response = await fetch(`${API_URL}/api/admin/comments/stories?search=${encodeURIComponent(value)}&limit=20`, {
+        headers: requestHeaders,
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to search stories')
+
+      setStories(Array.isArray(data.stories) ? data.stories : [])
+    } catch (error) {
+      setStories([])
+      setMessage(error.message || 'Failed to search stories')
+    } finally {
+      setLoadingStories(false)
+    }
   }
 
-  const handleStatusChange = (nextStatus) => {
-    setStatus(nextStatus)
-    loadComments(activeSearch, nextStatus)
+  const openStoryComments = async (story) => {
+    if (!story?.id) return
+
+    setSelectedStory(story)
+    setStories([])
+    setComments([])
+    setMessage('')
+    setLoadingComments(true)
+
+    try {
+      const response = await fetch(`${API_URL}/api/admin/comments/story/${story.id}?status=all&limit=200`, {
+        headers: requestHeaders,
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load story comments')
+
+      setSelectedStory(data.story || story)
+      setComments(Array.isArray(data.comments) ? data.comments : [])
+    } catch (error) {
+      setComments([])
+      setMessage(error.message || 'Failed to load story comments')
+    } finally {
+      setLoadingComments(false)
+    }
   }
 
   const runAction = async (comment, action) => {
@@ -258,6 +231,7 @@ export default function CommentModerationPage() {
     if (confirmText && !window.confirm(confirmText)) return
 
     setBusyId(comment.id)
+    setOpenMenuId('')
     setMessage('')
 
     try {
@@ -284,12 +258,11 @@ export default function CommentModerationPage() {
 
       const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Action failed')
-      }
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Action failed')
 
       setMessage(data.message || 'Action completed')
-      await reloadAll()
+      if (selectedStory) await openStoryComments(selectedStory)
+      await loadRecords()
     } catch (error) {
       setMessage(error.message || 'Action failed')
     } finally {
@@ -297,13 +270,16 @@ export default function CommentModerationPage() {
     }
   }
 
+  const goBackToSearch = () => {
+    setSelectedStory(null)
+    setComments([])
+    setOpenMenuId('')
+    setMessage('')
+  }
+
   const renderGroup = (items) =>
     items.map((item) => (
-      <div
-        key={item.path}
-        className={`comment-nav-item ${location.pathname === item.path ? 'active' : ''}`}
-        onClick={() => navigate(item.path)}
-      >
+      <div key={item.path} className={`comment-nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
         <Icon d={item.icon} size={20} />
         <span className="comment-nav-text">{item.label}</span>
       </div>
@@ -335,177 +311,140 @@ export default function CommentModerationPage() {
       <main className="comment-main">
         <header className="comment-header">
           <h2>Comment Moderation</h2>
-          <button type="button" className="comment-refresh-btn" onClick={reloadAll} disabled={loading}>
-            Refresh
-          </button>
+          {selectedStory ? (
+            <button type="button" className="comment-back-btn" onClick={goBackToSearch}>
+              Back to Search
+            </button>
+          ) : null}
         </header>
 
         <section className="comment-content">
           <div className="comment-page-top">
             <div>
               <h1>Comment Moderation</h1>
-              <p>Search, hide, unhide, delete, and ban users from story comments.</p>
+              <p>Search a story, open its comments, then use the 3-dot menu to hide, ban, or delete.</p>
             </div>
           </div>
 
-          {message ? (
-            <div className={`comment-message ${isErrorMessage(message) ? 'error' : 'success'}`}>
-              {message}
-            </div>
-          ) : null}
+          {message ? <div className={`comment-message ${isErrorMessage(message) ? 'error' : 'success'}`}>{message}</div> : null}
 
-          <div className="comment-stats">
-            {stats.map((item) => (
-              <div className="comment-stat-card" key={item.label}>
-                <div className="comment-stat-label">{item.label}</div>
-                <div className="comment-stat-value">{item.value}</div>
+          {!selectedStory ? (
+            <div className="comment-panel">
+              <div className="comment-panel-head">
+                <div>
+                  <h3>Search Story</h3>
+                  <p>Find the story you want to moderate.</p>
+                </div>
               </div>
-            ))}
-          </div>
 
-          <div className="comment-panel">
-            <div className="comment-panel-head">
-              <div>
-                <h3>Comments</h3>
-                <p>Manage reader comments across all stories.</p>
+              <div className="comment-search-wrap">
+                <div className="comment-search-row">
+                  <div className="comment-search">
+                    <span>⌕</span>
+                    <input
+                      value={searchInput}
+                      onChange={(event) => setSearchInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') searchStories()
+                      }}
+                      placeholder="Search story title..."
+                    />
+                  </div>
+
+                  <button type="button" className="comment-search-btn" onClick={searchStories} disabled={loadingStories}>
+                    {loadingStories ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="comment-toolbar">
-              <div className="comment-search-area">
-                <div className="comment-search">
-                  <span>⌕</span>
-                  <input
-                    value={searchInput}
-                    onChange={(event) => setSearchInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') handleSearch()
-                    }}
-                    placeholder="Search comment, story title, username..."
-                  />
+              {loadingStories ? (
+                <div className="comment-empty">Searching stories...</div>
+              ) : stories.length ? (
+                <div className="story-grid">
+                  {stories.map((story) => (
+                    <button key={story.id} type="button" className="story-card" onClick={() => openStoryComments(story)}>
+                      <div className="story-cover">
+                        {story.cover_url ? <img src={story.cover_url} alt={story.title} /> : <div className="story-cover-empty"><Icon d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" /></div>}
+                      </div>
+
+                      <div>
+                        <div className="story-title">{story.title || 'Untitled Story'}</div>
+                        <div className="story-meta">{story.main_genre || 'Story'} • {story.status || 'Status'}</div>
+                        <div className="story-pill-row">
+                          <span className="story-pill">{story.total_comments || 0} comments</span>
+                          <span className="story-pill">{story.total_views || 0} views</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="comment-empty">Search a story to manage its comments.</div>
+              )}
+            </div>
+          ) : (
+            <div className="comment-panel">
+              <div className="selected-story">
+                <div className="selected-story-cover">
+                  {selectedStory.cover_url ? <img src={selectedStory.cover_url} alt={selectedStory.title} /> : <div className="story-cover-empty"><Icon d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" /></div>}
                 </div>
 
-                <button type="button" className="comment-search-btn" onClick={handleSearch} disabled={loading}>
-                  Search
-                </button>
+                <div>
+                  <h3>{selectedStory.title || 'Untitled Story'}</h3>
+                  <p>{selectedStory.main_genre || 'Story'} • {comments.length} comments • {totalVisible} visible • {totalHidden} hidden</p>
+                </div>
               </div>
 
-              <div className="comment-filter-row">
-                {['all', 'visible', 'hidden'].map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className={`comment-filter-btn ${status === item ? 'active' : ''}`}
-                    onClick={() => handleStatusChange(item)}
-                  >
-                    {item.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
+              <div className="comment-list">
+                {loadingComments ? (
+                  <div className="comment-empty">Loading comments...</div>
+                ) : comments.length ? (
+                  comments.map((comment) => (
+                    <div className="comment-card" key={comment.id}>
+                      <div className="comment-avatar">
+                        {comment.user?.avatar_url ? <img src={comment.user.avatar_url} alt={comment.user?.name || 'Reader'} /> : (comment.user?.name || 'R').charAt(0).toUpperCase()}
+                      </div>
 
-            <div className="comment-table-wrap">
-              <table className="comment-table">
-                <thead>
-                  <tr>
-                    <th>Comment</th>
-                    <th>User</th>
-                    <th>Story</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
+                      <div className="comment-body">
+                        <div className="comment-top">
+                          <div>
+                            <div className="comment-user">{comment.user?.name || 'Reader'}</div>
+                            <div className="comment-date">@{comment.user?.username || 'reader'} • {formatDate(comment.created_at)}</div>
+                          </div>
 
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan="6">
-                        <div className="comment-empty">Loading comments...</div>
-                      </td>
-                    </tr>
-                  ) : comments.length ? (
-                    comments.map((comment) => (
-                      <tr key={comment.id}>
-                        <td>
-                          <div className="comment-text">{comment.text || '-'}</div>
-                          {comment.is_spoiler ? <div className="comment-muted">Spoiler marked</div> : null}
-                        </td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span className={`comment-badge ${comment.is_hidden ? 'hidden' : 'visible'}`}>
+                              {comment.is_hidden ? 'Hidden' : 'Visible'}
+                            </span>
 
-                        <td>
-                          <div className="comment-user">{comment.user?.name || 'Reader'}</div>
-                          <div className="comment-muted">@{comment.user?.username || 'reader'}</div>
-                        </td>
-
-                        <td>
-                          <div className="comment-story">{comment.story?.title || 'Unknown Story'}</div>
-                          <div className="comment-muted">{comment.story_id}</div>
-                        </td>
-
-                        <td>
-                          <span className={`comment-badge ${comment.is_hidden ? 'hidden' : 'visible'}`}>
-                            {comment.is_hidden ? 'Hidden' : 'Visible'}
-                          </span>
-                        </td>
-
-                        <td>
-                          <div className="comment-muted">{formatDate(comment.created_at)}</div>
-                        </td>
-
-                        <td>
-                          <div className="comment-actions">
-                            {comment.is_hidden ? (
-                              <button
-                                type="button"
-                                className="comment-small-btn unhide"
-                                disabled={busyId === comment.id}
-                                onClick={() => runAction(comment, 'unhide')}
-                              >
-                                Unhide
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="comment-small-btn hide"
-                                disabled={busyId === comment.id}
-                                onClick={() => runAction(comment, 'hide')}
-                              >
-                                Hide
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              className="comment-small-btn ban"
-                              disabled={busyId === comment.id}
-                              onClick={() => runAction(comment, 'ban')}
-                            >
-                              Ban
-                            </button>
-
-                            <button
-                              type="button"
-                              className="comment-small-btn delete"
-                              disabled={busyId === comment.id}
-                              onClick={() => runAction(comment, 'delete')}
-                            >
-                              Delete
+                            <button type="button" className="dot-btn" onClick={() => setOpenMenuId(openMenuId === comment.id ? '' : comment.id)}>
+                              ⋯
                             </button>
                           </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="6">
-                        <div className="comment-empty">No comments found.</div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                        </div>
+
+                        <div className="comment-text">{comment.text || '-'}</div>
+
+                        {openMenuId === comment.id ? (
+                          <div className="dot-menu">
+                            {comment.is_hidden ? (
+                              <button type="button" disabled={busyId === comment.id} onClick={() => runAction(comment, 'unhide')}>Unhide Comment</button>
+                            ) : (
+                              <button type="button" disabled={busyId === comment.id} onClick={() => runAction(comment, 'hide')}>Hide Comment</button>
+                            )}
+                            <button type="button" className="danger" disabled={busyId === comment.id} onClick={() => runAction(comment, 'ban')}>Ban User</button>
+                            <button type="button" className="danger" disabled={busyId === comment.id} onClick={() => runAction(comment, 'delete')}>Delete Comment</button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="comment-empty">No comments found for this story.</div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="comment-panel">
             <div className="comment-panel-head">
