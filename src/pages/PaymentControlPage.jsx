@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const tabs = [
-  { key: 'success', label: 'Success' },
+  { key: 'pending_review', label: 'Pending Review' },
+  { key: 'success', label: 'Confirmed' },
+  { key: 'rejected', label: 'Rejected' },
   { key: 'waiting_payment', label: 'Waiting' },
-  { key: 'callback_received', label: 'Callback' },
-  { key: 'failed', label: 'Failed' },
   { key: 'expired', label: 'Expired' },
   { key: 'all', label: 'All' },
-];
+]
 
 const navItems = {
   overview: [
@@ -40,82 +40,81 @@ const navItems = {
     { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12' },
     { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z' },
   ],
-};
+}
 
 function Icon({ d, size = 20, color }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || 'currentColor'} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: `${size}px`, flexShrink: 0 }}>
       <path d={d} />
     </svg>
-  );
+  )
 }
 
 function getAdminToken() {
-  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
 
 function getHeaders() {
-  const token = getAdminToken();
+  const token = getAdminToken()
 
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  };
+  }
 }
 
 function formatNumber(value) {
-  return Number(value || 0).toLocaleString();
+  return Number(value || 0).toLocaleString()
+}
+
+function formatMoney(value) {
+  return `$${Number(value || 0).toFixed(2)}`
 }
 
 function formatDate(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-  return date.toLocaleString();
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString()
 }
 
 function normalizeStatus(status) {
-  const value = String(status || '').toLowerCase();
-  if (value === 'approved') return 'success';
-  if (value === 'pending') return 'waiting_payment';
-  return value || 'waiting_payment';
-}
-
-function getTransactionId(item) {
-  return item.aba_transaction_id || item.transaction_id || item.bank_ref || item.order_id || '-';
+  const value = String(status || '').toLowerCase()
+  if (value === 'approved') return 'success'
+  if (value === 'confirmed') return 'success'
+  if (value === 'pending') return 'waiting_payment'
+  return value || 'waiting_payment'
 }
 
 function StatusBadge({ status }) {
-  const value = normalizeStatus(status);
+  const value = normalizeStatus(status)
   const styles = {
-    success: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'Success' },
-    callback_received: { background: '#EEF2FF', color: '#4F46E5', border: '#C7D2FE', label: 'Callback' },
-    waiting_payment: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA', label: 'Waiting' },
-    failed: { background: '#FEF2F2', color: '#B91C1C', border: '#FECACA', label: 'Failed' },
+    success: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'Confirmed' },
+    pending_review: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA', label: 'Pending Review' },
+    waiting_payment: { background: '#F8FAFC', color: '#475569', border: '#E2E8F0', label: 'Waiting' },
+    rejected: { background: '#FEF2F2', color: '#B91C1C', border: '#FECACA', label: 'Rejected' },
     expired: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Expired' },
-    cancelled: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Cancelled' },
-    amount_mismatch: { background: '#FEF3C7', color: '#B45309', border: '#FDE68A', label: 'Mismatch' },
-  };
+  }
 
-  const style = styles[value] || styles.waiting_payment;
+  const style = styles[value] || styles.waiting_payment
 
   return (
     <span className="status-badge" style={{ borderColor: style.border, background: style.background, color: style.color }}>
       {style.label}
     </span>
-  );
+  )
 }
 
 function Sidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const renderGroup = (items) => items.map((item) => (
     <button key={item.path} type="button" className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
       <Icon d={item.icon} size={20} />
       <span className="nav-text">{item.label}</span>
     </button>
-  ));
+  ))
 
   return (
     <aside className="sidebar">
@@ -136,7 +135,7 @@ function Sidebar() {
       <span className="nav-group-label">Finance & Growth</span>
       {renderGroup(navItems.finance)}
     </aside>
-  );
+  )
 }
 
 const styles = `
@@ -181,71 +180,111 @@ const styles = `
   .pay-panel-head h3{margin:0;font-size:16px;font-weight:950}
   .pay-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
   .pay-table-wrap{overflow-x:auto}
-  .pay-table{width:100%;border-collapse:collapse;min-width:980px}
+  .pay-table{width:100%;border-collapse:collapse;min-width:1180px}
   .pay-table th{background:#F8FAFC;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid var(--border)}
   .pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:var(--text);vertical-align:middle}
   .pay-user strong{display:block;font-size:13.5px;font-weight:950;color:var(--text)}
   .pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:var(--muted)}
   .pay-money{font-size:15px;font-weight:950;color:var(--text)}
   .pay-id{max-width:210px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}
-  .status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900}
+  .status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900;white-space:nowrap}
+  .proof-link{height:34px;border:1px solid #CBD5E1;background:#fff;color:#0F172A;border-radius:999px;padding:0 12px;font-size:12px;font-weight:950;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+  .proof-link.disabled{opacity:.35;pointer-events:none}
+  .pay-actions{display:flex;gap:8px;align-items:center}
+  .pay-action{height:34px;border:0;border-radius:999px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;white-space:nowrap}
+  .pay-action.confirm{background:#0F172A;color:#fff}
+  .pay-action.reject{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
+  .pay-action:disabled{opacity:.45;cursor:not-allowed}
   .pay-empty{padding:42px 20px;text-align:center;color:var(--muted);font-weight:850}
   @media(max-width:960px){.pay-stats,.pay-security{grid-template-columns:repeat(2,minmax(0,1fr))}.content-body{padding:22px 18px 50px}.header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}
   @media(max-width:640px){.pay-stats,.pay-security{grid-template-columns:1fr}}
-`;
+`
 
 export default function PaymentControlPage() {
-  const navigate = useNavigate();
-  const [status, setStatus] = useState('success');
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  const navigate = useNavigate()
+  const [status, setStatus] = useState('pending_review')
+  const [payments, setPayments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [workingId, setWorkingId] = useState('')
+  const [message, setMessage] = useState('')
 
   const stats = useMemo(() => {
-    const success = payments.filter((item) => normalizeStatus(item.status) === 'success').length;
-    const waiting = payments.filter((item) => normalizeStatus(item.status) === 'waiting_payment').length;
-    const callback = payments.filter((item) => normalizeStatus(item.status) === 'callback_received').length;
+    const pending = payments.filter((item) => normalizeStatus(item.status) === 'pending_review').length
+    const success = payments.filter((item) => normalizeStatus(item.status) === 'success').length
+    const rejected = payments.filter((item) => normalizeStatus(item.status) === 'rejected').length
     const totalUsd = payments
       .filter((item) => normalizeStatus(item.status) === 'success')
-      .reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0);
+      .reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0)
 
-    return { success, waiting, callback, totalUsd };
-  }, [payments]);
+    return { pending, success, rejected, totalUsd }
+  }, [payments])
 
   async function loadPayments(nextStatus = status) {
-    const token = getAdminToken();
+    const token = getAdminToken()
 
     if (!token) {
-      navigate('/login');
-      return;
+      navigate('/login')
+      return
     }
 
     try {
-      setLoading(true);
-      setMessage('');
+      setLoading(true)
+      setMessage('')
 
-      const query = nextStatus === 'all' ? '' : `?status=${encodeURIComponent(nextStatus)}`;
-      const response = await fetch(`${API_URL}/api/admin/purchases${query}`, {
+      const query = nextStatus === 'all' ? '?status=all' : `?status=${encodeURIComponent(nextStatus)}`
+      const response = await fetch(`${API_URL}/api/admin/purchases/manual${query}`, {
         headers: getHeaders(),
-      });
-      const data = await response.json().catch(() => ({}));
+      })
+      const data = await response.json().catch(() => ({}))
 
       if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load payments.');
+        throw new Error(data.message || 'Failed to load manual payments.')
       }
 
-      setPayments(data.payments || data.purchases || []);
+      setPayments(data.payments || data.purchases || [])
     } catch (error) {
-      setPayments([]);
-      setMessage(error.message || 'Failed to load payments.');
+      setPayments([])
+      setMessage(error.message || 'Failed to load manual payments.')
     } finally {
-      setLoading(false);
+      setLoading(false)
+    }
+  }
+
+  async function reviewPayment(payment, action) {
+    const isConfirm = action === 'confirm'
+    const label = isConfirm ? 'confirm and release Diamonds' : 'reject this proof'
+    const ok = window.confirm(`Are you sure you want to ${label}?`)
+
+    if (!ok) return
+
+    const adminNote = window.prompt('Admin note (optional):', '') || ''
+
+    try {
+      setWorkingId(payment.id)
+      setMessage('')
+
+      const response = await fetch(`${API_URL}/api/admin/purchases/manual/${encodeURIComponent(payment.id)}/${action}`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ admin_note: adminNote }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || `Failed to ${action} payment.`)
+      }
+
+      await loadPayments(status)
+    } catch (error) {
+      setMessage(error.message || `Failed to ${action} payment.`)
+    } finally {
+      setWorkingId('')
     }
   }
 
   useEffect(() => {
-    loadPayments(status);
-  }, []);
+    loadPayments(status)
+  }, [])
 
   return (
     <div className="dashboard-wrapper">
@@ -261,8 +300,8 @@ export default function PaymentControlPage() {
         <div className="content-body">
           <div className="pay-top">
             <div>
-              <h1>Payment</h1>
-              <p>View ABA PayWay payment records and confirmed Diamond releases. This page is read-only for safety.</p>
+              <h1>Payment Review</h1>
+              <p>Review manual ABA PayWay screenshots. Confirm only after checking ABA/Telegram notification, exact amount, order ID, and user details.</p>
             </div>
 
             <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>
@@ -272,16 +311,16 @@ export default function PaymentControlPage() {
 
           <div className="pay-security">
             <div className="pay-security-card">
-              <strong>Backend controlled</strong>
-              <span>Frontend cannot release Diamonds or fake payment success.</span>
+              <strong>Admin confirm only</strong>
+              <span>Diamonds are released only after Admin confirms the payment proof.</span>
             </div>
             <div className="pay-security-card">
-              <strong>Callback waiting</strong>
-              <span>Callback payments stay separate until ABA verification is complete.</span>
+              <strong>Check screenshot</strong>
+              <span>Match the screenshot with ABA/Telegram amount, time, and bank reference.</span>
             </div>
             <div className="pay-security-card">
-              <strong>No failed report</strong>
-              <span>Failed or expired payments stay quiet and do not alert Admin or Telegram.</span>
+              <strong>No duplicate release</strong>
+              <span>Confirmed orders are locked by backend and cannot be released twice.</span>
             </div>
           </div>
 
@@ -292,8 +331,8 @@ export default function PaymentControlPage() {
                 type="button"
                 className={`pay-tab ${status === item.key ? 'active' : ''}`}
                 onClick={() => {
-                  setStatus(item.key);
-                  loadPayments(item.key);
+                  setStatus(item.key)
+                  loadPayments(item.key)
                 }}
               >
                 {item.label}
@@ -302,18 +341,18 @@ export default function PaymentControlPage() {
           </div>
 
           <div className="pay-stats">
-            <div className="pay-stat"><span>Success</span><strong>{stats.success}</strong></div>
-            <div className="pay-stat"><span>Waiting</span><strong>{stats.waiting}</strong></div>
-            <div className="pay-stat"><span>Callback</span><strong>{stats.callback}</strong></div>
-            <div className="pay-stat"><span>Success USD</span><strong>${stats.totalUsd}</strong></div>
+            <div className="pay-stat"><span>Pending</span><strong>{stats.pending}</strong></div>
+            <div className="pay-stat"><span>Confirmed</span><strong>{stats.success}</strong></div>
+            <div className="pay-stat"><span>Rejected</span><strong>{stats.rejected}</strong></div>
+            <div className="pay-stat"><span>Confirmed USD</span><strong>${stats.totalUsd.toFixed(2)}</strong></div>
           </div>
 
           {message ? <div className="pay-message">{message}</div> : null}
 
           <section className="pay-panel">
             <div className="pay-panel-head">
-              <h3>Payment Records</h3>
-              <p>{loading ? 'Loading payments...' : `${payments.length} record(s)`}</p>
+              <h3>Manual Payment Proofs</h3>
+              <p>{loading ? 'Loading payment proofs...' : `${payments.length} record(s)`}</p>
             </div>
 
             <div className="pay-table-wrap">
@@ -325,34 +364,69 @@ export default function PaymentControlPage() {
                     <th>Amount</th>
                     <th>Diamonds</th>
                     <th>Bonus Gems</th>
-                    <th>ABA / Order ID</th>
-                    <th>Created</th>
-                    <th>Paid</th>
+                    <th>Order ID</th>
+                    <th>Proof</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.length ? (
-                    payments.map((item) => (
-                      <tr key={item.id || item.order_id}>
-                        <td>
-                          <div className="pay-user">
-                            <strong>{item.user?.name || item.user?.username || 'Reader'}</strong>
-                            <span>{item.user?.email || item.user_id || '-'}</span>
-                          </div>
-                        </td>
-                        <td><StatusBadge status={item.status} /></td>
-                        <td><span className="pay-money">${item.package_usd || item.amount_usd || 0}</span></td>
-                        <td>{formatNumber(item.diamonds)}</td>
-                        <td>{formatNumber(item.bonus_gems)}</td>
-                        <td><div className="pay-id">{getTransactionId(item)}</div></td>
-                        <td>{formatDate(item.created_at)}</td>
-                        <td>{formatDate(item.paid_at || item.released_at || item.updated_at)}</td>
-                      </tr>
-                    ))
+                    payments.map((item) => {
+                      const canReview = normalizeStatus(item.status) === 'pending_review'
+                      const disabled = workingId === item.id
+
+                      return (
+                        <tr key={item.id || item.order_id}>
+                          <td>
+                            <div className="pay-user">
+                              <strong>{item.user?.name || item.user?.username || 'Reader'}</strong>
+                              <span>{item.user?.email || item.user_id || '-'}</span>
+                            </div>
+                          </td>
+                          <td><StatusBadge status={item.status} /></td>
+                          <td><span className="pay-money">{formatMoney(item.package_usd || item.amount_usd || 0)}</span></td>
+                          <td>{formatNumber(item.diamonds)}</td>
+                          <td>{formatNumber(item.bonus_gems)}</td>
+                          <td><div className="pay-id">{item.order_id || '-'}</div></td>
+                          <td>
+                            <a
+                              href={item.proof_image_url || '#'}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`proof-link ${item.proof_image_url ? '' : 'disabled'}`}
+                            >
+                              View Screenshot
+                            </a>
+                          </td>
+                          <td>{formatDate(item.proof_uploaded_at || item.created_at)}</td>
+                          <td>
+                            <div className="pay-actions">
+                              <button
+                                type="button"
+                                className="pay-action confirm"
+                                disabled={!canReview || disabled}
+                                onClick={() => reviewPayment(item, 'confirm')}
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                className="pay-action reject"
+                                disabled={!canReview || disabled}
+                                onClick={() => reviewPayment(item, 'reject')}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
                   ) : (
                     <tr>
-                      <td colSpan="8">
-                        <div className="pay-empty">{loading ? 'Loading...' : 'No payment records found.'}</div>
+                      <td colSpan="9">
+                        <div className="pay-empty">{loading ? 'Loading...' : 'No manual payment proofs found.'}</div>
                       </td>
                     </tr>
                   )}
@@ -363,5 +437,5 @@ export default function PaymentControlPage() {
         </div>
       </main>
     </div>
-  );
+  )
 }
