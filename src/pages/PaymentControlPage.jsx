@@ -1,292 +1,367 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 
 const tabs = [
   { key: 'success', label: 'Success' },
   { key: 'waiting_payment', label: 'Waiting' },
+  { key: 'callback_received', label: 'Callback' },
   { key: 'failed', label: 'Failed' },
   { key: 'expired', label: 'Expired' },
   { key: 'all', label: 'All' },
-]
+];
+
+const navItems = {
+  overview: [
+    { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
+    { path: '/shadow-exclusive', label: 'Shadow Exclusive', icon: 'M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z M9 12l2 2 4-5' },
+    { path: '/authors', label: 'Authors Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+  ],
+  visualMedia: [
+    { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
+    { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
+    { path: '/genres', label: 'Genre', icon: 'M4 6h16M4 12h16M4 18h16' },
+    { path: '/comments', label: 'Comments', icon: 'M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z' },
+    { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
+    { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  ],
+  systemAdmin: [
+    { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
+    { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+    { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
+    { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
+  ],
+  finance: [
+    { path: '/payment', label: 'Payment', icon: 'M21 12V7H5v10h16v-5z M5 7l8 5 8-5 M7 17h10' },
+    { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+    { path: '/history', label: 'History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+    { path: '/deposit', label: 'Deposit', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3' },
+    { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12' },
+    { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z' },
+  ],
+};
+
+function Icon({ d, size = 20, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || 'currentColor'} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: `${size}px`, flexShrink: 0 }}>
+      <path d={d} />
+    </svg>
+  );
+}
 
 function getAdminToken() {
-  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
 }
 
 function getHeaders() {
-  const token = getAdminToken()
+  const token = getAdminToken();
 
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
+  };
 }
 
 function formatNumber(value) {
-  return Number(value || 0).toLocaleString()
+  return Number(value || 0).toLocaleString();
 }
 
 function formatDate(value) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  return date.toLocaleString()
-}
-
-function getTransactionId(item) {
-  return item.aba_transaction_id || item.transaction_id || item.payment_reference || item.order_id || '-'
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString();
 }
 
 function normalizeStatus(status) {
-  const value = String(status || '').toLowerCase()
-  if (value === 'approved') return 'success'
-  if (value === 'pending') return 'waiting_payment'
-  return value || 'waiting_payment'
+  const value = String(status || '').toLowerCase();
+  if (value === 'approved') return 'success';
+  if (value === 'pending') return 'waiting_payment';
+  return value || 'waiting_payment';
+}
+
+function getTransactionId(item) {
+  return item.aba_transaction_id || item.transaction_id || item.bank_ref || item.order_id || '-';
 }
 
 function StatusBadge({ status }) {
-  const value = normalizeStatus(status)
+  const value = normalizeStatus(status);
   const styles = {
     success: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'Success' },
+    callback_received: { background: '#EEF2FF', color: '#4F46E5', border: '#C7D2FE', label: 'Callback' },
     waiting_payment: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA', label: 'Waiting' },
     failed: { background: '#FEF2F2', color: '#B91C1C', border: '#FECACA', label: 'Failed' },
     expired: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Expired' },
     cancelled: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Cancelled' },
-  }
+    amount_mismatch: { background: '#FEF3C7', color: '#B45309', border: '#FDE68A', label: 'Mismatch' },
+  };
 
-  const style = styles[value] || styles.waiting_payment
+  const style = styles[value] || styles.waiting_payment;
 
   return (
-    <span style={{
-      display: 'inline-flex',
-      height: 28,
-      alignItems: 'center',
-      borderRadius: 999,
-      border: `1px solid ${style.border}`,
-      background: style.background,
-      color: style.color,
-      padding: '0 11px',
-      fontSize: 12,
-      fontWeight: 900,
-    }}>
+    <span className="status-badge" style={{ borderColor: style.border, background: style.background, color: style.color }}>
       {style.label}
     </span>
-  )
+  );
+}
+
+function Sidebar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const renderGroup = (items) => items.map((item) => (
+    <button key={item.path} type="button" className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
+      <Icon d={item.icon} size={20} />
+      <span className="nav-text">{item.label}</span>
+    </button>
+  ));
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
+        <span className="logo-text">Shadow Admin</span>
+      </div>
+
+      <span className="nav-group-label">Overview</span>
+      {renderGroup(navItems.overview)}
+
+      <span className="nav-group-label">Visual Media</span>
+      {renderGroup(navItems.visualMedia)}
+
+      <span className="nav-group-label">System Admin</span>
+      {renderGroup(navItems.systemAdmin)}
+
+      <span className="nav-group-label">Finance & Growth</span>
+      {renderGroup(navItems.finance)}
+    </aside>
+  );
 }
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--border:#E2E8F0;--side:80px;--sideOpen:260px}
   *{box-sizing:border-box}
-  body{margin:0;background:#F8FAFC;font-family:Inter,sans-serif;color:#0F172A}
-  .pay-shell{min-height:100vh;background:#F8FAFC}
-  .pay-header{height:70px;background:#fff;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;padding:0 32px;position:sticky;top:0;z-index:20}
-  .pay-header h2{margin:0;font-size:17px;font-weight:950}
-  .pay-header button{height:40px;border:1px solid #E2E8F0;background:#fff;border-radius:13px;padding:0 14px;font-weight:900;color:#0F172A;cursor:pointer}
-  .pay-content{max-width:1240px;margin:0 auto;padding:28px 32px 60px}
+  body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
+  .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}
+  .sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s;flex-shrink:0}
+  .sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.05)}
+  .sidebar::-webkit-scrollbar{width:0}
+  .sidebar-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px}
+  .logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px;transition:.2s}
+  .sidebar:hover .logo-text,.sidebar:hover .nav-text,.sidebar:hover .nav-group-label{opacity:1}
+  .nav-group-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#94A3B8;white-space:nowrap;transition:.2s}
+  .nav-item{width:100%;border:0;background:transparent;height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:600;white-space:nowrap;font-family:inherit;font-size:14px;text-align:left}
+  .nav-item:hover,.nav-item.active{background:var(--light);color:var(--primary)}
+  .nav-text{opacity:0;margin-left:14px;transition:.2s}
+  .main-content{flex:1;overflow:auto}
+  .header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}
+  .header h2{font-size:17px;font-weight:900;margin:0}
+  .header button{height:40px;border:1px solid var(--border);background:#fff;border-radius:13px;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}
+  .content-body{padding:28px 36px 60px;max-width:1600px;width:100%;margin:0 auto}
   .pay-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px}
   .pay-top h1{margin:0;font-size:30px;font-weight:950;letter-spacing:-.04em}
-  .pay-top p{margin:8px 0 0;color:#64748B;font-size:13.5px;font-weight:700;line-height:1.6}
+  .pay-top p{margin:8px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}
   .pay-refresh{height:44px;border:none;border-radius:14px;background:#0F172A;color:#fff;padding:0 18px;font-weight:950;cursor:pointer}
+  .pay-security{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+  .pay-security-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:14px}
+  .pay-security-card strong{display:block;font-size:13px;font-weight:950;color:var(--text)}
+  .pay-security-card span{display:block;margin-top:5px;color:var(--muted);font-size:12px;font-weight:750;line-height:1.5}
   .pay-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-  .pay-tab{height:38px;border:1px solid #E2E8F0;background:#fff;color:#64748B;border-radius:999px;padding:0 15px;font-size:13px;font-weight:950;cursor:pointer}
+  .pay-tab{height:38px;border:1px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:0 15px;font-size:13px;font-weight:950;cursor:pointer}
   .pay-tab.active{background:#0F172A;border-color:#0F172A;color:#fff}
   .pay-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
-  .pay-stat{background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:16px}
-  .pay-stat span{color:#64748B;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
-  .pay-stat strong{display:block;margin-top:8px;color:#0F172A;font-size:26px;font-weight:950}
+  .pay-stat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:16px}
+  .pay-stat span{color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+  .pay-stat strong{display:block;margin-top:8px;color:var(--text);font-size:26px;font-weight:950}
   .pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850;background:#FEF2F2;color:#B91C1C}
-  .pay-panel{background:#fff;border:1px solid #E2E8F0;border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}
-  .pay-panel-head{padding:18px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .pay-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}
+  .pay-panel-head{padding:18px 20px;border-bottom:1px solid var(--border)}
   .pay-panel-head h3{margin:0;font-size:16px;font-weight:950}
-  .pay-panel-head p{margin:4px 0 0;color:#64748B;font-size:12.5px;font-weight:700}
+  .pay-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
   .pay-table-wrap{overflow-x:auto}
   .pay-table{width:100%;border-collapse:collapse;min-width:980px}
-  .pay-table th{background:#F8FAFC;color:#64748B;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid #E2E8F0}
-  .pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:#0F172A;vertical-align:middle}
-  .pay-table tr:hover td{background:#FAFBFF}
-  .pay-user strong{display:block;font-size:13.5px;font-weight:950;color:#0F172A}
-  .pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:#64748B}
-  .pay-money{font-size:15px;font-weight:950;color:#0F172A}
+  .pay-table th{background:#F8FAFC;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid var(--border)}
+  .pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:var(--text);vertical-align:middle}
+  .pay-user strong{display:block;font-size:13.5px;font-weight:950;color:var(--text)}
+  .pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:var(--muted)}
+  .pay-money{font-size:15px;font-weight:950;color:var(--text)}
   .pay-id{max-width:210px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}
-  .pay-security{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
-  .pay-security-card{background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:14px}
-  .pay-security-card strong{display:block;font-size:13px;font-weight:950;color:#0F172A}
-  .pay-security-card span{display:block;margin-top:5px;color:#64748B;font-size:12px;font-weight:750;line-height:1.5}
-  .pay-empty{padding:42px 20px;text-align:center;color:#64748B;font-weight:850}
-  @media(max-width:960px){.pay-stats,.pay-security{grid-template-columns:repeat(2,minmax(0,1fr))}.pay-content{padding:22px 18px 50px}.pay-header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}
+  .status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900}
+  .pay-empty{padding:42px 20px;text-align:center;color:var(--muted);font-weight:850}
+  @media(max-width:960px){.pay-stats,.pay-security{grid-template-columns:repeat(2,minmax(0,1fr))}.content-body{padding:22px 18px 50px}.header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}
   @media(max-width:640px){.pay-stats,.pay-security{grid-template-columns:1fr}}
-`
+`;
 
 export default function PaymentControlPage() {
-  const navigate = useNavigate()
-  const [status, setStatus] = useState('success')
-  const [payments, setPayments] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
+  const navigate = useNavigate();
+  const [status, setStatus] = useState('success');
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
 
   const stats = useMemo(() => {
-    const success = payments.filter((item) => normalizeStatus(item.status) === 'success').length
-    const waiting = payments.filter((item) => normalizeStatus(item.status) === 'waiting_payment').length
-    const failed = payments.filter((item) => normalizeStatus(item.status) === 'failed').length
-    const expired = payments.filter((item) => normalizeStatus(item.status) === 'expired').length
+    const success = payments.filter((item) => normalizeStatus(item.status) === 'success').length;
+    const waiting = payments.filter((item) => normalizeStatus(item.status) === 'waiting_payment').length;
+    const callback = payments.filter((item) => normalizeStatus(item.status) === 'callback_received').length;
     const totalUsd = payments
       .filter((item) => normalizeStatus(item.status) === 'success')
-      .reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0)
+      .reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0);
 
-    return { success, waiting, failed, expired, totalUsd }
-  }, [payments])
+    return { success, waiting, callback, totalUsd };
+  }, [payments]);
 
   async function loadPayments(nextStatus = status) {
-    const token = getAdminToken()
+    const token = getAdminToken();
 
     if (!token) {
-      navigate('/login')
-      return
+      navigate('/login');
+      return;
     }
 
     try {
-      setLoading(true)
-      setMessage('')
+      setLoading(true);
+      setMessage('');
 
-      const query = nextStatus === 'all' ? '' : `?status=${nextStatus}`
+      const query = nextStatus === 'all' ? '' : `?status=${encodeURIComponent(nextStatus)}`;
       const response = await fetch(`${API_URL}/api/admin/purchases${query}`, {
         headers: getHeaders(),
-      })
-      const data = await response.json().catch(() => ({}))
+      });
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load payments.')
+        throw new Error(data.message || 'Failed to load payments.');
       }
 
-      setPayments(data.payments || data.purchases || [])
+      setPayments(data.payments || data.purchases || []);
     } catch (error) {
-      setPayments([])
-      setMessage(error.message || 'Failed to load payments.')
+      setPayments([]);
+      setMessage(error.message || 'Failed to load payments.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadPayments(status)
-  }, [])
+    loadPayments(status);
+  }, []);
 
   return (
-    <div className="pay-shell">
+    <div className="dashboard-wrapper">
       <style>{styles}</style>
+      <Sidebar />
 
-      <header className="pay-header">
-        <h2>Shadow Admin</h2>
-        <button type="button" onClick={() => navigate('/admin')}>Back to Dashboard</button>
-      </header>
+      <main className="main-content">
+        <header className="header">
+          <h2>Shadow Admin</h2>
+          <button type="button" onClick={() => navigate('/admin')}>Back to Dashboard</button>
+        </header>
 
-      <main className="pay-content">
-        <div className="pay-top">
-          <div>
-            <h1>Payment</h1>
-            <p>View ABA PayWay payment records and confirmed Diamond releases. This page is read-only for safety.</p>
-          </div>
-
-          <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
-        </div>
-
-        <div className="pay-security">
-          <div className="pay-security-card">
-            <strong>Backend verified</strong>
-            <span>Diamonds are released only after ABA callback verification.</span>
-          </div>
-          <div className="pay-security-card">
-            <strong>No manual release</strong>
-            <span>Admin cannot approve fake success from this page.</span>
-          </div>
-          <div className="pay-security-card">
-            <strong>No failed report</strong>
-            <span>Failed or expired payments stay quiet and do not alert Admin or Telegram.</span>
-          </div>
-        </div>
-
-        <div className="pay-tabs">
-          {tabs.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className={`pay-tab ${status === item.key ? 'active' : ''}`}
-              onClick={() => {
-                setStatus(item.key)
-                loadPayments(item.key)
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="pay-stats">
-          <div className="pay-stat"><span>Success</span><strong>{stats.success}</strong></div>
-          <div className="pay-stat"><span>Waiting</span><strong>{stats.waiting}</strong></div>
-          <div className="pay-stat"><span>Failed</span><strong>{stats.failed}</strong></div>
-          <div className="pay-stat"><span>Success USD</span><strong>${stats.totalUsd}</strong></div>
-        </div>
-
-        {message ? <div className="pay-message">{message}</div> : null}
-
-        <section className="pay-panel">
-          <div className="pay-panel-head">
+        <div className="content-body">
+          <div className="pay-top">
             <div>
-              <h3>Payment Records</h3>
-              <p>{loading ? 'Loading payments...' : `${payments.length} record(s)`}</p>
+              <h1>Payment</h1>
+              <p>View ABA PayWay payment records and confirmed Diamond releases. This page is read-only for safety.</p>
+            </div>
+
+            <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+
+          <div className="pay-security">
+            <div className="pay-security-card">
+              <strong>Backend controlled</strong>
+              <span>Frontend cannot release Diamonds or fake payment success.</span>
+            </div>
+            <div className="pay-security-card">
+              <strong>Callback waiting</strong>
+              <span>Callback payments stay separate until ABA verification is complete.</span>
+            </div>
+            <div className="pay-security-card">
+              <strong>No failed report</strong>
+              <span>Failed or expired payments stay quiet and do not alert Admin or Telegram.</span>
             </div>
           </div>
 
-          <div className="pay-table-wrap">
-            <table className="pay-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Status</th>
-                  <th>Amount</th>
-                  <th>Diamonds</th>
-                  <th>Bonus Gems</th>
-                  <th>ABA / Order ID</th>
-                  <th>Created</th>
-                  <th>Paid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.length ? (
-                  payments.map((item) => (
-                    <tr key={item.id || item.order_id}>
-                      <td>
-                        <div className="pay-user">
-                          <strong>{item.user?.name || item.user?.username || 'Reader'}</strong>
-                          <span>{item.user?.email || item.user_id || '-'}</span>
-                        </div>
-                      </td>
-                      <td><StatusBadge status={item.status} /></td>
-                      <td><span className="pay-money">${item.package_usd || item.amount_usd || 0}</span></td>
-                      <td>{formatNumber(item.diamonds)}</td>
-                      <td>{formatNumber(item.bonus_gems)}</td>
-                      <td><div className="pay-id">{getTransactionId(item)}</div></td>
-                      <td>{formatDate(item.created_at)}</td>
-                      <td>{formatDate(item.paid_at || item.approved_at || item.updated_at)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="8">
-                      <div className="pay-empty">{loading ? 'Loading...' : 'No payment records found.'}</div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="pay-tabs">
+            {tabs.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`pay-tab ${status === item.key ? 'active' : ''}`}
+                onClick={() => {
+                  setStatus(item.key);
+                  loadPayments(item.key);
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
-        </section>
+
+          <div className="pay-stats">
+            <div className="pay-stat"><span>Success</span><strong>{stats.success}</strong></div>
+            <div className="pay-stat"><span>Waiting</span><strong>{stats.waiting}</strong></div>
+            <div className="pay-stat"><span>Callback</span><strong>{stats.callback}</strong></div>
+            <div className="pay-stat"><span>Success USD</span><strong>${stats.totalUsd}</strong></div>
+          </div>
+
+          {message ? <div className="pay-message">{message}</div> : null}
+
+          <section className="pay-panel">
+            <div className="pay-panel-head">
+              <h3>Payment Records</h3>
+              <p>{loading ? 'Loading payments...' : `${payments.length} record(s)`}</p>
+            </div>
+
+            <div className="pay-table-wrap">
+              <table className="pay-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                    <th>Diamonds</th>
+                    <th>Bonus Gems</th>
+                    <th>ABA / Order ID</th>
+                    <th>Created</th>
+                    <th>Paid</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.length ? (
+                    payments.map((item) => (
+                      <tr key={item.id || item.order_id}>
+                        <td>
+                          <div className="pay-user">
+                            <strong>{item.user?.name || item.user?.username || 'Reader'}</strong>
+                            <span>{item.user?.email || item.user_id || '-'}</span>
+                          </div>
+                        </td>
+                        <td><StatusBadge status={item.status} /></td>
+                        <td><span className="pay-money">${item.package_usd || item.amount_usd || 0}</span></td>
+                        <td>{formatNumber(item.diamonds)}</td>
+                        <td>{formatNumber(item.bonus_gems)}</td>
+                        <td><div className="pay-id">{getTransactionId(item)}</div></td>
+                        <td>{formatDate(item.created_at)}</td>
+                        <td>{formatDate(item.paid_at || item.released_at || item.updated_at)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="8">
+                        <div className="pay-empty">{loading ? 'Loading...' : 'No payment records found.'}</div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       </main>
     </div>
-  )
+  );
 }
