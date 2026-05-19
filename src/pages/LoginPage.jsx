@@ -14,6 +14,10 @@ function makeVerifyCode() {
   return code;
 }
 
+function getExistingToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
+}
+
 function getFriendlyError(message) {
   if (!message) return 'Login failed. Please try again.';
 
@@ -33,12 +37,13 @@ function getFriendlyError(message) {
 export default function LoginPage() {
   const navigate = useNavigate();
 
-  const existingToken = sessionStorage.getItem('shadow_admin_token');
+  const existingToken = getExistingToken();
   const rememberedEmail = localStorage.getItem('shadow_admin_email') || '';
 
   const [email, setEmail] = useState(rememberedEmail);
   const [password, setPassword] = useState('');
   const [rememberEmail, setRememberEmail] = useState(Boolean(rememberedEmail));
+  const [rememberLogin, setRememberLogin] = useState(Boolean(localStorage.getItem('shadow_admin_token')));
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState(() => makeVerifyCode());
   const [verifyInput, setVerifyInput] = useState('');
@@ -113,16 +118,19 @@ export default function LoginPage() {
         return;
       }
 
-      if (rememberEmail) {
+      if (rememberEmail || rememberLogin) {
         localStorage.setItem('shadow_admin_email', cleanEmail);
       } else {
         localStorage.removeItem('shadow_admin_email');
       }
 
-      // Token is stored in sessionStorage only.
-      // Closing the browser/tab logs admin out automatically.
       sessionStorage.setItem('shadow_admin_token', data.token);
-      localStorage.removeItem('shadow_admin_token');
+
+      if (rememberLogin) {
+        localStorage.setItem('shadow_admin_token', data.token);
+      } else {
+        localStorage.removeItem('shadow_admin_token');
+      }
 
       navigate('/admin', { replace: true });
     } catch (error) {
@@ -200,6 +208,15 @@ export default function LoginPage() {
               onChange={(event) => setRememberEmail(event.target.checked)}
             />
             <span>Remember email only</span>
+          </label>
+
+          <label style={styles.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={rememberLogin}
+              onChange={(event) => setRememberLogin(event.target.checked)}
+            />
+            <span>Keep me signed in on this device</span>
           </label>
 
           {error ? <div style={styles.errorBox}>{error}</div> : null}
