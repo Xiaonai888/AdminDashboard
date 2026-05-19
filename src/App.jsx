@@ -70,7 +70,8 @@ export default function App() {
         <Route path="/block-list" element={<ProtectedPage><ComingSoon title="Block List" /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><ComingSoon title="Income" /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
-        <Route path="/deposit" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
+        <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
+        <Route path="/deposit" element={<Navigate to="/payment" replace />} />
         <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
