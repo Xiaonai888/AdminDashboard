@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
+const tabs = [
+  { key: 'success', label: 'Success' },
+  { key: 'waiting_payment', label: 'Waiting' },
+  { key: 'failed', label: 'Failed' },
+  { key: 'expired', label: 'Expired' },
+  { key: 'all', label: 'All' },
+]
+
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
@@ -27,14 +35,28 @@ function formatDate(value) {
   return date.toLocaleString()
 }
 
+function getTransactionId(item) {
+  return item.aba_transaction_id || item.transaction_id || item.payment_reference || item.order_id || '-'
+}
+
+function normalizeStatus(status) {
+  const value = String(status || '').toLowerCase()
+  if (value === 'approved') return 'success'
+  if (value === 'pending') return 'waiting_payment'
+  return value || 'waiting_payment'
+}
+
 function StatusBadge({ status }) {
+  const value = normalizeStatus(status)
   const styles = {
-    pending: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA' },
-    approved: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0' },
-    rejected: { background: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
+    success: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'Success' },
+    waiting_payment: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA', label: 'Waiting' },
+    failed: { background: '#FEF2F2', color: '#B91C1C', border: '#FECACA', label: 'Failed' },
+    expired: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Expired' },
+    cancelled: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Cancelled' },
   }
 
-  const style = styles[status] || styles.pending
+  const style = styles[value] || styles.waiting_payment
 
   return (
     <span style={{
@@ -48,18 +70,9 @@ function StatusBadge({ status }) {
       padding: '0 11px',
       fontSize: 12,
       fontWeight: 900,
-      textTransform: 'capitalize',
     }}>
-      {status || 'pending'}
+      {style.label}
     </span>
-  )
-}
-
-function Icon({ d, size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: size, flexShrink: 0 }}>
-      <path d={d} />
-    </svg>
   )
 }
 
@@ -83,59 +96,49 @@ const styles = `
   .pay-stat{background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:16px}
   .pay-stat span{color:#64748B;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
   .pay-stat strong{display:block;margin-top:8px;color:#0F172A;font-size:26px;font-weight:950}
-  .pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850}
-  .pay-message.success{background:#ECFDF5;color:#047857}
-  .pay-message.error{background:#FEF2F2;color:#B91C1C}
-  .pay-layout{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px;align-items:start}
+  .pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850;background:#FEF2F2;color:#B91C1C}
   .pay-panel{background:#fff;border:1px solid #E2E8F0;border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}
   .pay-panel-head{padding:18px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;gap:12px}
   .pay-panel-head h3{margin:0;font-size:16px;font-weight:950}
   .pay-panel-head p{margin:4px 0 0;color:#64748B;font-size:12.5px;font-weight:700}
-  .pay-list{padding:14px;display:grid;gap:10px}
-  .pay-item{width:100%;border:1px solid #EEF2F7;background:#fff;border-radius:18px;padding:14px;text-align:left;cursor:pointer;transition:.16s ease}
-  .pay-item:hover,.pay-item.active{border-color:#0F172A;box-shadow:0 10px 24px rgba(15,23,42,.08)}
-  .pay-item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-  .pay-user{font-size:14px;font-weight:950;color:#0F172A}
-  .pay-sub{margin-top:4px;color:#64748B;font-size:12px;font-weight:750;line-height:1.5}
-  .pay-amount{font-size:18px;font-weight:950;color:#0F172A;text-align:right}
-  .pay-empty{padding:38px 20px;text-align:center;color:#64748B;font-weight:850}
-  .pay-detail{padding:20px}
-  .pay-detail-title{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:16px}
-  .pay-detail-title h3{margin:0;font-size:20px;font-weight:950}
-  .pay-detail-grid{display:grid;gap:10px}
-  .pay-row{display:flex;justify-content:space-between;gap:14px;border-bottom:1px solid #F1F5F9;padding:11px 0}
-  .pay-row span{color:#64748B;font-size:12px;font-weight:850}
-  .pay-row strong{color:#0F172A;font-size:13px;font-weight:950;text-align:right;word-break:break-word}
-  .pay-note{width:100%;min-height:86px;border:1px solid #E2E8F0;border-radius:15px;padding:12px 13px;resize:vertical;outline:none;font-family:Inter,sans-serif;font-weight:700;color:#0F172A;margin-top:16px}
-  .pay-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-  .pay-approve,.pay-reject{height:44px;border:none;border-radius:14px;font-weight:950;color:#fff;cursor:pointer}
-  .pay-approve{background:#047857}
-  .pay-reject{background:#B91C1C}
-  .pay-actions button:disabled{opacity:.55;cursor:not-allowed}
-  .pay-proof{display:block;margin-top:10px;border-radius:14px;border:1px solid #E2E8F0;background:#F8FAFC;padding:11px 12px;color:#0F172A;text-decoration:none;font-size:13px;font-weight:900;word-break:break-word}
-  @media(max-width:960px){.pay-layout{grid-template-columns:1fr}.pay-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pay-content{padding:22px 18px 50px}.pay-header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}
+  .pay-table-wrap{overflow-x:auto}
+  .pay-table{width:100%;border-collapse:collapse;min-width:980px}
+  .pay-table th{background:#F8FAFC;color:#64748B;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid #E2E8F0}
+  .pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:#0F172A;vertical-align:middle}
+  .pay-table tr:hover td{background:#FAFBFF}
+  .pay-user strong{display:block;font-size:13.5px;font-weight:950;color:#0F172A}
+  .pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:#64748B}
+  .pay-money{font-size:15px;font-weight:950;color:#0F172A}
+  .pay-id{max-width:210px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}
+  .pay-security{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
+  .pay-security-card{background:#fff;border:1px solid #E2E8F0;border-radius:18px;padding:14px}
+  .pay-security-card strong{display:block;font-size:13px;font-weight:950;color:#0F172A}
+  .pay-security-card span{display:block;margin-top:5px;color:#64748B;font-size:12px;font-weight:750;line-height:1.5}
+  .pay-empty{padding:42px 20px;text-align:center;color:#64748B;font-weight:850}
+  @media(max-width:960px){.pay-stats,.pay-security{grid-template-columns:repeat(2,minmax(0,1fr))}.pay-content{padding:22px 18px 50px}.pay-header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}
+  @media(max-width:640px){.pay-stats,.pay-security{grid-template-columns:1fr}}
 `
 
 export default function PaymentControlPage() {
   const navigate = useNavigate()
-  const [status, setStatus] = useState('pending')
-  const [purchases, setPurchases] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [note, setNote] = useState('')
+  const [status, setStatus] = useState('success')
+  const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
 
   const stats = useMemo(() => {
-    const pending = purchases.filter((item) => item.status === 'pending').length
-    const approved = purchases.filter((item) => item.status === 'approved').length
-    const rejected = purchases.filter((item) => item.status === 'rejected').length
-    const totalUsd = purchases.reduce((sum, item) => sum + Number(item.package_usd || 0), 0)
+    const success = payments.filter((item) => normalizeStatus(item.status) === 'success').length
+    const waiting = payments.filter((item) => normalizeStatus(item.status) === 'waiting_payment').length
+    const failed = payments.filter((item) => normalizeStatus(item.status) === 'failed').length
+    const expired = payments.filter((item) => normalizeStatus(item.status) === 'expired').length
+    const totalUsd = payments
+      .filter((item) => normalizeStatus(item.status) === 'success')
+      .reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0)
 
-    return { pending, approved, rejected, totalUsd }
-  }, [purchases])
+    return { success, waiting, failed, expired, totalUsd }
+  }, [payments])
 
-  async function loadPurchases(nextStatus = status) {
+  async function loadPayments(nextStatus = status) {
     const token = getAdminToken()
 
     if (!token) {
@@ -151,53 +154,23 @@ export default function PaymentControlPage() {
       const response = await fetch(`${API_URL}/api/admin/purchases${query}`, {
         headers: getHeaders(),
       })
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Failed to load purchases.')
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to load payments.')
       }
 
-      setPurchases(data.purchases || [])
-      setSelected((data.purchases || [])[0] || null)
-      setNote('')
+      setPayments(data.payments || data.purchases || [])
     } catch (error) {
-      setMessage(error.message || 'Failed to load purchases.')
+      setPayments([])
+      setMessage(error.message || 'Failed to load payments.')
     } finally {
       setLoading(false)
     }
   }
 
-  async function updateRequest(action) {
-    if (!selected || busy) return
-
-    try {
-      setBusy(true)
-      setMessage('')
-
-      const response = await fetch(`${API_URL}/api/admin/purchases/${selected.id}/${action}`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          admin_note: note,
-        }),
-      })
-      const data = await response.json()
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || `Failed to ${action} request.`)
-      }
-
-      setMessage(`Purchase request ${action}d successfully.`)
-      await loadPurchases(status)
-    } catch (error) {
-      setMessage(error.message || `Failed to ${action} request.`)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   useEffect(() => {
-    loadPurchases(status)
+    loadPayments(status)
   }, [])
 
   return (
@@ -212,153 +185,107 @@ export default function PaymentControlPage() {
       <main className="pay-content">
         <div className="pay-top">
           <div>
-            <h1>Payment Control</h1>
-            <p>Review purchase requests, approve valid payments, and add Diamonds/Gems to reader wallets.</p>
+            <h1>Payment</h1>
+            <p>View ABA PayWay payment records and confirmed Diamond releases. This page is read-only for safety.</p>
           </div>
 
-          <button type="button" className="pay-refresh" onClick={() => loadPurchases(status)} disabled={loading}>
+          <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
 
+        <div className="pay-security">
+          <div className="pay-security-card">
+            <strong>Backend verified</strong>
+            <span>Diamonds are released only after ABA callback verification.</span>
+          </div>
+          <div className="pay-security-card">
+            <strong>No manual release</strong>
+            <span>Admin cannot approve fake success from this page.</span>
+          </div>
+          <div className="pay-security-card">
+            <strong>No failed report</strong>
+            <span>Failed or expired payments stay quiet and do not alert Admin or Telegram.</span>
+          </div>
+        </div>
+
         <div className="pay-tabs">
-          {['pending', 'approved', 'rejected', 'all'].map((item) => (
+          {tabs.map((item) => (
             <button
-              key={item}
+              key={item.key}
               type="button"
-              className={`pay-tab ${status === item ? 'active' : ''}`}
+              className={`pay-tab ${status === item.key ? 'active' : ''}`}
               onClick={() => {
-                setStatus(item)
-                loadPurchases(item)
+                setStatus(item.key)
+                loadPayments(item.key)
               }}
             >
-              {item}
+              {item.label}
             </button>
           ))}
         </div>
 
         <div className="pay-stats">
-          <div className="pay-stat"><span>Pending</span><strong>{stats.pending}</strong></div>
-          <div className="pay-stat"><span>Approved</span><strong>{stats.approved}</strong></div>
-          <div className="pay-stat"><span>Rejected</span><strong>{stats.rejected}</strong></div>
-          <div className="pay-stat"><span>Total USD</span><strong>${stats.totalUsd}</strong></div>
+          <div className="pay-stat"><span>Success</span><strong>{stats.success}</strong></div>
+          <div className="pay-stat"><span>Waiting</span><strong>{stats.waiting}</strong></div>
+          <div className="pay-stat"><span>Failed</span><strong>{stats.failed}</strong></div>
+          <div className="pay-stat"><span>Success USD</span><strong>${stats.totalUsd}</strong></div>
         </div>
 
-        {message ? (
-          <div className={`pay-message ${message.toLowerCase().includes('failed') ? 'error' : 'success'}`}>
-            {message}
+        {message ? <div className="pay-message">{message}</div> : null}
+
+        <section className="pay-panel">
+          <div className="pay-panel-head">
+            <div>
+              <h3>Payment Records</h3>
+              <p>{loading ? 'Loading payments...' : `${payments.length} record(s)`}</p>
+            </div>
           </div>
-        ) : null}
 
-        <div className="pay-layout">
-          <section className="pay-panel">
-            <div className="pay-panel-head">
-              <div>
-                <h3>Purchase Requests</h3>
-                <p>{loading ? 'Loading requests...' : `${purchases.length} request(s)`}</p>
-              </div>
-            </div>
-
-            <div className="pay-list">
-              {purchases.length ? (
-                purchases.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`pay-item ${selected?.id === item.id ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelected(item)
-                      setNote(item.admin_note || '')
-                    }}
-                  >
-                    <div className="pay-item-top">
-                      <div>
-                        <div className="pay-user">{item.user?.name || item.user?.username || 'Reader'}</div>
-                        <div className="pay-sub">
-                          {item.user?.email || '-'}<br />
-                          {formatDate(item.created_at)}
+          <div className="pay-table-wrap">
+            <table className="pay-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Status</th>
+                  <th>Amount</th>
+                  <th>Diamonds</th>
+                  <th>Bonus Gems</th>
+                  <th>ABA / Order ID</th>
+                  <th>Created</th>
+                  <th>Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.length ? (
+                  payments.map((item) => (
+                    <tr key={item.id || item.order_id}>
+                      <td>
+                        <div className="pay-user">
+                          <strong>{item.user?.name || item.user?.username || 'Reader'}</strong>
+                          <span>{item.user?.email || item.user_id || '-'}</span>
                         </div>
-                      </div>
-
-                      <div>
-                        <div className="pay-amount">${item.package_usd}</div>
-                        <StatusBadge status={item.status} />
-                      </div>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="pay-empty">{loading ? 'Loading...' : 'No purchase requests found.'}</div>
-              )}
-            </div>
-          </section>
-
-          <aside className="pay-panel">
-            {selected ? (
-              <div className="pay-detail">
-                <div className="pay-detail-title">
-                  <div>
-                    <h3>${selected.package_usd}</h3>
-                    <p style={{ margin: '5px 0 0', color: '#64748B', fontSize: 12, fontWeight: 800 }}>
-                      Request detail
-                    </p>
-                  </div>
-                  <StatusBadge status={selected.status} />
-                </div>
-
-                <div className="pay-detail-grid">
-                  <div className="pay-row"><span>User</span><strong>{selected.user?.name || '-'}</strong></div>
-                  <div className="pay-row"><span>Username</span><strong>{selected.user?.username || '-'}</strong></div>
-                  <div className="pay-row"><span>Email</span><strong>{selected.user?.email || '-'}</strong></div>
-                  <div className="pay-row"><span>Diamonds</span><strong>{formatNumber(selected.diamonds)}</strong></div>
-                  <div className="pay-row"><span>Bonus Gems</span><strong>{formatNumber(selected.bonus_gems)}</strong></div>
-                  <div className="pay-row"><span>Payer Name</span><strong>{selected.payer_name || '-'}</strong></div>
-                  <div className="pay-row"><span>Reference</span><strong>{selected.payment_reference || '-'}</strong></div>
-                  <div className="pay-row"><span>Created</span><strong>{formatDate(selected.created_at)}</strong></div>
-                  <div className="pay-row"><span>Approved By</span><strong>{selected.approved_by || '-'}</strong></div>
-                </div>
-
-                {selected.proof_url ? (
-                  <a className="pay-proof" href={selected.proof_url} target="_blank" rel="noreferrer">
-                    Open Payment Proof
-                  </a>
-                ) : null}
-
-                <textarea
-                  className="pay-note"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="Admin note"
-                />
-
-                <div className="pay-actions">
-                  <button
-                    type="button"
-                    className="pay-approve"
-                    onClick={() => updateRequest('approve')}
-                    disabled={busy || selected.status !== 'pending'}
-                  >
-                    Approve
-                  </button>
-
-                  <button
-                    type="button"
-                    className="pay-reject"
-                    onClick={() => updateRequest('reject')}
-                    disabled={busy || selected.status !== 'pending'}
-                  >
-                    Reject
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="pay-empty">
-                <Icon d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" size={26} />
-                <div style={{ marginTop: 10 }}>Select a request to review.</div>
-              </div>
-            )}
-          </aside>
-        </div>
+                      </td>
+                      <td><StatusBadge status={item.status} /></td>
+                      <td><span className="pay-money">${item.package_usd || item.amount_usd || 0}</span></td>
+                      <td>{formatNumber(item.diamonds)}</td>
+                      <td>{formatNumber(item.bonus_gems)}</td>
+                      <td><div className="pay-id">{getTransactionId(item)}</div></td>
+                      <td>{formatDate(item.created_at)}</td>
+                      <td>{formatDate(item.paid_at || item.approved_at || item.updated_at)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8">
+                      <div className="pay-empty">{loading ? 'Loading...' : 'No payment records found.'}</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
   )
