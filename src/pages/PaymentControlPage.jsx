@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const PAGE_SIZE = 20
 
 const tabs = [
   { key: 'waiting_payment', label: 'Verifying' },
@@ -79,7 +80,26 @@ function normalizeStatus(status) {
   if (value === 'approved') return 'success'
   if (value === 'confirmed') return 'success'
   if (value === 'pending') return 'waiting_payment'
+  if (value === 'created') return 'waiting_payment'
   return value || 'waiting_payment'
+}
+
+function searchText(item) {
+  return [
+    item.user?.username,
+    item.user?.name,
+    item.user?.email,
+    item.user_id,
+    item.order_id,
+    item.aba_trx_id,
+    item.aba_apv,
+    item.payer_name,
+    item.match_reason,
+    item.admin_note,
+    item.status,
+    item.amount_usd,
+    item.package_usd,
+  ].filter(Boolean).join(' ').toLowerCase()
 }
 
 function StatusBadge({ status }) {
@@ -121,17 +141,33 @@ const styles = `
   :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--border:#E2E8F0;--side:80px;--sideOpen:260px}
   *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
   .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}.sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s;flex-shrink:0}.sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.05)}.sidebar::-webkit-scrollbar{width:0}.sidebar-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px}.logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px;transition:.2s}.sidebar:hover .logo-text,.sidebar:hover .nav-text,.sidebar:hover .nav-group-label{opacity:1}.nav-group-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#94A3B8;white-space:nowrap;transition:.2s}.nav-item{width:100%;border:0;background:transparent;height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:600;white-space:nowrap;font-family:inherit;font-size:14px;text-align:left}.nav-item:hover,.nav-item.active{background:var(--light);color:var(--primary)}.nav-text{opacity:0;margin-left:14px;transition:.2s}.main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900;margin:0}.header button{height:40px;border:1px solid var(--border);background:#fff;border-radius:13px;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}.content-body{padding:28px 36px 60px;max-width:1600px;width:100%;margin:0 auto}
-  .pay-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px}.pay-top h1{margin:0;font-size:30px;font-weight:950;letter-spacing:-.04em}.pay-top p{margin:8px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}.pay-refresh{height:44px;border:none;border-radius:14px;background:#0F172A;color:#fff;padding:0 18px;font-weight:950;cursor:pointer}.pay-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.pay-tab{height:38px;border:1px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:0 15px;font-size:13px;font-weight:950;cursor:pointer}.pay-tab.active{background:#0F172A;border-color:#0F172A;color:#fff}.pay-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.pay-stat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:16px}.pay-stat span{color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.pay-stat strong{display:block;margin-top:8px;color:var(--text);font-size:26px;font-weight:950}.pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850;background:#FEF2F2;color:#B91C1C}.pay-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}.pay-panel-head{padding:18px 20px;border-bottom:1px solid var(--border)}.pay-panel-head h3{margin:0;font-size:16px;font-weight:950}.pay-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}.pay-table-wrap{overflow-x:auto}.pay-table{width:100%;border-collapse:collapse;min-width:1180px}.pay-table th{background:#F8FAFC;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid var(--border)}.pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:var(--text);vertical-align:middle}.pay-user strong{display:block;font-size:13.5px;font-weight:950;color:var(--text)}.pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:var(--muted)}.pay-money{font-size:15px;font-weight:950;color:var(--text)}.pay-id{max-width:220px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}.status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900;white-space:nowrap}.pay-actions{display:flex;gap:8px;align-items:center}.pay-action{height:34px;border:0;border-radius:999px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;white-space:nowrap}.pay-action.confirm{background:#0F172A;color:#fff}.pay-action.reject{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}.pay-action:disabled{opacity:.45;cursor:not-allowed}.pay-empty{padding:42px 20px;text-align:center;color:var(--muted);font-weight:850}.pay-reason{max-width:260px;color:#64748B;font-size:12px;line-height:1.5;font-weight:750}
-  @media(max-width:960px){.pay-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.content-body{padding:22px 18px 50px}.header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}@media(max-width:640px){.pay-stats{grid-template-columns:1fr}}
+  .pay-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px}.pay-top h1{margin:0;font-size:30px;font-weight:950;letter-spacing:-.04em}.pay-top p{margin:8px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}.pay-live{height:34px;border-radius:999px;background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;display:flex;align-items:center;padding:0 13px;font-size:12px;font-weight:950;white-space:nowrap}.pay-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.pay-tab{height:38px;border:1px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:0 15px;font-size:13px;font-weight:950;cursor:pointer}.pay-tab.active{background:#0F172A;border-color:#0F172A;color:#fff}.pay-tools{display:grid;grid-template-columns:1fr 180px;gap:12px;margin-bottom:18px}.pay-search,.pay-select{height:44px;border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);font-family:inherit;font-size:13px;font-weight:800;padding:0 14px;outline:none}.pay-search::placeholder{color:#94A3B8}.pay-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.pay-stat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:16px}.pay-stat span{color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.pay-stat strong{display:block;margin-top:8px;color:var(--text);font-size:26px;font-weight:950}.pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850;background:#FEF2F2;color:#B91C1C}.pay-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}.pay-panel-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.pay-panel-head h3{margin:0;font-size:16px;font-weight:950}.pay-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}.pay-page-info{font-size:12px;font-weight:900;color:var(--muted);white-space:nowrap}.pay-table-wrap{overflow-x:auto}.pay-table{width:100%;border-collapse:collapse;min-width:1180px}.pay-table th{background:#F8FAFC;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid var(--border)}.pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:var(--text);vertical-align:middle}.pay-user strong{display:block;font-size:13.5px;font-weight:950;color:var(--text)}.pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:var(--muted)}.pay-money{font-size:15px;font-weight:950;color:var(--text)}.pay-id{max-width:220px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}.status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900;white-space:nowrap}.pay-actions{display:flex;gap:8px;align-items:center}.pay-action{height:34px;border:0;border-radius:999px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;white-space:nowrap}.pay-action.confirm{background:#0F172A;color:#fff}.pay-action.reject{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}.pay-action:disabled{opacity:.45;cursor:not-allowed}.pay-empty{padding:42px 20px;text-align:center;color:var(--muted);font-weight:850}.pay-reason{max-width:260px;color:#64748B;font-size:12px;line-height:1.5;font-weight:750}.pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-top:1px solid var(--border);background:#fff}.pagination span{font-size:12px;font-weight:900;color:var(--muted)}.pagination-buttons{display:flex;gap:8px}.pagination button{height:34px;border:1px solid var(--border);background:#fff;border-radius:999px;padding:0 14px;font-size:12px;font-weight:950;color:var(--text);cursor:pointer}.pagination button:disabled{opacity:.45;cursor:not-allowed}
+  @media(max-width:960px){.pay-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.content-body{padding:22px 18px 50px}.header{padding:0 18px}.pay-top{flex-direction:column}.pay-tools{grid-template-columns:1fr}.pay-panel-head{flex-direction:column}.pay-live{width:100%;justify-content:center}}@media(max-width:640px){.pay-stats{grid-template-columns:1fr}.pagination{flex-direction:column;align-items:flex-start}}
 `
 
 export default function PaymentControlPage() {
   const navigate = useNavigate()
-  const [status, setStatus] = useState('waiting_payment')
+  const [status, setStatus] = useState('all')
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [message, setMessage] = useState('')
+  const [search, setSearch] = useState('')
+  const [amountFilter, setAmountFilter] = useState('all')
+  const [page, setPage] = useState(1)
+
+  const filteredPayments = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    return payments.filter((item) => {
+      const matchesSearch = !keyword || searchText(item).includes(keyword)
+      const amount = Number(item.package_usd || item.amount_usd || 0)
+      const matchesAmount = amountFilter === 'all' || Number(amountFilter) === amount
+      return matchesSearch && matchesAmount
+    })
+  }, [payments, search, amountFilter])
+
+  const pageCount = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE))
+  const paginatedPayments = filteredPayments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   const stats = useMemo(() => {
     const waiting = payments.filter((item) => normalizeStatus(item.status) === 'waiting_payment').length
@@ -141,7 +177,7 @@ export default function PaymentControlPage() {
     return { waiting, review, success, totalUsd }
   }, [payments])
 
-  async function loadPayments(nextStatus = status) {
+  async function loadPayments(nextStatus = status, silent = false) {
     const token = getAdminToken()
     if (!token) {
       navigate('/login')
@@ -149,18 +185,18 @@ export default function PaymentControlPage() {
     }
 
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setMessage('')
-      const query = nextStatus === 'all' ? '?status=all' : `?status=${encodeURIComponent(nextStatus)}`
+      const query = nextStatus === 'all' ? '?status=all&limit=200' : `?status=${encodeURIComponent(nextStatus)}&limit=200`
       const response = await fetch(`${API_URL}/api/admin/purchases/manual${query}`, { headers: getHeaders() })
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load payments.')
       setPayments(data.payments || data.purchases || [])
     } catch (error) {
-      setPayments([])
+      if (!silent) setPayments([])
       setMessage(error.message || 'Failed to load payments.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -181,7 +217,7 @@ export default function PaymentControlPage() {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) throw new Error(data.message || `Failed to ${action} payment.`)
-      await loadPayments(status)
+      await loadPayments(status, true)
     } catch (error) {
       setMessage(error.message || `Failed to ${action} payment.`)
     } finally {
@@ -192,6 +228,18 @@ export default function PaymentControlPage() {
   useEffect(() => {
     loadPayments(status)
   }, [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadPayments(status, true)
+    }, 15000)
+
+    return () => window.clearInterval(timer)
+  }, [status])
+
+  useEffect(() => {
+    setPage(1)
+  }, [status, search, amountFilter])
 
   return (
     <div className="dashboard-wrapper">
@@ -205,13 +253,26 @@ export default function PaymentControlPage() {
               <h1>Payment Control</h1>
               <p>Use this as backup approval when the bot is slow. Confirm only after checking the ABA PayWay alert.</p>
             </div>
-            <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button>
+            <div className="pay-live">Live auto update</div>
           </div>
 
           <div className="pay-tabs">
             {tabs.map((item) => (
               <button key={item.key} type="button" className={`pay-tab ${status === item.key ? 'active' : ''}`} onClick={() => { setStatus(item.key); loadPayments(item.key) }}>{item.label}</button>
             ))}
+          </div>
+
+          <div className="pay-tools">
+            <input className="pay-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search username, email, order ID, Trx ID, payer, reason..." />
+            <select className="pay-select" value={amountFilter} onChange={(event) => setAmountFilter(event.target.value)}>
+              <option value="all">All amounts</option>
+              <option value="1">$1.00</option>
+              <option value="5">$5.00</option>
+              <option value="10">$10.00</option>
+              <option value="20">$20.00</option>
+              <option value="50">$50.00</option>
+              <option value="100">$100.00</option>
+            </select>
           </div>
 
           <div className="pay-stats">
@@ -224,7 +285,14 @@ export default function PaymentControlPage() {
           {message ? <div className="pay-message">{message}</div> : null}
 
           <section className="pay-panel">
-            <div className="pay-panel-head"><h3>Payment Orders</h3><p>{loading ? 'Loading payments...' : `${payments.length} record(s)`}</p></div>
+            <div className="pay-panel-head">
+              <div>
+                <h3>Payment Orders</h3>
+                <p>{loading ? 'Loading payments...' : `${filteredPayments.length} result(s), 20 per page`}</p>
+              </div>
+              <div className="pay-page-info">Page {page} / {pageCount}</div>
+            </div>
+
             <div className="pay-table-wrap">
               <table className="pay-table">
                 <thead>
@@ -233,7 +301,7 @@ export default function PaymentControlPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.length ? payments.map((item) => {
+                  {paginatedPayments.length ? paginatedPayments.map((item) => {
                     const currentStatus = normalizeStatus(item.status)
                     const canReview = currentStatus === 'waiting_payment' || currentStatus === 'pending_review'
                     const disabled = workingId === item.id
@@ -246,7 +314,7 @@ export default function PaymentControlPage() {
                         <td>{formatNumber(item.bonus_gems)}</td>
                         <td><div className="pay-id">{item.order_id || '-'}</div></td>
                         <td><div className="pay-id">{item.aba_trx_id || '-'}</div></td>
-                        <td><div className="pay-reason">{item.match_reason || '-'}</div></td>
+                        <td><div className="pay-reason">{item.match_reason || item.admin_note || '-'}</div></td>
                         <td>{formatDate(item.created_at)}</td>
                         <td>
                           <div className="pay-actions">
@@ -261,6 +329,14 @@ export default function PaymentControlPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="pagination">
+              <span>Showing {paginatedPayments.length ? ((page - 1) * PAGE_SIZE) + 1 : 0} - {Math.min(page * PAGE_SIZE, filteredPayments.length)} of {filteredPayments.length}</span>
+              <div className="pagination-buttons">
+                <button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
+                <button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>Next</button>
+              </div>
             </div>
           </section>
         </div>
