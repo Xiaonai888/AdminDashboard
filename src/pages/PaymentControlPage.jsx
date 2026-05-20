@@ -4,10 +4,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const tabs = [
-  { key: 'pending_review', label: 'Pending Review' },
-  { key: 'success', label: 'Confirmed' },
+  { key: 'waiting_payment', label: 'Verifying' },
+  { key: 'pending_review', label: 'Need Review' },
+  { key: 'success', label: 'Released' },
   { key: 'rejected', label: 'Rejected' },
-  { key: 'waiting_payment', label: 'Waiting' },
   { key: 'expired', label: 'Expired' },
   { key: 'all', label: 'All' },
 ]
@@ -56,11 +56,7 @@ function getAdminToken() {
 
 function getHeaders() {
   const token = getAdminToken()
-
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }
 }
 
 function formatNumber(value) {
@@ -89,51 +85,33 @@ function normalizeStatus(status) {
 function StatusBadge({ status }) {
   const value = normalizeStatus(status)
   const styles = {
-    success: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'Confirmed' },
-    pending_review: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA', label: 'Pending Review' },
-    waiting_payment: { background: '#F8FAFC', color: '#475569', border: '#E2E8F0', label: 'Waiting' },
+    success: { background: '#ECFDF5', color: '#047857', border: '#A7F3D0', label: 'Released' },
+    pending_review: { background: '#FFF7ED', color: '#C2410C', border: '#FED7AA', label: 'Need Review' },
+    waiting_payment: { background: '#F8FAFC', color: '#475569', border: '#E2E8F0', label: 'Verifying' },
     rejected: { background: '#FEF2F2', color: '#B91C1C', border: '#FECACA', label: 'Rejected' },
     expired: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Expired' },
+    cancelled: { background: '#F1F5F9', color: '#475569', border: '#E2E8F0', label: 'Cancelled' },
   }
-
   const style = styles[value] || styles.waiting_payment
-
-  return (
-    <span className="status-badge" style={{ borderColor: style.border, background: style.background, color: style.color }}>
-      {style.label}
-    </span>
-  )
+  return <span className="status-badge" style={{ borderColor: style.border, background: style.background, color: style.color }}>{style.label}</span>
 }
 
 function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
-
   const renderGroup = (items) => items.map((item) => (
     <button key={item.path} type="button" className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
       <Icon d={item.icon} size={20} />
       <span className="nav-text">{item.label}</span>
     </button>
   ))
-
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
-        <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
-        <span className="logo-text">Shadow Admin</span>
-      </div>
-
-      <span className="nav-group-label">Overview</span>
-      {renderGroup(navItems.overview)}
-
-      <span className="nav-group-label">Visual Media</span>
-      {renderGroup(navItems.visualMedia)}
-
-      <span className="nav-group-label">System Admin</span>
-      {renderGroup(navItems.systemAdmin)}
-
-      <span className="nav-group-label">Finance & Growth</span>
-      {renderGroup(navItems.finance)}
+      <div className="sidebar-logo"><Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" /><span className="logo-text">Shadow Admin</span></div>
+      <span className="nav-group-label">Overview</span>{renderGroup(navItems.overview)}
+      <span className="nav-group-label">Visual Media</span>{renderGroup(navItems.visualMedia)}
+      <span className="nav-group-label">System Admin</span>{renderGroup(navItems.systemAdmin)}
+      <span className="nav-group-label">Finance & Growth</span>{renderGroup(navItems.finance)}
     </aside>
   )
 }
@@ -141,87 +119,30 @@ function Sidebar() {
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--border:#E2E8F0;--side:80px;--sideOpen:260px}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
-  .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}
-  .sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s;flex-shrink:0}
-  .sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.05)}
-  .sidebar::-webkit-scrollbar{width:0}
-  .sidebar-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px}
-  .logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px;transition:.2s}
-  .sidebar:hover .logo-text,.sidebar:hover .nav-text,.sidebar:hover .nav-group-label{opacity:1}
-  .nav-group-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#94A3B8;white-space:nowrap;transition:.2s}
-  .nav-item{width:100%;border:0;background:transparent;height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:600;white-space:nowrap;font-family:inherit;font-size:14px;text-align:left}
-  .nav-item:hover,.nav-item.active{background:var(--light);color:var(--primary)}
-  .nav-text{opacity:0;margin-left:14px;transition:.2s}
-  .main-content{flex:1;overflow:auto}
-  .header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}
-  .header h2{font-size:17px;font-weight:900;margin:0}
-  .header button{height:40px;border:1px solid var(--border);background:#fff;border-radius:13px;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}
-  .content-body{padding:28px 36px 60px;max-width:1600px;width:100%;margin:0 auto}
-  .pay-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px}
-  .pay-top h1{margin:0;font-size:30px;font-weight:950;letter-spacing:-.04em}
-  .pay-top p{margin:8px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}
-  .pay-refresh{height:44px;border:none;border-radius:14px;background:#0F172A;color:#fff;padding:0 18px;font-weight:950;cursor:pointer}
-  .pay-security{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}
-  .pay-security-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:14px}
-  .pay-security-card strong{display:block;font-size:13px;font-weight:950;color:var(--text)}
-  .pay-security-card span{display:block;margin-top:5px;color:var(--muted);font-size:12px;font-weight:750;line-height:1.5}
-  .pay-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-  .pay-tab{height:38px;border:1px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:0 15px;font-size:13px;font-weight:950;cursor:pointer}
-  .pay-tab.active{background:#0F172A;border-color:#0F172A;color:#fff}
-  .pay-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
-  .pay-stat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:16px}
-  .pay-stat span{color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
-  .pay-stat strong{display:block;margin-top:8px;color:var(--text);font-size:26px;font-weight:950}
-  .pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850;background:#FEF2F2;color:#B91C1C}
-  .pay-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}
-  .pay-panel-head{padding:18px 20px;border-bottom:1px solid var(--border)}
-  .pay-panel-head h3{margin:0;font-size:16px;font-weight:950}
-  .pay-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}
-  .pay-table-wrap{overflow-x:auto}
-  .pay-table{width:100%;border-collapse:collapse;min-width:1180px}
-  .pay-table th{background:#F8FAFC;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid var(--border)}
-  .pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:var(--text);vertical-align:middle}
-  .pay-user strong{display:block;font-size:13.5px;font-weight:950;color:var(--text)}
-  .pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:var(--muted)}
-  .pay-money{font-size:15px;font-weight:950;color:var(--text)}
-  .pay-id{max-width:210px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}
-  .status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900;white-space:nowrap}
-  .proof-link{height:34px;border:1px solid #CBD5E1;background:#fff;color:#0F172A;border-radius:999px;padding:0 12px;font-size:12px;font-weight:950;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
-  .proof-link.disabled{opacity:.35;pointer-events:none}
-  .pay-actions{display:flex;gap:8px;align-items:center}
-  .pay-action{height:34px;border:0;border-radius:999px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;white-space:nowrap}
-  .pay-action.confirm{background:#0F172A;color:#fff}
-  .pay-action.reject{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
-  .pay-action:disabled{opacity:.45;cursor:not-allowed}
-  .pay-empty{padding:42px 20px;text-align:center;color:var(--muted);font-weight:850}
-  @media(max-width:960px){.pay-stats,.pay-security{grid-template-columns:repeat(2,minmax(0,1fr))}.content-body{padding:22px 18px 50px}.header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}
-  @media(max-width:640px){.pay-stats,.pay-security{grid-template-columns:1fr}}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,sans-serif;color:var(--text)}
+  .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}.sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s;flex-shrink:0}.sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.05)}.sidebar::-webkit-scrollbar{width:0}.sidebar-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px}.logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px;transition:.2s}.sidebar:hover .logo-text,.sidebar:hover .nav-text,.sidebar:hover .nav-group-label{opacity:1}.nav-group-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:#94A3B8;white-space:nowrap;transition:.2s}.nav-item{width:100%;border:0;background:transparent;height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:600;white-space:nowrap;font-family:inherit;font-size:14px;text-align:left}.nav-item:hover,.nav-item.active{background:var(--light);color:var(--primary)}.nav-text{opacity:0;margin-left:14px;transition:.2s}.main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900;margin:0}.header button{height:40px;border:1px solid var(--border);background:#fff;border-radius:13px;padding:0 14px;font-weight:900;color:var(--text);cursor:pointer}.content-body{padding:28px 36px 60px;max-width:1600px;width:100%;margin:0 auto}
+  .pay-top{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:20px}.pay-top h1{margin:0;font-size:30px;font-weight:950;letter-spacing:-.04em}.pay-top p{margin:8px 0 0;color:var(--muted);font-size:13.5px;font-weight:700;line-height:1.6}.pay-refresh{height:44px;border:none;border-radius:14px;background:#0F172A;color:#fff;padding:0 18px;font-weight:950;cursor:pointer}.pay-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.pay-tab{height:38px;border:1px solid var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:0 15px;font-size:13px;font-weight:950;cursor:pointer}.pay-tab.active{background:#0F172A;border-color:#0F172A;color:#fff}.pay-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.pay-stat{background:#fff;border:1px solid var(--border);border-radius:20px;padding:16px}.pay-stat span{color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.pay-stat strong{display:block;margin-top:8px;color:var(--text);font-size:26px;font-weight:950}.pay-message{margin-bottom:16px;border-radius:16px;padding:13px 15px;font-size:13px;font-weight:850;background:#FEF2F2;color:#B91C1C}.pay-panel{background:#fff;border:1px solid var(--border);border-radius:24px;box-shadow:0 8px 28px rgba(15,23,42,.05);overflow:hidden}.pay-panel-head{padding:18px 20px;border-bottom:1px solid var(--border)}.pay-panel-head h3{margin:0;font-size:16px;font-weight:950}.pay-panel-head p{margin:4px 0 0;color:var(--muted);font-size:12.5px;font-weight:700}.pay-table-wrap{overflow-x:auto}.pay-table{width:100%;border-collapse:collapse;min-width:1180px}.pay-table th{background:#F8FAFC;color:var(--muted);font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:13px 16px;border-bottom:1px solid var(--border)}.pay-table td{padding:15px 16px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:800;color:var(--text);vertical-align:middle}.pay-user strong{display:block;font-size:13.5px;font-weight:950;color:var(--text)}.pay-user span{display:block;margin-top:3px;font-size:12px;font-weight:750;color:var(--muted)}.pay-money{font-size:15px;font-weight:950;color:var(--text)}.pay-id{max-width:220px;word-break:break-word;color:#475569;font-size:12px;font-weight:850}.status-badge{display:inline-flex;height:28px;align-items:center;border-radius:999px;border:1px solid;padding:0 11px;font-size:12px;font-weight:900;white-space:nowrap}.pay-actions{display:flex;gap:8px;align-items:center}.pay-action{height:34px;border:0;border-radius:999px;padding:0 13px;font-size:12px;font-weight:950;cursor:pointer;white-space:nowrap}.pay-action.confirm{background:#0F172A;color:#fff}.pay-action.reject{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}.pay-action:disabled{opacity:.45;cursor:not-allowed}.pay-empty{padding:42px 20px;text-align:center;color:var(--muted);font-weight:850}.pay-reason{max-width:260px;color:#64748B;font-size:12px;line-height:1.5;font-weight:750}
+  @media(max-width:960px){.pay-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.content-body{padding:22px 18px 50px}.header{padding:0 18px}.pay-top{flex-direction:column}.pay-refresh{width:100%}}@media(max-width:640px){.pay-stats{grid-template-columns:1fr}}
 `
 
 export default function PaymentControlPage() {
   const navigate = useNavigate()
-  const [status, setStatus] = useState('pending_review')
+  const [status, setStatus] = useState('waiting_payment')
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [message, setMessage] = useState('')
 
   const stats = useMemo(() => {
-    const pending = payments.filter((item) => normalizeStatus(item.status) === 'pending_review').length
+    const waiting = payments.filter((item) => normalizeStatus(item.status) === 'waiting_payment').length
+    const review = payments.filter((item) => normalizeStatus(item.status) === 'pending_review').length
     const success = payments.filter((item) => normalizeStatus(item.status) === 'success').length
-    const rejected = payments.filter((item) => normalizeStatus(item.status) === 'rejected').length
-    const totalUsd = payments
-      .filter((item) => normalizeStatus(item.status) === 'success')
-      .reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0)
-
-    return { pending, success, rejected, totalUsd }
+    const totalUsd = payments.filter((item) => normalizeStatus(item.status) === 'success').reduce((sum, item) => sum + Number(item.package_usd || item.amount_usd || 0), 0)
+    return { waiting, review, success, totalUsd }
   }, [payments])
 
   async function loadPayments(nextStatus = status) {
     const token = getAdminToken()
-
     if (!token) {
       navigate('/login')
       return
@@ -230,21 +151,14 @@ export default function PaymentControlPage() {
     try {
       setLoading(true)
       setMessage('')
-
       const query = nextStatus === 'all' ? '?status=all' : `?status=${encodeURIComponent(nextStatus)}`
-      const response = await fetch(`${API_URL}/api/admin/purchases/manual${query}`, {
-        headers: getHeaders(),
-      })
+      const response = await fetch(`${API_URL}/api/admin/purchases/manual${query}`, { headers: getHeaders() })
       const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load manual payments.')
-      }
-
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load payments.')
       setPayments(data.payments || data.purchases || [])
     } catch (error) {
       setPayments([])
-      setMessage(error.message || 'Failed to load manual payments.')
+      setMessage(error.message || 'Failed to load payments.')
     } finally {
       setLoading(false)
     }
@@ -252,28 +166,21 @@ export default function PaymentControlPage() {
 
   async function reviewPayment(payment, action) {
     const isConfirm = action === 'confirm'
-    const label = isConfirm ? 'confirm and release Diamonds' : 'reject this proof'
+    const label = isConfirm ? 'approve and release Diamonds' : 'reject this payment'
     const ok = window.confirm(`Are you sure you want to ${label}?`)
-
     if (!ok) return
-
     const adminNote = window.prompt('Admin note (optional):', '') || ''
 
     try {
       setWorkingId(payment.id)
       setMessage('')
-
       const response = await fetch(`${API_URL}/api/admin/purchases/manual/${encodeURIComponent(payment.id)}/${action}`, {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ admin_note: adminNote }),
       })
       const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || `Failed to ${action} payment.`)
-      }
-
+      if (!response.ok || data.ok === false) throw new Error(data.message || `Failed to ${action} payment.`)
       await loadPayments(status)
     } catch (error) {
       setMessage(error.message || `Failed to ${action} payment.`)
@@ -290,145 +197,67 @@ export default function PaymentControlPage() {
     <div className="dashboard-wrapper">
       <style>{styles}</style>
       <Sidebar />
-
       <main className="main-content">
-        <header className="header">
-          <h2>Shadow Admin</h2>
-          <button type="button" onClick={() => navigate('/admin')}>Back to Dashboard</button>
-        </header>
-
+        <header className="header"><h2>Shadow Admin</h2><button type="button" onClick={() => navigate('/admin')}>Back to Dashboard</button></header>
         <div className="content-body">
           <div className="pay-top">
             <div>
-              <h1>Payment Review</h1>
-              <p>Review manual ABA PayWay screenshots. Confirm only after checking ABA/Telegram notification, exact amount, order ID, and user details.</p>
+              <h1>Payment Control</h1>
+              <p>Use this as backup approval when the bot is slow. Confirm only after checking the ABA PayWay alert.</p>
             </div>
-
-            <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
-          </div>
-
-          <div className="pay-security">
-            <div className="pay-security-card">
-              <strong>Admin confirm only</strong>
-              <span>Diamonds are released only after Admin confirms the payment proof.</span>
-            </div>
-            <div className="pay-security-card">
-              <strong>Check screenshot</strong>
-              <span>Match the screenshot with ABA/Telegram amount, time, and bank reference.</span>
-            </div>
-            <div className="pay-security-card">
-              <strong>No duplicate release</strong>
-              <span>Confirmed orders are locked by backend and cannot be released twice.</span>
-            </div>
+            <button type="button" className="pay-refresh" onClick={() => loadPayments(status)} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button>
           </div>
 
           <div className="pay-tabs">
             {tabs.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`pay-tab ${status === item.key ? 'active' : ''}`}
-                onClick={() => {
-                  setStatus(item.key)
-                  loadPayments(item.key)
-                }}
-              >
-                {item.label}
-              </button>
+              <button key={item.key} type="button" className={`pay-tab ${status === item.key ? 'active' : ''}`} onClick={() => { setStatus(item.key); loadPayments(item.key) }}>{item.label}</button>
             ))}
           </div>
 
           <div className="pay-stats">
-            <div className="pay-stat"><span>Pending</span><strong>{stats.pending}</strong></div>
-            <div className="pay-stat"><span>Confirmed</span><strong>{stats.success}</strong></div>
-            <div className="pay-stat"><span>Rejected</span><strong>{stats.rejected}</strong></div>
-            <div className="pay-stat"><span>Confirmed USD</span><strong>${stats.totalUsd.toFixed(2)}</strong></div>
+            <div className="pay-stat"><span>Verifying</span><strong>{stats.waiting}</strong></div>
+            <div className="pay-stat"><span>Need Review</span><strong>{stats.review}</strong></div>
+            <div className="pay-stat"><span>Released</span><strong>{stats.success}</strong></div>
+            <div className="pay-stat"><span>Released USD</span><strong>${stats.totalUsd.toFixed(2)}</strong></div>
           </div>
 
           {message ? <div className="pay-message">{message}</div> : null}
 
           <section className="pay-panel">
-            <div className="pay-panel-head">
-              <h3>Manual Payment Proofs</h3>
-              <p>{loading ? 'Loading payment proofs...' : `${payments.length} record(s)`}</p>
-            </div>
-
+            <div className="pay-panel-head"><h3>Payment Orders</h3><p>{loading ? 'Loading payments...' : `${payments.length} record(s)`}</p></div>
             <div className="pay-table-wrap">
               <table className="pay-table">
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Status</th>
-                    <th>Amount</th>
-                    <th>Diamonds</th>
-                    <th>Bonus Gems</th>
-                    <th>Order ID</th>
-                    <th>Proof</th>
-                    <th>Submitted</th>
-                    <th>Actions</th>
+                    <th>User</th><th>Status</th><th>Amount</th><th>Diamonds</th><th>Bonus</th><th>Order ID</th><th>Trx ID</th><th>Reason</th><th>Created</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.length ? (
-                    payments.map((item) => {
-                      const canReview = normalizeStatus(item.status) === 'pending_review'
-                      const disabled = workingId === item.id
-
-                      return (
-                        <tr key={item.id || item.order_id}>
-                          <td>
-                            <div className="pay-user">
-                              <strong>{item.user?.name || item.user?.username || 'Reader'}</strong>
-                              <span>{item.user?.email || item.user_id || '-'}</span>
-                            </div>
-                          </td>
-                          <td><StatusBadge status={item.status} /></td>
-                          <td><span className="pay-money">{formatMoney(item.package_usd || item.amount_usd || 0)}</span></td>
-                          <td>{formatNumber(item.diamonds)}</td>
-                          <td>{formatNumber(item.bonus_gems)}</td>
-                          <td><div className="pay-id">{item.order_id || '-'}</div></td>
-                          <td>
-                            <a
-                              href={item.proof_image_url || '#'}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={`proof-link ${item.proof_image_url ? '' : 'disabled'}`}
-                            >
-                              View Screenshot
-                            </a>
-                          </td>
-                          <td>{formatDate(item.proof_uploaded_at || item.created_at)}</td>
-                          <td>
-                            <div className="pay-actions">
-                              <button
-                                type="button"
-                                className="pay-action confirm"
-                                disabled={!canReview || disabled}
-                                onClick={() => reviewPayment(item, 'confirm')}
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                type="button"
-                                className="pay-action reject"
-                                disabled={!canReview || disabled}
-                                onClick={() => reviewPayment(item, 'reject')}
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan="9">
-                        <div className="pay-empty">{loading ? 'Loading...' : 'No manual payment proofs found.'}</div>
-                      </td>
-                    </tr>
+                  {payments.length ? payments.map((item) => {
+                    const currentStatus = normalizeStatus(item.status)
+                    const canReview = currentStatus === 'waiting_payment' || currentStatus === 'pending_review'
+                    const disabled = workingId === item.id
+                    return (
+                      <tr key={item.id || item.order_id}>
+                        <td><div className="pay-user"><strong>{item.user?.username ? `@${item.user.username}` : item.user?.name || 'Reader'}</strong><span>{item.user?.email || item.user_id || '-'}</span></div></td>
+                        <td><StatusBadge status={item.status} /></td>
+                        <td><span className="pay-money">{formatMoney(item.package_usd || item.amount_usd || 0)}</span></td>
+                        <td>{formatNumber(item.diamonds)}</td>
+                        <td>{formatNumber(item.bonus_gems)}</td>
+                        <td><div className="pay-id">{item.order_id || '-'}</div></td>
+                        <td><div className="pay-id">{item.aba_trx_id || '-'}</div></td>
+                        <td><div className="pay-reason">{item.match_reason || '-'}</div></td>
+                        <td>{formatDate(item.created_at)}</td>
+                        <td>
+                          <div className="pay-actions">
+                            <button type="button" className="pay-action confirm" disabled={!canReview || disabled} onClick={() => reviewPayment(item, 'confirm')}>Approve</button>
+                            <button type="button" className="pay-action reject" disabled={!canReview || disabled} onClick={() => reviewPayment(item, 'reject')}>Reject</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  }) : (
+                    <tr><td colSpan="10"><div className="pay-empty">{loading ? 'Loading...' : 'No payment orders found.'}</div></td></tr>
                   )}
                 </tbody>
               </table>
