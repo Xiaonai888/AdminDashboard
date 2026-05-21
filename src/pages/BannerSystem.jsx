@@ -146,6 +146,24 @@ function normalizeRecordText(record, sectionKey) {
   return record.description || record.detail || record.message || `${record.section_key || sectionKey} banner action`;
 }
 
+function parseBadgeTitle(value = '') {
+  const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i);
+
+  if (!match) {
+    return { badge: '', title: value || '' };
+  }
+
+  return { badge: match[1].toUpperCase(), title: match[2] || '' };
+}
+
+function buildBadgeTitle(badge, title) {
+  const cleanTitle = String(title || '').replace(/^\[(NEW|HOT|TOP)\]\s*/i, '').trim();
+
+  if (!badge) return cleanTitle;
+
+  return `[${badge}] ${cleanTitle}`;
+}
+
 export default function BannerSystem() {
   const fileInputRef = useRef(null);
   const [activeType, setActiveType] = useState('shadow_spotlight');
@@ -153,6 +171,7 @@ export default function BannerSystem() {
   const [selectedSlot, setSelectedSlot] = useState(1);
   const [banners, setBanners] = useState([]);
   const [title, setTitle] = useState('');
+  const [badge, setBadge] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [linkUrl, setLinkUrl] = useState(activeConfig.defaultLink);
   const [isActive, setIsActive] = useState(true);
@@ -218,6 +237,7 @@ export default function BannerSystem() {
     setRecordTotalPages(1);
     setMessage(null);
     setTitle('');
+    setBadge('');
     setSubtitle('');
     setLinkUrl(activeConfig.defaultLink);
     setIsActive(true);
@@ -230,7 +250,10 @@ export default function BannerSystem() {
 
   useEffect(() => {
     const banner = slotMap[selectedSlot];
-    setTitle(banner?.title || '');
+    const parsedTitle = parseBadgeTitle(banner?.title || '');
+
+    setBadge(parsedTitle.badge);
+    setTitle(parsedTitle.title);
     setSubtitle(banner?.subtitle || '');
     setLinkUrl(banner?.link_url || activeConfig.defaultLink);
     setIsActive(banner?.is_active ?? true);
@@ -262,7 +285,7 @@ export default function BannerSystem() {
       const formData = new FormData();
       if (selectedFile) formData.append('image', selectedFile);
       formData.append('section_key', activeConfig.sectionKey);
-      formData.append('title', title || `${activeConfig.titlePrefix} ${selectedSlot}`);
+      formData.append('title', buildBadgeTitle(badge, title || `${activeConfig.titlePrefix} ${selectedSlot}`));
       formData.append('subtitle', subtitle);
       formData.append('link_url', linkUrl || '/');
       formData.append('order_index', String(selectedSlot));
@@ -295,6 +318,7 @@ export default function BannerSystem() {
       await apiFetch(`${API_URL}/api/slides/${selectedBanner.id}`, { method: 'DELETE' });
       setMessage({ type: 'success', text: `${activeConfig.titlePrefix} ${selectedSlot} deleted successfully.` });
       setTitle('');
+      setBadge('');
       setSubtitle('');
       setLinkUrl(activeConfig.defaultLink);
       setIsActive(true);
@@ -311,7 +335,10 @@ export default function BannerSystem() {
 
   const handleResetForm = () => {
     const banner = slotMap[selectedSlot];
-    setTitle(banner?.title || '');
+    const parsedTitle = parseBadgeTitle(banner?.title || '');
+
+    setBadge(parsedTitle.badge);
+    setTitle(parsedTitle.title);
     setSubtitle(banner?.subtitle || '');
     setLinkUrl(banner?.link_url || activeConfig.defaultLink);
     setIsActive(banner?.is_active ?? true);
@@ -378,6 +405,13 @@ export default function BannerSystem() {
                     <div className="upload-help">Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.</div>
                     <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
                   </div>
+                  <label className="field-label">Badge</label>
+                  <select className="input" value={badge} onChange={(event) => setBadge(event.target.value)}>
+                    <option value="">No badge</option>
+                    <option value="NEW">NEW</option>
+                    <option value="HOT">HOT</option>
+                    <option value="TOP">TOP</option>
+                  </select>
                   <label className="field-label">Title</label>
                   <input className="input" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${activeConfig.titlePrefix} ${selectedSlot} title`} />
                   <label className="field-label">Subtitle</label>
