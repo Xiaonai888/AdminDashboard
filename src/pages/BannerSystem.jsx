@@ -145,7 +145,31 @@ function getRecordActionClass(action) {
 function normalizeRecordText(record, sectionKey) {
   return record.description || record.detail || record.message || `${record.section_key || sectionKey} banner action`;
 }
+function parseBadgeTitle(value = '') {
+  const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i)
 
+  if (!match) {
+    return {
+      badge: '',
+      title: value || '',
+    }
+  }
+
+  return {
+    badge: match[1].toUpperCase(),
+    title: match[2] || '',
+  }
+}
+
+function buildBadgeTitle(badge, title) {
+  const cleanTitle = String(title || '')
+    .replace(/^\[(NEW|HOT|TOP)\]\s*/i, '')
+    .trim()
+
+  if (!badge) return cleanTitle
+
+  return `[${badge}] ${cleanTitle}`
+}
 function parseBadgeTitle(value = '') {
   const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i);
 
@@ -285,7 +309,17 @@ export default function BannerSystem() {
       const formData = new FormData();
       if (selectedFile) formData.append('image', selectedFile);
       formData.append('section_key', activeConfig.sectionKey);
-      formData.append('title', buildBadgeTitle(badge, title || `${activeConfig.titlePrefix} ${selectedSlot}`));
+      const defaultBadgeBySlot =
+  activeConfig.sectionKey === 'author_center'
+    ? { 1: 'NEW', 2: 'HOT', 3: 'TOP' }[selectedSlot] || ''
+    : '';
+
+const finalBadge = badge || defaultBadgeBySlot;
+
+formData.append(
+  'title',
+  buildBadgeTitle(finalBadge, title || `${activeConfig.titlePrefix} ${selectedSlot}`)
+);
       formData.append('subtitle', subtitle);
       formData.append('link_url', linkUrl || '/');
       formData.append('order_index', String(selectedSlot));
