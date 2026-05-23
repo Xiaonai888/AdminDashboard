@@ -323,7 +323,7 @@ export default function SlideSection() {
           <main className="content-body">
             <div className="page-title-row">
               <h1>Slide Section</h1>
-              <p>Manage Home Slide and Event Slide from one place.</p>
+              <p>Manage Home Slide, Event Slide, and Mall Slide from one place.</p>
             </div>
 
             <div className="section-tabs">
