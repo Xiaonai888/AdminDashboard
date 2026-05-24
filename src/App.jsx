@@ -15,6 +15,7 @@ import GenreManagementPage from './pages/GenreManagementPage';
 import CommentModerationPage from './pages/CommentModerationPage';
 import PaymentControlPage from './pages/PaymentControlPage';
 import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
+import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
 
 function ComingSoon({ title }) {
   return (
@@ -81,6 +82,7 @@ export default function App() {
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
         <Route path="/genres" element={<ProtectedPage><GenreManagementPage /></ProtectedPage>} />
         <Route path="/comments" element={<ProtectedPage><CommentModerationPage /></ProtectedPage>} />
+        <Route path="/shadow-mall" element={<ProtectedPage><ShadowMallProductsPage /></ProtectedPage>} />
         
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
