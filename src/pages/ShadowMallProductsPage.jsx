@@ -889,6 +889,11 @@ function Sidebar() {
 const emptyForm = {
   title: '',
   author_name: '',
+  publisher: '',
+  novel_type: '',
+  genre: '',
+  paper_type: '',
+  cover_type: '',
   youtube_url: '',
   description: '',
   category: 'new_books',
@@ -1134,6 +1139,11 @@ export default function ShadowMallProductsPage() {
     setForm({
       title: product.title || '',
       author_name: product.author_name || '',
+      publisher: product.publisher || '',
+      novel_type: product.novel_type || '',
+      genre: product.genre || '',
+      paper_type: product.paper_type || '',
+      cover_type: product.cover_type || '',
       youtube_url: product.youtube_url || product.video_url || '',
       description: product.description || '',
       category: product.category || 'new_books',
@@ -1439,6 +1449,60 @@ export default function ShadowMallProductsPage() {
                     placeholder="Author name"
                   />
                 </label>
+
+                <div className="field-grid">
+  <label className="field">
+    <span className="label">Publisher</span>
+    <input
+      value={form.publisher}
+      onChange={(event) => updateField('publisher', event.target.value)}
+      className="input"
+      placeholder="Visoth"
+    />
+  </label>
+
+  <label className="field">
+    <span className="label">Novel Type</span>
+    <input
+      value={form.novel_type}
+      onChange={(event) => updateField('novel_type', event.target.value)}
+      className="input"
+      placeholder="Khmer"
+    />
+  </label>
+</div>
+
+<div className="field-grid">
+  <label className="field">
+    <span className="label">Genre</span>
+    <input
+      value={form.genre}
+      onChange={(event) => updateField('genre', event.target.value)}
+      className="input"
+      placeholder="Romance"
+    />
+  </label>
+
+  <label className="field">
+    <span className="label">Paper Type</span>
+    <input
+      value={form.paper_type}
+      onChange={(event) => updateField('paper_type', event.target.value)}
+      className="input"
+      placeholder="Bagasse Paper"
+    />
+  </label>
+</div>
+
+<label className="field">
+  <span className="label">Cover Type</span>
+  <input
+    value={form.cover_type}
+    onChange={(event) => updateField('cover_type', event.target.value)}
+    className="input"
+    placeholder="Paperback"
+  />
+</label>
 
                 <div className="field-grid">
                   <label className="field">
