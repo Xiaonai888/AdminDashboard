@@ -1022,14 +1022,32 @@ export default function ShadowMallProductsPage() {
       setMessage('');
 
       const token = getAdminToken();
+      const formData = new FormData();
+
       const payload = {
         ...form,
         youtube_url: form.youtube_url.trim(),
         price_usd: form.price_usd === '' ? 0 : Number(form.price_usd),
-        old_price_usd: form.old_price_usd === '' ? null : Number(form.old_price_usd),
+        old_price_usd: form.old_price_usd === '' ? '' : Number(form.old_price_usd),
         stock_quantity: form.stock_quantity === '' ? 0 : Number(form.stock_quantity),
         sort_order: form.sort_order === '' ? 0 : Number(form.sort_order),
       };
+
+      Object.entries(payload).forEach(([key, value]) => {
+        formData.append(key, String(value ?? ''));
+      });
+
+      formData.append('gallery_image_urls', JSON.stringify(galleryPreviews.map((url) => url || '').slice(0, 5)));
+
+      if (mainCoverFile) {
+        formData.append('main_cover', mainCoverFile);
+      }
+
+      galleryFiles.forEach((file, index) => {
+        if (file) {
+          formData.append(`gallery_image_${index}`, file);
+        }
+      });
 
       const url = editingId
         ? `${API_URL}/api/shadow-mall/products/${editingId}`
@@ -1038,10 +1056,9 @@ export default function ShadowMallProductsPage() {
       const response = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
       const data = await response.json().catch(() => ({}));
@@ -1050,7 +1067,7 @@ export default function ShadowMallProductsPage() {
         throw new Error(data.message || 'Failed to save product');
       }
 
-      setMessage(editingId ? 'Product updated successfully. Image upload will be connected in the next backend stage.' : 'Product created successfully. Image upload will be connected in the next backend stage.');
+      setMessage(editingId ? 'Product updated successfully.' : 'Product created successfully.');
       resetForm();
       fetchProducts();
     } catch (error) {
