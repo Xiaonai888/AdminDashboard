@@ -849,6 +849,9 @@ export default function ShadowMallProductsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [filter, setFilter] = useState('all');
+  const [recordSearch, setRecordSearch] = useState('');
+  const [recordStockFilter, setRecordStockFilter] = useState('all');
+  const [recordStatusFilter, setRecordStatusFilter] = useState('all');
   const mainCoverInputRef = useRef(null);
   const galleryInputRefs = useRef([]);
   const [mainCoverFile, setMainCoverFile] = useState(null);
