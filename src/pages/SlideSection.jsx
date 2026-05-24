@@ -417,8 +417,6 @@ useEffect(() => {
 
 <label className="field-label">Title</label>
 <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
-                  <label className="field-label">Title</label>
-                  <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
 
                   <label className="field-label">Subtitle</label>
                   <textarea className="textarea" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Short slide subtitle or note" />
