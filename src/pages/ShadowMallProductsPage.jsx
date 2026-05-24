@@ -772,6 +772,32 @@ const styles = `
     color: #334155;
   }
 
+    .record-sort-button {
+    height: 36px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #FFFFFF;
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 900;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: 0.18s ease;
+  }
+
+  .record-sort-button:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
+
+  .record-sort-button i {
+    font-size: 11px;
+  }
+
   @media (max-width: 1000px) {
     .records-toolbar-panel {
       grid-template-columns: 1fr 1fr;
@@ -975,6 +1001,7 @@ export default function ShadowMallProductsPage() {
   const [recordSearch, setRecordSearch] = useState('');
   const [recordStockFilter, setRecordStockFilter] = useState('all');
   const [recordStatusFilter, setRecordStatusFilter] = useState('all');
+  const [recordSort, setRecordSort] = useState('newest');
   const mainCoverInputRef = useRef(null);
   const galleryInputRefs = useRef([]);
   const [mainCoverFile, setMainCoverFile] = useState(null);
@@ -985,7 +1012,7 @@ export default function ShadowMallProductsPage() {
   const filteredProducts = useMemo(() => {
   const keyword = recordSearch.trim().toLowerCase();
 
-  return products.filter((product) => {
+  const filtered = products.filter((product) => {
     const categoryMatch =
       filter === 'all' ||
       (filter === 'best_seller' && product.is_best_seller) ||
@@ -1018,7 +1045,16 @@ export default function ShadowMallProductsPage() {
 
     return categoryMatch && stockMatch && statusMatch && searchMatch;
   });
-}, [products, filter, recordSearch, recordStockFilter, recordStatusFilter]);
+
+  return [...filtered].sort((a, b) => {
+    const aTime = new Date(a.created_at || 0).getTime() || Number(a.id || 0);
+    const bTime = new Date(b.created_at || 0).getTime() || Number(b.id || 0);
+
+    if (recordSort === 'oldest') return aTime - bTime;
+
+    return bTime - aTime;
+  });
+}, [products, filter, recordSearch, recordStockFilter, recordStatusFilter, recordSort]);
 
   const youtubeEmbedUrl = useMemo(() => getYoutubeEmbedUrl(form.youtube_url), [form.youtube_url]);
 
@@ -1667,12 +1703,21 @@ export default function ShadowMallProductsPage() {
 
     <div className="record-toolbar">
       <span className="record-count-pill">
-        {filteredProducts.length} / {products.length} products
-      </span>
+  {filteredProducts.length} / {products.length} products
+</span>
 
-      <button type="button" className="shadow-refresh" onClick={fetchProducts}>
-        Refresh
-      </button>
+<button
+  type="button"
+  className="record-sort-button"
+  onClick={() => setRecordSort((current) => (current === 'newest' ? 'oldest' : 'newest'))}
+>
+  <i className={`fa-solid ${recordSort === 'newest' ? 'fa-arrow-down-wide-short' : 'fa-arrow-up-wide-short'}`} />
+  {recordSort === 'newest' ? 'Newest' : 'Oldest'}
+</button>
+
+<button type="button" className="shadow-refresh" onClick={fetchProducts}>
+  Refresh
+</button>
     </div>
   </div>
 
