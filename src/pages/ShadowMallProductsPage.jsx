@@ -201,11 +201,11 @@ const styles = `
 
   .shadow-refresh:hover { background: var(--bg); }
 
-  .shadow-editor-grid {
+  .shadow-media-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
     gap: 20px;
-    align-items: start;
+    align-items: stretch;
   }
 
   .shadow-card {
@@ -214,6 +214,11 @@ const styles = `
     border-radius: 24px;
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
     overflow: hidden;
+  }
+
+  .product-card,
+  .records-card {
+    margin-top: 20px;
   }
 
   .shadow-card-head {
@@ -239,7 +244,8 @@ const styles = `
     line-height: 1.5;
   }
 
-  .shadow-form-body {
+  .shadow-form-body,
+  .media-card {
     padding: 20px 22px 22px;
   }
 
@@ -393,20 +399,8 @@ const styles = `
     margin-top: 10px;
   }
 
-  .media-card {
-    padding: 20px 22px 22px;
-  }
-
-  .media-layout {
-    display: grid;
-    grid-template-columns: 260px minmax(0, 1fr);
-    gap: 18px;
-    align-items: start;
-  }
-
   .main-cover-frame {
-    width: 100%;
-    max-width: 240px;
+    width: min(250px, 100%);
     aspect-ratio: 2 / 3;
     margin: 0 auto 14px;
     border: 1.5px dashed #CBD5E1;
@@ -463,7 +457,7 @@ const styles = `
 
   .gallery-slots {
     display: grid;
-    grid-template-columns: repeat(5, minmax(72px, 1fr));
+    grid-template-columns: repeat(5, minmax(82px, 1fr));
     gap: 10px;
   }
 
@@ -549,10 +543,6 @@ const styles = `
     height: 100%;
     border: 0;
     display: block;
-  }
-
-  .records-card {
-    margin-top: 20px;
   }
 
   .record-toolbar {
@@ -677,15 +667,12 @@ const styles = `
   .record-action.edit { background: var(--primary-light); color: var(--primary); }
   .record-action.delete { background: var(--danger-light); color: var(--danger); }
 
-  @media (max-width: 1250px) {
-    .shadow-editor-grid { grid-template-columns: 1fr; }
-    .media-layout { grid-template-columns: 260px minmax(0, 1fr); }
-    .gallery-slots { grid-template-columns: repeat(5, minmax(72px, 1fr)); }
+  @media (max-width: 980px) {
+    .shadow-media-grid { grid-template-columns: 1fr; }
+    .gallery-slots { grid-template-columns: repeat(5, 96px); overflow-x: auto; padding-bottom: 6px; }
   }
 
   @media (max-width: 740px) {
-    .media-layout { grid-template-columns: 1fr; }
-    .gallery-slots { grid-template-columns: repeat(5, 96px); overflow-x: auto; padding-bottom: 6px; }
     .content-body { padding: 22px 16px 40px; }
     .header { padding: 0 18px; }
     .shadow-page-head { align-items: flex-start; flex-direction: column; }
@@ -1125,270 +1112,99 @@ export default function ShadowMallProductsPage() {
               </button>
             </div>
 
-            <div className="shadow-editor-grid">
-              <form onSubmit={handleSubmit} className="shadow-card">
+            <div className="shadow-media-grid">
+              <section className="shadow-card">
                 <div className="shadow-card-head">
                   <div>
-                    <h2 className="shadow-card-title">{editingId ? 'Edit Product Information' : 'Add Product Information'}</h2>
-                    <p className="shadow-card-note">Fill the selling details for one Shadow Mall book.</p>
-                  </div>
-
-                  {editingId ? (
-                    <button type="button" className="soft-button" onClick={resetForm}>
-                      New
-                    </button>
-                  ) : null}
-                </div>
-
-                <div className="shadow-form-body">
-                  {message ? <div className="shadow-message">{message}</div> : null}
-
-                  <div className="shadow-section-title">Book Information</div>
-
-                  <label className="field">
-                    <span className="label">Book title</span>
-                    <input
-                      value={form.title}
-                      onChange={(event) => updateField('title', event.target.value)}
-                      className="input"
-                      placeholder="Book title"
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span className="label">Author name</span>
-                    <input
-                      value={form.author_name}
-                      onChange={(event) => updateField('author_name', event.target.value)}
-                      className="input"
-                      placeholder="Author name"
-                    />
-                  </label>
-
-                  <div className="field-grid">
-                    <label className="field">
-                      <span className="label">Category</span>
-                      <select
-                        value={form.category}
-                        onChange={(event) => updateField('category', event.target.value)}
-                        className="select"
-                      >
-                        <option value="new_books">New Books</option>
-                        <option value="second_hand">Second Hand</option>
-                        <option value="pre_order">Pre-order</option>
-                      </select>
-                    </label>
-
-                    <label className="field">
-                      <span className="label">Stock status</span>
-                      <select
-                        value={form.stock_status}
-                        onChange={(event) => updateField('stock_status', event.target.value)}
-                        className="select"
-                      >
-                        <option value="in_stock">In Stock</option>
-                        <option value="sold_out">Sold Out</option>
-                        <option value="pre_order">Pre-order</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <div className="shadow-section-title">Sales Details</div>
-
-                  <div className="field-grid">
-                    <label className="field">
-                      <span className="label">Price USD</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={form.price_usd}
-                        onChange={(event) => updateField('price_usd', event.target.value)}
-                        className="input"
-                        placeholder="8.75"
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span className="label">Old price</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={form.old_price_usd}
-                        onChange={(event) => updateField('old_price_usd', event.target.value)}
-                        className="input"
-                        placeholder="Leave empty if no discount"
-                      />
-                    </label>
-                  </div>
-
-                  <div className="field-grid">
-                    <label className="field">
-                      <span className="label">Stock quantity</span>
-                      <input
-                        type="number"
-                        value={form.stock_quantity}
-                        onChange={(event) => updateField('stock_quantity', event.target.value)}
-                        className="input"
-                        placeholder="0"
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span className="label">Sort order</span>
-                      <input
-                        type="number"
-                        value={form.sort_order}
-                        onChange={(event) => updateField('sort_order', event.target.value)}
-                        className="input"
-                        placeholder="0"
-                      />
-                    </label>
-                  </div>
-
-                  <label className="field">
-                    <span className="label">Condition label</span>
-                    <input
-                      value={form.condition_label}
-                      onChange={(event) => updateField('condition_label', event.target.value)}
-                      className="input"
-                      placeholder="New, Like new, Good, Fair..."
-                    />
-                  </label>
-
-                  <div className="shadow-section-title">Product Details</div>
-
-                  <label className="field">
-                    <span className="label">Description</span>
-                    <textarea
-                      value={form.description}
-                      onChange={(event) => updateField('description', event.target.value)}
-                      className="textarea"
-                      placeholder="Book details, condition, delivery note, or pre-order note..."
-                    />
-                  </label>
-
-                  <div className="checks">
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={form.is_best_seller}
-                        onChange={(event) => updateField('is_best_seller', event.target.checked)}
-                      />
-                      Best seller
-                    </label>
-
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={form.is_discount}
-                        onChange={(event) => updateField('is_discount', event.target.checked)}
-                      />
-                      Discount
-                    </label>
-
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={form.is_active}
-                        onChange={(event) => updateField('is_active', event.target.checked)}
-                      />
-                      Active
-                    </label>
-                  </div>
-
-                  <button type="submit" disabled={saving} className="save-button">
-                    {saving ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
-                  </button>
-                </div>
-              </form>
-
-              <aside className="shadow-card">
-                <div className="shadow-card-head">
-                  <div>
-                    <h2 className="shadow-card-title">Media Manager</h2>
-                    <p className="shadow-card-note">Upload vertical cover, gallery images, and YouTube preview.</p>
+                    <h2 className="shadow-card-title">Main Cover</h2>
+                    <p className="shadow-card-note">Upload the vertical cover shown on product cards.</p>
                   </div>
                 </div>
 
                 <div className="media-card">
-                  <div className="media-layout">
-                    <div>
-                      <div className="shadow-section-title">Main Cover</div>
-                      <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP. This image shows on product cards.</p>
+                  <div className="shadow-section-title">Main Cover</div>
+                  <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP.</p>
 
-                      <div className="main-cover-frame">
-                        {(mainCoverPreview || '') ? (
-                          <>
-                            <span className="cover-chip">Main Cover</span>
-                            <img src={mainCoverPreview} alt="Main cover preview" />
-                          </>
-                        ) : (
-                          <span>Main Cover Preview<br />2:3 vertical</span>
-                        )}
+                  <div className="main-cover-frame">
+                    {(mainCoverPreview || '') ? (
+                      <>
+                        <span className="cover-chip">Main Cover</span>
+                        <img src={mainCoverPreview} alt="Main cover preview" />
+                      </>
+                    ) : (
+                      <span>Main Cover Preview<br />2:3 vertical</span>
+                    )}
+                  </div>
+
+                  <button type="button" className="upload-button" onClick={() => mainCoverInputRef.current?.click()}>
+                    Choose or replace main cover
+                  </button>
+
+                  <input
+                    ref={mainCoverInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleMainCoverUpload}
+                  />
+
+                  {(mainCoverPreview || mainCoverFile) ? (
+                    <button type="button" className="danger-button" onClick={clearMainCover}>
+                      Clear Main Cover
+                    </button>
+                  ) : null}
+                </div>
+              </section>
+
+              <section className="shadow-card">
+                <div className="shadow-card-head">
+                  <div>
+                    <h2 className="shadow-card-title">Book Images & Video</h2>
+                    <p className="shadow-card-note">Upload gallery images and paste a YouTube preview link.</p>
+                  </div>
+                </div>
+
+                <div className="media-card">
+                  <div className="shadow-section-title">Book Images</div>
+                  <p className="help">Maximum 5 vertical gallery images. These show on the product detail page after readers open the book.</p>
+
+                  <div className="gallery-slots">
+                    {[0, 1, 2, 3, 4].map((index) => (
+                      <div className="gallery-slot" key={index}>
+                        <div className="gallery-image-box">
+                          {galleryPreviews[index] ? (
+                            <>
+                              <span className="gallery-number">{index + 1}</span>
+                              <img src={galleryPreviews[index]} alt={`Gallery ${index + 1}`} />
+                            </>
+                          ) : (
+                            <span>Image {index + 1}</span>
+                          )}
+                        </div>
+
+                        <div className="gallery-actions">
+                          <button type="button" className="mini-upload" onClick={() => galleryInputRefs.current[index]?.click()}>
+                            Choose
+                          </button>
+
+                          {galleryPreviews[index] ? (
+                            <button type="button" className="mini-clear" onClick={() => clearGalleryImage(index)}>
+                              Clear
+                            </button>
+                          ) : null}
+
+                          <input
+                            ref={(node) => {
+                              galleryInputRefs.current[index] = node;
+                            }}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(event) => handleGalleryUpload(index, event)}
+                          />
+                        </div>
                       </div>
-
-                      <button type="button" className="upload-button" onClick={() => mainCoverInputRef.current?.click()}>
-                        Choose or replace main cover
-                      </button>
-
-                      <input
-                        ref={mainCoverInputRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleMainCoverUpload}
-                      />
-
-                      {(mainCoverPreview || mainCoverFile) ? (
-                        <button type="button" className="danger-button" onClick={clearMainCover}>
-                          Clear Main Cover
-                        </button>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <div className="shadow-section-title">Book Images</div>
-                      <p className="help">Maximum 5 vertical gallery images. These show on the product detail page after readers open the book.</p>
-
-                      <div className="gallery-slots">
-                        {[0, 1, 2, 3, 4].map((index) => (
-                          <div className="gallery-slot" key={index}>
-                            <div className="gallery-image-box">
-                              {galleryPreviews[index] ? (
-                                <>
-                                  <span className="gallery-number">{index + 1}</span>
-                                  <img src={galleryPreviews[index]} alt={`Gallery ${index + 1}`} />
-                                </>
-                              ) : (
-                                <span>Image {index + 1}</span>
-                              )}
-                            </div>
-
-                            <div className="gallery-actions">
-                              <button type="button" className="mini-upload" onClick={() => galleryInputRefs.current[index]?.click()}>
-                                Choose
-                              </button>
-
-                              {galleryPreviews[index] ? (
-                                <button type="button" className="mini-clear" onClick={() => clearGalleryImage(index)}>
-                                  Clear
-                                </button>
-                              ) : null}
-
-                              <input
-                                ref={(node) => {
-                                  galleryInputRefs.current[index] = node;
-                                }}
-                                type="file"
-                                accept="image/*"
-                                style={{ display: 'none' }}
-                                onChange={(event) => handleGalleryUpload(index, event)}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    ))}
                   </div>
 
                   <div className="shadow-section-title" style={{ marginTop: 22 }}>YouTube Preview</div>
@@ -1415,8 +1231,184 @@ export default function ShadowMallProductsPage() {
                     </div>
                   ) : null}
                 </div>
-              </aside>
+              </section>
             </div>
+
+            <form onSubmit={handleSubmit} className="shadow-card product-card">
+              <div className="shadow-card-head">
+                <div>
+                  <h2 className="shadow-card-title">{editingId ? 'Edit Product Information' : 'Add Product Information'}</h2>
+                  <p className="shadow-card-note">Fill the selling details for one Shadow Mall book.</p>
+                </div>
+
+                {editingId ? (
+                  <button type="button" className="soft-button" onClick={resetForm}>
+                    New
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="shadow-form-body">
+                {message ? <div className="shadow-message">{message}</div> : null}
+
+                <div className="shadow-section-title">Book Information</div>
+
+                <label className="field">
+                  <span className="label">Book title</span>
+                  <input
+                    value={form.title}
+                    onChange={(event) => updateField('title', event.target.value)}
+                    className="input"
+                    placeholder="Book title"
+                  />
+                </label>
+
+                <label className="field">
+                  <span className="label">Author name</span>
+                  <input
+                    value={form.author_name}
+                    onChange={(event) => updateField('author_name', event.target.value)}
+                    className="input"
+                    placeholder="Author name"
+                  />
+                </label>
+
+                <div className="field-grid">
+                  <label className="field">
+                    <span className="label">Category</span>
+                    <select
+                      value={form.category}
+                      onChange={(event) => updateField('category', event.target.value)}
+                      className="select"
+                    >
+                      <option value="new_books">New Books</option>
+                      <option value="second_hand">Second Hand</option>
+                      <option value="pre_order">Pre-order</option>
+                    </select>
+                  </label>
+
+                  <label className="field">
+                    <span className="label">Stock status</span>
+                    <select
+                      value={form.stock_status}
+                      onChange={(event) => updateField('stock_status', event.target.value)}
+                      className="select"
+                    >
+                      <option value="in_stock">In Stock</option>
+                      <option value="sold_out">Sold Out</option>
+                      <option value="pre_order">Pre-order</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="shadow-section-title">Sales Details</div>
+
+                <div className="field-grid">
+                  <label className="field">
+                    <span className="label">Price USD</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.price_usd}
+                      onChange={(event) => updateField('price_usd', event.target.value)}
+                      className="input"
+                      placeholder="8.75"
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span className="label">Old price</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form.old_price_usd}
+                      onChange={(event) => updateField('old_price_usd', event.target.value)}
+                      className="input"
+                      placeholder="Leave empty if no discount"
+                    />
+                  </label>
+                </div>
+
+                <div className="field-grid">
+                  <label className="field">
+                    <span className="label">Stock quantity</span>
+                    <input
+                      type="number"
+                      value={form.stock_quantity}
+                      onChange={(event) => updateField('stock_quantity', event.target.value)}
+                      className="input"
+                      placeholder="0"
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span className="label">Sort order</span>
+                    <input
+                      type="number"
+                      value={form.sort_order}
+                      onChange={(event) => updateField('sort_order', event.target.value)}
+                      className="input"
+                      placeholder="0"
+                    />
+                  </label>
+                </div>
+
+                <label className="field">
+                  <span className="label">Condition label</span>
+                  <input
+                    value={form.condition_label}
+                    onChange={(event) => updateField('condition_label', event.target.value)}
+                    className="input"
+                    placeholder="New, Like new, Good, Fair..."
+                  />
+                </label>
+
+                <div className="shadow-section-title">Product Details</div>
+
+                <label className="field">
+                  <span className="label">Description</span>
+                  <textarea
+                    value={form.description}
+                    onChange={(event) => updateField('description', event.target.value)}
+                    className="textarea"
+                    placeholder="Book details, condition, delivery note, or pre-order note..."
+                  />
+                </label>
+
+                <div className="checks">
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={form.is_best_seller}
+                      onChange={(event) => updateField('is_best_seller', event.target.checked)}
+                    />
+                    Best seller
+                  </label>
+
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={form.is_discount}
+                      onChange={(event) => updateField('is_discount', event.target.checked)}
+                    />
+                    Discount
+                  </label>
+
+                  <label className="check">
+                    <input
+                      type="checkbox"
+                      checked={form.is_active}
+                      onChange={(event) => updateField('is_active', event.target.checked)}
+                    />
+                    Active
+                  </label>
+                </div>
+
+                <button type="submit" disabled={saving} className="save-button">
+                  {saving ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
+                </button>
+              </div>
+            </form>
 
             <section className="shadow-card records-card">
               <div className="shadow-card-head">
