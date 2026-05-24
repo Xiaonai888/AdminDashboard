@@ -807,9 +807,17 @@ export default function ShadowMallProductsPage() {
   setImagePreviews(previews);
 }
 
-function clearSelectedImages() {
+function resetForm() {
+  setForm(emptyForm);
+  setEditingId(null);
+  setMessage('');
   setSelectedImages([]);
   setImagePreviews([]);
+
+  if (imageInputRef.current) {
+    imageInputRef.current.value = '';
+  }
+}
 
   if (imageInputRef.current) {
     imageInputRef.current.value = '';
@@ -825,10 +833,11 @@ function clearSelectedImages() {
   function startEdit(product) {
     setEditingId(product.id);
     setForm({
+      setSelectedImages([]);
+      setImagePreviews([]);
       title: product.title || '',
       author_name: product.author_name || '',
       cover_url: product.cover_url || '',
-      gallery_image_urls: normalizeGallery(product.gallery_image_urls),
       youtube_url: product.youtube_url || product.video_url || '',
       description: product.description || '',
       category: product.category || 'new_books',
@@ -861,7 +870,6 @@ function clearSelectedImages() {
       const token = getAdminToken();
       const payload = {
         ...form,
-        gallery_image_urls: form.gallery_image_urls.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 5),
         youtube_url: form.youtube_url.trim(),
         price_usd: form.price_usd === '' ? 0 : Number(form.price_usd),
         old_price_usd: form.old_price_usd === '' ? null : Number(form.old_price_usd),
@@ -1007,23 +1015,6 @@ function clearSelectedImages() {
                       placeholder="https://..."
                     />
                   </label>
-
-                  <div className="shadow-mall-field">
-                    <span className="shadow-mall-label">Book gallery images</span>
-                    <p className="shadow-mall-help">
-                      Limit 5 vertical images. These can show front cover, back cover, inside pages, or condition photos.
-                    </p>
-
-                    {galleryPreview.length ? (
-                      <div className="shadow-mall-gallery-preview">
-                        {galleryPreview.map((imageUrl, index) => (
-                          <div className="shadow-mall-gallery-card" key={`${imageUrl}-${index}`}>
-                            <span className="shadow-mall-gallery-number">{index + 1}</span>
-                            <img src={imageUrl} alt={`Gallery ${index + 1}`} />
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
 
                     {[0, 1, 2, 3, 4].map((index) => (
                       <label className="shadow-mall-field" key={index}>
