@@ -666,6 +666,123 @@ const styles = `
 
   .record-action.edit { background: var(--primary-light); color: var(--primary); }
   .record-action.delete { background: var(--danger-light); color: var(--danger); }
+    .records-toolbar-panel {
+    padding: 16px 20px;
+    border-bottom: 1px solid #F1F5F9;
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) 170px 150px 140px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .record-search-box {
+    height: 42px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #F8FAFC;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 13px;
+  }
+
+  .record-search-box i {
+    color: #94A3B8;
+    font-size: 13px;
+  }
+
+  .record-search-input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    outline: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .record-search-input::placeholder {
+    color: #94A3B8;
+  }
+
+  .record-count-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--primary-light);
+    color: var(--primary);
+    padding: 7px 11px;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .record-cover.empty-cover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 18px;
+  }
+
+  .record-title-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  .record-id {
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  .record-media-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 9px;
+  }
+
+  .pill.good {
+    background: var(--success-light);
+    color: #047857;
+  }
+
+  .pill.warning {
+    background: var(--warning-light);
+    color: #B45309;
+  }
+
+  .pill.danger {
+    background: var(--danger-light);
+    color: #B91C1C;
+  }
+
+  .pill.muted {
+    background: #F1F5F9;
+    color: #64748B;
+  }
+
+  .record-action.view {
+    background: #F8FAFC;
+    color: #334155;
+  }
+
+  @media (max-width: 1000px) {
+    .records-toolbar-panel {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .records-toolbar-panel {
+      grid-template-columns: 1fr;
+    }
+  }
 
   @media (max-width: 980px) {
     .shadow-media-grid { grid-template-columns: 1fr; }
@@ -860,12 +977,42 @@ export default function ShadowMallProductsPage() {
   const [galleryPreviews, setGalleryPreviews] = useState(['', '', '', '', '']);
 
   const filteredProducts = useMemo(() => {
-    if (filter === 'all') return products;
-    if (filter === 'best_seller') return products.filter((product) => product.is_best_seller);
-    if (filter === 'discount') return products.filter((product) => product.is_discount);
-    if (filter === 'sold_out') return products.filter((product) => product.stock_status === 'sold_out');
-    return products.filter((product) => product.category === filter);
-  }, [products, filter]);
+  const keyword = recordSearch.trim().toLowerCase();
+
+  return products.filter((product) => {
+    const categoryMatch =
+      filter === 'all' ||
+      (filter === 'best_seller' && product.is_best_seller) ||
+      (filter === 'discount' && product.is_discount) ||
+      (filter === 'sold_out' && product.stock_status === 'sold_out') ||
+      product.category === filter;
+
+    const stockMatch =
+      recordStockFilter === 'all' ||
+      product.stock_status === recordStockFilter;
+
+    const statusMatch =
+      recordStatusFilter === 'all' ||
+      (recordStatusFilter === 'active' && product.is_active) ||
+      (recordStatusFilter === 'hidden' && !product.is_active);
+
+    const searchText = [
+      product.id,
+      product.title,
+      product.author_name,
+      product.category,
+      product.stock_status,
+      product.condition_label,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const searchMatch = !keyword || searchText.includes(keyword);
+
+    return categoryMatch && stockMatch && statusMatch && searchMatch;
+  });
+}, [products, filter, recordSearch, recordStockFilter, recordStatusFilter]);
 
   const youtubeEmbedUrl = useMemo(() => getYoutubeEmbedUrl(form.youtube_url), [form.youtube_url]);
 
@@ -1430,82 +1577,176 @@ export default function ShadowMallProductsPage() {
               </div>
             </form>
 
-            <section className="shadow-card records-card">
-              <div className="shadow-card-head">
-                <div>
-                  <h2 className="shadow-card-title">Book Records</h2>
-                  <p className="shadow-card-note">Recent Shadow Mall products. Records will show 20 per page after backend pagination stage.</p>
-                </div>
+           <section className="shadow-card records-card">
+  <div className="shadow-card-head">
+    <div>
+      <h2 className="shadow-card-title">Book Records</h2>
+      <p className="shadow-card-note">
+        Search, filter, and manage real Shadow Mall products.
+      </p>
+    </div>
 
-                <div className="record-toolbar">
-                  <select value={filter} onChange={(event) => setFilter(event.target.value)} className="filter-select">
-                    <option value="all">All</option>
-                    <option value="new_books">New Books</option>
-                    <option value="second_hand">Second Hand</option>
-                    <option value="pre_order">Pre-order</option>
-                    <option value="best_seller">Best Seller</option>
-                    <option value="discount">Discount</option>
-                    <option value="sold_out">Sold Out</option>
-                  </select>
+    <div className="record-toolbar">
+      <span className="record-count-pill">
+        {filteredProducts.length} / {products.length} products
+      </span>
 
-                  <button type="button" className="shadow-refresh" onClick={fetchProducts}>
-                    Refresh
-                  </button>
-                </div>
+      <button type="button" className="shadow-refresh" onClick={fetchProducts}>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div className="records-toolbar-panel">
+    <div className="record-search-box">
+      <i className="fa-solid fa-magnifying-glass" />
+      <input
+        value={recordSearch}
+        onChange={(event) => setRecordSearch(event.target.value)}
+        className="record-search-input"
+        placeholder="Search title, author, product ID..."
+      />
+    </div>
+
+    <select
+      value={filter}
+      onChange={(event) => setFilter(event.target.value)}
+      className="filter-select"
+    >
+      <option value="all">All Categories</option>
+      <option value="new_books">New Books</option>
+      <option value="second_hand">Second Hand</option>
+      <option value="pre_order">Pre-order</option>
+      <option value="best_seller">Best Seller</option>
+      <option value="discount">Discount</option>
+      <option value="sold_out">Sold Out</option>
+    </select>
+
+    <select
+      value={recordStockFilter}
+      onChange={(event) => setRecordStockFilter(event.target.value)}
+      className="filter-select"
+    >
+      <option value="all">All Stock</option>
+      <option value="in_stock">In Stock</option>
+      <option value="sold_out">Sold Out</option>
+      <option value="pre_order">Pre-order</option>
+    </select>
+
+    <select
+      value={recordStatusFilter}
+      onChange={(event) => setRecordStatusFilter(event.target.value)}
+      className="filter-select"
+    >
+      <option value="all">All Status</option>
+      <option value="active">Active</option>
+      <option value="hidden">Hidden</option>
+    </select>
+  </div>
+
+  <div className="records-list">
+    {loading ? (
+      <div className="empty">Loading products...</div>
+    ) : filteredProducts.length ? (
+      filteredProducts.map((product) => {
+        const galleryCount = normalizeGallery(product.gallery_image_urls || product.image_urls).length;
+        const hasCover = Boolean(product.cover_url);
+        const hasVideo = Boolean(product.youtube_url || product.video_url);
+        const hasOldPrice = product.old_price_usd !== null && product.old_price_usd !== undefined && product.old_price_usd !== '';
+
+        return (
+          <div key={product.id} className="record-row">
+            <div className={`record-cover ${hasCover ? '' : 'empty-cover'}`}>
+              {hasCover ? (
+                <img src={product.cover_url} alt={product.title} />
+              ) : (
+                <i className="fa-solid fa-book-open" />
+              )}
+            </div>
+
+            <div className="record-main">
+              <div className="record-title-line">
+                <span className="record-title">{product.title}</span>
+                <span className="record-id">ID: {product.id}</span>
               </div>
 
-              <div className="records-list">
-                {loading ? (
-                  <div className="empty">Loading products...</div>
-                ) : filteredProducts.length ? (
-                  filteredProducts.map((product) => {
-                    const galleryCount = normalizeGallery(product.gallery_image_urls || product.image_urls).length;
-                    const hasVideo = Boolean(product.youtube_url || product.video_url);
+              <div className="record-author">
+                {product.author_name || 'No author name'}
+              </div>
 
-                    return (
-                      <div key={product.id} className="record-row">
-                        <div className="record-cover">
-                          {product.cover_url ? <img src={product.cover_url} alt={product.title} /> : null}
-                        </div>
+              <div className="record-top">
+                <span className="pill category">{getCategoryLabel(product.category)}</span>
+                <span className={`pill stock-${product.stock_status}`}>
+                  {getStatusLabel(product.stock_status)}
+                </span>
 
-                        <div className="record-main">
-                          <div className="record-top">
-                            <span className="record-title">{product.title}</span>
-                            <span className="pill category">{getCategoryLabel(product.category)}</span>
-                            <span className={`pill stock-${product.stock_status}`}>{getStatusLabel(product.stock_status)}</span>
-                            {galleryCount ? <span className="pill media">{galleryCount} photos</span> : null}
-                            {hasVideo ? <span className="pill media">Video</span> : null}
-                          </div>
-
-                          <div className="record-author">{product.author_name}</div>
-
-                          <div className="record-meta">
-                            <span>{formatPrice(product.price_usd)}</span>
-                            {product.old_price_usd ? <span className="old-price">{formatPrice(product.old_price_usd)}</span> : null}
-                            <span>Stock: {product.stock_quantity}</span>
-                            {product.is_best_seller ? <span>Best Seller</span> : null}
-                            {product.is_discount ? <span>Discount</span> : null}
-                            {!product.is_active ? <span>Hidden</span> : null}
-                          </div>
-                        </div>
-
-                        <div className="record-actions">
-                          <button type="button" onClick={() => startEdit(product)} className="record-action edit">
-                            Edit
-                          </button>
-
-                          <button type="button" onClick={() => handleDelete(product.id)} className="record-action delete">
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
+                {product.is_active ? (
+                  <span className="pill good">Active</span>
                 ) : (
-                  <div className="empty">No products yet.</div>
+                  <span className="pill muted">Hidden</span>
+                )}
+
+                {product.is_best_seller ? <span className="pill warning">Best Seller</span> : null}
+                {product.is_discount ? <span className="pill danger">Discount</span> : null}
+              </div>
+
+              <div className="record-meta">
+                <span>{formatPrice(product.price_usd)}</span>
+                {hasOldPrice ? (
+                  <span className="old-price">{formatPrice(product.old_price_usd)}</span>
+                ) : null}
+                <span>Stock: {product.stock_quantity || 0}</span>
+                <span>Sort: {product.sort_order || 0}</span>
+              </div>
+
+              <div className="record-media-line">
+                {hasCover ? (
+                  <span className="pill good">Cover OK</span>
+                ) : (
+                  <span className="pill danger">No Cover</span>
+                )}
+
+                {galleryCount ? (
+                  <span className="pill media">{galleryCount} Photos</span>
+                ) : (
+                  <span className="pill muted">No Photos</span>
+                )}
+
+                {hasVideo ? (
+                  <span className="pill media">Video</span>
+                ) : (
+                  <span className="pill muted">No Video</span>
                 )}
               </div>
-            </section>
+            </div>
+
+            <div className="record-actions">
+              <button
+                type="button"
+                onClick={() => startEdit(product)}
+                className="record-action edit"
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDelete(product.id)}
+                className="record-action delete"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        );
+      })
+    ) : (
+      <div className="empty">
+        No products found. Try changing search or filters.
+      </div>
+    )}
+  </div>
+</section>
           </main>
         </div>
       </div>
