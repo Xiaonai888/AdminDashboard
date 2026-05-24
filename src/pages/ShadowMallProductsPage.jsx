@@ -460,26 +460,26 @@ const styles = `
   }
 
   .gallery-slot {
-    min-height: 146px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: #fff;
-    overflow: hidden;
-  }
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: #fff;
+  overflow: hidden;
+}
 
-  .gallery-image-box {
-    height: 112px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #94A3B8;
-    font-size: 11px;
-    font-weight: 900;
-    position: relative;
-    overflow: hidden;
-  }
+.gallery-image-box {
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+  font-size: 11px;
+  font-weight: 900;
+  position: relative;
+  overflow: hidden;
+}
 
   .gallery-image-box img {
     width: 100%;
