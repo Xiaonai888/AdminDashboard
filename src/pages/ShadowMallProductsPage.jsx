@@ -151,7 +151,7 @@ const styles = `
     margin: 0 auto;
   }
 
-  .shadow-mall-header {
+  .shadow-page-head {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -159,7 +159,7 @@ const styles = `
     margin-bottom: 22px;
   }
 
-  .shadow-mall-kicker {
+  .shadow-kicker {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -172,27 +172,22 @@ const styles = `
     margin-bottom: 10px;
   }
 
-  .shadow-mall-title {
+  .shadow-title {
     font-size: 30px;
     line-height: 1.1;
     font-weight: 900;
     letter-spacing: -0.04em;
   }
 
-  .shadow-mall-subtitle {
+  .shadow-subtitle {
     margin-top: 8px;
     color: var(--muted);
     font-size: 13px;
     font-weight: 500;
+    line-height: 1.5;
   }
 
-  .shadow-mall-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .shadow-mall-refresh {
+  .shadow-refresh {
     border: 1px solid var(--border);
     background: #fff;
     color: var(--text);
@@ -204,16 +199,16 @@ const styles = `
     cursor: pointer;
   }
 
-  .shadow-mall-refresh:hover { background: var(--bg); }
+  .shadow-refresh:hover { background: var(--bg); }
 
-  .shadow-mall-grid {
+  .shadow-editor-grid {
     display: grid;
-    grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 430px;
     gap: 20px;
     align-items: start;
   }
 
-  .shadow-mall-card {
+  .shadow-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 24px;
@@ -221,7 +216,7 @@ const styles = `
     overflow: hidden;
   }
 
-  .shadow-mall-card-head {
+  .shadow-card-head {
     padding: 20px 22px;
     border-bottom: 1px solid var(--border);
     display: flex;
@@ -230,22 +225,36 @@ const styles = `
     gap: 14px;
   }
 
-  .shadow-mall-card-title {
+  .shadow-card-title {
     font-size: 17px;
     font-weight: 900;
     letter-spacing: -0.02em;
   }
 
-  .shadow-mall-card-note {
+  .shadow-card-note {
     margin-top: 4px;
     color: var(--muted);
     font-size: 12px;
     font-weight: 500;
+    line-height: 1.5;
   }
 
-  .shadow-mall-form { padding: 20px 22px 22px; }
+  .shadow-form-body {
+    padding: 20px 22px 22px;
+  }
 
-  .shadow-mall-message {
+  .shadow-section-title {
+    margin: 4px 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #EEF2F7;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .shadow-message {
     margin-bottom: 16px;
     border-radius: 16px;
     border: 1px solid var(--border);
@@ -257,18 +266,22 @@ const styles = `
     line-height: 1.5;
   }
 
-  .shadow-mall-field-grid {
+  .field-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 
-  .shadow-mall-field {
+  .field-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .field {
     display: block;
     margin-bottom: 13px;
   }
 
-  .shadow-mall-label {
+  .label {
     display: block;
     margin-bottom: 7px;
     color: #334155;
@@ -276,17 +289,17 @@ const styles = `
     font-weight: 900;
   }
 
-  .shadow-mall-help {
+  .help {
     color: var(--muted);
     font-size: 11px;
     font-weight: 600;
     line-height: 1.5;
-    margin: -5px 0 8px;
+    margin: -5px 0 10px;
   }
 
-  .shadow-mall-input,
-  .shadow-mall-select,
-  .shadow-mall-textarea {
+  .input,
+  .select,
+  .textarea {
     width: 100%;
     border: 1px solid var(--border);
     background: #fff;
@@ -299,143 +312,33 @@ const styles = `
     transition: border-color .15s, box-shadow .15s;
   }
 
-  .shadow-mall-input,
-  .shadow-mall-select {
+  .input,
+  .select {
     height: 44px;
     padding: 0 12px;
   }
 
-  .shadow-mall-textarea {
-    min-height: 94px;
+  .textarea {
+    min-height: 122px;
     padding: 12px;
     resize: vertical;
   }
 
-  .shadow-mall-input:focus,
-  .shadow-mall-select:focus,
-  .shadow-mall-textarea:focus {
+  .input:focus,
+  .select:focus,
+  .textarea:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(79, 70, 229, .1);
   }
 
-  .shadow-mall-preview {
-    width: 100%;
-    min-height: 150px;
-    border: 1px dashed #CBD5E1;
-    border-radius: 18px;
-    background: var(--bg);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #94A3B8;
-    font-size: 12px;
-    font-weight: 900;
-    margin-bottom: 14px;
-  }
-
-  .shadow-mall-preview img {
-    width: 100%;
-    height: 210px;
-    object-fit: cover;
-    display: block;
-  }
-
-  .shadow-mall-gallery-preview {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    padding: 4px 0 14px;
-    margin-bottom: 10px;
-  }
-
-  .shadow-mall-gallery-preview::-webkit-scrollbar { height: 5px; }
-  .shadow-mall-gallery-preview::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
-
-  .shadow-mall-gallery-card {
-    width: 82px;
-    height: 118px;
-    border-radius: 15px;
-    overflow: hidden;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    flex: 0 0 auto;
-    position: relative;
-  }
-
-  .shadow-mall-gallery-card img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-    .shadow-mall-upload-button,
-  .shadow-mall-clear-button {
-    width: 100%;
-    height: 44px;
-    border-radius: 14px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 900;
-    cursor: pointer;
-  }
-
-  .shadow-mall-upload-button {
-    border: 1.5px dashed #CBD5E1;
-    background: #F8FAFC;
-    color: #334155;
-  }
-
-  .shadow-mall-upload-button:hover {
-    border-color: var(--primary);
-    background: var(--primary-light);
-    color: var(--primary);
-  }
-
-  .shadow-mall-clear-button {
-    margin-top: 10px;
-    border: 1px solid #FCA5A5;
-    background: #fff;
-    color: #B91C1C;
-  }
-
-  .shadow-mall-gallery-number {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    background: rgba(15, 23, 42, .74);
-    color: #fff;
-    border-radius: 999px;
-    padding: 3px 6px;
-    font-size: 10px;
-    font-weight: 900;
-  }
-
-  .shadow-mall-video-preview {
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: #0F172A;
-    margin: 0 0 14px;
-    aspect-ratio: 16 / 9;
-  }
-
-  .shadow-mall-video-preview iframe {
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-  }
-
-  .shadow-mall-checks {
+  .checks {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin: 4px 0 16px;
   }
 
-  .shadow-mall-check {
+  .check {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -448,9 +351,9 @@ const styles = `
     cursor: pointer;
   }
 
-  .shadow-mall-check input { accent-color: var(--primary); }
+  .check input { accent-color: var(--primary); }
 
-  .shadow-mall-save {
+  .save-button {
     width: 100%;
     height: 48px;
     border: 0;
@@ -463,9 +366,9 @@ const styles = `
     box-shadow: 0 10px 24px rgba(79, 70, 229, .18);
   }
 
-  .shadow-mall-save:disabled { opacity: .55; cursor: not-allowed; }
+  .save-button:disabled { opacity: .55; cursor: not-allowed; }
 
-  .shadow-mall-new {
+  .soft-button {
     border: 0;
     background: var(--bg);
     color: #475569;
@@ -476,13 +379,181 @@ const styles = `
     cursor: pointer;
   }
 
-  .shadow-mall-list-toolbar {
+  .danger-button {
+    width: 100%;
+    height: 44px;
+    border: 1px solid #FCA5A5;
+    background: #fff;
+    color: #B91C1C;
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+
+  .media-card {
+    padding: 20px 22px 22px;
+  }
+
+  .main-cover-frame {
+    width: min(250px, 100%);
+    aspect-ratio: 2 / 3;
+    margin: 0 auto 14px;
+    border: 1.5px dashed #CBD5E1;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #F8FAFC, #EEF2F7);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+    position: relative;
+  }
+
+  .main-cover-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cover-chip {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(15, 23, 42, .76);
+    color: #fff;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .upload-button {
+    width: 100%;
+    height: 44px;
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    border: 1.5px dashed #CBD5E1;
+    background: #F8FAFC;
+    color: #334155;
+  }
+
+  .upload-button:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  .gallery-slots {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .gallery-slot {
+    min-height: 146px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .gallery-image-box {
+    height: 112px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 900;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gallery-image-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .gallery-number {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    background: rgba(15, 23, 42, .76);
+    color: #fff;
+    border-radius: 999px;
+    padding: 4px 7px;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .gallery-actions {
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+  }
+
+  .mini-upload,
+  .mini-clear {
+    border: 0;
+    border-radius: 10px;
+    height: 28px;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .mini-upload {
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  .mini-clear {
+    background: var(--danger-light);
+    color: var(--danger);
+  }
+
+  .video-frame {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #0F172A;
+    margin-top: 10px;
+    aspect-ratio: 16 / 9;
+  }
+
+  .video-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+
+  .records-card {
+    margin-top: 20px;
+  }
+
+  .record-toolbar {
     display: flex;
     align-items: center;
     gap: 10px;
   }
 
-  .shadow-mall-filter {
+  .filter-select {
     height: 40px;
     border: 1px solid var(--border);
     border-radius: 14px;
@@ -494,9 +565,9 @@ const styles = `
     outline: none;
   }
 
-  .shadow-mall-list { min-height: 360px; }
+  .records-list { min-height: 240px; }
 
-  .shadow-mall-empty {
+  .empty {
     padding: 54px 20px;
     text-align: center;
     color: #94A3B8;
@@ -504,7 +575,7 @@ const styles = `
     font-weight: 900;
   }
 
-  .shadow-mall-row {
+  .record-row {
     display: grid;
     grid-template-columns: 76px minmax(0, 1fr) auto;
     gap: 16px;
@@ -513,9 +584,9 @@ const styles = `
     align-items: center;
   }
 
-  .shadow-mall-row:last-child { border-bottom: none; }
+  .record-row:last-child { border-bottom: none; }
 
-  .shadow-mall-cover {
+  .record-cover {
     width: 76px;
     height: 102px;
     border-radius: 15px;
@@ -523,16 +594,16 @@ const styles = `
     background: var(--bg);
   }
 
-  .shadow-mall-cover img {
+  .record-cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
   }
 
-  .shadow-mall-book-main { min-width: 0; }
+  .record-main { min-width: 0; }
 
-  .shadow-mall-book-top {
+  .record-top {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -540,20 +611,20 @@ const styles = `
     margin-bottom: 6px;
   }
 
-  .shadow-mall-book-title {
+  .record-title {
     font-size: 14px;
     font-weight: 900;
     color: var(--text);
   }
 
-  .shadow-mall-book-author {
+  .record-author {
     color: var(--muted);
     font-size: 12px;
     font-weight: 600;
     margin-bottom: 8px;
   }
 
-  .shadow-mall-meta {
+  .record-meta {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -562,31 +633,31 @@ const styles = `
     font-weight: 900;
   }
 
-  .shadow-mall-old-price {
+  .old-price {
     color: #94A3B8;
     text-decoration: line-through;
   }
 
-  .shadow-mall-pill {
+  .pill {
     border-radius: 999px;
     padding: 4px 9px;
     font-size: 10px;
     font-weight: 900;
   }
 
-  .shadow-mall-pill.category { background: var(--bg); color: #475569; }
-  .shadow-mall-pill.stock-in_stock { background: var(--success-light); color: #047857; }
-  .shadow-mall-pill.stock-sold_out { background: #F1F5F9; color: #64748B; }
-  .shadow-mall-pill.stock-pre_order { background: var(--warning-light); color: #B45309; }
-  .shadow-mall-pill.media { background: #F3E8FF; color: #7E22CE; }
+  .pill.category { background: var(--bg); color: #475569; }
+  .pill.stock-in_stock { background: var(--success-light); color: #047857; }
+  .pill.stock-sold_out { background: #F1F5F9; color: #64748B; }
+  .pill.stock-pre_order { background: var(--warning-light); color: #B45309; }
+  .pill.media { background: #F3E8FF; color: #7E22CE; }
 
-  .shadow-mall-actions {
+  .record-actions {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  .shadow-mall-action {
+  .record-action {
     border: 0;
     border-radius: 12px;
     padding: 10px 14px;
@@ -595,21 +666,24 @@ const styles = `
     cursor: pointer;
   }
 
-  .shadow-mall-action.edit { background: var(--primary-light); color: var(--primary); }
-  .shadow-mall-action.delete { background: var(--danger-light); color: var(--danger); }
+  .record-action.edit { background: var(--primary-light); color: var(--primary); }
+  .record-action.delete { background: var(--danger-light); color: var(--danger); }
 
-  @media (max-width: 1200px) {
-    .shadow-mall-grid { grid-template-columns: 1fr; }
+  @media (max-width: 1250px) {
+    .shadow-editor-grid { grid-template-columns: 1fr; }
+    .gallery-slots { grid-template-columns: repeat(5, 128px); overflow-x: auto; padding-bottom: 6px; }
   }
 
   @media (max-width: 740px) {
     .content-body { padding: 22px 16px 40px; }
     .header { padding: 0 18px; }
-    .shadow-mall-header { align-items: flex-start; flex-direction: column; }
-    .shadow-mall-field-grid, .shadow-mall-checks { grid-template-columns: 1fr; }
-    .shadow-mall-row { grid-template-columns: 64px 1fr; }
-    .shadow-mall-cover { width: 64px; height: 88px; }
-    .shadow-mall-actions { grid-column: 1 / -1; justify-content: flex-end; }
+    .shadow-page-head { align-items: flex-start; flex-direction: column; }
+    .field-grid,
+    .field-grid.three,
+    .checks { grid-template-columns: 1fr; }
+    .record-row { grid-template-columns: 64px 1fr; }
+    .record-cover { width: 64px; height: 88px; }
+    .record-actions { grid-column: 1 / -1; justify-content: flex-end; }
   }
 `;
 
@@ -700,7 +774,6 @@ function Sidebar() {
 const emptyForm = {
   title: '',
   author_name: '',
-  cover_url: '',
   youtube_url: '',
   description: '',
   category: 'new_books',
@@ -737,18 +810,18 @@ function getCategoryLabel(category) {
 }
 
 function normalizeGallery(value) {
-  if (Array.isArray(value)) return [...value, '', '', '', '', ''].slice(0, 5);
-  if (!value) return ['', '', '', '', ''];
+  if (Array.isArray(value)) return value.filter(Boolean).slice(0, 5);
+  if (!value) return [];
 
   try {
     const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return [...parsed, '', '', '', '', ''].slice(0, 5);
+    if (Array.isArray(parsed)) return parsed.filter(Boolean).slice(0, 5);
   } catch {}
 
   return String(value)
     .split(',')
     .map((item) => item.trim())
-    .concat(['', '', '', '', ''])
+    .filter(Boolean)
     .slice(0, 5);
 }
 
@@ -778,9 +851,12 @@ export default function ShadowMallProductsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [filter, setFilter] = useState('all');
-  const imageInputRef = useRef(null);
-  const [selectedImages, setSelectedImages] = useState([]);
-  const [imagePreviews, setImagePreviews] = useState([]);
+  const mainCoverInputRef = useRef(null);
+  const galleryInputRefs = useRef([]);
+  const [mainCoverFile, setMainCoverFile] = useState(null);
+  const [mainCoverPreview, setMainCoverPreview] = useState('');
+  const [galleryFiles, setGalleryFiles] = useState([null, null, null, null, null]);
+  const [galleryPreviews, setGalleryPreviews] = useState(['', '', '', '', '']);
 
   const filteredProducts = useMemo(() => {
     if (filter === 'all') return products;
@@ -829,60 +905,111 @@ export default function ShadowMallProductsPage() {
     }));
   }
 
-  function handleImageUpload(event) {
-  const files = Array.from(event.target.files || []).slice(0, 5);
-  const previews = files.map((file) => URL.createObjectURL(file));
+  function handleMainCoverUpload(event) {
+    const file = event.target.files?.[0];
 
-  setSelectedImages(files);
-  setImagePreviews(previews);
-}
+    if (!file) return;
 
-function clearSelectedImages() {
-  setSelectedImages([]);
-  setImagePreviews([]);
-
-  if (imageInputRef.current) {
-    imageInputRef.current.value = '';
+    setMainCoverFile(file);
+    setMainCoverPreview(URL.createObjectURL(file));
   }
-}
 
-function resetForm() {
-  setForm(emptyForm);
-  setEditingId(null);
-  setMessage('');
-  setSelectedImages([]);
-  setImagePreviews([]);
+  function clearMainCover() {
+    setMainCoverFile(null);
+    setMainCoverPreview('');
 
-  if (imageInputRef.current) {
-    imageInputRef.current.value = '';
+    if (mainCoverInputRef.current) {
+      mainCoverInputRef.current.value = '';
+    }
   }
-}
 
-function startEdit(product) {
-  setEditingId(product.id);
-  setForm({
-    title: product.title || '',
-    author_name: product.author_name || '',
-    cover_url: product.cover_url || '',
-    youtube_url: product.youtube_url || product.video_url || '',
-    description: product.description || '',
-    category: product.category || 'new_books',
-    stock_status: product.stock_status || 'in_stock',
-    price_usd: product.price_usd ?? '',
-    old_price_usd: product.old_price_usd ?? '',
-    stock_quantity: product.stock_quantity ?? '',
-    condition_label: product.condition_label || '',
-    is_best_seller: Boolean(product.is_best_seller),
-    is_discount: Boolean(product.is_discount),
-    is_active: Boolean(product.is_active),
-    sort_order: product.sort_order ?? '',
-  });
+  function handleGalleryUpload(index, event) {
+    const file = event.target.files?.[0];
 
-  setSelectedImages([]);
-  setImagePreviews([]);
-  setMessage('');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+    if (!file) return;
+
+    setGalleryFiles((current) => {
+      const next = [...current];
+      next[index] = file;
+      return next;
+    });
+
+    setGalleryPreviews((current) => {
+      const next = [...current];
+      next[index] = URL.createObjectURL(file);
+      return next;
+    });
+  }
+
+  function clearGalleryImage(index) {
+    setGalleryFiles((current) => {
+      const next = [...current];
+      next[index] = null;
+      return next;
+    });
+
+    setGalleryPreviews((current) => {
+      const next = [...current];
+      next[index] = '';
+      return next;
+    });
+
+    if (galleryInputRefs.current[index]) {
+      galleryInputRefs.current[index].value = '';
+    }
+  }
+
+  function resetMedia() {
+    setMainCoverFile(null);
+    setMainCoverPreview('');
+    setGalleryFiles([null, null, null, null, null]);
+    setGalleryPreviews(['', '', '', '', '']);
+
+    if (mainCoverInputRef.current) {
+      mainCoverInputRef.current.value = '';
+    }
+
+    galleryInputRefs.current.forEach((input) => {
+      if (input) input.value = '';
+    });
+  }
+
+  function resetForm() {
+    setForm(emptyForm);
+    setEditingId(null);
+    setMessage('');
+    resetMedia();
+  }
+
+  function startEdit(product) {
+    setEditingId(product.id);
+    setForm({
+      title: product.title || '',
+      author_name: product.author_name || '',
+      youtube_url: product.youtube_url || product.video_url || '',
+      description: product.description || '',
+      category: product.category || 'new_books',
+      stock_status: product.stock_status || 'in_stock',
+      price_usd: product.price_usd ?? '',
+      old_price_usd: product.old_price_usd ?? '',
+      stock_quantity: product.stock_quantity ?? '',
+      condition_label: product.condition_label || '',
+      is_best_seller: Boolean(product.is_best_seller),
+      is_discount: Boolean(product.is_discount),
+      is_active: Boolean(product.is_active),
+      sort_order: product.sort_order ?? '',
+    });
+
+    setMainCoverFile(null);
+    setMainCoverPreview(product.cover_url || '');
+
+    const existingGallery = normalizeGallery(product.gallery_image_urls || product.image_urls);
+    setGalleryFiles([null, null, null, null, null]);
+    setGalleryPreviews([...existingGallery, '', '', '', '', ''].slice(0, 5));
+
+    setMessage('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -925,7 +1052,7 @@ function startEdit(product) {
         throw new Error(data.message || 'Failed to save product');
       }
 
-      setMessage(editingId ? 'Product updated successfully.' : 'Product created successfully.');
+      setMessage(editingId ? 'Product updated successfully. Image upload will be connected in the next backend stage.' : 'Product created successfully. Image upload will be connected in the next backend stage.');
       resetForm();
       fetchProducts();
     } catch (error) {
@@ -973,157 +1100,67 @@ function startEdit(product) {
           </header>
 
           <main className="content-body">
-            <div className="shadow-mall-header">
+            <div className="shadow-page-head">
               <div>
-                <div className="shadow-mall-kicker">📚 Shadow Mall Products</div>
-                <h1 className="shadow-mall-title">Shadow Mall</h1>
-                <p className="shadow-mall-subtitle">
-                  Manage real printed books, second hand books, pre-orders, stock, prices, images, and YouTube previews.
+                <div className="shadow-kicker">📚 Shadow Mall Products</div>
+                <h1 className="shadow-title">Shadow Mall</h1>
+                <p className="shadow-subtitle">
+                  Manage real printed books, second hand books, pre-orders, stock, price, media, and YouTube previews.
                 </p>
               </div>
 
-              <div className="shadow-mall-header-actions">
-                <button type="button" className="shadow-mall-refresh" onClick={fetchProducts}>
-                  Refresh
-                </button>
-              </div>
+              <button type="button" className="shadow-refresh" onClick={fetchProducts}>
+                Refresh
+              </button>
             </div>
 
-            <div className="shadow-mall-grid">
-              <form onSubmit={handleSubmit} className="shadow-mall-card">
-                <div className="shadow-mall-card-head">
+            <div className="shadow-editor-grid">
+              <form onSubmit={handleSubmit} className="shadow-card">
+                <div className="shadow-card-head">
                   <div>
-                    <h2 className="shadow-mall-card-title">{editingId ? 'Edit Book' : 'Add Book'}</h2>
-                    <p className="shadow-mall-card-note">Add one Shadow Mall book record.</p>
+                    <h2 className="shadow-card-title">{editingId ? 'Edit Product Information' : 'Add Product Information'}</h2>
+                    <p className="shadow-card-note">Fill the selling details for one Shadow Mall book.</p>
                   </div>
 
                   {editingId ? (
-                    <button type="button" className="shadow-mall-new" onClick={resetForm}>
+                    <button type="button" className="soft-button" onClick={resetForm}>
                       New
                     </button>
                   ) : null}
                 </div>
 
-                <div className="shadow-mall-form">
-                  {form.cover_url ? (
-                    <div className="shadow-mall-preview">
-                      <img src={form.cover_url} alt="Book preview" />
-                    </div>
-                  ) : (
-                    <div className="shadow-mall-preview">Cover preview</div>
-                  )}
+                <div className="shadow-form-body">
+                  {message ? <div className="shadow-message">{message}</div> : null}
 
-                  {message ? <div className="shadow-mall-message">{message}</div> : null}
+                  <div className="shadow-section-title">Book Information</div>
 
-                  <label className="shadow-mall-field">
-                    <span className="shadow-mall-label">Book title</span>
+                  <label className="field">
+                    <span className="label">Book title</span>
                     <input
                       value={form.title}
                       onChange={(event) => updateField('title', event.target.value)}
-                      className="shadow-mall-input"
+                      className="input"
                       placeholder="Book title"
                     />
                   </label>
 
-                  <label className="shadow-mall-field">
-                    <span className="shadow-mall-label">Author name</span>
+                  <label className="field">
+                    <span className="label">Author name</span>
                     <input
                       value={form.author_name}
                       onChange={(event) => updateField('author_name', event.target.value)}
-                      className="shadow-mall-input"
+                      className="input"
                       placeholder="Author name"
                     />
                   </label>
 
-                  <label className="shadow-mall-field">
-                    <span className="shadow-mall-label">Main cover image URL</span>
-                    <input
-                      value={form.cover_url}
-                      onChange={(event) => updateField('cover_url', event.target.value)}
-                      className="shadow-mall-input"
-                      placeholder="https://..."
-                    />
-                  </label>
-
-                  <div className="shadow-mall-field">
-  <span className="shadow-mall-label">Book Images</span>
-  <p className="shadow-mall-help">
-    Upload up to 5 vertical images. Image 1 will be used as the main cover later.
-  </p>
-
-  {imagePreviews.length ? (
-    <div className="shadow-mall-gallery-preview">
-      {imagePreviews.map((imageUrl, index) => (
-        <div className="shadow-mall-gallery-card" key={`${imageUrl}-${index}`}>
-          <span className="shadow-mall-gallery-number">
-            {index === 0 ? 'Cover' : index + 1}
-          </span>
-          <img src={imageUrl} alt={`Book image ${index + 1}`} />
-        </div>
-      ))}
-    </div>
-  ) : null}
-
-  <button
-    type="button"
-    className="shadow-mall-upload-button"
-    onClick={() => imageInputRef.current?.click()}
-  >
-    Choose Images
-  </button>
-
-  <input
-    ref={imageInputRef}
-    type="file"
-    accept="image/*"
-    multiple
-    style={{ display: 'none' }}
-    onChange={handleImageUpload}
-  />
-
-  {selectedImages.length ? (
-    <button
-      type="button"
-      className="shadow-mall-clear-button"
-      onClick={clearSelectedImages}
-    >
-      Clear Images
-    </button>
-  ) : null}
-</div>
-
-
-                  <label className="shadow-mall-field">
-                    <span className="shadow-mall-label">YouTube video link or embed URL</span>
-                    <p className="shadow-mall-help">
-                      Paste a normal YouTube link, Shorts link, youtu.be link, or embed link. Reader can watch inside your website.
-                    </p>
-                    <input
-                      value={form.youtube_url}
-                      onChange={(event) => updateField('youtube_url', event.target.value)}
-                      className="shadow-mall-input"
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                  </label>
-
-                  {youtubeEmbedUrl ? (
-                    <div className="shadow-mall-video-preview">
-                      <iframe
-                        src={youtubeEmbedUrl}
-                        title="YouTube preview"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : null}
-
-                  <div className="shadow-mall-field-grid">
-                    <label className="shadow-mall-field">
-                      <span className="shadow-mall-label">Category</span>
+                  <div className="field-grid">
+                    <label className="field">
+                      <span className="label">Category</span>
                       <select
                         value={form.category}
                         onChange={(event) => updateField('category', event.target.value)}
-                        className="shadow-mall-select"
+                        className="select"
                       >
                         <option value="new_books">New Books</option>
                         <option value="second_hand">Second Hand</option>
@@ -1131,12 +1168,12 @@ function startEdit(product) {
                       </select>
                     </label>
 
-                    <label className="shadow-mall-field">
-                      <span className="shadow-mall-label">Stock status</span>
+                    <label className="field">
+                      <span className="label">Stock status</span>
                       <select
                         value={form.stock_status}
                         onChange={(event) => updateField('stock_status', event.target.value)}
-                        className="shadow-mall-select"
+                        className="select"
                       >
                         <option value="in_stock">In Stock</option>
                         <option value="sold_out">Sold Out</option>
@@ -1145,78 +1182,82 @@ function startEdit(product) {
                     </label>
                   </div>
 
-                  <div className="shadow-mall-field-grid">
-                    <label className="shadow-mall-field">
-                      <span className="shadow-mall-label">Price USD</span>
+                  <div className="shadow-section-title">Sales Details</div>
+
+                  <div className="field-grid">
+                    <label className="field">
+                      <span className="label">Price USD</span>
                       <input
                         type="number"
                         step="0.01"
                         value={form.price_usd}
                         onChange={(event) => updateField('price_usd', event.target.value)}
-                        className="shadow-mall-input"
+                        className="input"
                         placeholder="8.75"
                       />
                     </label>
 
-                    <label className="shadow-mall-field">
-                      <span className="shadow-mall-label">Old price</span>
+                    <label className="field">
+                      <span className="label">Old price</span>
                       <input
                         type="number"
                         step="0.01"
                         value={form.old_price_usd}
                         onChange={(event) => updateField('old_price_usd', event.target.value)}
-                        className="shadow-mall-input"
+                        className="input"
                         placeholder="Leave empty if no discount"
                       />
                     </label>
                   </div>
 
-                  <div className="shadow-mall-field-grid">
-                    <label className="shadow-mall-field">
-                      <span className="shadow-mall-label">Stock quantity</span>
+                  <div className="field-grid">
+                    <label className="field">
+                      <span className="label">Stock quantity</span>
                       <input
                         type="number"
                         value={form.stock_quantity}
                         onChange={(event) => updateField('stock_quantity', event.target.value)}
-                        className="shadow-mall-input"
+                        className="input"
                         placeholder="0"
                       />
                     </label>
 
-                    <label className="shadow-mall-field">
-                      <span className="shadow-mall-label">Sort order</span>
+                    <label className="field">
+                      <span className="label">Sort order</span>
                       <input
                         type="number"
                         value={form.sort_order}
                         onChange={(event) => updateField('sort_order', event.target.value)}
-                        className="shadow-mall-input"
+                        className="input"
                         placeholder="0"
                       />
                     </label>
                   </div>
 
-                  <label className="shadow-mall-field">
-                    <span className="shadow-mall-label">Condition label</span>
+                  <label className="field">
+                    <span className="label">Condition label</span>
                     <input
                       value={form.condition_label}
                       onChange={(event) => updateField('condition_label', event.target.value)}
-                      className="shadow-mall-input"
-                      placeholder="Like new, good, fair..."
+                      className="input"
+                      placeholder="New, Like new, Good, Fair..."
                     />
                   </label>
 
-                  <label className="shadow-mall-field">
-                    <span className="shadow-mall-label">Description</span>
+                  <div className="shadow-section-title">Product Details</div>
+
+                  <label className="field">
+                    <span className="label">Description</span>
                     <textarea
                       value={form.description}
                       onChange={(event) => updateField('description', event.target.value)}
-                      className="shadow-mall-textarea"
-                      placeholder="Book details"
+                      className="textarea"
+                      placeholder="Book details, condition, delivery note, or pre-order note..."
                     />
                   </label>
 
-                  <div className="shadow-mall-checks">
-                    <label className="shadow-mall-check">
+                  <div className="checks">
+                    <label className="check">
                       <input
                         type="checkbox"
                         checked={form.is_best_seller}
@@ -1225,7 +1266,7 @@ function startEdit(product) {
                       Best seller
                     </label>
 
-                    <label className="shadow-mall-check">
+                    <label className="check">
                       <input
                         type="checkbox"
                         checked={form.is_discount}
@@ -1234,7 +1275,7 @@ function startEdit(product) {
                       Discount
                     </label>
 
-                    <label className="shadow-mall-check">
+                    <label className="check">
                       <input
                         type="checkbox"
                         checked={form.is_active}
@@ -1244,84 +1285,198 @@ function startEdit(product) {
                     </label>
                   </div>
 
-                  <button type="submit" disabled={saving} className="shadow-mall-save">
-                    {saving ? 'Saving...' : editingId ? 'Update Book' : 'Create Book'}
+                  <button type="submit" disabled={saving} className="save-button">
+                    {saving ? 'Saving...' : editingId ? 'Update Product' : 'Create Product'}
                   </button>
                 </div>
               </form>
 
-              <section className="shadow-mall-card">
-                <div className="shadow-mall-card-head">
+              <aside className="shadow-card">
+                <div className="shadow-card-head">
                   <div>
-                    <h2 className="shadow-mall-card-title">Book Records</h2>
-                    <p className="shadow-mall-card-note">{products.length} total records</p>
-                  </div>
-
-                  <div className="shadow-mall-list-toolbar">
-                    <select value={filter} onChange={(event) => setFilter(event.target.value)} className="shadow-mall-filter">
-                      <option value="all">All</option>
-                      <option value="new_books">New Books</option>
-                      <option value="second_hand">Second Hand</option>
-                      <option value="pre_order">Pre-order</option>
-                      <option value="best_seller">Best Seller</option>
-                      <option value="discount">Discount</option>
-                      <option value="sold_out">Sold Out</option>
-                    </select>
+                    <h2 className="shadow-card-title">Media Manager</h2>
+                    <p className="shadow-card-note">Upload vertical cover, gallery images, and YouTube preview.</p>
                   </div>
                 </div>
 
-                <div className="shadow-mall-list">
-                  {loading ? (
-                    <div className="shadow-mall-empty">Loading products...</div>
-                  ) : filteredProducts.length ? (
-                    filteredProducts.map((product) => {
-                      const galleryCount = normalizeGallery(product.gallery_image_urls).filter(Boolean).length;
-                      const hasVideo = Boolean(product.youtube_url || product.video_url);
+                <div className="media-card">
+                  <div className="shadow-section-title">Main Cover</div>
+                  <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP. This image shows on product cards.</p>
 
-                      return (
-                        <div key={product.id} className="shadow-mall-row">
-                          <div className="shadow-mall-cover">
-                            {product.cover_url ? <img src={product.cover_url} alt={product.title} /> : null}
+                  <div className="main-cover-frame">
+                    {(mainCoverPreview || '') ? (
+                      <>
+                        <span className="cover-chip">Main Cover</span>
+                        <img src={mainCoverPreview} alt="Main cover preview" />
+                      </>
+                    ) : (
+                      <span>Main Cover Preview<br />2:3 vertical</span>
+                    )}
+                  </div>
+
+                  <button type="button" className="upload-button" onClick={() => mainCoverInputRef.current?.click()}>
+                    Choose or replace main cover
+                  </button>
+
+                  <input
+                    ref={mainCoverInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleMainCoverUpload}
+                  />
+
+                  {(mainCoverPreview || mainCoverFile) ? (
+                    <button type="button" className="danger-button" onClick={clearMainCover}>
+                      Clear Main Cover
+                    </button>
+                  ) : null}
+
+                  <div className="shadow-section-title" style={{ marginTop: 22 }}>Book Images</div>
+                  <p className="help">Maximum 5 vertical gallery images. These show on the product detail page after readers open the book.</p>
+
+                  <div className="gallery-slots">
+                    {[0, 1, 2, 3, 4].map((index) => (
+                      <div className="gallery-slot" key={index}>
+                        <div className="gallery-image-box">
+                          {galleryPreviews[index] ? (
+                            <>
+                              <span className="gallery-number">{index + 1}</span>
+                              <img src={galleryPreviews[index]} alt={`Gallery ${index + 1}`} />
+                            </>
+                          ) : (
+                            <span>Image {index + 1}</span>
+                          )}
+                        </div>
+
+                        <div className="gallery-actions">
+                          <button type="button" className="mini-upload" onClick={() => galleryInputRefs.current[index]?.click()}>
+                            Choose
+                          </button>
+
+                          {galleryPreviews[index] ? (
+                            <button type="button" className="mini-clear" onClick={() => clearGalleryImage(index)}>
+                              Clear
+                            </button>
+                          ) : null}
+
+                          <input
+                            ref={(node) => {
+                              galleryInputRefs.current[index] = node;
+                            }}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(event) => handleGalleryUpload(index, event)}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="shadow-section-title" style={{ marginTop: 22 }}>YouTube Preview</div>
+
+                  <label className="field">
+                    <span className="label">YouTube video link or embed URL</span>
+                    <p className="help">Paste a normal YouTube link, Shorts link, youtu.be link, or embed link. Readers can watch inside your website.</p>
+                    <input
+                      value={form.youtube_url}
+                      onChange={(event) => updateField('youtube_url', event.target.value)}
+                      className="input"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                  </label>
+
+                  {youtubeEmbedUrl ? (
+                    <div className="video-frame">
+                      <iframe
+                        src={youtubeEmbedUrl}
+                        title="YouTube preview"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </aside>
+            </div>
+
+            <section className="shadow-card records-card">
+              <div className="shadow-card-head">
+                <div>
+                  <h2 className="shadow-card-title">Book Records</h2>
+                  <p className="shadow-card-note">Recent Shadow Mall products. Records will show 20 per page after backend pagination stage.</p>
+                </div>
+
+                <div className="record-toolbar">
+                  <select value={filter} onChange={(event) => setFilter(event.target.value)} className="filter-select">
+                    <option value="all">All</option>
+                    <option value="new_books">New Books</option>
+                    <option value="second_hand">Second Hand</option>
+                    <option value="pre_order">Pre-order</option>
+                    <option value="best_seller">Best Seller</option>
+                    <option value="discount">Discount</option>
+                    <option value="sold_out">Sold Out</option>
+                  </select>
+
+                  <button type="button" className="shadow-refresh" onClick={fetchProducts}>
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              <div className="records-list">
+                {loading ? (
+                  <div className="empty">Loading products...</div>
+                ) : filteredProducts.length ? (
+                  filteredProducts.map((product) => {
+                    const galleryCount = normalizeGallery(product.gallery_image_urls || product.image_urls).length;
+                    const hasVideo = Boolean(product.youtube_url || product.video_url);
+
+                    return (
+                      <div key={product.id} className="record-row">
+                        <div className="record-cover">
+                          {product.cover_url ? <img src={product.cover_url} alt={product.title} /> : null}
+                        </div>
+
+                        <div className="record-main">
+                          <div className="record-top">
+                            <span className="record-title">{product.title}</span>
+                            <span className="pill category">{getCategoryLabel(product.category)}</span>
+                            <span className={`pill stock-${product.stock_status}`}>{getStatusLabel(product.stock_status)}</span>
+                            {galleryCount ? <span className="pill media">{galleryCount} photos</span> : null}
+                            {hasVideo ? <span className="pill media">Video</span> : null}
                           </div>
 
-                          <div className="shadow-mall-book-main">
-                            <div className="shadow-mall-book-top">
-                              <span className="shadow-mall-book-title">{product.title}</span>
-                              <span className="shadow-mall-pill category">{getCategoryLabel(product.category)}</span>
-                              <span className={`shadow-mall-pill stock-${product.stock_status}`}>{getStatusLabel(product.stock_status)}</span>
-                              {galleryCount ? <span className="shadow-mall-pill media">{galleryCount} photos</span> : null}
-                              {hasVideo ? <span className="shadow-mall-pill media">Video</span> : null}
-                            </div>
+                          <div className="record-author">{product.author_name}</div>
 
-                            <div className="shadow-mall-book-author">{product.author_name}</div>
-
-                            <div className="shadow-mall-meta">
-                              <span>{formatPrice(product.price_usd)}</span>
-                              {product.old_price_usd ? <span className="shadow-mall-old-price">{formatPrice(product.old_price_usd)}</span> : null}
-                              <span>Stock: {product.stock_quantity}</span>
-                              {product.is_best_seller ? <span>Best Seller</span> : null}
-                              {product.is_discount ? <span>Discount</span> : null}
-                            </div>
-                          </div>
-
-                          <div className="shadow-mall-actions">
-                            <button type="button" onClick={() => startEdit(product)} className="shadow-mall-action edit">
-                              Edit
-                            </button>
-
-                            <button type="button" onClick={() => handleDelete(product.id)} className="shadow-mall-action delete">
-                              Delete
-                            </button>
+                          <div className="record-meta">
+                            <span>{formatPrice(product.price_usd)}</span>
+                            {product.old_price_usd ? <span className="old-price">{formatPrice(product.old_price_usd)}</span> : null}
+                            <span>Stock: {product.stock_quantity}</span>
+                            {product.is_best_seller ? <span>Best Seller</span> : null}
+                            {product.is_discount ? <span>Discount</span> : null}
+                            {!product.is_active ? <span>Hidden</span> : null}
                           </div>
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div className="shadow-mall-empty">No products yet.</div>
-                  )}
-                </div>
-              </section>
-            </div>
+
+                        <div className="record-actions">
+                          <button type="button" onClick={() => startEdit(product)} className="record-action edit">
+                            Edit
+                          </button>
+
+                          <button type="button" onClick={() => handleDelete(product.id)} className="record-action delete">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="empty">No products yet.</div>
+                )}
+              </div>
+            </section>
           </main>
         </div>
       </div>
