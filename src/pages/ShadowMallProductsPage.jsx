@@ -837,6 +837,15 @@ export default function ShadowMallProductsPage() {
   setImagePreviews(previews);
 }
 
+function clearSelectedImages() {
+  setSelectedImages([]);
+  setImagePreviews([]);
+
+  if (imageInputRef.current) {
+    imageInputRef.current.value = '';
+  }
+}
+
 function resetForm() {
   setForm(emptyForm);
   setEditingId(null);
@@ -849,41 +858,31 @@ function resetForm() {
   }
 }
 
-  if (imageInputRef.current) {
-    imageInputRef.current.value = '';
-  }
+function startEdit(product) {
+  setEditingId(product.id);
+  setForm({
+    title: product.title || '',
+    author_name: product.author_name || '',
+    cover_url: product.cover_url || '',
+    youtube_url: product.youtube_url || product.video_url || '',
+    description: product.description || '',
+    category: product.category || 'new_books',
+    stock_status: product.stock_status || 'in_stock',
+    price_usd: product.price_usd ?? '',
+    old_price_usd: product.old_price_usd ?? '',
+    stock_quantity: product.stock_quantity ?? '',
+    condition_label: product.condition_label || '',
+    is_best_seller: Boolean(product.is_best_seller),
+    is_discount: Boolean(product.is_discount),
+    is_active: Boolean(product.is_active),
+    sort_order: product.sort_order ?? '',
+  });
+
+  setSelectedImages([]);
+  setImagePreviews([]);
+  setMessage('');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
-  function resetForm() {
-    setForm(emptyForm);
-    setEditingId(null);
-    setMessage('');
-  }
-
-  function startEdit(product) {
-    setEditingId(product.id);
-    setForm({
-      setSelectedImages([]);
-      setImagePreviews([]);
-      title: product.title || '',
-      author_name: product.author_name || '',
-      cover_url: product.cover_url || '',
-      youtube_url: product.youtube_url || product.video_url || '',
-      description: product.description || '',
-      category: product.category || 'new_books',
-      stock_status: product.stock_status || 'in_stock',
-      price_usd: product.price_usd ?? '',
-      old_price_usd: product.old_price_usd ?? '',
-      stock_quantity: product.stock_quantity ?? '',
-      condition_label: product.condition_label || '',
-      is_best_seller: Boolean(product.is_best_seller),
-      is_discount: Boolean(product.is_discount),
-      is_active: Boolean(product.is_active),
-      sort_order: product.sort_order ?? '',
-    });
-    setMessage('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
 
   async function handleSubmit(event) {
     event.preventDefault();
