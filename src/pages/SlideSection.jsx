@@ -144,6 +144,7 @@ export default function SlideSection() {
   const [selectedSlot, setSelectedSlot] = useState(1);
   const [slides, setSlides] = useState([]);
   const [title, setTitle] = useState('');
+  const [badge, setBadge] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('/story/1');
   const [isActive, setIsActive] = useState(true);
@@ -229,10 +230,12 @@ export default function SlideSection() {
     fetchRecords(1, sectionKey);
   }, [sectionKey]);
 
-  useEffect(() => {
-    const slide = slotMap[selectedSlot];
-    setTitle(slide?.title || '');
-    setSubtitle(slide?.subtitle || '');
+useEffect(() => {
+  const slide = slotMap[selectedSlot];
+  const parsedTitle = parseBadgeTitle(slide?.title || '');
+  setBadge(parsedTitle.badge);
+  setTitle(parsedTitle.title);
+  setSubtitle(slide?.subtitle || '');
     setLinkUrl(slide?.link_url || '/story/1');
     setIsActive(slide?.is_active ?? true);
     setSelectedFile(null);
@@ -265,7 +268,10 @@ export default function SlideSection() {
       const formData = new FormData();
       if (selectedFile) formData.append('image', selectedFile);
       formData.append('section_key', sectionKey);
-      formData.append('title', title || `${currentSection.label} ${selectedSlot}`);
+      formData.append(
+  'title',
+  buildBadgeTitle(badge, title || `${currentSection.label} ${selectedSlot}`)
+);
       formData.append('subtitle', subtitle);
       formData.append('link_url', linkUrl || '/');
       formData.append('order_index', String(selectedSlot));
@@ -413,6 +419,17 @@ export default function SlideSection() {
                     <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
                   </div>
 
+                  
+                  <label className="field-label">Badge</label>
+<select className="input" value={badge} onChange={(e) => setBadge(e.target.value)}>
+  <option value="">None</option>
+  <option value="NEW">NEW</option>
+  <option value="HOT">HOT</option>
+  <option value="TOP">TOP</option>
+</select>
+
+<label className="field-label">Title</label>
+<input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
                   <label className="field-label">Title</label>
                   <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
 
