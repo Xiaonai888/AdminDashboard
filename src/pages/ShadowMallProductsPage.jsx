@@ -202,11 +202,11 @@ const styles = `
   .shadow-refresh:hover { background: var(--bg); }
 
   .shadow-editor-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 430px;
-    gap: 20px;
-    align-items: start;
-  }
+  display: grid;
+  grid-template-columns: 430px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
 
   .shadow-card {
     background: var(--card);
@@ -669,10 +669,10 @@ const styles = `
   .record-action.edit { background: var(--primary-light); color: var(--primary); }
   .record-action.delete { background: var(--danger-light); color: var(--danger); }
 
-  @media (max-width: 1250px) {
-    .shadow-editor-grid { grid-template-columns: 1fr; }
-    .gallery-slots { grid-template-columns: repeat(5, 128px); overflow-x: auto; padding-bottom: 6px; }
-  }
+ @media (max-width: 980px) {
+  .shadow-editor-grid { grid-template-columns: 1fr; }
+  .gallery-slots { grid-template-columns: repeat(5, 128px); overflow-x: auto; padding-bottom: 6px; }
+}
 
   @media (max-width: 740px) {
     .content-body { padding: 22px 16px 40px; }
