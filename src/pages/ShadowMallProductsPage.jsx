@@ -1016,6 +1016,53 @@ function resetForm() {
                     />
                   </label>
 
+                  <div className="shadow-mall-field">
+  <span className="shadow-mall-label">Book Images</span>
+  <p className="shadow-mall-help">
+    Upload up to 5 vertical images. Image 1 will be used as the main cover later.
+  </p>
+
+  {imagePreviews.length ? (
+    <div className="shadow-mall-gallery-preview">
+      {imagePreviews.map((imageUrl, index) => (
+        <div className="shadow-mall-gallery-card" key={`${imageUrl}-${index}`}>
+          <span className="shadow-mall-gallery-number">
+            {index === 0 ? 'Cover' : index + 1}
+          </span>
+          <img src={imageUrl} alt={`Book image ${index + 1}`} />
+        </div>
+      ))}
+    </div>
+  ) : null}
+
+  <button
+    type="button"
+    className="shadow-mall-upload-button"
+    onClick={() => imageInputRef.current?.click()}
+  >
+    Choose Images
+  </button>
+
+  <input
+    ref={imageInputRef}
+    type="file"
+    accept="image/*"
+    multiple
+    style={{ display: 'none' }}
+    onChange={handleImageUpload}
+  />
+
+  {selectedImages.length ? (
+    <button
+      type="button"
+      className="shadow-mall-clear-button"
+      onClick={clearSelectedImages}
+    >
+      Clear Images
+    </button>
+  ) : null}
+</div>
+
                     {[0, 1, 2, 3, 4].map((index) => (
                       <label className="shadow-mall-field" key={index}>
                         <span className="shadow-mall-label">Image {index + 1}</span>
