@@ -203,11 +203,10 @@ const styles = `
 
   .shadow-editor-grid {
   display: grid;
-  grid-template-columns: 430px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
-
   .shadow-card {
     background: var(--card);
     border: 1px solid var(--border);
