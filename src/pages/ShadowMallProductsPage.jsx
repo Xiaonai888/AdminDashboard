@@ -894,6 +894,7 @@ const emptyForm = {
   genre: '',
   paper_type: '',
   cover_type: '',
+  page_count: '',
   youtube_url: '',
   description: '',
   category: 'new_books',
@@ -1144,6 +1145,7 @@ export default function ShadowMallProductsPage() {
       genre: product.genre || '',
       paper_type: product.paper_type || '',
       cover_type: product.cover_type || '',
+      page_count: product.page_count ?? '',
       youtube_url: product.youtube_url || product.video_url || '',
       description: product.description || '',
       category: product.category || 'new_books',
@@ -1494,15 +1496,28 @@ export default function ShadowMallProductsPage() {
   </label>
 </div>
 
-<label className="field">
-  <span className="label">Cover Type</span>
-  <input
-    value={form.cover_type}
-    onChange={(event) => updateField('cover_type', event.target.value)}
-    className="input"
-    placeholder="Paperback"
-  />
-</label>
+<div className="field-grid">
+  <label className="field">
+    <span className="label">Cover Type</span>
+    <input
+      value={form.cover_type}
+      onChange={(event) => updateField('cover_type', event.target.value)}
+      className="input"
+      placeholder="Paperback"
+    />
+  </label>
+
+  <label className="field">
+    <span className="label">Page Count</span>
+    <input
+      type="number"
+      value={form.page_count}
+      onChange={(event) => updateField('page_count', event.target.value)}
+      className="input"
+      placeholder="436"
+    />
+  </label>
+</div>
 
                 <div className="field-grid">
                   <label className="field">
