@@ -1092,18 +1092,6 @@ function startEdit(product) {
   ) : null}
 </div>
 
-                    {[0, 1, 2, 3, 4].map((index) => (
-                      <label className="shadow-mall-field" key={index}>
-                        <span className="shadow-mall-label">Image {index + 1}</span>
-                        <input
-                          value={form.gallery_image_urls[index] || ''}
-                          onChange={(event) => updateGalleryImage(index, event.target.value)}
-                          className="shadow-mall-input"
-                          placeholder={`Vertical image URL ${index + 1}`}
-                        />
-                      </label>
-                    ))}
-                  </div>
 
                   <label className="shadow-mall-field">
                     <span className="shadow-mall-label">YouTube video link or embed URL</span>
