@@ -202,11 +202,12 @@ const styles = `
   .shadow-refresh:hover { background: var(--bg); }
 
   .shadow-editor-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
   .shadow-card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -396,8 +397,16 @@ const styles = `
     padding: 20px 22px 22px;
   }
 
+  .media-layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+
   .main-cover-frame {
-    width: min(250px, 100%);
+    width: 100%;
+    max-width: 240px;
     aspect-ratio: 2 / 3;
     margin: 0 auto 14px;
     border: 1.5px dashed #CBD5E1;
@@ -454,31 +463,31 @@ const styles = `
 
   .gallery-slots {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(72px, 1fr));
     gap: 10px;
   }
 
   .gallery-slot {
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: #fff;
-  overflow: hidden;
-}
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: #fff;
+    overflow: hidden;
+  }
 
-.gallery-image-box {
-  aspect-ratio: 2 / 3;
-  width: 100%;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #94A3B8;
-  font-size: 11px;
-  font-weight: 900;
-  position: relative;
-  overflow: hidden;
-}
+  .gallery-image-box {
+    aspect-ratio: 2 / 3;
+    width: 100%;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 900;
+    position: relative;
+    overflow: hidden;
+  }
 
   .gallery-image-box img {
     width: 100%;
@@ -668,12 +677,15 @@ const styles = `
   .record-action.edit { background: var(--primary-light); color: var(--primary); }
   .record-action.delete { background: var(--danger-light); color: var(--danger); }
 
- @media (max-width: 980px) {
-  .shadow-editor-grid { grid-template-columns: 1fr; }
-  .gallery-slots { grid-template-columns: repeat(5, 128px); overflow-x: auto; padding-bottom: 6px; }
-}
+  @media (max-width: 1250px) {
+    .shadow-editor-grid { grid-template-columns: 1fr; }
+    .media-layout { grid-template-columns: 260px minmax(0, 1fr); }
+    .gallery-slots { grid-template-columns: repeat(5, minmax(72px, 1fr)); }
+  }
 
   @media (max-width: 740px) {
+    .media-layout { grid-template-columns: 1fr; }
+    .gallery-slots { grid-template-columns: repeat(5, 96px); overflow-x: auto; padding-bottom: 6px; }
     .content-body { padding: 22px 16px 40px; }
     .header { padding: 0 18px; }
     .shadow-page-head { align-items: flex-start; flex-direction: column; }
@@ -1114,116 +1126,6 @@ export default function ShadowMallProductsPage() {
             </div>
 
             <div className="shadow-editor-grid">
-              <aside className="shadow-card">
-                <div className="shadow-card-head">
-                  <div>
-                    <h2 className="shadow-card-title">Media Manager</h2>
-                    <p className="shadow-card-note">Upload vertical cover, gallery images, and YouTube preview.</p>
-                  </div>
-                </div>
-
-                <div className="media-card">
-                  <div className="shadow-section-title">Main Cover</div>
-                  <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP. This image shows on product cards.</p>
-
-                  <div className="main-cover-frame">
-                    {(mainCoverPreview || '') ? (
-                      <>
-                        <span className="cover-chip">Main Cover</span>
-                        <img src={mainCoverPreview} alt="Main cover preview" />
-                      </>
-                    ) : (
-                      <span>Main Cover Preview<br />2:3 vertical</span>
-                    )}
-                  </div>
-
-                  <button type="button" className="upload-button" onClick={() => mainCoverInputRef.current?.click()}>
-                    Choose or replace main cover
-                  </button>
-
-                  <input
-                    ref={mainCoverInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={handleMainCoverUpload}
-                  />
-
-                  {(mainCoverPreview || mainCoverFile) ? (
-                    <button type="button" className="danger-button" onClick={clearMainCover}>
-                      Clear Main Cover
-                    </button>
-                  ) : null}
-
-                  <div className="shadow-section-title" style={{ marginTop: 22 }}>Book Images</div>
-                  <p className="help">Maximum 5 vertical gallery images. These show on the product detail page after readers open the book.</p>
-
-                  <div className="gallery-slots">
-                    {[0, 1, 2, 3, 4].map((index) => (
-                      <div className="gallery-slot" key={index}>
-                        <div className="gallery-image-box">
-                          {galleryPreviews[index] ? (
-                            <>
-                              <span className="gallery-number">{index + 1}</span>
-                              <img src={galleryPreviews[index]} alt={`Gallery ${index + 1}`} />
-                            </>
-                          ) : (
-                            <span>Image {index + 1}</span>
-                          )}
-                        </div>
-
-                        <div className="gallery-actions">
-                          <button type="button" className="mini-upload" onClick={() => galleryInputRefs.current[index]?.click()}>
-                            Choose
-                          </button>
-
-                          {galleryPreviews[index] ? (
-                            <button type="button" className="mini-clear" onClick={() => clearGalleryImage(index)}>
-                              Clear
-                            </button>
-                          ) : null}
-
-                          <input
-                            ref={(node) => {
-                              galleryInputRefs.current[index] = node;
-                            }}
-                            type="file"
-                            accept="image/*"
-                            style={{ display: 'none' }}
-                            onChange={(event) => handleGalleryUpload(index, event)}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="shadow-section-title" style={{ marginTop: 22 }}>YouTube Preview</div>
-
-                  <label className="field">
-                    <span className="label">YouTube video link or embed URL</span>
-                    <p className="help">Paste a normal YouTube link, Shorts link, youtu.be link, or embed link. Readers can watch inside your website.</p>
-                    <input
-                      value={form.youtube_url}
-                      onChange={(event) => updateField('youtube_url', event.target.value)}
-                      className="input"
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                  </label>
-
-                  {youtubeEmbedUrl ? (
-                    <div className="video-frame">
-                      <iframe
-                        src={youtubeEmbedUrl}
-                        title="YouTube preview"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              </aside>
-            </div>
-
               <form onSubmit={handleSubmit} className="shadow-card">
                 <div className="shadow-card-head">
                   <div>
@@ -1399,6 +1301,122 @@ export default function ShadowMallProductsPage() {
                   </button>
                 </div>
               </form>
+
+              <aside className="shadow-card">
+                <div className="shadow-card-head">
+                  <div>
+                    <h2 className="shadow-card-title">Media Manager</h2>
+                    <p className="shadow-card-note">Upload vertical cover, gallery images, and YouTube preview.</p>
+                  </div>
+                </div>
+
+                <div className="media-card">
+                  <div className="media-layout">
+                    <div>
+                      <div className="shadow-section-title">Main Cover</div>
+                      <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP. This image shows on product cards.</p>
+
+                      <div className="main-cover-frame">
+                        {(mainCoverPreview || '') ? (
+                          <>
+                            <span className="cover-chip">Main Cover</span>
+                            <img src={mainCoverPreview} alt="Main cover preview" />
+                          </>
+                        ) : (
+                          <span>Main Cover Preview<br />2:3 vertical</span>
+                        )}
+                      </div>
+
+                      <button type="button" className="upload-button" onClick={() => mainCoverInputRef.current?.click()}>
+                        Choose or replace main cover
+                      </button>
+
+                      <input
+                        ref={mainCoverInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleMainCoverUpload}
+                      />
+
+                      {(mainCoverPreview || mainCoverFile) ? (
+                        <button type="button" className="danger-button" onClick={clearMainCover}>
+                          Clear Main Cover
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div>
+                      <div className="shadow-section-title">Book Images</div>
+                      <p className="help">Maximum 5 vertical gallery images. These show on the product detail page after readers open the book.</p>
+
+                      <div className="gallery-slots">
+                        {[0, 1, 2, 3, 4].map((index) => (
+                          <div className="gallery-slot" key={index}>
+                            <div className="gallery-image-box">
+                              {galleryPreviews[index] ? (
+                                <>
+                                  <span className="gallery-number">{index + 1}</span>
+                                  <img src={galleryPreviews[index]} alt={`Gallery ${index + 1}`} />
+                                </>
+                              ) : (
+                                <span>Image {index + 1}</span>
+                              )}
+                            </div>
+
+                            <div className="gallery-actions">
+                              <button type="button" className="mini-upload" onClick={() => galleryInputRefs.current[index]?.click()}>
+                                Choose
+                              </button>
+
+                              {galleryPreviews[index] ? (
+                                <button type="button" className="mini-clear" onClick={() => clearGalleryImage(index)}>
+                                  Clear
+                                </button>
+                              ) : null}
+
+                              <input
+                                ref={(node) => {
+                                  galleryInputRefs.current[index] = node;
+                                }}
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={(event) => handleGalleryUpload(index, event)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shadow-section-title" style={{ marginTop: 22 }}>YouTube Preview</div>
+
+                  <label className="field">
+                    <span className="label">YouTube video link or embed URL</span>
+                    <p className="help">Paste a normal YouTube link, Shorts link, youtu.be link, or embed link. Readers can watch inside your website.</p>
+                    <input
+                      value={form.youtube_url}
+                      onChange={(event) => updateField('youtube_url', event.target.value)}
+                      className="input"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                    />
+                  </label>
+
+                  {youtubeEmbedUrl ? (
+                    <div className="video-frame">
+                      <iframe
+                        src={youtubeEmbedUrl}
+                        title="YouTube preview"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </aside>
+            </div>
 
             <section className="shadow-card records-card">
               <div className="shadow-card-head">
