@@ -15,7 +15,7 @@ import GenreManagementPage from './pages/GenreManagementPage';
 import CommentModerationPage from './pages/CommentModerationPage';
 import PaymentControlPage from './pages/PaymentControlPage';
 import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
-import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
+
 
 function ComingSoon({ title }) {
   return (
