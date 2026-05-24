@@ -107,6 +107,37 @@ function getRecordActionClass(action) {
   return 'default';
 }
 
+function getRecordActionClass(action) {
+  const value = String(action || '').toLowerCase();
+
+  if (value === 'create') return 'create';
+  if (value === 'delete') return 'delete';
+  if (value === 'visibility') return 'visibility';
+  if (value === 'update') return 'update';
+
+  return 'default';
+}
+
+function parseBadgeTitle(value = '') {
+  const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i)
+
+  if (!match) {
+    return { badge: '', title: value || '' }
+  }
+
+  return { badge: match[1].toUpperCase(), title: match[2] || '' }
+}
+
+function buildBadgeTitle(badge, title) {
+  const cleanTitle = String(title || '').replace(/^\[(NEW|HOT|TOP)\]\s*/i, '').trim()
+
+  if (!badge) return cleanTitle
+
+  return `[${badge}] ${cleanTitle}`
+}
+
+export default function SlideSection() {
+
 export default function SlideSection() {
   const fileInputRef = useRef(null);
   const [sectionKey, setSectionKey] = useState('home_top_slider');
