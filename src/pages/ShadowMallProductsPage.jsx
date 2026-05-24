@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
@@ -671,7 +671,6 @@ const emptyForm = {
   title: '',
   author_name: '',
   cover_url: '',
-  gallery_image_urls: ['', '', '', '', ''],
   youtube_url: '',
   description: '',
   category: 'new_books',
@@ -749,6 +748,9 @@ export default function ShadowMallProductsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [filter, setFilter] = useState('all');
+  const imageInputRef = useRef(null);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   const filteredProducts = useMemo(() => {
     if (filter === 'all') return products;
@@ -757,11 +759,6 @@ export default function ShadowMallProductsPage() {
     if (filter === 'sold_out') return products.filter((product) => product.stock_status === 'sold_out');
     return products.filter((product) => product.category === filter);
   }, [products, filter]);
-
-  const galleryPreview = useMemo(
-    () => form.gallery_image_urls.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 5),
-    [form.gallery_image_urls]
-  );
 
   const youtubeEmbedUrl = useMemo(() => getYoutubeEmbedUrl(form.youtube_url), [form.youtube_url]);
 
@@ -802,17 +799,22 @@ export default function ShadowMallProductsPage() {
     }));
   }
 
-  function updateGalleryImage(index, value) {
-    setForm((current) => {
-      const gallery = [...current.gallery_image_urls];
-      gallery[index] = value;
+  function handleImageUpload(event) {
+  const files = Array.from(event.target.files || []).slice(0, 5);
+  const previews = files.map((file) => URL.createObjectURL(file));
 
-      return {
-        ...current,
-        gallery_image_urls: gallery.slice(0, 5),
-      };
-    });
+  setSelectedImages(files);
+  setImagePreviews(previews);
+}
+
+function clearSelectedImages() {
+  setSelectedImages([]);
+  setImagePreviews([]);
+
+  if (imageInputRef.current) {
+    imageInputRef.current.value = '';
   }
+}
 
   function resetForm() {
     setForm(emptyForm);
