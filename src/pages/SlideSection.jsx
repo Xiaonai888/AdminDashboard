@@ -107,17 +107,6 @@ function getRecordActionClass(action) {
   return 'default';
 }
 
-function getRecordActionClass(action) {
-  const value = String(action || '').toLowerCase();
-
-  if (value === 'create') return 'create';
-  if (value === 'delete') return 'delete';
-  if (value === 'visibility') return 'visibility';
-  if (value === 'update') return 'update';
-
-  return 'default';
-}
-
 function parseBadgeTitle(value = '') {
   const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i)
 
@@ -135,8 +124,6 @@ function buildBadgeTitle(badge, title) {
 
   return `[${badge}] ${cleanTitle}`
 }
-
-export default function SlideSection() {
 
 export default function SlideSection() {
   const fileInputRef = useRef(null);
