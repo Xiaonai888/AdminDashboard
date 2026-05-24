@@ -370,6 +370,36 @@ const styles = `
     display: block;
   }
 
+    .shadow-mall-upload-button,
+  .shadow-mall-clear-button {
+    width: 100%;
+    height: 44px;
+    border-radius: 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .shadow-mall-upload-button {
+    border: 1.5px dashed #CBD5E1;
+    background: #F8FAFC;
+    color: #334155;
+  }
+
+  .shadow-mall-upload-button:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary);
+  }
+
+  .shadow-mall-clear-button {
+    margin-top: 10px;
+    border: 1px solid #FCA5A5;
+    background: #fff;
+    color: #B91C1C;
+  }
+
   .shadow-mall-gallery-number {
     position: absolute;
     top: 6px;
