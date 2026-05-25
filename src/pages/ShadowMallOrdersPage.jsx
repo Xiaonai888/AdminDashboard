@@ -466,6 +466,49 @@ export default function ShadowMallOrdersPage() {
               Shows only paid or reviewed book orders. Waiting payment and expired orders are hidden from this report.
             </p>
 
+            <div style={{
+  display: 'flex',
+  gap: 10,
+  marginTop: 18,
+  marginBottom: 18,
+  flexWrap: 'wrap',
+}}>
+  <button
+    type="button"
+    onClick={() => navigate('/shadow-mall')}
+    style={{
+      height: 40,
+      border: '1px solid #E2E8F0',
+      borderRadius: 14,
+      padding: '0 16px',
+      background: '#FFFFFF',
+      color: '#0F172A',
+      fontSize: 12,
+      fontWeight: 900,
+      cursor: 'pointer',
+    }}
+  >
+    Products
+  </button>
+
+  <button
+    type="button"
+    style={{
+      height: 40,
+      border: 0,
+      borderRadius: 14,
+      padding: '0 16px',
+      background: '#EEF2FF',
+      color: '#4F46E5',
+      fontSize: 12,
+      fontWeight: 900,
+      cursor: 'pointer',
+    }}
+  >
+    Review Orders
+  </button>
+</div>
+
             <div className="orders-toolbar">
               <input
                 className="input"
