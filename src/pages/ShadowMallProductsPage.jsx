@@ -582,6 +582,30 @@ const styles = `
     align-items: center;
   }
 
+  .record-row.editing-record {
+    background: #FFFBEB;
+    border-left: 5px solid #F59E0B;
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.28);
+  }
+
+  .record-row.editing-record .record-title {
+    color: #92400E;
+  }
+
+  .record-editing-badge {
+    border-radius: 999px;
+    padding: 4px 9px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .record-action.edit.is-editing {
+    background: #F59E0B;
+    color: #FFFFFF;
+  }
+
   .record-row:last-child { border-bottom: none; }
 
   .record-cover {
@@ -1820,7 +1844,10 @@ export default function ShadowMallProductsPage() {
         const hasOldPrice = product.old_price_usd !== null && product.old_price_usd !== undefined && product.old_price_usd !== '';
 
         return (
-          <div key={product.id} className="record-row">
+          <div
+            key={product.id}
+            className={`record-row ${String(editingId) === String(product.id) ? 'editing-record' : ''}`}
+          >
             <div className={`record-cover ${hasCover ? '' : 'empty-cover'}`}>
               {hasCover ? (
                 <img src={product.cover_url} alt={product.title} />
@@ -1833,6 +1860,9 @@ export default function ShadowMallProductsPage() {
               <div className="record-title-line">
                 <span className="record-title">{product.title}</span>
                 <span className="record-id">ID: {product.id}</span>
+                {String(editingId) === String(product.id) ? (
+                  <span className="record-editing-badge">Editing</span>
+                ) : null}
               </div>
 
               <div className="record-author">
@@ -1889,9 +1919,9 @@ export default function ShadowMallProductsPage() {
               <button
                 type="button"
                 onClick={() => startEdit(product)}
-                className="record-action edit"
+                className={`record-action edit ${String(editingId) === String(product.id) ? 'is-editing' : ''}`}
               >
-                Edit
+                {String(editingId) === String(product.id) ? 'Editing' : 'Edit'}
               </button>
 
               <button
