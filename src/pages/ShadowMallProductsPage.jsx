@@ -1504,23 +1504,10 @@ export default function ShadowMallProductsPage() {
                 ) : null}
               </div>
 
-             <div className="shadow-form-body">
-  {message ? <div className="shadow-message">{message}</div> : null}
+              <div className="shadow-form-body">
+                {message ? <div className="shadow-message">{message}</div> : null}
 
-  {editingId ? (
-    <div className="editing-product-note">
-      <div>
-        <div className="editing-product-title">✏️ Editing Product</div>
-        <div className="editing-product-name">{form.title || 'Untitled product'}</div>
-      </div>
-
-      <button type="button" className="editing-cancel-button" onClick={resetForm}>
-        Cancel Editing
-      </button>
-    </div>
-  ) : null}
-
-  <div className="shadow-section-title">Book Information</div>
+                <div className="shadow-section-title">Book Information</div>
 
                 <label className="field">
                   <span className="label">Book title</span>
