@@ -1,133 +1,233 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react'
+import AdminLayout from '../components/AdminLayout'
 
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-  :root {
-    --bg-main: #F8FAFC; --bg-card: #FFFFFF; --primary: #4F46E5; --primary-light: #EEF2FF;
-    --text-main: #0F172A; --text-muted: #64748B; --success: #10B981; --success-light: #D1FAE5;
-    --warning: #F59E0B; --danger: #EF4444; --border: #E2E8F0;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
-  .page-wrap { padding: 28px 36px; animation: fadeIn 0.3s ease; }
-  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-  .page-title { font-size: 20px; font-weight: 700; }
-  .page-sub { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
+}
 
-  .btn-primary { background: var(--primary); color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-size: 13.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.2s; }
-  .btn-primary:hover { background: #4338CA; }
+function formatDate(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
 
-  .filter-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
-  .search-wrap { position: relative; flex: 1; min-width: 200px; }
-  .search-input { width: 100%; background: #fff; border: 1.5px solid var(--border); border-radius: 10px; padding: 9px 14px 9px 38px; font-size: 13.5px; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s; }
-  .search-input:focus { border-color: var(--primary); }
-  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString()
+}
 
-  .authors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+function getInitial(name, username, email) {
+  const source = name || username || email || 'R'
+  return source.slice(0, 1).toUpperCase()
+}
 
-  .author-card {
-    background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border);
-    padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
-  }
-  .author-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-
-  .author-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-  .author-avatar { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0; }
-  .author-name { font-size: 15px; font-weight: 700; }
-  .author-handle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-  .author-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-  .author-stat { text-align: center; padding: 8px; background: #F8FAFC; border-radius: 10px; }
-  .author-stat-val { font-size: 15px; font-weight: 700; }
-  .author-stat-lbl { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 2px; }
-
-  .author-badge-row { display: flex; align-items: center; justify-content: space-between; }
-  .badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; }
-  .badge-active { background: var(--success-light); color: var(--success); }
-  .badge-inactive { background: #F1F5F9; color: #64748B; }
-  .badge-suspended { background: #FEE2E2; color: #EF4444; }
-
-  .author-action-btn { padding: 6px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: transparent; color: var(--text-muted); transition: all 0.15s; }
-  .author-action-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
-`;
-
-const Icon = ({ d, size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
-);
-
-const authors = [
-  { name: 'Sung Jin', handle: '@sungjin_writes', novels: 12, followers: '45.2K', earnings: '$3,200', status: 'active', color: '#4F46E5' },
-  { name: 'LoveWriter', handle: '@lovewriter_official', novels: 8, followers: '32.1K', earnings: '$2,100', status: 'active', color: '#EC4899' },
-  { name: 'KingScribe', handle: '@kingscribe', novels: 5, followers: '18.5K', earnings: '$890', status: 'active', color: '#F59E0B' },
-  { name: 'NightQuill', handle: '@nightquill', novels: 3, followers: '7.2K', earnings: '$210', status: 'inactive', color: '#64748B' },
-  { name: 'DarkPen88', handle: '@darkpen88', novels: 2, followers: '4.8K', earnings: '$120', status: 'suspended', color: '#EF4444' },
-  { name: 'ProsaRose', handle: '@prosarose', novels: 15, followers: '62.3K', earnings: '$5,400', status: 'active', color: '#10B981' },
-];
+function StatusBadge({ status }) {
+  const active = status === 'active'
+  return (
+    <span className={`community-status ${active ? 'active' : 'inactive'}`}>
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  )
+}
 
 export default function AuthorsCommunity() {
-  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState('readers')
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [summary, setSummary] = useState({
+    total_readers: 0,
+    total_authors: 0,
+    total_community_members: 0,
+    new_this_month: 0,
+  })
+  const [readers, setReaders] = useState([])
+  const [pagination, setPagination] = useState({ page: 1, total_pages: 1, has_next: false, has_prev: false })
 
-  const filtered = authors.filter(a =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
-    a.handle.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setPage(1)
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [search])
+
+  useEffect(() => {
+    let alive = true
+
+    async function loadReaders() {
+      try {
+        setLoading(true)
+        setError('')
+
+        const token = getAdminToken()
+        const params = new URLSearchParams({ page: String(page), limit: '20' })
+        if (debouncedSearch) params.set('q', debouncedSearch)
+
+        const response = await fetch(`${API_URL}/api/admin/community/readers?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load readers')
+        if (!alive) return
+
+        setSummary(data.summary || {})
+        setReaders(Array.isArray(data.readers) ? data.readers : [])
+        setPagination({
+          page: data.page || 1,
+          total_pages: data.total_pages || 1,
+          has_next: Boolean(data.has_next),
+          has_prev: Boolean(data.has_prev),
+        })
+      } catch (err) {
+        if (!alive) return
+        setError(err.message || 'Failed to load readers')
+        setReaders([])
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    loadReaders()
+
+    return () => {
+      alive = false
+    }
+  }, [page, debouncedSearch])
+
+  const cards = useMemo(() => [
+    { label: 'Total Readers', value: summary.total_readers, tone: 'blue' },
+    { label: 'Total Authors', value: summary.total_authors, tone: 'purple' },
+    { label: 'Community Members', value: summary.total_community_members, tone: 'dark' },
+    { label: 'New This Month', value: summary.new_this_month, tone: 'green' },
+  ], [summary])
 
   return (
-    <>
+    <AdminLayout title="Community" subtitle="View readers and authors in one place.">
       <style>{styles}</style>
-      <div className="page-wrap">
-        <div className="page-header">
-          <div>
-            <div className="page-title">Authors Community</div>
-            <div className="page-sub">Manage all registered authors on Shadow Exclusive</div>
-          </div>
-          <button className="btn-primary">
-            <Icon d="M12 5v14M5 12h14" /> Invite Author
-          </button>
-        </div>
 
-        <div className="filter-row">
-          <div className="search-wrap">
-            <svg className="search-icon" width={16} height={16} fill="none" stroke="#94A3B8" strokeWidth={2.5}><circle cx={7} cy={7} r={5} /><line x1={11} y1={11} x2={15} y2={15} /></svg>
-            <input className="search-input" placeholder="Search authors..." value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="authors-grid">
-          {filtered.map((author, i) => (
-            <div className="author-card" key={i}>
-              <div className="author-top">
-                <div className="author-avatar" style={{ background: author.color }}>{author.name.charAt(0)}</div>
-                <div>
-                  <div className="author-name">{author.name}</div>
-                  <div className="author-handle">{author.handle}</div>
-                </div>
-              </div>
-              <div className="author-stats">
-                <div className="author-stat">
-                  <div className="author-stat-val" style={{ color: '#4F46E5' }}>{author.novels}</div>
-                  <div className="author-stat-lbl">Novels</div>
-                </div>
-                <div className="author-stat">
-                  <div className="author-stat-val">{author.followers}</div>
-                  <div className="author-stat-lbl">Followers</div>
-                </div>
-                <div className="author-stat">
-                  <div className="author-stat-val" style={{ color: '#10B981' }}>{author.earnings}</div>
-                  <div className="author-stat-lbl">Earnings</div>
-                </div>
-              </div>
-              <div className="author-badge-row">
-                <span className={`badge badge-${author.status}`}>{author.status.charAt(0).toUpperCase() + author.status.slice(1)}</span>
-                <button className="author-action-btn">View Profile</button>
+      <div className="community-page">
+        <section className="community-cards">
+          {cards.map((card) => (
+            <div className="community-card" key={card.label}>
+              <div className={`community-card-icon ${card.tone}`}>{card.label.slice(0, 1)}</div>
+              <div>
+                <div className="community-card-label">{card.label}</div>
+                <div className="community-card-value">{formatNumber(card.value)}</div>
               </div>
             </div>
           ))}
-        </div>
+        </section>
+
+        <section className="community-panel">
+          <div className="community-panel-top">
+            <div className="community-tabs">
+              <button type="button" className={activeTab === 'readers' ? 'active' : ''} onClick={() => setActiveTab('readers')}>Reader</button>
+              <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => setActiveTab('authors')}>Author</button>
+            </div>
+
+            <div className="community-search-wrap">
+              <span>⌕</span>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search reader name, username, or email..." />
+            </div>
+          </div>
+
+          {activeTab === 'readers' ? (
+            <div>
+              {error ? <div className="community-alert">{error}</div> : null}
+
+              <div className="community-table-wrap">
+                <table className="community-table">
+                  <thead>
+                    <tr>
+                      <th>Reader</th>
+                      <th>Email</th>
+                      <th>Joined Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan="4" className="community-empty">Loading readers...</td></tr>
+                    ) : readers.length ? readers.map((reader) => (
+                      <tr key={reader.id}>
+                        <td>
+                          <div className="community-user">
+                            <div className="community-avatar">{getInitial(reader.name, reader.username, reader.email)}</div>
+                            <div>
+                              <div className="community-user-name">{reader.name || reader.username || 'Unnamed Reader'}</div>
+                              <div className="community-user-sub">@{reader.username || 'no_username'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{reader.email || '-'}</td>
+                        <td>{formatDate(reader.joined_at)}</td>
+                        <td><StatusBadge status={reader.status} /></td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan="4" className="community-empty">No readers found.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="community-pagination">
+                <button type="button" disabled={!pagination.has_prev || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+                <span>Page {pagination.page} of {pagination.total_pages}</span>
+                <button type="button" disabled={!pagination.has_next || loading} onClick={() => setPage((current) => current + 1)}>Next</button>
+              </div>
+            </div>
+          ) : (
+            <div className="community-coming-soon">Author tab will be connected in the next stage.</div>
+          )}
+        </section>
       </div>
-    </>
-  );
+    </AdminLayout>
+  )
 }
+
+const styles = `
+  .community-page { display: flex; flex-direction: column; gap: 18px; }
+  .community-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .community-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 18px; padding: 18px; display: flex; align-items: center; gap: 13px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+  .community-card-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 950; }
+  .community-card-icon.blue { background: #EFF6FF; color: #2563EB; }
+  .community-card-icon.purple { background: #EEF2FF; color: #4F46E5; }
+  .community-card-icon.dark { background: #F1F5F9; color: #0F172A; }
+  .community-card-icon.green { background: #ECFDF5; color: #059669; }
+  .community-card-label { color: #64748B; font-size: 12px; font-weight: 800; margin-bottom: 4px; }
+  .community-card-value { color: #0F172A; font-size: 24px; font-weight: 950; letter-spacing: -0.04em; }
+  .community-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 20px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); overflow: hidden; }
+  .community-panel-top { padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+  .community-tabs { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px; padding: 4px; display: flex; gap: 4px; }
+  .community-tabs button { border: 0; background: transparent; height: 34px; border-radius: 11px; padding: 0 18px; color: #64748B; font-size: 13px; font-weight: 900; cursor: pointer; }
+  .community-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 8px 18px rgba(79, 70, 229, 0.18); }
+  .community-search-wrap { width: min(380px, 100%); height: 40px; border: 1px solid #E2E8F0; border-radius: 14px; display: flex; align-items: center; gap: 9px; padding: 0 12px; color: #94A3B8; background: #FFFFFF; }
+  .community-search-wrap input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 13px; font-weight: 700; color: #0F172A; }
+  .community-search-wrap input::placeholder { color: #94A3B8; }
+  .community-table-wrap { width: 100%; overflow-x: auto; }
+  .community-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  .community-table th { text-align: left; padding: 13px 16px; background: #F8FAFC; color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #E2E8F0; }
+  .community-table td { padding: 14px 16px; border-bottom: 1px solid #EEF2F7; color: #334155; font-size: 13px; font-weight: 750; }
+  .community-user { display: flex; align-items: center; gap: 11px; }
+  .community-avatar { width: 40px; height: 40px; border-radius: 999px; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 950; flex-shrink: 0; }
+  .community-user-name { color: #0F172A; font-size: 13px; font-weight: 950; }
+  .community-user-sub { color: #64748B; font-size: 12px; font-weight: 700; margin-top: 2px; }
+  .community-status { display: inline-flex; align-items: center; justify-content: center; height: 25px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 950; }
+  .community-status.active { background: #DCFCE7; color: #16A34A; }
+  .community-status.inactive { background: #F1F5F9; color: #64748B; }
+  .community-empty { text-align: center; color: #64748B; padding: 34px 16px !important; }
+  .community-alert { margin: 16px; padding: 12px 14px; border-radius: 14px; background: #FEF2F2; color: #DC2626; font-size: 13px; font-weight: 800; }
+  .community-pagination { padding: 14px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; color: #64748B; font-size: 12px; font-weight: 850; }
+  .community-pagination button { height: 34px; border: 1px solid #E2E8F0; background: #FFFFFF; border-radius: 12px; padding: 0 13px; color: #0F172A; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .community-pagination button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .community-coming-soon { padding: 42px 16px; text-align: center; color: #64748B; font-size: 13px; font-weight: 850; }
+  @media (max-width: 980px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } }
+`
