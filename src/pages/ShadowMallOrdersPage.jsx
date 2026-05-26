@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -443,199 +444,192 @@ export default function ShadowMallOrdersPage() {
     fetchOrders(1)
   }, [status])
 
-  return (
-    <>
-      <style>{styles}</style>
-      <div className="orders-page">
-        <header className="orders-header">
-          <div className="orders-header-left">
-            <button type="button" className="back-button" onClick={() => navigate('/shadow-mall')}>‹</button>
-            <div className="orders-title">Shadow Mall Orders</div>
+ return (
+  <AdminLayout
+    title="Shadow Mall Orders"
+    subtitle="Review paid or reviewed book orders."
+  >
+    <style>{styles}</style>
+
+    <div className="orders-page">
+      <main className="orders-body">
+        <section className="orders-top">
+          <div className="orders-kicker">📚 Shadow Mall</div>
+          <h1 className="orders-heading">Review Orders</h1>
+          <p className="orders-note">
+            Shows only paid or reviewed book orders. Waiting payment and expired orders are hidden from this report.
+          </p>
+
+          <div style={{
+            display: 'flex',
+            gap: 10,
+            marginTop: 18,
+            marginBottom: 18,
+            flexWrap: 'wrap',
+          }}>
+            <button
+              type="button"
+              onClick={() => navigate('/shadow-mall')}
+              style={{
+                height: 40,
+                border: '1px solid #E2E8F0',
+                borderRadius: 14,
+                padding: '0 16px',
+                background: '#FFFFFF',
+                color: '#0F172A',
+                fontSize: 12,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              Products
+            </button>
+
+            <button
+              type="button"
+              style={{
+                height: 40,
+                border: 0,
+                borderRadius: 14,
+                padding: '0 16px',
+                background: '#EEF2FF',
+                color: '#4F46E5',
+                fontSize: 12,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              Review Orders
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/shadow-mall/publishers')}
+              style={{
+                height: 40,
+                border: '1px solid #E2E8F0',
+                borderRadius: 14,
+                padding: '0 16px',
+                background: '#FFFFFF',
+                color: '#0F172A',
+                fontSize: 12,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              Publishers
+            </button>
           </div>
 
-          <button type="button" className="refresh-button" style={{ height: 40, padding: '0 16px' }} onClick={() => fetchOrders(page)}>
-            Refresh
-          </button>
-        </header>
+          <div className="orders-toolbar">
+            <input
+              className="input"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search Order ID or ABA Trx ID..."
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') fetchOrders(1)
+              }}
+            />
 
-        <main className="orders-body">
-          <section className="orders-top">
-            <div className="orders-kicker">📚 Shadow Mall</div>
-            <h1 className="orders-heading">Review Orders</h1>
-            <p className="orders-note">
-              Shows only paid or reviewed book orders. Waiting payment and expired orders are hidden from this report.
-            </p>
+            <select className="select" value={status} onChange={(event) => setStatus(event.target.value)}>
+              <option value="under_review">Under Review</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="preparing">Preparing</option>
+              <option value="shipped">Shipped</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="rejected">Rejected</option>
+              <option value="all">All Reports</option>
+            </select>
 
-            <div style={{
-  display: 'flex',
-  gap: 10,
-  marginTop: 18,
-  marginBottom: 18,
-  flexWrap: 'wrap',
-}}>
-  <button
-    type="button"
-    onClick={() => navigate('/shadow-mall')}
-    style={{
-      height: 40,
-      border: '1px solid #E2E8F0',
-      borderRadius: 14,
-      padding: '0 16px',
-      background: '#FFFFFF',
-      color: '#0F172A',
-      fontSize: 12,
-      fontWeight: 900,
-      cursor: 'pointer',
-    }}
-  >
-    Products
-  </button>
+            <button type="button" className="refresh-button" onClick={() => fetchOrders(1)}>
+              Search
+            </button>
+          </div>
+        </section>
 
-  <button
-    type="button"
-    style={{
-      height: 40,
-      border: 0,
-      borderRadius: 14,
-      padding: '0 16px',
-      background: '#EEF2FF',
-      color: '#4F46E5',
-      fontSize: 12,
-      fontWeight: 900,
-      cursor: 'pointer',
-    }}
-  >
-    Review Orders
-  </button>
-
-  <button
-    type="button"
-    onClick={() => navigate('/shadow-mall/publishers')}
-    style={{
-      height: 40,
-      border: '1px solid #E2E8F0',
-      borderRadius: 14,
-      padding: '0 16px',
-      background: '#FFFFFF',
-      color: '#0F172A',
-      fontSize: 12,
-      fontWeight: 900,
-      cursor: 'pointer',
-    }}
-  >
-    Publishers
-  </button>
-</div>
-
-            <div className="orders-toolbar">
-              <input
-                className="input"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search Order ID or ABA Trx ID..."
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') fetchOrders(1)
-                }}
-              />
-
-              <select className="select" value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="under_review">Under Review</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="preparing">Preparing</option>
-                <option value="shipped">Shipped</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="rejected">Rejected</option>
-                <option value="all">All Reports</option>
-              </select>
-
-              <button type="button" className="refresh-button" onClick={() => fetchOrders(1)}>
-                Search
-              </button>
-            </div>
-          </section>
-
-          <section className="orders-card">
-            <div className="orders-card-head">
-              <div>
-                <div className="orders-card-title">Order Report</div>
-                <div className="small">Admin review, delivery preparation, and status tracking.</div>
-              </div>
-
-              <div className="count-pill">{totalText}</div>
+        <section className="orders-card">
+          <div className="orders-card-head">
+            <div>
+              <div className="orders-card-title">Order Report</div>
+              <div className="small">Admin review, delivery preparation, and status tracking.</div>
             </div>
 
-            {message ? <div className="message">{message}</div> : null}
+            <div className="count-pill">{totalText}</div>
+          </div>
 
-            {loading ? (
-              <div className="empty">Loading orders...</div>
-            ) : orders.length ? (
-              orders.map((order) => (
-                <div className="order-row" key={order.order_id}>
-                  <div>
-                    <div className="order-id">{order.order_id}</div>
-                    <div className={`status-pill status-${order.status}`}>{statusLabel(order.status)}</div>
-                    <div className="small">Amount: <span className="strong">{formatUsd(order.total_usd)}</span></div>
-                    <div className="small">ABA Trx: <span className="strong">{order.aba_transaction_id || '-'}</span></div>
-                    <div className="small">Paid: <span className="strong">{formatDate(order.paid_at)}</span></div>
-                    <div className="small">Updated: <span className="strong">{formatDate(order.updated_at)}</span></div>
-                  </div>
+          {message ? <div className="message">{message}</div> : null}
 
-                  <BuyerInfo buyer={order.buyer_profile || {}} />
-
-                  <BooksInfo items={order.items || []} />
-
-                  <div className="actions">
-                    {order.status === 'under_review' ? (
-                      <button type="button" className="action-button confirm" onClick={() => updateOrderStatus(order.order_id, 'confirmed')}>
-                        Confirm Order
-                      </button>
-                    ) : null}
-
-                    {['under_review', 'confirmed'].includes(order.status) ? (
-                      <button type="button" className="action-button prepare" onClick={() => updateOrderStatus(order.order_id, 'preparing')}>
-                        Mark Preparing
-                      </button>
-                    ) : null}
-
-                    {['confirmed', 'preparing'].includes(order.status) ? (
-                      <button type="button" className="action-button ship" onClick={() => updateOrderStatus(order.order_id, 'shipped')}>
-                        Mark Shipped
-                      </button>
-                    ) : null}
-
-                    {order.status === 'shipped' ? (
-                      <button type="button" className="action-button complete" onClick={() => updateOrderStatus(order.order_id, 'completed')}>
-                        Complete
-                      </button>
-                    ) : null}
-
-                    {!['completed', 'cancelled', 'rejected'].includes(order.status) ? (
-                      <button type="button" className="action-button cancel" onClick={() => updateOrderStatus(order.order_id, 'cancelled')}>
-                        Cancel
-                      </button>
-                    ) : null}
-                  </div>
+          {loading ? (
+            <div className="empty">Loading orders...</div>
+          ) : orders.length ? (
+            orders.map((order) => (
+              <div className="order-row" key={order.order_id}>
+                <div>
+                  <div className="order-id">{order.order_id}</div>
+                  <div className={`status-pill status-${order.status}`}>{statusLabel(order.status)}</div>
+                  <div className="small">Amount: <span className="strong">{formatUsd(order.total_usd)}</span></div>
+                  <div className="small">ABA Trx: <span className="strong">{order.aba_transaction_id || '-'}</span></div>
+                  <div className="small">Paid: <span className="strong">{formatDate(order.paid_at)}</span></div>
+                  <div className="small">Updated: <span className="strong">{formatDate(order.updated_at)}</span></div>
                 </div>
-              ))
-            ) : (
-              <div className="empty">No orders found.</div>
-            )}
 
-            <div className="pager">
-              <button className="page-button" disabled={!meta.has_prev} onClick={() => fetchOrders(page - 1)}>
-                Previous
-              </button>
-              <button className="page-button" disabled>
-                Page {page} / {meta.total_pages || 1}
-              </button>
-              <button className="page-button" disabled={!meta.has_next} onClick={() => fetchOrders(page + 1)}>
-                Next
-              </button>
-            </div>
-          </section>
-        </main>
-      </div>
-    </>
-  )
+                <BuyerInfo buyer={order.buyer_profile || {}} />
+
+                <BooksInfo items={order.items || []} />
+
+                <div className="actions">
+                  {order.status === 'under_review' ? (
+                    <button type="button" className="action-button confirm" onClick={() => updateOrderStatus(order.order_id, 'confirmed')}>
+                      Confirm Order
+                    </button>
+                  ) : null}
+
+                  {['under_review', 'confirmed'].includes(order.status) ? (
+                    <button type="button" className="action-button prepare" onClick={() => updateOrderStatus(order.order_id, 'preparing')}>
+                      Mark Preparing
+                    </button>
+                  ) : null}
+
+                  {['confirmed', 'preparing'].includes(order.status) ? (
+                    <button type="button" className="action-button ship" onClick={() => updateOrderStatus(order.order_id, 'shipped')}>
+                      Mark Shipped
+                    </button>
+                  ) : null}
+
+                  {order.status === 'shipped' ? (
+                    <button type="button" className="action-button complete" onClick={() => updateOrderStatus(order.order_id, 'completed')}>
+                      Complete
+                    </button>
+                  ) : null}
+
+                  {!['completed', 'cancelled', 'rejected'].includes(order.status) ? (
+                    <button type="button" className="action-button cancel" onClick={() => updateOrderStatus(order.order_id, 'cancelled')}>
+                      Cancel
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="empty">No orders found.</div>
+          )}
+
+          <div className="pager">
+            <button className="page-button" disabled={!meta.has_prev} onClick={() => fetchOrders(page - 1)}>
+              Previous
+            </button>
+            <button className="page-button" disabled>
+              Page {page} / {meta.total_pages || 1}
+            </button>
+            <button className="page-button" disabled={!meta.has_next} onClick={() => fetchOrders(page + 1)}>
+              Next
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </AdminLayout>
+ )
 }
