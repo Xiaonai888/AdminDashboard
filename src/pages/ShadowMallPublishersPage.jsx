@@ -166,12 +166,34 @@ export default function ShadowMallPublishersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [publisherSearch, setPublisherSearch] = useState('')
 
   const activePublishers = useMemo(
     () => publishers.filter((publisher) => publisher.is_active),
     [publishers]
   )
 
+  const filteredPublishers = useMemo(() => {
+  const keyword = publisherSearch.trim().toLowerCase()
+
+  if (!keyword) return publishers
+
+  return publishers.filter((publisher) => {
+    const text = [
+      publisher.name,
+      publisher.description,
+      publisher.is_active ? 'active' : 'hidden',
+      publisher.sort_order,
+      publisher.book_count,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    return text.includes(keyword)
+  })
+}, [publishers, publisherSearch])
+  
   function authHeaders() {
     const token = getAdminToken()
 
@@ -839,90 +861,248 @@ export default function ShadowMallPublishersPage() {
             </div>
           </div>
 
-          <section style={{
+         <section style={{
+  background: '#FFFFFF',
+  border: '1px solid #E2E8F0',
+  borderRadius: 24,
+  overflow: 'hidden',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.04)',
+}}>
+  <div style={{
+    padding: '20px 22px',
+    borderBottom: '1px solid #E2E8F0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  }}>
+    <div>
+      <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>Publisher Records</h2>
+      <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
+        Manage publisher logos, names, status, and book groups.
+      </p>
+    </div>
+
+    <div style={{
+      borderRadius: 999,
+      background: '#EEF2FF',
+      color: '#4F46E5',
+      padding: '7px 11px',
+      fontSize: 11,
+      fontWeight: 900,
+      whiteSpace: 'nowrap',
+    }}>
+      {filteredPublishers.length} records
+    </div>
+  </div>
+
+  <div style={{
+    padding: 16,
+    borderBottom: '1px solid #F1F5F9',
+  }}>
+    <div style={{
+      height: 44,
+      border: '1px solid #E2E8F0',
+      borderRadius: 14,
+      background: '#F8FAFC',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '0 13px',
+    }}>
+      <span style={{ color: '#94A3B8', fontSize: 13 }}>🔍</span>
+      <input
+        value={publisherSearch}
+        onChange={(event) => setPublisherSearch(event.target.value)}
+        placeholder="Search publisher name..."
+        style={{
+          width: '100%',
+          border: 0,
+          background: 'transparent',
+          outline: 'none',
+          color: '#0F172A',
+          fontFamily: 'inherit',
+          fontSize: 13,
+          fontWeight: 800,
+        }}
+      />
+      {publisherSearch ? (
+        <button
+          type="button"
+          onClick={() => setPublisherSearch('')}
+          style={{
+            border: 0,
             background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 24,
-            overflow: 'hidden',
-            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.04)',
-          }}>
-            <div style={{ padding: '20px 22px', borderBottom: '1px solid #E2E8F0' }}>
-              <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>Publisher List</h2>
-              <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
-                Select one publisher to auto match or manually assign products.
-              </p>
+            color: '#64748B',
+            borderRadius: 999,
+            width: 28,
+            height: 28,
+            fontSize: 12,
+            fontWeight: 900,
+            cursor: 'pointer',
+          }}
+        >
+          ×
+        </button>
+      ) : null}
+    </div>
+  </div>
+
+  <div style={{ minHeight: 240 }}>
+    {loading ? (
+      <div style={{ padding: 54, textAlign: 'center', color: '#94A3B8', fontWeight: 900 }}>
+        Loading publishers...
+      </div>
+    ) : filteredPublishers.length ? (
+      filteredPublishers.map((publisher) => (
+        <div
+          key={publisher.id}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(260px, 1.4fr) 120px 120px 90px 260px',
+            gap: 14,
+            alignItems: 'center',
+            padding: '16px 20px',
+            borderBottom: '1px solid #F1F5F9',
+            background: selectedPublisher?.id === publisher.id ? '#F8FAFF' : '#FFFFFF',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => selectPublisher(publisher)}
+            style={{
+              border: 0,
+              background: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              textAlign: 'left',
+              cursor: 'pointer',
+              minWidth: 0,
+            }}
+          >
+            <PublisherImage publisher={publisher} size={58} />
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontSize: 14,
+                fontWeight: 900,
+                color: '#0F172A',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {publisher.name}
+              </div>
+
+              <div style={{
+                marginTop: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#64748B',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {publisher.description || 'No description'}
+              </div>
             </div>
+          </button>
 
-            <div style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-              {loading ? (
-                <div style={{ gridColumn: '1 / -1', padding: 30, textAlign: 'center', color: '#94A3B8', fontWeight: 900 }}>
-                  Loading publishers...
-                </div>
-              ) : publishers.length ? (
-                publishers.map((publisher) => (
-                  <div
-                    key={publisher.id}
-                    style={{
-                      border: selectedPublisher?.id === publisher.id ? '2px solid #4F46E5' : '1px solid #E2E8F0',
-                      borderRadius: 20,
-                      padding: 14,
-                      background: publisher.is_active ? '#FFFFFF' : '#F8FAFC',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => selectPublisher(publisher)}
-                      style={{
-                        width: '100%',
-                        border: 0,
-                        background: 'transparent',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                      }}
-                    >
-                      <PublisherImage publisher={publisher} size={56} />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {publisher.name}
-                        </div>
-                        <div style={{ marginTop: 4, fontSize: 11, fontWeight: 800, color: '#64748B' }}>
-                          {getBookCountText(publisher.book_count)}
-                        </div>
-                        <div style={{ marginTop: 4, fontSize: 11, fontWeight: 800, color: publisher.is_active ? '#10B981' : '#94A3B8' }}>
-                          {publisher.is_active ? 'Active' : 'Hidden'} · Sort {publisher.sort_order}
-                        </div>
-                      </div>
-                    </button>
-
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <button
-                        type="button"
-                        onClick={() => startEditPublisher(publisher)}
-                        style={{ flex: 1, border: 0, borderRadius: 12, background: '#EEF2FF', color: '#4F46E5', height: 34, fontSize: 11, fontWeight: 900, cursor: 'pointer' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => disablePublisher(publisher)}
-                        style={{ flex: 1, border: 0, borderRadius: 12, background: '#FEE2E2', color: '#B91C1C', height: 34, fontSize: 11, fontWeight: 900, cursor: 'pointer' }}
-                      >
-                        Hide
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ gridColumn: '1 / -1', padding: 30, textAlign: 'center', color: '#94A3B8', fontWeight: 900 }}>
-                  No publishers yet.
-                </div>
-              )}
+          <div>
+            <div style={{ color: '#64748B', fontSize: 10, fontWeight: 900 }}>BOOKS</div>
+            <div style={{ marginTop: 4, color: '#0F172A', fontSize: 12, fontWeight: 900 }}>
+              {getBookCountText(publisher.book_count)}
             </div>
-          </section>
+          </div>
 
+          <div>
+            <div style={{ color: '#64748B', fontSize: 10, fontWeight: 900 }}>STATUS</div>
+            <div style={{
+              display: 'inline-flex',
+              marginTop: 4,
+              borderRadius: 999,
+              padding: '4px 9px',
+              background: publisher.is_active ? '#D1FAE5' : '#F1F5F9',
+              color: publisher.is_active ? '#047857' : '#64748B',
+              fontSize: 10,
+              fontWeight: 900,
+            }}>
+              {publisher.is_active ? 'Active' : 'Hidden'}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: '#64748B', fontSize: 10, fontWeight: 900 }}>SORT</div>
+            <div style={{ marginTop: 4, color: '#0F172A', fontSize: 12, fontWeight: 900 }}>
+              {publisher.sort_order}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => startEditPublisher(publisher)}
+              style={{
+                border: 0,
+                borderRadius: 12,
+                background: '#EEF2FF',
+                color: '#4F46E5',
+                height: 34,
+                padding: '0 14px',
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              Edit
+            </button>
+
+            <button
+              type="button"
+              onClick={() => selectPublisher(publisher)}
+              style={{
+                border: 0,
+                borderRadius: 12,
+                background: '#F8FAFC',
+                color: '#334155',
+                height: 34,
+                padding: '0 14px',
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              Manage
+            </button>
+
+            <button
+              type="button"
+              onClick={() => disablePublisher(publisher)}
+              style={{
+                border: 0,
+                borderRadius: 12,
+                background: '#FEE2E2',
+                color: '#B91C1C',
+                height: 34,
+                padding: '0 14px',
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              Hide
+            </button>
+          </div>
+        </div>
+      ))
+    ) : (
+      <div style={{ padding: 54, textAlign: 'center', color: '#94A3B8', fontWeight: 900 }}>
+        No publisher records found.
+      </div>
+    )}
+  </div>
+</section>
           {selectedPublisher ? (
             <section style={{
               marginTop: 20,
