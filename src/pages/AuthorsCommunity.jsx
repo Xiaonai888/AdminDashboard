@@ -17,15 +17,17 @@ function formatNumber(value) {
 }
 
 function getInitial(name, username, email) {
-  const source = name || username || email || 'R'
+  const source = name || username || email || 'U'
   return source.slice(0, 1).toUpperCase()
 }
 
 function StatusBadge({ status }) {
-  const active = status === 'active'
+  const normalized = String(status || '').toLowerCase()
+  const active = normalized === 'active'
+
   return (
     <span className={`community-status ${active ? 'active' : 'inactive'}`}>
-      {active ? 'Active' : 'Inactive'}
+      {active ? 'Active' : normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Inactive'}
     </span>
   )
 }
@@ -35,7 +37,8 @@ export default function AuthorsCommunity() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
+  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [listLoading, setListLoading] = useState(true)
   const [error, setError] = useState('')
   const [summary, setSummary] = useState({
     total_readers: 0,
@@ -44,6 +47,7 @@ export default function AuthorsCommunity() {
     new_this_month: 0,
   })
   const [readers, setReaders] = useState([])
+  const [authors, setAuthors] = useState([])
   const [pagination, setPagination] = useState({ page: 1, total_pages: 1, has_next: false, has_prev: false })
 
   useEffect(() => {
@@ -58,27 +62,66 @@ export default function AuthorsCommunity() {
   useEffect(() => {
     let alive = true
 
-    async function loadReaders() {
+    async function loadSummary() {
       try {
-        setLoading(true)
-        setError('')
+        setSummaryLoading(true)
 
         const token = getAdminToken()
-        const params = new URLSearchParams({ page: String(page), limit: '20' })
-        if (debouncedSearch) params.set('q', debouncedSearch)
-
-        const response = await fetch(`${API_URL}/api/admin/community/readers?${params.toString()}`, {
+        const response = await fetch(`${API_URL}/api/admin/community/overview`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         })
 
         const data = await response.json().catch(() => ({}))
-        if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load readers')
+        if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load overview')
         if (!alive) return
 
         setSummary(data.summary || {})
-        setReaders(Array.isArray(data.readers) ? data.readers : [])
+      } catch (err) {
+        if (!alive) return
+        setError(err.message || 'Failed to load overview')
+      } finally {
+        if (alive) setSummaryLoading(false)
+      }
+    }
+
+    loadSummary()
+
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+
+    async function loadList() {
+      try {
+        setListLoading(true)
+        setError('')
+
+        const token = getAdminToken()
+        const params = new URLSearchParams({ page: String(page), limit: '20' })
+        if (debouncedSearch) params.set('q', debouncedSearch)
+
+        const endpoint = activeTab === 'authors' ? 'authors' : 'readers'
+        const response = await fetch(`${API_URL}/api/admin/community/${endpoint}?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data.ok === false) throw new Error(data.message || `Failed to load ${endpoint}`)
+        if (!alive) return
+
+        if (activeTab === 'authors') {
+          setAuthors(Array.isArray(data.authors) ? data.authors : [])
+        } else {
+          setReaders(Array.isArray(data.readers) ? data.readers : [])
+        }
+
         setPagination({
           page: data.page || 1,
           total_pages: data.total_pages || 1,
@@ -87,19 +130,28 @@ export default function AuthorsCommunity() {
         })
       } catch (err) {
         if (!alive) return
-        setError(err.message || 'Failed to load readers')
-        setReaders([])
+        setError(err.message || 'Failed to load community data')
+        if (activeTab === 'authors') setAuthors([])
+        else setReaders([])
       } finally {
-        if (alive) setLoading(false)
+        if (alive) setListLoading(false)
       }
     }
 
-    loadReaders()
+    loadList()
 
     return () => {
       alive = false
     }
-  }, [page, debouncedSearch])
+  }, [activeTab, page, debouncedSearch])
+
+  function switchTab(tab) {
+    setActiveTab(tab)
+    setSearch('')
+    setDebouncedSearch('')
+    setPage(1)
+    setError('')
+  }
 
   const cards = useMemo(() => [
     { label: 'Total Readers', value: summary.total_readers, tone: 'blue' },
@@ -107,6 +159,10 @@ export default function AuthorsCommunity() {
     { label: 'Community Members', value: summary.total_community_members, tone: 'dark' },
     { label: 'New This Month', value: summary.new_this_month, tone: 'green' },
   ], [summary])
+
+  const searchPlaceholder = activeTab === 'authors'
+    ? 'Search author name, username, or email...'
+    : 'Search reader name, username, or email...'
 
   return (
     <AdminLayout title="Community" subtitle="View readers and authors in one place.">
@@ -119,7 +175,7 @@ export default function AuthorsCommunity() {
               <div className={`community-card-icon ${card.tone}`}>{card.label.slice(0, 1)}</div>
               <div>
                 <div className="community-card-label">{card.label}</div>
-                <div className="community-card-value">{formatNumber(card.value)}</div>
+                <div className="community-card-value">{summaryLoading ? '...' : formatNumber(card.value)}</div>
               </div>
             </div>
           ))}
@@ -128,20 +184,20 @@ export default function AuthorsCommunity() {
         <section className="community-panel">
           <div className="community-panel-top">
             <div className="community-tabs">
-              <button type="button" className={activeTab === 'readers' ? 'active' : ''} onClick={() => setActiveTab('readers')}>Reader</button>
-              <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => setActiveTab('authors')}>Author</button>
+              <button type="button" className={activeTab === 'readers' ? 'active' : ''} onClick={() => switchTab('readers')}>Reader</button>
+              <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => switchTab('authors')}>Author</button>
             </div>
 
             <div className="community-search-wrap">
               <span>⌕</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search reader name, username, or email..." />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
             </div>
           </div>
 
+          {error ? <div className="community-alert">{error}</div> : null}
+
           {activeTab === 'readers' ? (
             <div>
-              {error ? <div className="community-alert">{error}</div> : null}
-
               <div className="community-table-wrap">
                 <table className="community-table">
                   <thead>
@@ -153,7 +209,7 @@ export default function AuthorsCommunity() {
                     </tr>
                   </thead>
                   <tbody>
-                    {loading ? (
+                    {listLoading ? (
                       <tr><td colSpan="4" className="community-empty">Loading readers...</td></tr>
                     ) : readers.length ? readers.map((reader) => (
                       <tr key={reader.id}>
@@ -176,16 +232,53 @@ export default function AuthorsCommunity() {
                   </tbody>
                 </table>
               </div>
-
-              <div className="community-pagination">
-                <button type="button" disabled={!pagination.has_prev || loading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
-                <span>Page {pagination.page} of {pagination.total_pages}</span>
-                <button type="button" disabled={!pagination.has_next || loading} onClick={() => setPage((current) => current + 1)}>Next</button>
-              </div>
             </div>
           ) : (
-            <div className="community-coming-soon">Author tab will be connected in the next stage.</div>
+            <div>
+              <div className="community-table-wrap">
+                <table className="community-table">
+                  <thead>
+                    <tr>
+                      <th>Author</th>
+                      <th>Email</th>
+                      <th>Books</th>
+                      <th>Joined Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listLoading ? (
+                      <tr><td colSpan="5" className="community-empty">Loading authors...</td></tr>
+                    ) : authors.length ? authors.map((author) => (
+                      <tr key={author.id}>
+                        <td>
+                          <div className="community-user">
+                            <div className="community-avatar">{getInitial(author.author_name, author.username, author.email)}</div>
+                            <div>
+                              <div className="community-user-name">{author.author_name || author.username || 'Unnamed Author'}</div>
+                              <div className="community-user-sub">@{author.username || 'no_username'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>{author.email || '-'}</td>
+                        <td>{formatNumber(author.books_count)}</td>
+                        <td>{formatDate(author.joined_at)}</td>
+                        <td><StatusBadge status={author.status} /></td>
+                      </tr>
+                    )) : (
+                      <tr><td colSpan="5" className="community-empty">No authors found.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
+
+          <div className="community-pagination">
+            <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+            <span>Page {pagination.page} of {pagination.total_pages}</span>
+            <button type="button" disabled={!pagination.has_next || listLoading} onClick={() => setPage((current) => current + 1)}>Next</button>
+          </div>
         </section>
       </div>
     </AdminLayout>
@@ -196,7 +289,7 @@ const styles = `
   .community-page { display: flex; flex-direction: column; gap: 18px; }
   .community-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
   .community-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 18px; padding: 18px; display: flex; align-items: center; gap: 13px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
-  .community-card-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 950; }
+  .community-card-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 950; flex-shrink: 0; }
   .community-card-icon.blue { background: #EFF6FF; color: #2563EB; }
   .community-card-icon.purple { background: #EEF2FF; color: #4F46E5; }
   .community-card-icon.dark { background: #F1F5F9; color: #0F172A; }
@@ -227,7 +320,6 @@ const styles = `
   .community-pagination { padding: 14px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; color: #64748B; font-size: 12px; font-weight: 850; }
   .community-pagination button { height: 34px; border: 1px solid #E2E8F0; background: #FFFFFF; border-radius: 12px; padding: 0 13px; color: #0F172A; font-size: 12px; font-weight: 900; cursor: pointer; }
   .community-pagination button:disabled { opacity: 0.45; cursor: not-allowed; }
-  .community-coming-soon { padding: 42px 16px; text-align: center; color: #64748B; font-size: 13px; font-weight: 850; }
   @media (max-width: 980px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 560px) { .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } }
 `
