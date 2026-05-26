@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -10,7 +10,6 @@ function getAdminToken() {
 const emptyForm = {
   name: '',
   description: '',
-  logo_url: '',
   sort_order: '',
   is_active: true,
 }
@@ -20,26 +19,50 @@ function formatPrice(value) {
   return `$${number.toFixed(2)}`
 }
 
-function PublisherImage({ publisher }) {
-  if (publisher.logo_url) {
-    return (
-      <img
-        src={publisher.logo_url}
-        alt={publisher.name}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          display: 'block',
-        }}
-        onError={(event) => {
-          event.currentTarget.style.display = 'none'
-        }}
-      />
-    )
-  }
+function getBookCountText(value) {
+  const count = Number(value || 0)
+  return `${count} ${count === 1 ? 'book' : 'books'}`
+}
 
-  return <span>{publisher.name ? publisher.name.slice(0, 1).toUpperCase() : 'P'}</span>
+function PublisherImage({ publisher, size = 56 }) {
+  const letter = publisher?.name ? publisher.name.slice(0, 1).toUpperCase() : 'P'
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        overflow: 'hidden',
+        background: '#EEF2FF',
+        color: '#4F46E5',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: Math.max(13, Math.round(size * 0.32)),
+        fontWeight: 900,
+        flexShrink: 0,
+      }}
+    >
+      {publisher?.logo_url ? (
+        <img
+          src={publisher.logo_url}
+          alt={publisher.name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block',
+          }}
+          onError={(event) => {
+            event.currentTarget.style.display = 'none'
+          }}
+        />
+      ) : (
+        letter
+      )}
+    </div>
+  )
 }
 
 function ProductMiniRow({ product, actionLabel, onAction, danger = false }) {
@@ -128,6 +151,7 @@ function ProductMiniRow({ product, actionLabel, onAction, danger = false }) {
 
 export default function ShadowMallPublishersPage() {
   const navigate = useNavigate()
+  const logoInputRef = useRef(null)
   const [publishers, setPublishers] = useState([])
   const [selectedPublisher, setSelectedPublisher] = useState(null)
   const [assignedProducts, setAssignedProducts] = useState([])
@@ -136,6 +160,9 @@ export default function ShadowMallPublishersPage() {
   const [manualProducts, setManualProducts] = useState([])
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPreview, setLogoPreview] = useState('')
+  const [removeLogo, setRemoveLogo] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -151,6 +178,14 @@ export default function ShadowMallPublishersPage() {
     return {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       'Content-Type': 'application/json',
+    }
+  }
+
+  function authUploadHeaders() {
+    const token = getAdminToken()
+
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     }
   }
 
@@ -276,6 +311,7 @@ export default function ShadowMallPublishersPage() {
       setMatches((current) => current.filter((product) => !productIds.includes(product.id)))
       setManualProducts((current) => current.filter((product) => !productIds.includes(product.id)))
       await loadPublisherProducts(selectedPublisher)
+      await loadPublishers()
       setMessage(`${productIds.length} product${productIds.length > 1 ? 's' : ''} assigned.`)
     } catch (error) {
       setMessage(error.message || 'Failed to assign products')
@@ -303,12 +339,49 @@ export default function ShadowMallPublishersPage() {
       }
 
       await loadPublisherProducts(selectedPublisher)
+      await loadPublishers()
       setMessage(`${productIds.length} product${productIds.length > 1 ? 's' : ''} removed from publisher.`)
     } catch (error) {
       setMessage(error.message || 'Failed to remove products')
     } finally {
       setSaving(false)
     }
+  }
+
+  function handleLogoUpload(event) {
+    const file = event.target.files?.[0]
+
+    if (!file) return
+
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+    setRemoveLogo(false)
+  }
+
+  function clearLogo() {
+    setLogoFile(null)
+    setLogoPreview('')
+    setRemoveLogo(true)
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value = ''
+    }
+  }
+
+  function resetLogo() {
+    setLogoFile(null)
+    setLogoPreview('')
+    setRemoveLogo(false)
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value = ''
+    }
+  }
+
+  function resetForm() {
+    setForm(emptyForm)
+    setEditingId(null)
+    resetLogo()
   }
 
   async function savePublisher(event) {
@@ -323,12 +396,18 @@ export default function ShadowMallPublishersPage() {
       setSaving(true)
       setMessage('')
 
-      const payload = {
-        name: form.name.trim(),
-        description: form.description.trim(),
-        logo_url: form.logo_url.trim(),
-        sort_order: form.sort_order === '' ? 0 : Number(form.sort_order),
-        is_active: Boolean(form.is_active),
+      const formData = new FormData()
+      formData.append('name', form.name.trim())
+      formData.append('description', form.description.trim())
+      formData.append('sort_order', form.sort_order === '' ? '0' : String(Number(form.sort_order)))
+      formData.append('is_active', String(Boolean(form.is_active)))
+
+      if (logoFile) {
+        formData.append('publisher_logo', logoFile)
+      }
+
+      if (removeLogo && !logoFile) {
+        formData.append('logo_url', '')
       }
 
       const url = editingId
@@ -337,8 +416,8 @@ export default function ShadowMallPublishersPage() {
 
       const response = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(payload),
+        headers: authUploadHeaders(),
+        body: formData,
       })
       const data = await response.json().catch(() => ({}))
 
@@ -346,8 +425,7 @@ export default function ShadowMallPublishersPage() {
         throw new Error(data.message || 'Failed to save publisher')
       }
 
-      setForm(emptyForm)
-      setEditingId(null)
+      resetForm()
       setMessage(editingId ? 'Publisher updated.' : 'Publisher created.')
       await loadPublishers()
     } catch (error) {
@@ -362,10 +440,17 @@ export default function ShadowMallPublishersPage() {
     setForm({
       name: publisher.name || '',
       description: publisher.description || '',
-      logo_url: publisher.logo_url || '',
       sort_order: publisher.sort_order ?? '',
       is_active: Boolean(publisher.is_active),
     })
+    setLogoFile(null)
+    setLogoPreview(publisher.logo_url || '')
+    setRemoveLogo(false)
+
+    if (logoInputRef.current) {
+      logoInputRef.current.value = ''
+    }
+
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -465,6 +550,16 @@ export default function ShadowMallPublishersPage() {
           font-size: 12px;
           font-weight: 900;
         }
+        .publisher-button {
+          border: 0;
+          border-radius: 14px;
+          height: 42px;
+          padding: 0 14px;
+          font: inherit;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+        }
       `}</style>
 
       <header style={{
@@ -493,7 +588,7 @@ export default function ShadowMallPublishersPage() {
             Publishers
           </h1>
           <p style={{ marginTop: 8, color: '#64748B', fontSize: 13, fontWeight: 600, lineHeight: 1.5 }}>
-            Create publishers, match books automatically, and manually assign books when names do not match.
+            Create publishers, upload logos, match books automatically, and manually assign books when names do not match.
           </p>
         </div>
 
@@ -569,7 +664,7 @@ export default function ShadowMallPublishersPage() {
               {editingId ? 'Edit Publisher' : 'Create Publisher'}
             </h2>
             <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
-              Logo can use image URL now. Upload button can be added in the next stage.
+              Recommended logo: square 800×800px, PNG, JPG, or WEBP.
             </p>
           </div>
 
@@ -584,15 +679,56 @@ export default function ShadowMallPublishersPage() {
               />
             </label>
 
-            <label style={{ display: 'block', marginBottom: 13 }}>
-              <span className="publisher-label">Logo URL</span>
-              <input
-                className="publisher-input"
-                value={form.logo_url}
-                onChange={(event) => setForm((current) => ({ ...current, logo_url: event.target.value }))}
-                placeholder="https://..."
-              />
-            </label>
+            <div style={{ marginBottom: 13 }}>
+              <span className="publisher-label">Publisher Logo</span>
+              <div style={{
+                border: '1px dashed #CBD5E1',
+                borderRadius: 22,
+                background: '#F8FAFC',
+                padding: 16,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+              }}>
+                <PublisherImage publisher={{ name: form.name || 'Publisher', logo_url: logoPreview }} size={76} />
+
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ color: '#0F172A', fontSize: 13, fontWeight: 900 }}>
+                    Upload logo image
+                  </div>
+                  <div style={{ marginTop: 4, color: '#64748B', fontSize: 11, fontWeight: 700, lineHeight: 1.5 }}>
+                    Square logo looks best in Reader search.
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="publisher-button"
+                      style={{ background: '#EEF2FF', color: '#4F46E5' }}
+                    >
+                      Upload / Replace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearLogo}
+                      className="publisher-button"
+                      style={{ background: '#FEE2E2', color: '#B91C1C' }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleLogoUpload}
+                  style={{ display: 'none' }}
+                />
+              </div>
+            </div>
 
             <label style={{ display: 'block', marginBottom: 13 }}>
               <span className="publisher-label">Description</span>
@@ -660,10 +796,7 @@ export default function ShadowMallPublishersPage() {
             {editingId ? (
               <button
                 type="button"
-                onClick={() => {
-                  setEditingId(null)
-                  setForm(emptyForm)
-                }}
+                onClick={resetForm}
                 style={{
                   width: '100%',
                   height: 44,
@@ -745,28 +878,22 @@ export default function ShadowMallPublishersPage() {
                         background: 'transparent',
                         textAlign: 'left',
                         cursor: 'pointer',
-                      }}
-                    >
-                      <div style={{
-                        width: 54,
-                        height: 54,
-                        borderRadius: 18,
-                        overflow: 'hidden',
-                        background: '#EEF2FF',
-                        color: '#4F46E5',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 18,
-                        fontWeight: 900,
-                      }}>
-                        <PublisherImage publisher={publisher} />
-                      </div>
-                      <div style={{ marginTop: 10, fontSize: 14, fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {publisher.name}
-                      </div>
-                      <div style={{ marginTop: 4, fontSize: 11, fontWeight: 800, color: publisher.is_active ? '#10B981' : '#94A3B8' }}>
-                        {publisher.is_active ? 'Active' : 'Hidden'} · Sort {publisher.sort_order}
+                        gap: 12,
+                      }}
+                    >
+                      <PublisherImage publisher={publisher} size={56} />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {publisher.name}
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 11, fontWeight: 800, color: '#64748B' }}>
+                          {getBookCountText(publisher.book_count)}
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 11, fontWeight: 800, color: publisher.is_active ? '#10B981' : '#94A3B8' }}>
+                          {publisher.is_active ? 'Active' : 'Hidden'} · Sort {publisher.sort_order}
+                        </div>
                       </div>
                     </button>
 
