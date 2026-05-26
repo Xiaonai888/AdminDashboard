@@ -1,584 +1,392 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import AdminLayout from '../components/AdminLayout'
-
-const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
-
-function getAdminToken() {
-  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(value).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-function getInitial(name, username) {
-  return String(name || username || 'U').trim().slice(0, 1).toUpperCase()
-}
-
-function normalizeStatus(status) {
-  const value = String(status || 'active').toLowerCase()
-  if (value === 'inactive') return 'Inactive'
-  if (value === 'suspended') return 'Suspended'
-  if (value === 'pending') return 'Pending'
-  return 'Active'
-}
-
-function statusStyle(status) {
-  const value = String(status || 'active').toLowerCase()
-
-  if (value === 'suspended') {
-    return { background: '#FEE2E2', color: '#DC2626' }
-  }
-
-  if (value === 'pending') {
-    return { background: '#FEF3C7', color: '#B45309' }
-  }
-
-  if (value === 'inactive') {
-    return { background: '#F1F5F9', color: '#64748B' }
-  }
-
-  return { background: '#DCFCE7', color: '#16A34A' }
-}
+import React, { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const styles = `
-.community-page {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.community-cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.community-card {
-  background: #FFFFFF;
-  border: 1px solid #DDE7F3;
-  border-radius: 16px;
-  padding: 18px;
-  min-height: 82px;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.community-card-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.community-card-label {
-  font-size: 12px;
-  font-weight: 950;
-  color: #64748B;
-}
-
-.community-card-value {
-  margin-top: 4px;
-  font-size: 25px;
-  line-height: 1;
-  font-weight: 950;
-  color: #0F172A;
-}
-
-.community-panel {
-  background: #FFFFFF;
-  border: 1px solid #DDE7F3;
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
-}
-
-.community-toolbar {
-  padding: 16px;
-  border-bottom: 1px solid #E2E8F0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.community-tabs {
-  height: 40px;
-  padding: 4px;
-  border-radius: 12px;
-  background: #F8FAFC;
-  border: 1px solid #D5E0EF;
-  display: inline-flex;
-  gap: 4px;
-}
-
-.community-tab {
-  min-width: 84px;
-  height: 30px;
-  border: 0;
-  border-radius: 9px;
-  background: transparent;
-  color: #475569;
-  font-size: 12px;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.community-tab.active {
-  background: #4F46E5;
-  color: #FFFFFF;
-  box-shadow: 0 5px 12px rgba(79, 70, 229, 0.28);
-}
-
-.community-search {
-  width: min(360px, 100%);
-  height: 38px;
-  border: 1px solid #D5E0EF;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 13px;
-  color: #94A3B8;
-}
-
-.community-search input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 850;
-  color: #0F172A;
-  background: transparent;
-}
-
-.community-search input::placeholder {
-  color: #94A3B8;
-}
-
-.community-table-wrap {
-  overflow-x: auto;
-}
-
-.community-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 860px;
-}
-
-.community-table th {
-  height: 38px;
-  padding: 0 16px;
-  text-align: left;
-  background: #F8FAFC;
-  border-bottom: 1px solid #DDE7F3;
-  color: #64748B;
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.community-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #E8EEF6;
-  color: #0F172A;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.community-person {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 240px;
-}
-
-.community-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #4F46E5, #7C3AED);
-  color: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 950;
-  flex-shrink: 0;
-}
-
-.community-name {
-  font-size: 13px;
-  font-weight: 950;
-  color: #0F172A;
-}
-
-.community-username {
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 800;
-  color: #64748B;
-}
-
-.community-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 950;
-}
-
-.community-empty {
-  padding: 46px 16px;
-  text-align: center;
-  color: #64748B;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-.community-footer {
-  min-height: 56px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.community-page-info {
-  font-size: 12px;
-  font-weight: 950;
-  color: #64748B;
-}
-
-.community-page-btn {
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  background: #FFFFFF;
-  color: #64748B;
-  font-size: 12px;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.community-page-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.community-error {
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: #FEF2F2;
-  color: #B91C1C;
-  font-size: 13px;
-  font-weight: 850;
-}
-
-@media (max-width: 980px) {
-  .community-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .community-cards {
-    grid-template-columns: 1fr;
+  :root {
+    --shadow-admin-bg: #F8FAFC;
+    --shadow-admin-card: #FFFFFF;
+    --shadow-admin-primary: #4F46E5;
+    --shadow-admin-primary-light: #EEF2FF;
+    --shadow-admin-text: #0F172A;
+    --shadow-admin-muted: #64748B;
+    --shadow-admin-border: #E2E8F0;
+    --shadow-admin-sidebar-collapsed: 82px;
+    --shadow-admin-sidebar-expanded: 270px;
   }
 
-  .community-toolbar {
-    align-items: stretch;
+  * { box-sizing: border-box; }
+
+  .shadow-admin-shell {
+    min-height: 100vh;
+    display: flex;
+    background: var(--shadow-admin-bg);
+    color: var(--shadow-admin-text);
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
-  .community-search {
+  .shadow-admin-sidebar {
+    position: sticky;
+    top: 0;
+    width: var(--shadow-admin-sidebar-collapsed);
+    height: 100vh;
+    background: var(--shadow-admin-card);
+    border-right: 1px solid var(--shadow-admin-border);
+    padding: 18px 13px;
+    z-index: 50;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  .shadow-admin-sidebar:hover {
+    width: var(--shadow-admin-sidebar-expanded);
+    box-shadow: 12px 0 30px rgba(15, 23, 42, 0.06);
+  }
+
+  .shadow-admin-sidebar::-webkit-scrollbar { width: 0; }
+
+  .shadow-admin-logo {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 10px;
+    margin-bottom: 24px;
+  }
+
+  .shadow-admin-logo-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 14px;
+    background: var(--shadow-admin-primary-light);
+    color: var(--shadow-admin-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 950;
+    flex-shrink: 0;
+  }
+
+  .shadow-admin-logo-text {
+    font-size: 15px;
+    font-weight: 950;
+    color: var(--shadow-admin-primary);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .shadow-admin-sidebar:hover .shadow-admin-logo-text { opacity: 1; }
+
+  .shadow-admin-group-label {
+    display: block;
+    margin: 18px 0 8px 11px;
+    color: var(--shadow-admin-muted);
+    font-size: 10px;
+    font-weight: 950;
+    letter-spacing: 0.9px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .shadow-admin-sidebar:hover .shadow-admin-group-label { opacity: 1; }
+
+  .shadow-admin-nav-item {
     width: 100%;
+    min-height: 44px;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    color: var(--shadow-admin-muted);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 12px;
+    margin-bottom: 3px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: left;
+    white-space: nowrap;
+    transition: background 0.16s ease, color 0.16s ease;
   }
-}
+
+  .shadow-admin-nav-item:hover,
+  .shadow-admin-nav-item.active {
+    background: var(--shadow-admin-primary-light);
+    color: var(--shadow-admin-primary);
+  }
+
+  .shadow-admin-nav-icon {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    flex-shrink: 0;
+  }
+
+  .shadow-admin-nav-text {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .shadow-admin-sidebar:hover .shadow-admin-nav-text { opacity: 1; }
+
+  .shadow-admin-subnav {
+    margin: -1px 0 8px 34px;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .shadow-admin-sidebar:hover .shadow-admin-subnav { display: flex; }
+
+  .shadow-admin-subnav-item {
+    width: 100%;
+    height: 32px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--shadow-admin-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    text-align: left;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+
+  .shadow-admin-subnav-item:hover,
+  .shadow-admin-subnav-item.active {
+    background: var(--shadow-admin-primary-light);
+    color: var(--shadow-admin-primary);
+  }
+
+  .shadow-admin-main {
+    flex: 1;
+    min-width: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .shadow-admin-topbar {
+    position: sticky;
+    top: 0;
+    height: 68px;
+    background: rgba(255, 255, 255, 0.94);
+    border-bottom: 1px solid var(--shadow-admin-border);
+    backdrop-filter: blur(16px);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 0 30px;
+  }
+
+  .shadow-admin-page-title {
+    font-size: 18px;
+    font-weight: 950;
+    color: var(--shadow-admin-text);
+    margin: 0;
+  }
+
+  .shadow-admin-page-subtitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--shadow-admin-muted);
+    margin-top: 3px;
+  }
+
+  .shadow-admin-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .shadow-admin-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .shadow-admin-content {
+    padding: 26px 30px 46px;
+  }
+
+  @media (max-width: 900px) {
+    .shadow-admin-sidebar {
+      width: 70px;
+      padding: 14px 9px;
+    }
+
+    .shadow-admin-sidebar:hover { width: 235px; }
+
+    .shadow-admin-topbar { padding: 0 16px; }
+
+    .shadow-admin-content { padding: 18px 14px 36px; }
+
+    .shadow-admin-page-title { font-size: 16px; }
+  }
 `
 
-export default function AuthorsCommunity() {
-  const [activeTab, setActiveTab] = useState('readers')
-  const [overview, setOverview] = useState({
-    total_readers: 0,
-    total_authors: 0,
-    total_members: 0,
-    new_this_month: 0,
-  })
-  const [readers, setReaders] = useState([])
-  const [authors, setAuthors] = useState([])
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState({
-    page: 1,
-    total_pages: 1,
-    has_next: false,
-    has_prev: false,
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+const navGroups = [
+  {
+    label: 'Overview',
+    items: [
+      { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
+      {
+        path: '/shadow-mall',
+        label: 'Shadow Mall',
+        icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6',
+        children: [
+          { path: '/shadow-mall', label: 'Products' },
+          { path: '/shadow-mall/orders', label: 'Review Orders' },
+          { path: '/shadow-mall/publishers', label: 'Publishers' },
+        ],
+      },
+      { path: '/shadow-exclusive', label: 'Shadow Exclusive', icon: 'M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z M9 12l2 2 4-5' },
+      { path: '/authors', label: 'Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
+    ],
+  },
+  {
+    label: 'Visual Media',
+    items: [
+      { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
+      { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
+      { path: '/genres', label: 'Genre', icon: 'M4 6h16M4 12h16M4 18h16' },
+      { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
+      { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+    ],
+  },
+  {
+    label: 'System Admin',
+    items: [
+      { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
+      { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+      { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
+      { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
+      { path: '/comments', label: 'Comments', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
+    ],
+  },
+  {
+    label: 'Finance & Growth',
+    items: [
+      { path: '/payment', label: 'Payment', icon: 'M21 12V7H5v10h16v-5z M5 7l8 5 8-5 M7 17h10' },
+      { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+      { path: '/history', label: 'History', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
+      { path: '/deposit', label: 'Deposit', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-5l5 5 5-5m-5 5V3' },
+      { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4m4-10l5-5 5 5m-5-5v12' },
+      { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 010-5H6 M18 9h1.5a2.5 2.5 0 000-5H18 M4 22h16 M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22 M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22 M18 2H6v7a6 6 0 0012 0V2z' },
+    ],
+  },
+]
 
-  const token = useMemo(() => getAdminToken(), [])
+function Icon({ d, size = 20 }) {
+  return (
+    <svg
+      className="shadow-admin-nav-icon"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedSearch(search.trim())
-      setPage(1)
-    }, 350)
+function isActivePath(currentPath, itemPath) {
+  if (itemPath === '/admin') return currentPath === '/admin'
+  return currentPath === itemPath || currentPath.startsWith(`${itemPath}/`)
+}
 
-    return () => window.clearTimeout(timer)
-  }, [search])
-
-  useEffect(() => {
-    async function loadOverview() {
-      try {
-        const response = await fetch(`${API_URL}/api/admin/community/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
-        const result = await response.json()
-
-        if (!response.ok || !result.ok) {
-          throw new Error(result.message || 'Failed to load community overview')
-        }
-
-        setOverview(result.overview || {})
-      } catch (err) {
-        setError(err.message || 'Failed to load community overview')
-      }
-    }
-
-    loadOverview()
-  }, [token])
-
-  useEffect(() => {
-    async function loadList() {
-      try {
-        setLoading(true)
-        setError('')
-
-        const endpoint = activeTab === 'authors' ? 'authors' : 'readers'
-        const params = new URLSearchParams({
-          page: String(page),
-          limit: '20',
-          q: debouncedSearch,
-        })
-
-        const response = await fetch(`${API_URL}/api/admin/community/${endpoint}?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
-        const result = await response.json()
-
-        if (!response.ok || !result.ok) {
-          throw new Error(result.message || `Failed to load ${endpoint}`)
-        }
-
-        if (activeTab === 'authors') {
-          setAuthors(result.authors || [])
-        } else {
-          setReaders(result.readers || [])
-        }
-
-        setPagination({
-          page: result.page || 1,
-          total_pages: result.total_pages || 1,
-          has_next: Boolean(result.has_next),
-          has_prev: Boolean(result.has_prev),
-        })
-      } catch (err) {
-        setError(err.message || 'Failed to load community data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadList()
-  }, [activeTab, debouncedSearch, page, token])
-
-  function changeTab(tab) {
-    setActiveTab(tab)
-    setSearch('')
-    setDebouncedSearch('')
-    setPage(1)
-  }
-
-  const list = activeTab === 'authors' ? authors : readers
+export default function AdminLayout({
+  title = 'Admin Dashboard',
+  subtitle = '',
+  children,
+}) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [adminName] = useState('Xiaonai Xiao')
 
   return (
-    <AdminLayout title="Community" subtitle="View readers and authors in one place.">
+    <>
       <style>{styles}</style>
 
-      <div className="community-page">
-        <div className="community-cards">
-          <div className="community-card">
-            <div className="community-card-icon" style={{ background: '#EEF2FF', color: '#4F46E5' }}>T</div>
+      <div className="shadow-admin-shell">
+        <aside className="shadow-admin-sidebar">
+          <div className="shadow-admin-logo">
+            <div className="shadow-admin-logo-icon">S</div>
+            <div className="shadow-admin-logo-text">Shadow Admin</div>
+          </div>
+
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <span className="shadow-admin-group-label">{group.label}</span>
+
+              {group.items.map((item) => (
+                <div key={item.path}>
+                  <button
+                    type="button"
+                    className={`shadow-admin-nav-item ${isActivePath(location.pathname, item.path) ? 'active' : ''}`}
+                    onClick={() => navigate(item.path)}
+                    title={item.label}
+                  >
+                    <Icon d={item.icon} />
+                    <span className="shadow-admin-nav-text">{item.label}</span>
+                  </button>
+
+                  {item.children?.length ? (
+                    <div className="shadow-admin-subnav">
+                      {item.children.map((child) => (
+                        <button
+                          key={child.path}
+                          type="button"
+                          className={`shadow-admin-subnav-item ${isActivePath(location.pathname, child.path) ? 'active' : ''}`}
+                          onClick={() => navigate(child.path)}
+                          title={child.label}
+                        >
+                          {child.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ))}
+        </aside>
+
+        <div className="shadow-admin-main">
+          <header className="shadow-admin-topbar">
             <div>
-              <div className="community-card-label">Total Readers</div>
-              <div className="community-card-value">{overview.total_readers || 0}</div>
-            </div>
-          </div>
-
-          <div className="community-card">
-            <div className="community-card-icon" style={{ background: '#F1F0FF', color: '#4F46E5' }}>T</div>
-            <div>
-              <div className="community-card-label">Total Authors</div>
-              <div className="community-card-value">{overview.total_authors || 0}</div>
-            </div>
-          </div>
-
-          <div className="community-card">
-            <div className="community-card-icon" style={{ background: '#F8FAFC', color: '#0F172A' }}>C</div>
-            <div>
-              <div className="community-card-label">Community Members</div>
-              <div className="community-card-value">{overview.total_members || 0}</div>
-            </div>
-          </div>
-
-          <div className="community-card">
-            <div className="community-card-icon" style={{ background: '#ECFDF5', color: '#059669' }}>N</div>
-            <div>
-              <div className="community-card-label">New This Month</div>
-              <div className="community-card-value">{overview.new_this_month || 0}</div>
-            </div>
-          </div>
-        </div>
-
-        {error ? <div className="community-error">{error}</div> : null}
-
-        <div className="community-panel">
-          <div className="community-toolbar">
-            <div className="community-tabs">
-              <button type="button" className={`community-tab ${activeTab === 'readers' ? 'active' : ''}`} onClick={() => changeTab('readers')}>
-                Reader
-              </button>
-              <button type="button" className={`community-tab ${activeTab === 'authors' ? 'active' : ''}`} onClick={() => changeTab('authors')}>
-                Author
-              </button>
+              <h1 className="shadow-admin-page-title">{title}</h1>
+              {subtitle ? <div className="shadow-admin-page-subtitle">{subtitle}</div> : null}
             </div>
 
-            <div className="community-search">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </svg>
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder={activeTab === 'authors' ? 'Search author name or username...' : 'Search reader name, username, or email...'}
-              />
+            <div className="shadow-admin-profile">
+              <div className="shadow-admin-avatar">{adminName.charAt(0)}</div>
             </div>
-          </div>
+          </header>
 
-          <div className="community-table-wrap">
-            <table className="community-table">
-              <thead>
-                {activeTab === 'authors' ? (
-                  <tr>
-                    <th>Author</th>
-                    <th>Email</th>
-                    <th>Books</th>
-                    <th>Joined Date</th>
-                    <th>Status</th>
-                  </tr>
-                ) : (
-                  <tr>
-                    <th>Reader</th>
-                    <th>Email</th>
-                    <th>Joined Date</th>
-                    <th>Status</th>
-                  </tr>
-                )}
-              </thead>
-
-              <tbody>
-                {!loading && list.length ? (
-                  activeTab === 'authors' ? (
-                    authors.map((author) => (
-                      <tr key={author.id}>
-                        <td>
-                          <div className="community-person">
-                            <div className="community-avatar">{getInitial(author.author_name, author.username)}</div>
-                            <div>
-                              <div className="community-name">{author.author_name || 'Author'}</div>
-                              <div className="community-username">@{author.username || 'author'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{author.email || '-'}</td>
-                        <td>{Number(author.books_count || 0)}</td>
-                        <td>{formatDate(author.joined_at)}</td>
-                        <td>
-                          <span className="community-status" style={statusStyle(author.status)}>
-                            {normalizeStatus(author.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    readers.map((reader) => (
-                      <tr key={reader.id}>
-                        <td>
-                          <div className="community-person">
-                            <div className="community-avatar">{getInitial(reader.name, reader.username)}</div>
-                            <div>
-                              <div className="community-name">{reader.name || 'Reader'}</div>
-                              <div className="community-username">@{reader.username || 'reader'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{reader.email || '-'}</td>
-                        <td>{formatDate(reader.joined_at)}</td>
-                        <td>
-                          <span className="community-status" style={statusStyle(reader.status)}>
-                            {normalizeStatus(reader.status)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )
-                ) : null}
-              </tbody>
-            </table>
-
-            {loading ? <div className="community-empty">Loading community data...</div> : null}
-            {!loading && !list.length ? <div className="community-empty">No {activeTab === 'authors' ? 'authors' : 'readers'} found.</div> : null}
-          </div>
-
-          <div className="community-footer">
-            <button type="button" className="community-page-btn" disabled={!pagination.has_prev || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-              Previous
-            </button>
-            <div className="community-page-info">Page {pagination.page} of {pagination.total_pages}</div>
-            <button type="button" className="community-page-btn" disabled={!pagination.has_next || loading} onClick={() => setPage((value) => value + 1)}>
-              Next
-            </button>
-          </div>
+          <main className="shadow-admin-content">{children}</main>
         </div>
       </div>
-    </AdminLayout>
+    </>
   )
 }
