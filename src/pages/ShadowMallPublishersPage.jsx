@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -558,12 +559,13 @@ async function loadPublisherLogs(nextPage = 1) {
   }
 
   return (
+    <AdminLayout
+    title="Publishers"
+    subtitle="Create publishers, upload logos, match books automatically, and manually assign books when names do not match."
+  >
     <div style={{
-      minHeight: '100vh',
-      background: '#F8FAFC',
       color: '#0F172A',
       fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      padding: 28,
     }}>
       <style>{`
         * { box-sizing: border-box; }
@@ -1353,5 +1355,6 @@ async function loadPublisherLogs(nextPage = 1) {
         </div>
       </section>
     </div>
+    </AdminLayout>
   )
 }
