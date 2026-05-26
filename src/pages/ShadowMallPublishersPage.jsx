@@ -19,6 +19,11 @@ function formatPrice(value) {
   return `$${number.toFixed(2)}`
 }
 
+function formatDate(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleString()
+}
+
 function getBookCountText(value) {
   const count = Number(value || 0)
   return `${count} ${count === 1 ? 'book' : 'books'}`
@@ -166,6 +171,14 @@ export default function ShadowMallPublishersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [publisherLogs, setPublisherLogs] = useState([])
+  const [publisherLogSearch, setPublisherLogSearch] = useState('')
+  const [publisherLogLoading, setPublisherLogLoading] = useState(false)
+  const [publisherLogMeta, setPublisherLogMeta] = useState({
+    page: 1,
+    total_pages: 1,
+    total: 0,
+  })
 
   const activePublishers = useMemo(
     () => publishers.filter((publisher) => publisher.is_active),
@@ -212,6 +225,40 @@ export default function ShadowMallPublishersPage() {
     }
   }
 
+async function loadPublisherLogs(nextPage = 1) {
+  try {
+    setPublisherLogLoading(true)
+
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      limit: '20',
+      q: publisherLogSearch.trim(),
+    })
+
+    const response = await fetch(`${API_URL}/api/shadow-mall/admin/publishers/logs?${params.toString()}`, {
+      headers: authHeaders(),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Failed to load publisher records')
+    }
+
+    setPublisherLogs(data.logs || [])
+    setPublisherLogMeta({
+      page: data.page || 1,
+      total_pages: data.total_pages || 1,
+      total: data.total || 0,
+    })
+  } catch (error) {
+    setPublisherLogs([])
+    setMessage(error.message || 'Failed to load publisher records')
+  } finally {
+    setPublisherLogLoading(false)
+  }
+}
+  
   async function loadPublisherProducts(publisher = selectedPublisher) {
     if (!publisher?.id) return
 
@@ -312,6 +359,7 @@ export default function ShadowMallPublishersPage() {
       setManualProducts((current) => current.filter((product) => !productIds.includes(product.id)))
       await loadPublisherProducts(selectedPublisher)
       await loadPublishers()
+      await loadPublisherLogs(1)
       setMessage(`${productIds.length} product${productIds.length > 1 ? 's' : ''} assigned.`)
     } catch (error) {
       setMessage(error.message || 'Failed to assign products')
@@ -340,6 +388,7 @@ export default function ShadowMallPublishersPage() {
 
       await loadPublisherProducts(selectedPublisher)
       await loadPublishers()
+      await loadPublisherLogs(1)
       setMessage(`${productIds.length} product${productIds.length > 1 ? 's' : ''} removed from publisher.`)
     } catch (error) {
       setMessage(error.message || 'Failed to remove products')
@@ -428,6 +477,7 @@ export default function ShadowMallPublishersPage() {
       resetForm()
       setMessage(editingId ? 'Publisher updated.' : 'Publisher created.')
       await loadPublishers()
+      await loadPublisherLogs(1)
     } catch (error) {
       setMessage(error.message || 'Failed to save publisher')
     } finally {
@@ -480,6 +530,7 @@ export default function ShadowMallPublishersPage() {
 
       setMessage('Publisher hidden.')
       await loadPublishers()
+      await loadPublisherLogs(1)
     } catch (error) {
       setMessage(error.message || 'Failed to hide publisher')
     } finally {
@@ -489,8 +540,9 @@ export default function ShadowMallPublishersPage() {
 
   useEffect(() => {
     loadPublishers()
+    loadPublisherLogs(1)
   }, [])
-
+  
   useEffect(() => {
     const timer = window.setTimeout(searchManualProducts, 350)
     return () => window.clearTimeout(timer)
@@ -1059,6 +1111,245 @@ export default function ShadowMallPublishersPage() {
               </div>
             </section>
           ) : null}
+
+          <section style={{
+  marginTop: 20,
+  background: '#FFFFFF',
+  border: '1px solid #E2E8F0',
+  borderRadius: 24,
+  overflow: 'hidden',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.04)',
+}}>
+  <div style={{
+    padding: '20px 22px',
+    borderBottom: '1px solid #E2E8F0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 14,
+  }}>
+    <div>
+      <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>Publisher Records</h2>
+      <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600, lineHeight: 1.5 }}>
+        Recent publisher actions. Records are used for admin tracking.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => loadPublisherLogs(publisherLogMeta.page)}
+      style={{
+        height: 38,
+        border: '1px solid #E2E8F0',
+        borderRadius: 14,
+        background: '#FFFFFF',
+        color: '#0F172A',
+        padding: '0 14px',
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: 'pointer',
+      }}
+    >
+      Refresh
+    </button>
+  </div>
+
+  <div style={{
+    padding: 16,
+    borderBottom: '1px solid #F1F5F9',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) 120px',
+    gap: 10,
+  }}>
+    <div style={{
+      height: 44,
+      border: '1px solid #E2E8F0',
+      borderRadius: 14,
+      background: '#F8FAFC',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '0 13px',
+    }}>
+      <span style={{ color: '#94A3B8', fontSize: 13 }}>🔍</span>
+      <input
+        value={publisherLogSearch}
+        onChange={(event) => setPublisherLogSearch(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') loadPublisherLogs(1)
+        }}
+        placeholder="Search publisher records..."
+        style={{
+          width: '100%',
+          border: 0,
+          background: 'transparent',
+          outline: 'none',
+          color: '#0F172A',
+          fontFamily: 'inherit',
+          fontSize: 13,
+          fontWeight: 800,
+        }}
+      />
+    </div>
+
+    <button
+      type="button"
+      onClick={() => loadPublisherLogs(1)}
+      style={{
+        height: 44,
+        border: 0,
+        borderRadius: 14,
+        background: '#4F46E5',
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: 'pointer',
+      }}
+    >
+      Search
+    </button>
+  </div>
+
+  <div style={{ minHeight: 260 }}>
+    {publisherLogLoading ? (
+      <div style={{ padding: 54, textAlign: 'center', color: '#94A3B8', fontSize: 13, fontWeight: 900 }}>
+        Loading records...
+      </div>
+    ) : publisherLogs.length ? (
+      publisherLogs.map((log) => (
+        <div
+          key={log.id}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '90px minmax(0, 1fr) 220px',
+            gap: 16,
+            alignItems: 'center',
+            padding: '16px 20px',
+            borderBottom: '1px solid #F1F5F9',
+          }}
+        >
+          <div style={{
+            width: 72,
+            height: 28,
+            borderRadius: 999,
+            background: '#EEF2FF',
+            color: '#4F46E5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 10,
+            fontWeight: 900,
+          }}>
+            {log.action || 'UPDATE'}
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 900,
+              color: '#0F172A',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {log.publisher_name || 'Publisher'}
+            </div>
+
+            <div style={{
+              marginTop: 4,
+              fontSize: 12,
+              fontWeight: 700,
+              color: '#64748B',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {log.details || '-'}
+            </div>
+
+            <div style={{ marginTop: 4, fontSize: 11, fontWeight: 700, color: '#64748B' }}>
+              By: {log.admin_name || 'Admin'}
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'right', color: '#64748B', fontSize: 12, fontWeight: 700 }}>
+            {formatDate(log.created_at)}
+          </div>
+        </div>
+      ))
+    ) : (
+      <div style={{ padding: 54, textAlign: 'center', color: '#94A3B8', fontSize: 13, fontWeight: 900 }}>
+        No publisher records yet.
+      </div>
+    )}
+  </div>
+
+  <div style={{
+    padding: '14px 20px',
+    borderTop: '1px solid #F1F5F9',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 8,
+  }}>
+    <button
+      type="button"
+      disabled={publisherLogMeta.page <= 1}
+      onClick={() => loadPublisherLogs(publisherLogMeta.page - 1)}
+      style={{
+        height: 36,
+        border: '1px solid #E2E8F0',
+        borderRadius: 12,
+        background: '#FFFFFF',
+        color: '#0F172A',
+        padding: '0 14px',
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: publisherLogMeta.page <= 1 ? 'not-allowed' : 'pointer',
+        opacity: publisherLogMeta.page <= 1 ? 0.5 : 1,
+      }}
+    >
+      Previous
+    </button>
+
+    <button
+      type="button"
+      disabled
+      style={{
+        height: 36,
+        border: '1px solid #E2E8F0',
+        borderRadius: 12,
+        background: '#FFFFFF',
+        color: '#0F172A',
+        padding: '0 14px',
+        fontSize: 12,
+        fontWeight: 900,
+      }}
+    >
+      Page {publisherLogMeta.page} / {publisherLogMeta.total_pages}
+    </button>
+
+    <button
+      type="button"
+      disabled={publisherLogMeta.page >= publisherLogMeta.total_pages}
+      onClick={() => loadPublisherLogs(publisherLogMeta.page + 1)}
+      style={{
+        height: 36,
+        border: '1px solid #E2E8F0',
+        borderRadius: 12,
+        background: '#FFFFFF',
+        color: '#0F172A',
+        padding: '0 14px',
+        fontSize: 12,
+        fontWeight: 900,
+        cursor: publisherLogMeta.page >= publisherLogMeta.total_pages ? 'not-allowed' : 'pointer',
+        opacity: publisherLogMeta.page >= publisherLogMeta.total_pages ? 0.5 : 1,
+      }}
+    >
+      Next
+    </button>
+  </div>
+</section>
+
         </div>
       </section>
     </div>
