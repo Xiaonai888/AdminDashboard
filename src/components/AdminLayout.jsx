@@ -143,6 +143,39 @@ const styles = `
     opacity: 1;
   }
 
+  .shadow-admin-subnav {
+    margin: -1px 0 8px 34px;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .shadow-admin-sidebar:hover .shadow-admin-subnav {
+    display: flex;
+  }
+
+  .shadow-admin-subnav-item {
+    width: 100%;
+    height: 32px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--shadow-admin-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    text-align: left;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+
+  .shadow-admin-subnav-item:hover,
+  .shadow-admin-subnav-item.active {
+    background: var(--shadow-admin-primary-light);
+    color: var(--shadow-admin-primary);
+  }
+
   .shadow-admin-main {
     flex: 1;
     min-width: 0;
@@ -243,7 +276,16 @@ const navGroups = [
     label: 'Overview',
     items: [
       { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-      { path: '/shadow-mall', label: 'Shadow Mall', icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6' },
+      {
+        path: '/shadow-mall',
+        label: 'Shadow Mall',
+        icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6',
+        children: [
+          { path: '/shadow-mall', label: 'Products' },
+          { path: '/shadow-mall/orders', label: 'Review Orders' },
+          { path: '/shadow-mall/publishers', label: 'Publishers' },
+        ],
+      },
       { path: '/shadow-exclusive', label: 'Shadow Exclusive', icon: 'M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z M9 12l2 2 4-5' },
       { path: '/authors', label: 'Authors Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
     ],
@@ -335,16 +377,33 @@ export default function AdminLayout({
               <span className="shadow-admin-group-label">{group.label}</span>
 
               {group.items.map((item) => (
-                <button
-                  key={item.path}
-                  type="button"
-                  className={`shadow-admin-nav-item ${isActivePath(location.pathname, item.path) ? 'active' : ''}`}
-                  onClick={() => navigate(item.path)}
-                  title={item.label}
-                >
-                  <Icon d={item.icon} />
-                  <span className="shadow-admin-nav-text">{item.label}</span>
-                </button>
+                <div key={item.path}>
+                  <button
+                    type="button"
+                    className={`shadow-admin-nav-item ${isActivePath(location.pathname, item.path) ? 'active' : ''}`}
+                    onClick={() => navigate(item.path)}
+                    title={item.label}
+                  >
+                    <Icon d={item.icon} />
+                    <span className="shadow-admin-nav-text">{item.label}</span>
+                  </button>
+
+                  {item.children?.length ? (
+                    <div className="shadow-admin-subnav">
+                      {item.children.map((child) => (
+                        <button
+                          key={child.path}
+                          type="button"
+                          className={`shadow-admin-subnav-item ${isActivePath(location.pathname, child.path) ? 'active' : ''}`}
+                          onClick={() => navigate(child.path)}
+                          title={child.label}
+                        >
+                          {child.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               ))}
             </div>
           ))}
