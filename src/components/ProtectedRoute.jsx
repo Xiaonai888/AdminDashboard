@@ -25,6 +25,8 @@ export default function ProtectedRoute({ children }) {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
 
     async function verifyToken() {
       const token = getAdminToken();
@@ -40,6 +42,7 @@ export default function ProtectedRoute({ children }) {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          signal: controller.signal,
         });
 
         const data = await response.json().catch(() => ({}));
@@ -58,6 +61,8 @@ export default function ProtectedRoute({ children }) {
         if (isMounted) setStatus('allowed');
       } catch (error) {
         if (isMounted) setStatus('allowed');
+      } finally {
+        clearTimeout(timeout);
       }
     }
 
@@ -65,6 +70,8 @@ export default function ProtectedRoute({ children }) {
 
     return () => {
       isMounted = false;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, []);
 
