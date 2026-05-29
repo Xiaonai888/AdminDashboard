@@ -56,12 +56,25 @@ function StatusBadge({ status }) {
   )
 }
 
-function PersonCell({ name, username, email, type }) {
+function Avatar({ name, username, email, avatarUrl, type, size = 'normal' }) {
+  const [failed, setFailed] = useState(false)
+  const showImage = avatarUrl && !failed
+
+  return (
+    <div className={`community-avatar ${type === 'author' ? 'author' : 'reader'} ${size === 'large' ? 'large' : ''}`}>
+      {showImage ? (
+        <img src={avatarUrl} alt={name || username || email || 'User'} onError={() => setFailed(true)} />
+      ) : (
+        getInitial(name, username, email)
+      )}
+    </div>
+  )
+}
+
+function PersonCell({ name, username, email, avatarUrl, type }) {
   return (
     <div className="community-person">
-      <div className={`community-avatar ${type === 'author' ? 'author' : 'reader'}`}>
-        {getInitial(name, username, email)}
-      </div>
+      <Avatar name={name} username={username} email={email} avatarUrl={avatarUrl} type={type} />
       <div className="community-person-copy">
         <div className="community-name">{name || username || 'Unnamed'}</div>
         <div className="community-username">@{username || 'no_username'}</div>
@@ -109,6 +122,7 @@ function DetailDrawer({ item, type, onClose }) {
   const name = isAuthor ? item.author_name : item.name
   const username = item.username
   const email = item.email
+  const avatarUrl = item.avatar_url
   const status = item.status
   const joinedAt = item.joined_at
   const id = item.id
@@ -131,9 +145,7 @@ function DetailDrawer({ item, type, onClose }) {
         </div>
 
         <div className="community-drawer-profile">
-          <div className={`community-drawer-avatar ${isAuthor ? 'author' : 'reader'}`}>
-            {getInitial(name, username, email)}
-          </div>
+          <Avatar name={name} username={username} email={email} avatarUrl={avatarUrl} type={isAuthor ? 'author' : 'reader'} size="large" />
           <div>
             <div className="community-drawer-name">{name || username || 'Unnamed'}</div>
             <div className="community-drawer-username">@{username || 'no_username'}</div>
@@ -504,7 +516,7 @@ export default function AuthorsCommunity() {
                   ) : filteredReaders.length ? filteredReaders.map((reader) => (
                     <tr key={reader.id} className="community-clickable-row" onClick={() => setSelectedItem(reader)}>
                       <td>
-                        <PersonCell name={reader.name} username={reader.username} email={reader.email} type="reader" />
+                        <PersonCell name={reader.name} username={reader.username} email={reader.email} avatarUrl={reader.avatar_url} type="reader" />
                       </td>
                       <td>
                         <span className="community-email">{reader.email || '-'}</span>
@@ -539,7 +551,7 @@ export default function AuthorsCommunity() {
                   ) : filteredAuthors.length ? filteredAuthors.map((author) => (
                     <tr key={author.id} className="community-clickable-row" onClick={() => setSelectedItem(author)}>
                       <td>
-                        <PersonCell name={author.author_name} username={author.username} email={author.email} type="author" />
+                        <PersonCell name={author.author_name} username={author.username} email={author.email} avatarUrl={author.avatar_url} type="author" />
                       </td>
                       <td>
                         <span className="community-email">{author.email || '-'}</span>
@@ -618,9 +630,11 @@ const styles = `
   .community-table tbody tr:hover { background: #F8FAFC; }
   .community-clickable-row { cursor: pointer; }
   .community-person { display: flex; align-items: center; gap: 12px; min-width: 240px; }
-  .community-avatar { width: 42px; height: 42px; border-radius: 999px; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 950; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); }
+  .community-avatar { width: 42px; height: 42px; border-radius: 999px; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 950; flex-shrink: 0; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); }
+  .community-avatar.large { width: 58px; height: 58px; font-size: 18px; }
   .community-avatar.reader { background: linear-gradient(135deg, #4F46E5, #7C3AED); }
   .community-avatar.author { background: linear-gradient(135deg, #DB2777, #7C3AED); }
+  .community-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .community-person-copy { min-width: 0; }
   .community-name { color: #0F172A; font-size: 13px; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
   .community-username { color: #64748B; font-size: 12px; font-weight: 750; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
