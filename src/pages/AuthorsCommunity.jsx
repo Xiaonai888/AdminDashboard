@@ -93,6 +93,88 @@ function LoadingRows({ columns, label }) {
   )
 }
 
+function DetailItem({ label, value }) {
+  return (
+    <div className="community-detail-item">
+      <div className="community-detail-label">{label}</div>
+      <div className="community-detail-value">{value || '-'}</div>
+    </div>
+  )
+}
+
+function DetailDrawer({ item, type, onClose }) {
+  if (!item) return null
+
+  const isAuthor = type === 'author'
+  const name = isAuthor ? item.author_name : item.name
+  const username = item.username
+  const email = item.email
+  const status = item.status
+  const joinedAt = item.joined_at
+  const id = item.id
+  const userId = item.user_id
+
+  async function copyText(value) {
+    if (!value) return
+    await navigator.clipboard?.writeText(String(value)).catch(() => {})
+  }
+
+  return (
+    <div className="community-drawer-layer" role="presentation" onMouseDown={onClose}>
+      <aside className="community-drawer" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="community-drawer-top">
+          <div>
+            <div className="community-drawer-kicker">{isAuthor ? 'Author Profile' : 'Reader Profile'}</div>
+            <h3>{isAuthor ? 'Author details' : 'Reader details'}</h3>
+          </div>
+          <button type="button" className="community-drawer-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="community-drawer-profile">
+          <div className={`community-drawer-avatar ${isAuthor ? 'author' : 'reader'}`}>
+            {getInitial(name, username, email)}
+          </div>
+          <div>
+            <div className="community-drawer-name">{name || username || 'Unnamed'}</div>
+            <div className="community-drawer-username">@{username || 'no_username'}</div>
+            <div className="community-drawer-badges">
+              {isAuthor ? <span className="community-role-badge author">Author</span> : <RoleBadge isAuthor={item.is_author} />}
+              <StatusBadge status={status} />
+            </div>
+          </div>
+        </div>
+
+        <div className="community-detail-grid">
+          <DetailItem label={isAuthor ? 'Author Name' : 'Reader Name'} value={name} />
+          <DetailItem label="Username" value={username ? `@${username}` : '-'} />
+          <DetailItem label="Email" value={email} />
+          {isAuthor ? <DetailItem label="Books" value={`${formatNumber(item.books_count)} books`} /> : <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />}
+          <DetailItem label="Joined Date" value={formatDate(joinedAt)} />
+          <DetailItem label="Status" value={normalizeStatus(status)} />
+        </div>
+
+        <div className="community-id-box">
+          <div>
+            <div className="community-id-label">{isAuthor ? 'Author ID' : 'User ID'}</div>
+            <div className="community-id-value">{id}</div>
+          </div>
+          <button type="button" onClick={() => copyText(id)}>Copy</button>
+        </div>
+
+        {isAuthor ? (
+          <div className="community-id-box">
+            <div>
+              <div className="community-id-label">User ID</div>
+              <div className="community-id-value">{userId || '-'}</div>
+            </div>
+            <button type="button" onClick={() => copyText(userId)}>Copy</button>
+          </div>
+        ) : null}
+      </aside>
+    </div>
+  )
+}
+
 export default function AuthorsCommunity() {
   const [activeTab, setActiveTab] = useState('readers')
   const [search, setSearch] = useState('')
@@ -101,6 +183,7 @@ export default function AuthorsCommunity() {
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [listLoading, setListLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedItem, setSelectedItem] = useState(null)
   const [summary, setSummary] = useState({
     total_readers: 0,
     total_authors: 0,
@@ -217,6 +300,7 @@ export default function AuthorsCommunity() {
     setDebouncedSearch('')
     setPage(1)
     setError('')
+    setSelectedItem(null)
   }
 
   const cards = useMemo(() => [
@@ -255,6 +339,7 @@ export default function AuthorsCommunity() {
     : 'Search reader name, username, or email...'
 
   const currentTotal = activeTab === 'authors' ? summary.total_authors : summary.total_readers
+  const selectedType = activeTab === 'authors' ? 'author' : 'reader'
 
   return (
     <AdminLayout title="Community" subtitle="View readers and authors in one place.">
@@ -317,7 +402,7 @@ export default function AuthorsCommunity() {
                   {listLoading ? (
                     <LoadingRows columns={5} label="Loading readers..." />
                   ) : readers.length ? readers.map((reader) => (
-                    <tr key={reader.id}>
+                    <tr key={reader.id} className="community-clickable-row" onClick={() => setSelectedItem(reader)}>
                       <td>
                         <PersonCell name={reader.name} username={reader.username} email={reader.email} type="reader" />
                       </td>
@@ -352,7 +437,7 @@ export default function AuthorsCommunity() {
                   {listLoading ? (
                     <LoadingRows columns={5} label="Loading authors..." />
                   ) : authors.length ? authors.map((author) => (
-                    <tr key={author.id}>
+                    <tr key={author.id} className="community-clickable-row" onClick={() => setSelectedItem(author)}>
                       <td>
                         <PersonCell name={author.author_name} username={author.username} email={author.email} type="author" />
                       </td>
@@ -380,6 +465,8 @@ export default function AuthorsCommunity() {
           </div>
         </section>
       </div>
+
+      <DetailDrawer item={selectedItem} type={selectedType} onClose={() => setSelectedItem(null)} />
     </AdminLayout>
   )
 }
@@ -421,6 +508,7 @@ const styles = `
   .community-table td { padding: 15px 16px; border-bottom: 1px solid #EEF2F7; color: #334155; font-size: 13px; font-weight: 800; vertical-align: middle; }
   .community-table tbody tr { transition: background 0.14s ease; }
   .community-table tbody tr:hover { background: #F8FAFC; }
+  .community-clickable-row { cursor: pointer; }
   .community-person { display: flex; align-items: center; gap: 12px; min-width: 240px; }
   .community-avatar { width: 42px; height: 42px; border-radius: 999px; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 950; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); }
   .community-avatar.reader { background: linear-gradient(135deg, #4F46E5, #7C3AED); }
@@ -446,7 +534,30 @@ const styles = `
   .community-pagination { padding: 14px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; color: #64748B; font-size: 12px; font-weight: 850; border-top: 1px solid #EEF2F7; }
   .community-pagination button { height: 34px; border: 1px solid #E2E8F0; background: #FFFFFF; border-radius: 12px; padding: 0 13px; color: #0F172A; font-size: 12px; font-weight: 900; cursor: pointer; }
   .community-pagination button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .community-drawer-layer { position: fixed; inset: 0; z-index: 200; background: rgba(15, 23, 42, 0.34); display: flex; justify-content: flex-end; animation: communityFade 0.14s ease; }
+  .community-drawer { width: min(430px, 100%); height: 100%; background: #FFFFFF; box-shadow: -18px 0 40px rgba(15, 23, 42, 0.18); padding: 22px; overflow-y: auto; animation: communitySlide 0.18s ease; }
+  .community-drawer-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+  .community-drawer-kicker { color: #4F46E5; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .community-drawer h3 { margin: 0; color: #0F172A; font-size: 22px; font-weight: 950; letter-spacing: -0.03em; }
+  .community-drawer-close { width: 36px; height: 36px; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font-size: 23px; line-height: 1; cursor: pointer; }
+  .community-drawer-profile { border: 1px solid #E2E8F0; border-radius: 20px; padding: 16px; display: flex; align-items: center; gap: 14px; background: linear-gradient(135deg, #FFFFFF, #F8FAFF); margin-bottom: 16px; }
+  .community-drawer-avatar { width: 58px; height: 58px; border-radius: 999px; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 950; flex-shrink: 0; }
+  .community-drawer-avatar.reader { background: linear-gradient(135deg, #4F46E5, #7C3AED); }
+  .community-drawer-avatar.author { background: linear-gradient(135deg, #DB2777, #7C3AED); }
+  .community-drawer-name { color: #0F172A; font-size: 16px; font-weight: 950; }
+  .community-drawer-username { color: #64748B; font-size: 12px; font-weight: 800; margin-top: 3px; }
+  .community-drawer-badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .community-detail-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
+  .community-detail-item { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px 14px; background: #FFFFFF; }
+  .community-detail-label { color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .community-detail-value { color: #0F172A; font-size: 13px; font-weight: 900; word-break: break-word; }
+  .community-id-box { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px; background: #F8FAFC; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 10px; }
+  .community-id-label { color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .community-id-value { color: #0F172A; font-size: 12px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .community-id-box button { height: 32px; border: 1px solid #D8E2EF; border-radius: 11px; background: #FFFFFF; color: #4F46E5; font-size: 12px; font-weight: 950; padding: 0 12px; cursor: pointer; }
   @keyframes communitySpin { to { transform: rotate(360deg); } }
+  @keyframes communityFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes communitySlide { from { transform: translateX(30px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
   @media (max-width: 1080px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } }
+  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-drawer { width: 100%; } }
 `
