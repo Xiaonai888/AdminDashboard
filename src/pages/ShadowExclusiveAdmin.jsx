@@ -956,7 +956,6 @@ export default function ShadowExclusiveAdmin() {
       return (
   <AdminLayout title="Shadow Exclusive" subtitle="Manage premium stories and author requests.">
     <style>{styles}</style>
-
       <ActionModal
         open={modalOpen}
         mode={modalMode}
