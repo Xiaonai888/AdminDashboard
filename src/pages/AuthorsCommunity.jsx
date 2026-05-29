@@ -184,6 +184,7 @@ export default function AuthorsCommunity() {
   const [listLoading, setListLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
+  const [filter, setFilter] = useState('all')
   const [summary, setSummary] = useState({
     total_readers: 0,
     total_authors: 0,
@@ -299,9 +300,51 @@ export default function AuthorsCommunity() {
     setSearch('')
     setDebouncedSearch('')
     setPage(1)
+    setFilter('all')
     setError('')
     setSelectedItem(null)
   }
+
+  const readerFilters = [
+    { key: 'all', label: 'All' },
+    { key: 'reader_only', label: 'Readers Only' },
+    { key: 'authors', label: 'Authors' },
+    { key: 'active', label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
+  ]
+
+  const authorFilters = [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'inactive', label: 'Inactive' },
+    { key: 'with_books', label: 'With Books' },
+    { key: 'no_books', label: 'No Books' },
+  ]
+
+  const currentFilters = activeTab === 'authors' ? authorFilters : readerFilters
+
+  const filteredReaders = useMemo(() => {
+    return readers.filter((reader) => {
+      const status = String(reader.status || 'active').toLowerCase()
+      if (filter === 'reader_only') return !reader.is_author
+      if (filter === 'authors') return Boolean(reader.is_author)
+      if (filter === 'active') return status === 'active'
+      if (filter === 'inactive') return status !== 'active'
+      return true
+    })
+  }, [readers, filter])
+
+  const filteredAuthors = useMemo(() => {
+    return authors.filter((author) => {
+      const status = String(author.status || 'active').toLowerCase()
+      const books = Number(author.books_count || 0)
+      if (filter === 'active') return status === 'active'
+      if (filter === 'inactive') return status !== 'active'
+      if (filter === 'with_books') return books > 0
+      if (filter === 'no_books') return books <= 0
+      return true
+    })
+  }, [authors, filter])
 
   const cards = useMemo(() => [
     {
@@ -384,6 +427,19 @@ export default function AuthorsCommunity() {
             </div>
           </div>
 
+          <div className="community-filter-row">
+            {currentFilters.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={filter === item.key ? 'active' : ''}
+                onClick={() => setFilter(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
           {error ? <div className="community-alert">{error}</div> : null}
 
           {activeTab === 'readers' ? (
@@ -401,7 +457,7 @@ export default function AuthorsCommunity() {
                 <tbody>
                   {listLoading ? (
                     <LoadingRows columns={5} label="Loading readers..." />
-                  ) : readers.length ? readers.map((reader) => (
+                  ) : filteredReaders.length ? filteredReaders.map((reader) => (
                     <tr key={reader.id} className="community-clickable-row" onClick={() => setSelectedItem(reader)}>
                       <td>
                         <PersonCell name={reader.name} username={reader.username} email={reader.email} type="reader" />
@@ -436,7 +492,7 @@ export default function AuthorsCommunity() {
                 <tbody>
                   {listLoading ? (
                     <LoadingRows columns={5} label="Loading authors..." />
-                  ) : authors.length ? authors.map((author) => (
+                  ) : filteredAuthors.length ? filteredAuthors.map((author) => (
                     <tr key={author.id} className="community-clickable-row" onClick={() => setSelectedItem(author)}>
                       <td>
                         <PersonCell name={author.author_name} username={author.username} email={author.email} type="author" />
@@ -501,6 +557,10 @@ const styles = `
   .community-search-wrap:focus-within { border-color: #4F46E5; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08); }
   .community-search-wrap input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 13px; font-weight: 800; color: #0F172A; background: transparent; }
   .community-search-wrap input::placeholder { color: #94A3B8; }
+  .community-filter-row { padding: 12px 16px; border-bottom: 1px solid #EEF2F7; display: flex; gap: 8px; flex-wrap: wrap; background: #FFFFFF; }
+  .community-filter-row button { height: 32px; border: 1px solid #E2E8F0; border-radius: 999px; background: #FFFFFF; color: #64748B; padding: 0 13px; font-size: 12px; font-weight: 900; cursor: pointer; transition: all 0.14s ease; }
+  .community-filter-row button:hover { border-color: #4F46E5; color: #4F46E5; background: #F8FAFF; }
+  .community-filter-row button.active { border-color: #4F46E5; background: #EEF2FF; color: #4F46E5; box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12); }
   .community-alert { margin: 16px; padding: 13px 15px; border-radius: 15px; background: #FEF2F2; color: #DC2626; font-size: 13px; font-weight: 850; }
   .community-table-wrap { width: 100%; overflow-x: auto; }
   .community-table { width: 100%; border-collapse: collapse; min-width: 840px; }
@@ -559,5 +619,5 @@ const styles = `
   @keyframes communityFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes communitySlide { from { transform: translateX(30px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
   @media (max-width: 1080px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-drawer { width: 100%; } }
+  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-filter-row { overflow-x: auto; flex-wrap: nowrap; } .community-filter-row button { flex-shrink: 0; } .community-drawer { width: 100%; } }
 `
