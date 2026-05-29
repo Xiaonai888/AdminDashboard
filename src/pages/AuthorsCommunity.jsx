@@ -346,6 +346,34 @@ export default function AuthorsCommunity() {
     })
   }, [authors, filter])
 
+  const readerQuickStats = useMemo(() => {
+    const readersOnly = readers.filter((reader) => !reader.is_author).length
+    const authorReaders = readers.filter((reader) => reader.is_author).length
+    const activeReaders = readers.filter((reader) => String(reader.status || 'active').toLowerCase() === 'active').length
+
+    return [
+      { label: 'Showing Readers', value: filteredReaders.length },
+      { label: 'Readers Only', value: readersOnly },
+      { label: 'Reader Authors', value: authorReaders },
+      { label: 'Active Readers', value: activeReaders },
+    ]
+  }, [readers, filteredReaders.length])
+
+  const authorQuickStats = useMemo(() => {
+    const withBooks = authors.filter((author) => Number(author.books_count || 0) > 0).length
+    const noBooks = authors.filter((author) => Number(author.books_count || 0) <= 0).length
+    const activeAuthors = authors.filter((author) => String(author.status || 'active').toLowerCase() === 'active').length
+
+    return [
+      { label: 'Showing Authors', value: filteredAuthors.length },
+      { label: 'With Books', value: withBooks },
+      { label: 'No Books', value: noBooks },
+      { label: 'Active Authors', value: activeAuthors },
+    ]
+  }, [authors, filteredAuthors.length])
+
+  const quickStats = activeTab === 'authors' ? authorQuickStats : readerQuickStats
+
   const cards = useMemo(() => [
     {
       label: 'Total Readers',
@@ -437,6 +465,15 @@ export default function AuthorsCommunity() {
               >
                 {item.label}
               </button>
+            ))}
+          </div>
+
+          <div className="community-quick-stats">
+            {quickStats.map((stat) => (
+              <div className="community-quick-stat" key={stat.label}>
+                <span>{stat.label}</span>
+                <strong>{formatNumber(stat.value)}</strong>
+              </div>
             ))}
           </div>
 
@@ -561,6 +598,10 @@ const styles = `
   .community-filter-row button { height: 32px; border: 1px solid #E2E8F0; border-radius: 999px; background: #FFFFFF; color: #64748B; padding: 0 13px; font-size: 12px; font-weight: 900; cursor: pointer; transition: all 0.14s ease; }
   .community-filter-row button:hover { border-color: #4F46E5; color: #4F46E5; background: #F8FAFF; }
   .community-filter-row button.active { border-color: #4F46E5; background: #EEF2FF; color: #4F46E5; box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12); }
+  .community-quick-stats { padding: 14px 16px; border-bottom: 1px solid #EEF2F7; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; background: #FBFCFF; }
+  .community-quick-stat { min-height: 58px; border: 1px solid #E2E8F0; border-radius: 15px; background: #FFFFFF; padding: 11px 13px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+  .community-quick-stat span { color: #64748B; font-size: 11px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .community-quick-stat strong { color: #0F172A; font-size: 19px; font-weight: 950; letter-spacing: -0.03em; }
   .community-alert { margin: 16px; padding: 13px 15px; border-radius: 15px; background: #FEF2F2; color: #DC2626; font-size: 13px; font-weight: 850; }
   .community-table-wrap { width: 100%; overflow-x: auto; }
   .community-table { width: 100%; border-collapse: collapse; min-width: 840px; }
@@ -618,6 +659,6 @@ const styles = `
   @keyframes communitySpin { to { transform: rotate(360deg); } }
   @keyframes communityFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes communitySlide { from { transform: translateX(30px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
-  @media (max-width: 1080px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-filter-row { overflow-x: auto; flex-wrap: nowrap; } .community-filter-row button { flex-shrink: 0; } .community-drawer { width: 100%; } }
+  @media (max-width: 1080px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .community-quick-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-filter-row { overflow-x: auto; flex-wrap: nowrap; } .community-filter-row button { flex-shrink: 0; } .community-quick-stats { grid-template-columns: 1fr; } .community-drawer { width: 100%; } }
 `
