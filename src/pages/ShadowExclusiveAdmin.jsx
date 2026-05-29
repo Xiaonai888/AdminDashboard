@@ -952,8 +952,6 @@ export default function ShadowExclusiveAdmin() {
   }
 
   return (
-    <>
-      return (
   <AdminLayout title="Shadow Exclusive" subtitle="Manage premium stories and author requests.">
     <style>{styles}</style>
       <ActionModal
@@ -1162,7 +1160,7 @@ export default function ShadowExclusiveAdmin() {
             </div>
           </section>
         </div>
-            </main>
+                  </main>
     </AdminLayout>
   );
 }
