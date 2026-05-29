@@ -953,7 +953,9 @@ export default function ShadowExclusiveAdmin() {
 
   return (
     <>
-      <style>{styles}</style>
+      return (
+  <AdminLayout title="Shadow Exclusive" subtitle="Manage premium stories and author requests.">
+    <style>{styles}</style>
 
       <ActionModal
         open={modalOpen}
@@ -974,9 +976,6 @@ export default function ShadowExclusiveAdmin() {
         <div className="se-shell">
           <div className="se-top">
             <div>
-              <button type="button" className="se-back" onClick={() => navigate('/admin')}>
-                ← Back Dashboard
-              </button>
 
               <div>
                 <span className="se-kicker">Premium Story Management</span>
@@ -1164,7 +1163,7 @@ export default function ShadowExclusiveAdmin() {
             </div>
           </section>
         </div>
-      </main>
-    </>
+            </main>
+    </AdminLayout>
   );
 }
