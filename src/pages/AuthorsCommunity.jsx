@@ -9,7 +9,11 @@ function getAdminToken() {
 
 function formatDate(value) {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+  return new Date(value).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
 }
 
 function formatNumber(value) {
@@ -17,18 +21,75 @@ function formatNumber(value) {
 }
 
 function getInitial(name, username, email) {
-  const source = name || username || email || 'U'
-  return source.slice(0, 1).toUpperCase()
+  return String(name || username || email || 'U').trim().slice(0, 1).toUpperCase()
+}
+
+function normalizeStatus(status) {
+  const value = String(status || 'active').toLowerCase()
+  if (value === 'inactive') return 'Inactive'
+  if (value === 'suspended') return 'Suspended'
+  if (value === 'pending') return 'Pending'
+  return 'Active'
+}
+
+function statusClass(status) {
+  const value = String(status || 'active').toLowerCase()
+  if (value === 'suspended') return 'suspended'
+  if (value === 'pending') return 'pending'
+  if (value === 'inactive') return 'inactive'
+  return 'active'
+}
+
+function RoleBadge({ isAuthor }) {
+  return (
+    <span className={`community-role-badge ${isAuthor ? 'author' : 'reader'}`}>
+      {isAuthor ? 'Author' : 'Reader'}
+    </span>
+  )
 }
 
 function StatusBadge({ status }) {
-  const normalized = String(status || '').toLowerCase()
-  const active = normalized === 'active'
-
   return (
-    <span className={`community-status ${active ? 'active' : 'inactive'}`}>
-      {active ? 'Active' : normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : 'Inactive'}
+    <span className={`community-status-badge ${statusClass(status)}`}>
+      {normalizeStatus(status)}
     </span>
+  )
+}
+
+function PersonCell({ name, username, email, type }) {
+  return (
+    <div className="community-person">
+      <div className={`community-avatar ${type === 'author' ? 'author' : 'reader'}`}>
+        {getInitial(name, username, email)}
+      </div>
+      <div className="community-person-copy">
+        <div className="community-name">{name || username || 'Unnamed'}</div>
+        <div className="community-username">@{username || 'no_username'}</div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ type }) {
+  return (
+    <div className="community-empty-state">
+      <div className="community-empty-icon">{type === 'authors' ? '✍' : '👥'}</div>
+      <div className="community-empty-title">No {type} found</div>
+      <div className="community-empty-text">Try changing your search keyword.</div>
+    </div>
+  )
+}
+
+function LoadingRows({ columns, label }) {
+  return (
+    <tr>
+      <td colSpan={columns}>
+        <div className="community-loading">
+          <span className="community-spinner" />
+          <span>{label}</span>
+        </div>
+      </td>
+    </tr>
   )
 }
 
@@ -48,15 +109,20 @@ export default function AuthorsCommunity() {
   })
   const [readers, setReaders] = useState([])
   const [authors, setAuthors] = useState([])
-  const [pagination, setPagination] = useState({ page: 1, total_pages: 1, has_next: false, has_prev: false })
+  const [pagination, setPagination] = useState({
+    page: 1,
+    total_pages: 1,
+    has_next: false,
+    has_prev: false,
+  })
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setDebouncedSearch(search.trim())
       setPage(1)
     }, 350)
 
-    return () => clearTimeout(timer)
+    return () => window.clearTimeout(timer)
   }, [search])
 
   useEffect(() => {
@@ -65,8 +131,8 @@ export default function AuthorsCommunity() {
     async function loadSummary() {
       try {
         setSummaryLoading(true)
-
         const token = getAdminToken()
+
         const response = await fetch(`${API_URL}/api/admin/community/overview`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -77,7 +143,7 @@ export default function AuthorsCommunity() {
         if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load overview')
         if (!alive) return
 
-        setSummary(data.summary || {})
+        setSummary(data.summary || data.overview || {})
       } catch (err) {
         if (!alive) return
         setError(err.message || 'Failed to load overview')
@@ -154,28 +220,67 @@ export default function AuthorsCommunity() {
   }
 
   const cards = useMemo(() => [
-    { label: 'Total Readers', value: summary.total_readers, tone: 'blue' },
-    { label: 'Total Authors', value: summary.total_authors, tone: 'purple' },
-    { label: 'Community Members', value: summary.total_community_members, tone: 'dark' },
-    { label: 'New This Month', value: summary.new_this_month, tone: 'green' },
+    {
+      label: 'Total Readers',
+      value: summary.total_readers,
+      icon: '👥',
+      tone: 'blue',
+      note: 'All registered accounts',
+    },
+    {
+      label: 'Total Authors',
+      value: summary.total_authors,
+      icon: '✍',
+      tone: 'purple',
+      note: 'Accounts with author page',
+    },
+    {
+      label: 'Community Members',
+      value: summary.total_community_members || summary.total_members || summary.total_readers,
+      icon: '◆',
+      tone: 'dark',
+      note: 'Unique users only',
+    },
+    {
+      label: 'New This Month',
+      value: summary.new_this_month,
+      icon: '↗',
+      tone: 'green',
+      note: 'New reader accounts',
+    },
   ], [summary])
 
   const searchPlaceholder = activeTab === 'authors'
     ? 'Search author name, username, or email...'
     : 'Search reader name, username, or email...'
 
+  const currentTotal = activeTab === 'authors' ? summary.total_authors : summary.total_readers
+
   return (
     <AdminLayout title="Community" subtitle="View readers and authors in one place.">
       <style>{styles}</style>
 
       <div className="community-page">
+        <section className="community-hero">
+          <div>
+            <div className="community-kicker">Community Overview</div>
+            <h2>Readers and authors</h2>
+            <p>Track your user base, author accounts, and community growth from one clean admin page.</p>
+          </div>
+          <div className="community-hero-pill">
+            <span>{formatNumber(currentTotal)}</span>
+            <small>{activeTab === 'authors' ? 'Authors shown' : 'Readers shown'}</small>
+          </div>
+        </section>
+
         <section className="community-cards">
           {cards.map((card) => (
             <div className="community-card" key={card.label}>
-              <div className={`community-card-icon ${card.tone}`}>{card.label.slice(0, 1)}</div>
-              <div>
+              <div className={`community-card-icon ${card.tone}`}>{card.icon}</div>
+              <div className="community-card-copy">
                 <div className="community-card-label">{card.label}</div>
                 <div className="community-card-value">{summaryLoading ? '...' : formatNumber(card.value)}</div>
+                <div className="community-card-note">{card.note}</div>
               </div>
             </div>
           ))}
@@ -183,7 +288,7 @@ export default function AuthorsCommunity() {
 
         <section className="community-panel">
           <div className="community-panel-top">
-            <div className="community-tabs">
+            <div className="community-tabs" role="tablist">
               <button type="button" className={activeTab === 'readers' ? 'active' : ''} onClick={() => switchTab('readers')}>Reader</button>
               <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => switchTab('authors')}>Author</button>
             </div>
@@ -197,80 +302,74 @@ export default function AuthorsCommunity() {
           {error ? <div className="community-alert">{error}</div> : null}
 
           {activeTab === 'readers' ? (
-            <div>
-              <div className="community-table-wrap">
-                <table className="community-table">
-                  <thead>
-                    <tr>
-                      <th>Reader</th>
-                      <th>Email</th>
-                      <th>Joined Date</th>
-                      <th>Status</th>
+            <div className="community-table-wrap">
+              <table className="community-table">
+                <thead>
+                  <tr>
+                    <th>Reader</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Joined Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listLoading ? (
+                    <LoadingRows columns={5} label="Loading readers..." />
+                  ) : readers.length ? readers.map((reader) => (
+                    <tr key={reader.id}>
+                      <td>
+                        <PersonCell name={reader.name} username={reader.username} email={reader.email} type="reader" />
+                      </td>
+                      <td>
+                        <span className="community-email">{reader.email || '-'}</span>
+                      </td>
+                      <td>
+                        <RoleBadge isAuthor={reader.is_author} />
+                      </td>
+                      <td>{formatDate(reader.joined_at)}</td>
+                      <td><StatusBadge status={reader.status} /></td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {listLoading ? (
-                      <tr><td colSpan="4" className="community-empty">Loading readers...</td></tr>
-                    ) : readers.length ? readers.map((reader) => (
-                      <tr key={reader.id}>
-                        <td>
-                          <div className="community-user">
-                            <div className="community-avatar">{getInitial(reader.name, reader.username, reader.email)}</div>
-                            <div>
-                              <div className="community-user-name">{reader.name || reader.username || 'Unnamed Reader'}</div>
-                              <div className="community-user-sub">@{reader.username || 'no_username'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{reader.email || '-'}</td>
-                        <td>{formatDate(reader.joined_at)}</td>
-                        <td><StatusBadge status={reader.status} /></td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan="4" className="community-empty">No readers found.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  )) : (
+                    <tr><td colSpan="5"><EmptyState type="readers" /></td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           ) : (
-            <div>
-              <div className="community-table-wrap">
-                <table className="community-table">
-                  <thead>
-                    <tr>
-                      <th>Author</th>
-                      <th>Email</th>
-                      <th>Books</th>
-                      <th>Joined Date</th>
-                      <th>Status</th>
+            <div className="community-table-wrap">
+              <table className="community-table">
+                <thead>
+                  <tr>
+                    <th>Author</th>
+                    <th>Email</th>
+                    <th>Books</th>
+                    <th>Joined Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {listLoading ? (
+                    <LoadingRows columns={5} label="Loading authors..." />
+                  ) : authors.length ? authors.map((author) => (
+                    <tr key={author.id}>
+                      <td>
+                        <PersonCell name={author.author_name} username={author.username} email={author.email} type="author" />
+                      </td>
+                      <td>
+                        <span className="community-email">{author.email || '-'}</span>
+                      </td>
+                      <td>
+                        <span className="community-book-badge">{formatNumber(author.books_count)} books</span>
+                      </td>
+                      <td>{formatDate(author.joined_at)}</td>
+                      <td><StatusBadge status={author.status} /></td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {listLoading ? (
-                      <tr><td colSpan="5" className="community-empty">Loading authors...</td></tr>
-                    ) : authors.length ? authors.map((author) => (
-                      <tr key={author.id}>
-                        <td>
-                          <div className="community-user">
-                            <div className="community-avatar">{getInitial(author.author_name, author.username, author.email)}</div>
-                            <div>
-                              <div className="community-user-name">{author.author_name || author.username || 'Unnamed Author'}</div>
-                              <div className="community-user-sub">@{author.username || 'no_username'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{author.email || '-'}</td>
-                        <td>{formatNumber(author.books_count)}</td>
-                        <td>{formatDate(author.joined_at)}</td>
-                        <td><StatusBadge status={author.status} /></td>
-                      </tr>
-                    )) : (
-                      <tr><td colSpan="5" className="community-empty">No authors found.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  )) : (
+                    <tr><td colSpan="5"><EmptyState type="authors" /></td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -287,39 +386,67 @@ export default function AuthorsCommunity() {
 
 const styles = `
   .community-page { display: flex; flex-direction: column; gap: 18px; }
+  .community-hero { background: linear-gradient(135deg, #FFFFFF, #F8FAFF); border: 1px solid #E2E8F0; border-radius: 22px; padding: 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045); }
+  .community-kicker { color: #4F46E5; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.09em; margin-bottom: 8px; }
+  .community-hero h2 { margin: 0; color: #0F172A; font-size: 25px; line-height: 1.15; font-weight: 950; letter-spacing: -0.04em; }
+  .community-hero p { margin: 8px 0 0; color: #64748B; font-size: 13px; line-height: 1.55; font-weight: 750; max-width: 580px; }
+  .community-hero-pill { min-width: 140px; min-height: 74px; border-radius: 18px; background: #FFFFFF; border: 1px solid #E2E8F0; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05); }
+  .community-hero-pill span { color: #4F46E5; font-size: 28px; font-weight: 950; line-height: 1; }
+  .community-hero-pill small { color: #64748B; font-size: 11px; font-weight: 850; margin-top: 6px; }
   .community-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-  .community-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 18px; padding: 18px; display: flex; align-items: center; gap: 13px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+  .community-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 18px; padding: 18px; display: flex; align-items: flex-start; gap: 13px; box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04); transition: transform 0.16s ease, box-shadow 0.16s ease; }
+  .community-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(15, 23, 42, 0.075); }
   .community-card-icon { width: 42px; height: 42px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 950; flex-shrink: 0; }
   .community-card-icon.blue { background: #EFF6FF; color: #2563EB; }
   .community-card-icon.purple { background: #EEF2FF; color: #4F46E5; }
   .community-card-icon.dark { background: #F1F5F9; color: #0F172A; }
   .community-card-icon.green { background: #ECFDF5; color: #059669; }
-  .community-card-label { color: #64748B; font-size: 12px; font-weight: 800; margin-bottom: 4px; }
-  .community-card-value { color: #0F172A; font-size: 24px; font-weight: 950; letter-spacing: -0.04em; }
-  .community-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 20px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); overflow: hidden; }
+  .community-card-copy { min-width: 0; }
+  .community-card-label { color: #64748B; font-size: 12px; font-weight: 900; margin-bottom: 4px; }
+  .community-card-value { color: #0F172A; font-size: 25px; font-weight: 950; letter-spacing: -0.04em; line-height: 1; }
+  .community-card-note { color: #94A3B8; font-size: 11px; font-weight: 750; margin-top: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .community-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 22px; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045); overflow: hidden; }
   .community-panel-top { padding: 16px; border-bottom: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-  .community-tabs { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px; padding: 4px; display: flex; gap: 4px; }
-  .community-tabs button { border: 0; background: transparent; height: 34px; border-radius: 11px; padding: 0 18px; color: #64748B; font-size: 13px; font-weight: 900; cursor: pointer; }
-  .community-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 8px 18px rgba(79, 70, 229, 0.18); }
-  .community-search-wrap { width: min(380px, 100%); height: 40px; border: 1px solid #E2E8F0; border-radius: 14px; display: flex; align-items: center; gap: 9px; padding: 0 12px; color: #94A3B8; background: #FFFFFF; }
-  .community-search-wrap input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 13px; font-weight: 700; color: #0F172A; }
+  .community-tabs { background: #F8FAFC; border: 1px solid #D8E2EF; border-radius: 15px; padding: 4px; display: flex; gap: 4px; }
+  .community-tabs button { border: 0; background: transparent; height: 36px; min-width: 92px; border-radius: 12px; padding: 0 18px; color: #64748B; font-size: 13px; font-weight: 950; cursor: pointer; transition: all 0.14s ease; }
+  .community-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 10px 20px rgba(79, 70, 229, 0.22); }
+  .community-search-wrap { width: min(420px, 100%); height: 42px; border: 1px solid #D8E2EF; border-radius: 15px; display: flex; align-items: center; gap: 9px; padding: 0 13px; color: #94A3B8; background: #FFFFFF; transition: border-color 0.14s ease, box-shadow 0.14s ease; }
+  .community-search-wrap:focus-within { border-color: #4F46E5; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08); }
+  .community-search-wrap input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 13px; font-weight: 800; color: #0F172A; background: transparent; }
   .community-search-wrap input::placeholder { color: #94A3B8; }
+  .community-alert { margin: 16px; padding: 13px 15px; border-radius: 15px; background: #FEF2F2; color: #DC2626; font-size: 13px; font-weight: 850; }
   .community-table-wrap { width: 100%; overflow-x: auto; }
-  .community-table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  .community-table { width: 100%; border-collapse: collapse; min-width: 840px; }
   .community-table th { text-align: left; padding: 13px 16px; background: #F8FAFC; color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #E2E8F0; }
-  .community-table td { padding: 14px 16px; border-bottom: 1px solid #EEF2F7; color: #334155; font-size: 13px; font-weight: 750; }
-  .community-user { display: flex; align-items: center; gap: 11px; }
-  .community-avatar { width: 40px; height: 40px; border-radius: 999px; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 950; flex-shrink: 0; }
-  .community-user-name { color: #0F172A; font-size: 13px; font-weight: 950; }
-  .community-user-sub { color: #64748B; font-size: 12px; font-weight: 700; margin-top: 2px; }
-  .community-status { display: inline-flex; align-items: center; justify-content: center; height: 25px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 950; }
-  .community-status.active { background: #DCFCE7; color: #16A34A; }
-  .community-status.inactive { background: #F1F5F9; color: #64748B; }
-  .community-empty { text-align: center; color: #64748B; padding: 34px 16px !important; }
-  .community-alert { margin: 16px; padding: 12px 14px; border-radius: 14px; background: #FEF2F2; color: #DC2626; font-size: 13px; font-weight: 800; }
-  .community-pagination { padding: 14px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; color: #64748B; font-size: 12px; font-weight: 850; }
+  .community-table td { padding: 15px 16px; border-bottom: 1px solid #EEF2F7; color: #334155; font-size: 13px; font-weight: 800; vertical-align: middle; }
+  .community-table tbody tr { transition: background 0.14s ease; }
+  .community-table tbody tr:hover { background: #F8FAFC; }
+  .community-person { display: flex; align-items: center; gap: 12px; min-width: 240px; }
+  .community-avatar { width: 42px; height: 42px; border-radius: 999px; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 950; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22); }
+  .community-avatar.reader { background: linear-gradient(135deg, #4F46E5, #7C3AED); }
+  .community-avatar.author { background: linear-gradient(135deg, #DB2777, #7C3AED); }
+  .community-person-copy { min-width: 0; }
+  .community-name { color: #0F172A; font-size: 13px; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .community-username { color: #64748B; font-size: 12px; font-weight: 750; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .community-email { color: #334155; font-size: 13px; font-weight: 800; }
+  .community-role-badge, .community-status-badge, .community-book-badge { display: inline-flex; align-items: center; justify-content: center; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 950; white-space: nowrap; }
+  .community-role-badge.reader { background: #EFF6FF; color: #2563EB; }
+  .community-role-badge.author { background: #FDF2F8; color: #DB2777; }
+  .community-status-badge.active { background: #DCFCE7; color: #16A34A; }
+  .community-status-badge.inactive { background: #F1F5F9; color: #64748B; }
+  .community-status-badge.suspended { background: #FEE2E2; color: #DC2626; }
+  .community-status-badge.pending { background: #FEF3C7; color: #B45309; }
+  .community-book-badge { background: #EEF2FF; color: #4F46E5; }
+  .community-loading { min-height: 86px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #64748B; font-size: 13px; font-weight: 850; }
+  .community-spinner { width: 18px; height: 18px; border-radius: 999px; border: 3px solid #E2E8F0; border-top-color: #4F46E5; animation: communitySpin 0.8s linear infinite; }
+  .community-empty-state { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #64748B; }
+  .community-empty-icon { width: 44px; height: 44px; border-radius: 16px; background: #F8FAFC; border: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: center; color: #4F46E5; font-size: 17px; font-weight: 950; margin-bottom: 10px; }
+  .community-empty-title { color: #0F172A; font-size: 14px; font-weight: 950; }
+  .community-empty-text { color: #64748B; font-size: 12px; font-weight: 750; margin-top: 4px; }
+  .community-pagination { padding: 14px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 10px; color: #64748B; font-size: 12px; font-weight: 850; border-top: 1px solid #EEF2F7; }
   .community-pagination button { height: 34px; border: 1px solid #E2E8F0; background: #FFFFFF; border-radius: 12px; padding: 0 13px; color: #0F172A; font-size: 12px; font-weight: 900; cursor: pointer; }
   .community-pagination button:disabled { opacity: 0.45; cursor: not-allowed; }
-  @media (max-width: 980px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 560px) { .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } }
+  @keyframes communitySpin { to { transform: rotate(360deg); } }
+  @media (max-width: 1080px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } }
 `
