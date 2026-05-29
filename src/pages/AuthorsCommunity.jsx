@@ -106,6 +106,11 @@ function LoadingRows({ columns, label }) {
   )
 }
 
+async function copyToClipboard(value) {
+  if (!value) return
+  await navigator.clipboard?.writeText(String(value)).catch(() => {})
+}
+
 function DetailItem({ label, value }) {
   return (
     <div className="community-detail-item">
@@ -214,6 +219,7 @@ export default function AuthorsCommunity() {
   const [authors, setAuthors] = useState([])
   const [pagination, setPagination] = useState({
     page: 1,
+    total: 0,
     total_pages: 1,
     has_next: false,
     has_prev: false,
@@ -271,7 +277,7 @@ export default function AuthorsCommunity() {
         setError('')
 
         const token = getAdminToken()
-        const params = new URLSearchParams({ page: String(page), limit: '20' })
+        const params = new URLSearchParams({ page: String(page), limit: '20', filter })
         if (debouncedSearch) params.set('q', debouncedSearch)
 
         const endpoint = activeTab === 'authors' ? 'authors' : 'readers'
@@ -293,6 +299,7 @@ export default function AuthorsCommunity() {
 
         setPagination({
           page: data.page || 1,
+          total: data.total || 0,
           total_pages: data.total_pages || 1,
           has_next: Boolean(data.has_next),
           has_prev: Boolean(data.has_prev),
@@ -312,7 +319,7 @@ export default function AuthorsCommunity() {
     return () => {
       alive = false
     }
-  }, [activeTab, page, debouncedSearch])
+  }, [activeTab, page, debouncedSearch, filter])
 
   function switchTab(tab) {
     setActiveTab(tab)
@@ -342,28 +349,8 @@ export default function AuthorsCommunity() {
 
   const currentFilters = activeTab === 'authors' ? authorFilters : readerFilters
 
-  const filteredReaders = useMemo(() => {
-    return readers.filter((reader) => {
-      const status = String(reader.status || 'active').toLowerCase()
-      if (filter === 'reader_only') return !reader.is_author
-      if (filter === 'authors') return Boolean(reader.is_author)
-      if (filter === 'active') return status === 'active'
-      if (filter === 'inactive') return status !== 'active'
-      return true
-    })
-  }, [readers, filter])
-
-  const filteredAuthors = useMemo(() => {
-    return authors.filter((author) => {
-      const status = String(author.status || 'active').toLowerCase()
-      const books = Number(author.books_count || 0)
-      if (filter === 'active') return status === 'active'
-      if (filter === 'inactive') return status !== 'active'
-      if (filter === 'with_books') return books > 0
-      if (filter === 'no_books') return books <= 0
-      return true
-    })
-  }, [authors, filter])
+  const filteredReaders = readers
+  const filteredAuthors = authors
 
   const readerQuickStats = useMemo(() => {
     const readersOnly = readers.filter((reader) => !reader.is_author).length
@@ -371,7 +358,7 @@ export default function AuthorsCommunity() {
     const activeReaders = readers.filter((reader) => String(reader.status || 'active').toLowerCase() === 'active').length
 
     return [
-      { label: 'Showing Readers', value: filteredReaders.length },
+      { label: 'Matched Readers', value: pagination.total || filteredReaders.length },
       { label: 'Readers Only', value: readersOnly },
       { label: 'Reader Authors', value: authorReaders },
       { label: 'Active Readers', value: activeReaders },
@@ -384,7 +371,7 @@ export default function AuthorsCommunity() {
     const activeAuthors = authors.filter((author) => String(author.status || 'active').toLowerCase() === 'active').length
 
     return [
-      { label: 'Showing Authors', value: filteredAuthors.length },
+      { label: 'Matched Authors', value: pagination.total || filteredAuthors.length },
       { label: 'With Books', value: withBooks },
       { label: 'No Books', value: noBooks },
       { label: 'Active Authors', value: activeAuthors },
@@ -480,7 +467,11 @@ export default function AuthorsCommunity() {
                 key={item.key}
                 type="button"
                 className={filter === item.key ? 'active' : ''}
-                onClick={() => setFilter(item.key)}
+                onClick={() => {
+                  setFilter(item.key)
+                  setPage(1)
+                  setSelectedItem(null)
+                }}
               >
                 {item.label}
               </button>
@@ -508,11 +499,12 @@ export default function AuthorsCommunity() {
                     <th>Role</th>
                     <th>Joined Date</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {listLoading ? (
-                    <LoadingRows columns={5} label="Loading readers..." />
+                    <LoadingRows columns={6} label="Loading readers..." />
                   ) : filteredReaders.length ? filteredReaders.map((reader) => (
                     <tr key={reader.id} className="community-clickable-row" onClick={() => setSelectedItem(reader)}>
                       <td>
@@ -526,9 +518,15 @@ export default function AuthorsCommunity() {
                       </td>
                       <td>{formatDate(reader.joined_at)}</td>
                       <td><StatusBadge status={reader.status} /></td>
+                      <td>
+                        <div className="community-table-actions">
+                          <button type="button" onClick={(event) => { event.stopPropagation(); setSelectedItem(reader) }}>View</button>
+                          <button type="button" onClick={(event) => { event.stopPropagation(); copyToClipboard(reader.email) }}>Copy Email</button>
+                        </div>
+                      </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="5"><EmptyState type="readers" /></td></tr>
+                    <tr><td colSpan="6"><EmptyState type="readers" /></td></tr>
                   )}
                 </tbody>
               </table>
@@ -543,11 +541,12 @@ export default function AuthorsCommunity() {
                     <th>Books</th>
                     <th>Joined Date</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {listLoading ? (
-                    <LoadingRows columns={5} label="Loading authors..." />
+                    <LoadingRows columns={6} label="Loading authors..." />
                   ) : filteredAuthors.length ? filteredAuthors.map((author) => (
                     <tr key={author.id} className="community-clickable-row" onClick={() => setSelectedItem(author)}>
                       <td>
@@ -561,9 +560,15 @@ export default function AuthorsCommunity() {
                       </td>
                       <td>{formatDate(author.joined_at)}</td>
                       <td><StatusBadge status={author.status} /></td>
+                      <td>
+                        <div className="community-table-actions">
+                          <button type="button" onClick={(event) => { event.stopPropagation(); setSelectedItem(author) }}>View</button>
+                          <button type="button" onClick={(event) => { event.stopPropagation(); copyToClipboard(author.email) }}>Copy Email</button>
+                        </div>
+                      </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="5"><EmptyState type="authors" /></td></tr>
+                    <tr><td colSpan="6"><EmptyState type="authors" /></td></tr>
                   )}
                 </tbody>
               </table>
@@ -647,6 +652,9 @@ const styles = `
   .community-status-badge.suspended { background: #FEE2E2; color: #DC2626; }
   .community-status-badge.pending { background: #FEF3C7; color: #B45309; }
   .community-book-badge { background: #EEF2FF; color: #4F46E5; }
+  .community-table-actions { display: flex; align-items: center; gap: 8px; }
+  .community-table-actions button { height: 30px; border: 1px solid #E2E8F0; border-radius: 10px; background: #FFFFFF; color: #4F46E5; padding: 0 10px; font-size: 11px; font-weight: 950; cursor: pointer; white-space: nowrap; transition: all 0.14s ease; }
+  .community-table-actions button:hover { border-color: #4F46E5; background: #EEF2FF; box-shadow: 0 8px 16px rgba(79, 70, 229, 0.12); }
   .community-loading { min-height: 86px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #64748B; font-size: 13px; font-weight: 850; }
   .community-spinner { width: 18px; height: 18px; border-radius: 999px; border: 3px solid #E2E8F0; border-top-color: #4F46E5; animation: communitySpin 0.8s linear infinite; }
   .community-empty-state { min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: #64748B; }
