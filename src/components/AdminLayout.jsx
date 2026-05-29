@@ -380,9 +380,7 @@ export default function AdminLayout({
               {subtitle ? <div className="shadow-admin-page-subtitle">{subtitle}</div> : null}
             </div>
 
-            <div className="shadow-admin-profile">
-              <div className="shadow-admin-avatar">{adminName.charAt(0)}</div>
-            </div>
+           <div className="shadow-admin-profile" />
           </header>
 
           <main className="shadow-admin-content">{children}</main>
