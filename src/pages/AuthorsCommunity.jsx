@@ -208,6 +208,7 @@ export default function AuthorsCommunity() {
   const [listLoading, setListLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [filter, setFilter] = useState('all')
   const [summary, setSummary] = useState({
     total_readers: 0,
@@ -266,7 +267,7 @@ export default function AuthorsCommunity() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [refreshKey])
 
   useEffect(() => {
     let alive = true
@@ -319,7 +320,7 @@ export default function AuthorsCommunity() {
     return () => {
       alive = false
     }
-  }, [activeTab, page, debouncedSearch, filter])
+  }, [activeTab, page, debouncedSearch, filter, refreshKey])
 
   function switchTab(tab) {
     setActiveTab(tab)
@@ -330,6 +331,14 @@ export default function AuthorsCommunity() {
     setError('')
     setSelectedItem(null)
   }
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setRefreshKey((current) => current + 1)
+    }, 30000)
+
+    return () => window.clearInterval(timer)
+  }, [])
 
   const readerFilters = [
     { key: 'all', label: 'All' },
