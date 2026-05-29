@@ -17,6 +17,7 @@ import PaymentControlPage from './pages/PaymentControlPage';
 import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
 import ShadowMallOrdersPage from './pages/ShadowMallOrdersPage';
 import ShadowMallPublishersPage from './pages/ShadowMallPublishersPage';
+import AdminStoriesPage from './pages/AdminStoriesPage';
 
 
 function ComingSoon({ title }) {
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/comments" element={<ProtectedPage><CommentModerationPage /></ProtectedPage>} />
         <Route path="/shadow-mall/orders" element={<ProtectedPage><ShadowMallOrdersPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
+        <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
  
         
 
