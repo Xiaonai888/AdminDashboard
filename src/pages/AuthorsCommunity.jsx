@@ -144,6 +144,13 @@ function DetailDrawer({ item, type, onClose }) {
           </div>
         </div>
 
+        <div className="community-drawer-actions">
+          <button type="button" onClick={() => copyText(email)}>Copy Email</button>
+          <button type="button" onClick={() => copyText(username ? `@${username}` : '')}>Copy Username</button>
+          <button type="button" onClick={() => copyText(id)}>Copy {isAuthor ? 'Author ID' : 'User ID'}</button>
+          {isAuthor ? <button type="button" onClick={() => copyText(userId)}>Copy User ID</button> : null}
+        </div>
+
         <div className="community-detail-grid">
           <DetailItem label={isAuthor ? 'Author Name' : 'Reader Name'} value={name} />
           <DetailItem label="Username" value={username ? `@${username}` : '-'} />
@@ -648,6 +655,9 @@ const styles = `
   .community-drawer-name { color: #0F172A; font-size: 16px; font-weight: 950; }
   .community-drawer-username { color: #64748B; font-size: 12px; font-weight: 800; margin-top: 3px; }
   .community-drawer-badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+  .community-drawer-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 16px; }
+  .community-drawer-actions button { height: 38px; border: 1px solid #D8E2EF; border-radius: 13px; background: #FFFFFF; color: #4F46E5; font-size: 12px; font-weight: 950; cursor: pointer; transition: all 0.14s ease; }
+  .community-drawer-actions button:hover { background: #EEF2FF; border-color: #4F46E5; box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12); }
   .community-detail-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
   .community-detail-item { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px 14px; background: #FFFFFF; }
   .community-detail-label { color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
@@ -660,5 +670,5 @@ const styles = `
   @keyframes communityFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes communitySlide { from { transform: translateX(30px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
   @media (max-width: 1080px) { .community-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .community-quick-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-filter-row { overflow-x: auto; flex-wrap: nowrap; } .community-filter-row button { flex-shrink: 0; } .community-quick-stats { grid-template-columns: 1fr; } .community-drawer { width: 100%; } }
+  @media (max-width: 640px) { .community-hero { align-items: flex-start; flex-direction: column; } .community-hero-pill { width: 100%; } .community-cards { grid-template-columns: 1fr; } .community-panel-top { align-items: stretch; } .community-tabs, .community-search-wrap { width: 100%; } .community-tabs button { flex: 1; } .community-filter-row { overflow-x: auto; flex-wrap: nowrap; } .community-filter-row button { flex-shrink: 0; } .community-quick-stats { grid-template-columns: 1fr; } .community-drawer { width: 100%; } .community-drawer-actions { grid-template-columns: 1fr; } }
 `
