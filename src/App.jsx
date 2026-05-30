@@ -18,7 +18,7 @@ import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
 import ShadowMallOrdersPage from './pages/ShadowMallOrdersPage';
 import ShadowMallPublishersPage from './pages/ShadowMallPublishersPage';
 import AdminStoriesPage from './pages/AdminStoriesPage';
-
+import AdminRankingPage from './pages/AdminRankingPage';
 
 function ComingSoon({ title }) {
   return (
@@ -79,7 +79,7 @@ export default function App() {
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
         <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
-        <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
+        <Route path="/ranking" element={<ProtectedPage><AdminRankingPage /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
