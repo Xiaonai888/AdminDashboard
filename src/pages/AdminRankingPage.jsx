@@ -500,6 +500,132 @@ const styles = `
     line-height: 1.6;
   }
 
+
+  .ranking-danger-btn {
+    background: #FEF2F2 !important;
+    color: #DC2626 !important;
+  }
+
+  .ranking-success-btn {
+    background: #DCFCE7 !important;
+    color: #15803D !important;
+  }
+
+  .ranking-modal-layer {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.42);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .ranking-modal {
+    width: min(520px, 100%);
+    background: white;
+    border-radius: 22px;
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+    padding: 20px;
+  }
+
+  .ranking-modal-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .ranking-modal-top h3 {
+    margin: 3px 0 0;
+    color: #0F172A;
+    font-size: 18px;
+    font-weight: 950;
+  }
+
+  .ranking-modal-close {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 999px;
+    background: #F1F5F9;
+    color: #475569;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 950;
+  }
+
+  .ranking-modal-story {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+
+  .ranking-modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .ranking-modal-field span {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .ranking-modal-field textarea {
+    width: 100%;
+    min-height: 92px;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    background: #F8FAFC;
+    color: #0F172A;
+    padding: 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    outline: none;
+    resize: vertical;
+  }
+
+  .ranking-modal-field textarea:focus {
+    border-color: #4F46E5;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  }
+
+  .ranking-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .ranking-modal-actions button {
+    height: 38px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 14px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .ranking-modal-actions button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   @media (max-width: 980px) {
     .ranking-toolbar {
       grid-template-columns: 1fr;
@@ -544,7 +670,7 @@ const tabs = [
     key: 'hidden',
     label: 'Hidden Rank',
     subtitle: 'Stories, authors, or episodes hidden from public ranking.',
-    empty: 'Hidden ranking records will appear after Hide from Ranking is added.',
+    empty: 'No hidden ranking records found.',
     columns: ['Type', 'Name', 'ID', 'Hidden Reason', 'Hidden By', 'Hidden Date', 'Status', 'Action'],
   },
   {
@@ -571,6 +697,11 @@ function getAdminToken() {
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString()
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function shortId(value) {
@@ -616,6 +747,59 @@ function LoadingState() {
   )
 }
 
+
+function RankingVisibilityModal({ action, story, loading, onClose, onSubmit }) {
+  const [reason, setReason] = useState('')
+  const [note, setNote] = useState('')
+
+  if (!action || !story) return null
+
+  const isHide = action === 'hide'
+
+  return (
+    <div className="ranking-modal-layer" onMouseDown={onClose}>
+      <div className="ranking-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="ranking-modal-top">
+          <div>
+            <div className="ranking-kicker">Ranking Visibility</div>
+            <h3>{isHide ? 'Hide Story from Ranking' : 'Unhide Story from Ranking'}</h3>
+          </div>
+          <button type="button" className="ranking-modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="ranking-modal-story">
+          <div className="ranking-cover">
+            {story.cover_url ? <img src={story.cover_url} alt={story.title} /> : '📖'}
+          </div>
+          <div>
+            <div className="ranking-title">{story.title || 'Untitled Story'}</div>
+            <div className="ranking-muted">ID: {story.id}</div>
+          </div>
+        </div>
+
+        {isHide ? (
+          <label className="ranking-modal-field">
+            <span>Hidden Reason</span>
+            <textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Write why this story should be hidden from ranking..." />
+          </label>
+        ) : null}
+
+        <label className="ranking-modal-field">
+          <span>Admin Note</span>
+          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Optional internal note..." />
+        </label>
+
+        <div className="ranking-modal-actions">
+          <button type="button" className="ranking-btn light" onClick={onClose}>Cancel</button>
+          <button type="button" className={isHide ? 'ranking-danger-btn' : 'ranking-success-btn'} disabled={loading || (isHide && reason.trim().length < 5)} onClick={() => onSubmit({ action, reason, note })}>
+            {loading ? 'Saving...' : isHide ? 'Hide from Ranking' : 'Unhide'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminRankingPage() {
   const [activeTab, setActiveTab] = useState('stories')
   const [search, setSearch] = useState('')
@@ -625,10 +809,14 @@ export default function AdminRankingPage() {
   const [status, setStatus] = useState('all')
   const [page, setPage] = useState(1)
   const [stories, setStories] = useState([])
+  const [hiddenItems, setHiddenItems] = useState([])
   const [pagination, setPagination] = useState({ page: 1, total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [modalAction, setModalAction] = useState('')
+  const [modalStory, setModalStory] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   const activeConfig = useMemo(() => tabs.find((tab) => tab.key === activeTab) || tabs[0], [activeTab])
 
@@ -703,6 +891,107 @@ export default function AdminRankingPage() {
       alive = false
     }
   }, [activeTab, page, period, metric, status, debouncedSearch, refreshKey])
+
+  useEffect(() => {
+    if (activeTab !== 'hidden') return
+
+    let alive = true
+
+    async function loadHiddenRanking() {
+      try {
+        setLoading(true)
+        setError('')
+
+        const token = getAdminToken()
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: String(PAGE_SIZE),
+          q: debouncedSearch,
+        })
+
+        const response = await fetch(`${API_URL}/api/admin/ranking/hidden?${params.toString()}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || 'Failed to load hidden ranking')
+        }
+
+        if (!alive) return
+
+        setHiddenItems(data.items || data.stories || [])
+        setPagination({
+          page: data.page || 1,
+          total: data.total || 0,
+          total_pages: data.total_pages || 1,
+          has_next: Boolean(data.has_next),
+          has_prev: Boolean(data.has_prev),
+        })
+      } catch (err) {
+        if (!alive) return
+        setError(err.message || 'Failed to load hidden ranking')
+        setHiddenItems([])
+        setPagination({ page: 1, total: 0, total_pages: 1, has_next: false, has_prev: false })
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    loadHiddenRanking()
+
+    return () => {
+      alive = false
+    }
+  }, [activeTab, page, debouncedSearch, refreshKey])
+
+  function openVisibilityModal(action, story) {
+    setModalAction(action)
+    setModalStory(story)
+  }
+
+  function closeVisibilityModal() {
+    setModalAction('')
+    setModalStory(null)
+  }
+
+  async function submitVisibility({ action, reason, note }) {
+    if (!modalStory?.id) return
+
+    try {
+      setSaving(true)
+      setError('')
+      const token = getAdminToken()
+      const response = await fetch(`${API_URL}/api/admin/ranking/stories/${modalStory.id}/visibility`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ranking_visibility_status: action === 'hide' ? 'hidden' : 'visible',
+          reason,
+          note,
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to update ranking visibility')
+      }
+
+      closeVisibilityModal()
+      setRefreshKey((value) => value + 1)
+    } catch (err) {
+      setError(err.message || 'Failed to update ranking visibility')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const hasLiveData = activeTab === 'stories'
   const showToolbar = activeTab !== 'settings'
@@ -827,6 +1116,11 @@ export default function AdminRankingPage() {
                           <div className="ranking-actions">
                             <button type="button" onClick={() => copyText(story.id)}>Copy ID</button>
                             <button type="button" onClick={() => copyText(story.author_id)}>Author ID</button>
+                            {story.ranking_visibility_status === 'hidden' ? (
+                              <button type="button" className="ranking-success-btn" onClick={() => openVisibilityModal('unhide', story)}>Unhide</button>
+                            ) : (
+                              <button type="button" className="ranking-danger-btn" onClick={() => openVisibilityModal('hide', story)}>Hide</button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -835,6 +1129,55 @@ export default function AdminRankingPage() {
                 </table>
 
                 {loading ? <LoadingState /> : stories.length ? null : <EmptyState title="Story Rank is ready" text={activeConfig.empty} />}
+              </div>
+
+              <div className="ranking-pagination">
+                <span>Page {pagination.page} of {pagination.total_pages}</span>
+                <button type="button" disabled={!pagination.has_prev || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
+                <button type="button" disabled={!pagination.has_next || loading} onClick={() => setPage((value) => value + 1)}>Next</button>
+              </div>
+            </>
+          ) : activeTab === 'hidden' ? (
+            <>
+              <div className="ranking-table-wrap">
+                <table className="ranking-table">
+                  <thead>
+                    <tr>
+                      {activeConfig.columns.map((column) => <th key={column}>{column}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!loading && hiddenItems.map((item) => (
+                      <tr key={item.id}>
+                        <td>Story</td>
+                        <td>
+                          <div className="ranking-story-cell">
+                            <div className="ranking-cover">
+                              {item.cover_url ? <img src={item.cover_url} alt={item.title} /> : '📖'}
+                            </div>
+                            <div>
+                              <div className="ranking-title">{item.title || 'Untitled Story'}</div>
+                              <div className="ranking-muted">{item.author_page?.page_name || 'Unknown Author'} · @{item.author_page?.page_username || 'no_username'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td><button type="button" className="ranking-id-btn" onClick={() => copyText(item.id)}>{shortId(item.id)}</button></td>
+                        <td>{item.ranking_hidden_reason || '-'}</td>
+                        <td>{item.ranking_hidden_by || '-'}</td>
+                        <td>{formatDate(item.ranking_hidden_at)}</td>
+                        <td><StatusBadge status="hidden" /></td>
+                        <td>
+                          <div className="ranking-actions">
+                            <button type="button" className="ranking-success-btn" onClick={() => openVisibilityModal('unhide', item)}>Unhide</button>
+                            <button type="button" onClick={() => copyText(item.id)}>Copy ID</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {loading ? <LoadingState /> : hiddenItems.length ? null : <EmptyState title="Hidden Rank is ready" text={activeConfig.empty} />}
               </div>
 
               <div className="ranking-pagination">
@@ -856,6 +1199,8 @@ export default function AdminRankingPage() {
             </div>
           )}
         </section>
+
+        <RankingVisibilityModal action={modalAction} story={modalStory} loading={saving} onClose={closeVisibilityModal} onSubmit={submitVisibility} />
       </div>
     </AdminLayout>
   )
