@@ -5,6 +5,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 
 export default function AdminForgotPasswordPage() {
   const [email, setEmail] = useState('');
+  const [sentEmail, setSentEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -41,6 +42,7 @@ export default function AdminForgotPasswordPage() {
         return;
       }
 
+      setSentEmail(cleanEmail);
       setMessage('If this admin email exists, a reset code has been sent.');
     } catch {
       setError('Cannot connect to backend API.');
@@ -72,6 +74,15 @@ export default function AdminForgotPasswordPage() {
           {error ? <div style={styles.errorBox}>{error}</div> : null}
           {message ? <div style={styles.successBox}>{message}</div> : null}
 
+          {sentEmail ? (
+            <Link
+              to={`/admin-secret-reset/confirm?email=${encodeURIComponent(sentEmail)}`}
+              style={styles.continueButton}
+            >
+              Continue to Reset Password
+            </Link>
+          ) : null}
+
           <button
             type="submit"
             disabled={loading}
@@ -81,7 +92,7 @@ export default function AdminForgotPasswordPage() {
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
-            {loading ? 'Sending...' : 'Send Reset Code'}
+            {loading ? 'Sending...' : sentEmail ? 'Send Code Again' : 'Send Reset Code'}
           </button>
 
           <Link to="/admin-secret-reset/confirm" style={styles.link}>
@@ -165,6 +176,20 @@ const styles = {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: 900,
+    textAlign: 'center',
+  },
+  continueButton: {
+    width: '100%',
+    boxSizing: 'border-box',
+    border: 0,
+    borderRadius: 14,
+    padding: '14px 16px',
+    background: '#3730A3',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: 900,
+    textAlign: 'center',
+    textDecoration: 'none',
   },
   errorBox: {
     borderRadius: 14,
