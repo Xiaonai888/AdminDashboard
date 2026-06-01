@@ -718,6 +718,8 @@ const [activityLogLoading, setActivityLogLoading] = useState(true);
   const handleSignOut = () => {
     sessionStorage.removeItem('shadow_admin_token');
     localStorage.removeItem('shadow_admin_token');
+    sessionStorage.removeItem('shadow_admin_user');
+    localStorage.removeItem('shadow_admin_user');
     navigate('/login', { replace: true });
   };
 
@@ -751,9 +753,16 @@ useEffect(() => {
   fetchActivityLogs();
 }, []);
 
-  const currentUserName = 'Xiaonai Xiao';
-  const currentUserRole = 'Owner';
+  const storedAdmin = (() => {
+  try {
+    return JSON.parse(sessionStorage.getItem('shadow_admin_user') || localStorage.getItem('shadow_admin_user') || '{}');
+  } catch {
+    return {};
+  }
+})();
 
+const currentUserName = storedAdmin.name || storedAdmin.email || 'Admin';
+const currentUserRole = storedAdmin.role || 'Admin';
   const chartData = [
     { day: 'Mon', value: 42, color: '#10B981' },
     { day: 'Tue', value: 65, color: '#10B981' },
