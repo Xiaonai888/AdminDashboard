@@ -19,6 +19,9 @@ import ShadowMallOrdersPage from './pages/ShadowMallOrdersPage';
 import ShadowMallPublishersPage from './pages/ShadowMallPublishersPage';
 import AdminStoriesPage from './pages/AdminStoriesPage';
 import AdminRankingPage from './pages/AdminRankingPage';
+import AdminForgotPasswordPage from './pages/Admin/AdminForgotPasswordPage';
+import AdminResetPasswordPage from './pages/Admin/AdminResetPasswordPage';
+
 
 function ComingSoon({ title }) {
   return (
@@ -88,6 +91,9 @@ export default function App() {
         <Route path="/shadow-mall/orders" element={<ProtectedPage><ShadowMallOrdersPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
         <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
+        <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
+        <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
+
  
         
 
