@@ -153,19 +153,6 @@ function ModerationModal({ action, story, onClose, onSubmit, loading }) {
 function StoryDrawer({ story, details, loading, onClose, onAction }) {
   if (!story) return null
 
-  const fullStory = details?.story || story
-  const episodes = details?.episodes || []
-  const logs = details?.moderation_logs || []
-  const author = fullStory.author_page
-  const slides = Array.isArray(details?.slides) ? details.slides : Array.isArray(fullStory.slides) ? fullStory.slides : []
-  const mediaItems = [
-    fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
-    ...slides.slice(0, 5).map((slide, index) => ({
-      label: `Slide ${index + 1}`,
-      url: slide.image_url || slide.slide_url || slide.url || slide.cover_url,
-      fileName: `${fullStory.title}-slide-${index + 1}`,
-    })),
-  ].filter((item) => item?.url)
 const slides = Array.isArray(details?.slides) ? details.slides : Array.isArray(fullStory.slides) ? fullStory.slides : []
 const mediaItems = [
   fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
