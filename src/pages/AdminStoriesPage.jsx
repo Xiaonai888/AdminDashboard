@@ -27,6 +27,18 @@ function copyText(value) {
   navigator.clipboard?.writeText(String(value)).catch(() => {})
 }
 
+async function downloadCover(url, title) {
+  if (!url) return
+  const response = await fetch(url)
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = `${String(title || 'story-cover').replace(/[^\w-]+/g, '-')}-cover`
+  link.click()
+  URL.revokeObjectURL(objectUrl)
+}
+
 function getStatusClass(status) {
   const value = String(status || '').toLowerCase()
   if (value === 'published' || value === 'active') return 'green'
@@ -175,9 +187,12 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
             </div>
 
             <div className="story-admin-action-grid">
-              <button type="button" onClick={() => copyText(fullStory.id)}>Copy Story ID</button>
-              <button type="button" onClick={() => copyText(fullStory.author_id)}>Copy Author ID</button>
-              <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
+  <button type="button" disabled={!fullStory.cover_url} onClick={() => window.open(fullStory.cover_url, '_blank', 'noopener,noreferrer')}>View Cover</button>
+  <button type="button" disabled={!fullStory.cover_url} onClick={() => downloadCover(fullStory.cover_url, fullStory.title)}>Download Cover</button>
+  <button type="button" disabled={!fullStory.cover_url} onClick={() => copyText(fullStory.cover_url)}>Copy Cover URL</button>
+  <button type="button" onClick={() => copyText(fullStory.id)}>Copy Story ID</button>
+  <button type="button" onClick={() => copyText(fullStory.author_id)}>Copy Author ID</button>
+  <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
               {fullStory.admin_visibility_status === 'active' ? <button type="button" onClick={() => onAction('restrict', fullStory)}>Restrict</button> : <button type="button" onClick={() => onAction('active', fullStory)}>Remove Restriction</button>}
               <button type="button" onClick={() => onAction('disable', fullStory)}>Disable Story</button>
               {author?.admin_status === 'disabled' ? <button type="button" onClick={() => onAction('enableAuthor', fullStory)}>Enable Author Page</button> : <button type="button" onClick={() => onAction('disableAuthor', fullStory)}>Disable Author Page</button>}
