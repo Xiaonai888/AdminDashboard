@@ -124,9 +124,11 @@ export default function LoginPage() {
         localStorage.removeItem('shadow_admin_email');
       }
 
+      sessionStorage.setItem('shadow_admin_token', data.token);
       sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin || {}));
 
       if (rememberLogin) {
+        localStorage.setItem('shadow_admin_token', data.token);
         localStorage.setItem('shadow_admin_user', JSON.stringify(data.admin || {}));
       } else {
         localStorage.removeItem('shadow_admin_user');
