@@ -14,7 +14,8 @@ function formatDate(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return '-'
+  if (!value) return '-'ថconst fullStory = details?.story || story
+
   return new Date(value).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -154,9 +155,18 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
   if (!story) return null
 
   const fullStory = details?.story || story
-  const episodes = details?.episodes || []
-  const logs = details?.moderation_logs || []
-  const author = fullStory.author_page
+const episodes = details?.episodes || []
+const logs = details?.moderation_logs || []
+const author = fullStory.author_page
+const slides = Array.isArray(details?.slides) ? details.slides : Array.isArray(fullStory.slides) ? fullStory.slides : []
+const mediaItems = [
+  fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
+  ...slides.slice(0, 5).map((slide, index) => ({
+    label: `Slide ${index + 1}`,
+    url: slide.image_url || slide.slide_url || slide.url || slide.cover_url,
+    fileName: `${fullStory.title}-slide-${index + 1}`,
+  })),
+].filter((item) => item?.url)
 
   return (
     <div className="story-admin-drawer-layer" onMouseDown={onClose}>
@@ -186,7 +196,23 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
               </div>
             </div>
 
+            {mediaItems.length ? (
+  <div className="story-admin-media-list">
+    <div className="story-admin-media-title">Media Files</div>
+    {mediaItems.map((item) => (
+      <div key={item.label} className="story-admin-media-row">
+        <span>{item.label}</span>
+        <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
+          <i className="fa-solid fa-download" />
+        </button>
+      </div>
+    ))}
+  </div>
+) : null}
+
             <div className="story-admin-action-grid">
+
+              
   <button type="button" disabled={!fullStory.cover_url} onClick={() => window.open(fullStory.cover_url, '_blank', 'noopener,noreferrer')}>View Cover</button>
   <button type="button" disabled={!fullStory.cover_url} onClick={() => downloadCover(fullStory.cover_url, fullStory.title)}>Download Cover</button>
   <button type="button" disabled={!fullStory.cover_url} onClick={() => copyText(fullStory.cover_url)}>Copy Cover URL</button>
@@ -632,6 +658,10 @@ const styles = `
   .story-admin-kicker { color: #4F46E5; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.7px; }
   .story-admin-drawer-profile, .story-admin-modal-story { display: flex; gap: 16px; align-items: center; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 18px; padding: 15px; margin-bottom: 14px; }
   .story-admin-status-row { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .story-admin-media-list { border: 1px solid #E2E8F0; border-radius: 16px; overflow: hidden; margin: 12px 0 14px; background: #fff; }
+  .story-admin-media-title { padding: 11px 12px; background: #F8FAFC; color: #4F46E5; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.4px; }
+  .story-admin-media-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border-top: 1px solid #F1F5F9; color: #0F172A; font-size: 13px; font-weight: 900; }
+  .story-admin-media-row button { width: 34px; height: 34px; border: 0; border-radius: 10px; background: #EEF2FF; color: #4F46E5; cursor: pointer; }
   .story-admin-action-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
   .story-admin-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 14px 0 20px; }
   .story-admin-detail-item { border: 1px solid #E2E8F0; border-radius: 14px; padding: 12px; background: #fff; }
