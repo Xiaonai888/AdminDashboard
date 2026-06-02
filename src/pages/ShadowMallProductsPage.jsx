@@ -1936,12 +1936,19 @@ export default function ShadowMallProductsPage() {
 
             <div className="record-actions">
               <button
-                type="button"
-                onClick={() => startEdit(product)}
-                className={`record-action edit ${String(editingId) === String(product.id) ? 'is-editing' : ''}`}
-              >
-                {String(editingId) === String(product.id) ? 'Editing' : 'Edit'}
-              </button>
+  type="button"
+  onClick={() => {
+    if (String(editingId) === String(product.id)) {
+      resetForm();
+      return;
+    }
+
+    startEdit(product);
+  }}
+  className={`record-action edit ${String(editingId) === String(product.id) ? 'is-editing' : ''}`}
+>
+  {String(editingId) === String(product.id) ? 'Cancel' : 'Edit'}
+</button>
 
               <button
                 type="button"
