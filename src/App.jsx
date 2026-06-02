@@ -21,6 +21,7 @@ import AdminStoriesPage from './pages/AdminStoriesPage';
 import AdminRankingPage from './pages/AdminRankingPage';
 import AdminForgotPasswordPage from './pages/Admin/AdminForgotPasswordPage';
 import AdminResetPasswordPage from './pages/Admin/AdminResetPasswordPage';
+import AdminAdvertisementPage from './pages/AdminAdvertisementPage';
 
 
 function ComingSoon({ title }) {
@@ -71,7 +72,7 @@ export default function App() {
         <Route path="/shadow-mall" element={<ProtectedPage><ShadowMallProductsPage /></ProtectedPage>} />
         <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusiveAdmin /></ProtectedPage>} />
         <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
-        <Route path="/advertisement" element={<ProtectedPage><ComingSoon title="Advertisement" /></ProtectedPage>} />
+        <Route path="/advertisement" element={<ProtectedPage><AdminAdvertisementPage /></ProtectedPage>} />
         <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
         <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
         <Route path="/rule" element={<ProtectedPage><ComingSoon title="Rule" /></ProtectedPage>} />
