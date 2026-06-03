@@ -168,6 +168,8 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
   ].filter((item) => item?.url)
 
   return (
+
+  return (
   fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
   ...slides.slice(0, 5).map((slide, index) => ({
     label: `Slide ${index + 1}`,
