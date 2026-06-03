@@ -202,7 +202,7 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                   <div key={item.label} className="story-admin-media-row">
                     <span>{item.label}</span>
                     <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
-                      <i className="fa-solid fa-download" />
+                      <span>⬇</span>
                     </button>
                   </div>
                 ))}
