@@ -535,7 +535,14 @@ export default function AdminStoriesPage() {
                 </thead>
                 <tbody>
                   {stories.map((story, index) => (
-                    <tr key={story.id}>
+                    <tr
+  key={story.id}
+  className="story-admin-clickable-row"
+  onClick={() => {
+    setSelectedStory(story)
+    setDetails(null)
+  }}
+>
                       <td>{(pagination.page - 1) * PAGE_SIZE + index + 1}</td>
                       <td>
                         <div className="story-admin-story-cell">
@@ -570,8 +577,16 @@ export default function AdminStoriesPage() {
                       <td>{formatDate(story.updated_at)}</td>
                       <td>
                         <div className="story-admin-row-actions">
-                          <button type="button" onClick={() => { setSelectedStory(story); setDetails(null) }}>View</button>
-                          <button type="button" onClick={() => openAction('warning', story)}>Warning</button>
+                          
+                          <button
+  type="button"
+  onClick={(event) => {
+    event.stopPropagation()
+    openAction('warning', story)
+  }}
+>
+  Warning
+</button>
                         </div>
                       </td>
                     </tr>
