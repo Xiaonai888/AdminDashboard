@@ -53,13 +53,13 @@ const navItems = {
 const defaultSettings = {
   splash: { title: 'Splash Logo Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 2, closeAfterSeconds: 0, frequency: 'once_per_session' },
   opening: { title: 'Opening Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'once_per_session' },
-  freeUnlock: { title: 'Free Unlock Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'every_unlock' },
+  freeUnlock: { title: 'Free Unlock & Read Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'every_unlock' },
 }
 
 const tabInfo = {
   splash: { label: 'Splash Logo Ad', help: 'Shows after the native app splash. Use a clear brand image on black background.', previewClass: 'splash' },
   opening: { label: 'Opening Ad', help: 'Shows after the splash logo ad when users open the website or app.', previewClass: '' },
-  freeUnlock: { label: 'Free Unlock Ad', help: 'Shows before free episode unlock, excluding watch-video unlock.', previewClass: '' },
+  freeUnlock: { label: 'Free Unlock & Read Ad', help: 'Shows for free or coin-supported reading, excluding Diamond unlock and Premium readers.', previewClass: '' },
 }
 
 function getAdminToken() {
@@ -336,7 +336,7 @@ export default function AdminAdvertisementPage() {
                   <option value="once_per_session">Once per session</option>
                   <option value="once_per_day">Once per day</option>
                   <option value="every_visit">Every visit</option>
-                  <option value="every_unlock">Every unlock</option>
+                  <option value="every_unlock">Every Unlock & Read</option>
                 </select>
 
                 <div className="note-box">
