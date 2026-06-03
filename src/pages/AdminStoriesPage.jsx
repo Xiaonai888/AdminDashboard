@@ -637,6 +637,8 @@ const styles = `
   .story-admin-table { width: 100%; border-collapse: collapse; min-width: 1320px; }
   .story-admin-table th { background: #F8FAFC; color: #64748B; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 12px 14px; border-bottom: 1px solid #E2E8F0; }
   .story-admin-table td { padding: 13px 14px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; color: #334155; font-size: 13px; font-weight: 700; }
+  .story-admin-clickable-row { cursor: pointer; }
+  .story-admin-clickable-row:hover td { background: #F8FAFC; }
   .story-admin-story-cell { display: flex; gap: 11px; align-items: center; min-width: 230px; }
   .story-admin-cover { width: 42px; height: 56px; border-radius: 10px; background: #EEF2FF; color: #4F46E5; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: 20px; }
   .story-admin-cover.small { width: 38px; height: 50px; }
