@@ -151,6 +151,8 @@ function ModerationModal({ action, story, onClose, onSubmit, loading }) {
 }
 
 function StoryDrawer({ story, details, loading, onClose, onAction }) {
+  const [readingEpisode, setReadingEpisode] = useState(null)
+
   if (!story) return null
 
   const fullStory = details?.story || story
@@ -203,10 +205,10 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                     <span>{item.label}</span>
                     <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-  <path d="M12 3v11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-  <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-  <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-</svg>
+                        <path d="M12 3v11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                        <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                      </svg>
                     </button>
                   </div>
                 ))}
@@ -250,6 +252,13 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                   <div className="story-admin-mini-right">
                     <StoryStatus label={episode.deleted_at ? 'deleted' : episode.status} />
                     <span>{formatNumber(episode.character_count)} chars</span>
+                    <button
+                      type="button"
+                      className="story-admin-btn light"
+                      onClick={() => setReadingEpisode(episode)}
+                    >
+                      Read
+                    </button>
                   </div>
                 </div>
               )) : <div className="story-admin-muted-box">No episodes found.</div>}
@@ -270,6 +279,43 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
           </>
         )}
       </aside>
+
+      {readingEpisode ? (
+        <div className="story-admin-modal-layer" onMouseDown={() => setReadingEpisode(null)}>
+          <div className="story-admin-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="story-admin-modal-top">
+              <div>
+                <div className="story-admin-kicker">Read Episode</div>
+                <h3>EP {readingEpisode.episode_number}: {readingEpisode.title}</h3>
+              </div>
+              <button type="button" onClick={() => setReadingEpisode(null)}>×</button>
+            </div>
+
+            <div className="story-admin-status-row">
+              <StoryStatus label={readingEpisode.deleted_at ? 'deleted' : readingEpisode.status} />
+              <span className="story-admin-muted">{formatNumber(readingEpisode.character_count)} chars</span>
+            </div>
+
+            <div
+              style={{
+                marginTop: 16,
+                maxHeight: '68vh',
+                overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                lineHeight: 1.8,
+                fontSize: 15,
+                color: '#0f172a',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: 16,
+                padding: 16,
+              }}
+            >
+              {readingEpisode.content || 'No content found.'}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
