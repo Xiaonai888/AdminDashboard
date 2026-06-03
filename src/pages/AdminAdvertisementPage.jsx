@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -51,51 +51,15 @@ const navItems = {
 }
 
 const defaultSettings = {
-  splash: {
-    title: 'Splash Logo Ad',
-    enabled: false,
-    imageUrl: '',
-    linkUrl: '',
-    durationSeconds: 2,
-    closeAfterSeconds: 0,
-    frequency: 'once_per_session',
-  },
-  opening: {
-    title: 'Opening Ad',
-    enabled: false,
-    imageUrl: '',
-    linkUrl: '',
-    durationSeconds: 5,
-    closeAfterSeconds: 3,
-    frequency: 'once_per_session',
-  },
-  freeUnlock: {
-    title: 'Free Unlock Ad',
-    enabled: false,
-    imageUrl: '',
-    linkUrl: '',
-    durationSeconds: 5,
-    closeAfterSeconds: 3,
-    frequency: 'every_unlock',
-  },
+  splash: { title: 'Splash Logo Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 2, closeAfterSeconds: 0, frequency: 'once_per_session' },
+  opening: { title: 'Opening Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'once_per_session' },
+  freeUnlock: { title: 'Free Unlock Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'every_unlock' },
 }
 
 const tabInfo = {
-  splash: {
-    label: 'Splash Logo Ad',
-    help: 'Shows after the native app splash. Use a clear brand image on black background.',
-    previewClass: 'splash',
-  },
-  opening: {
-    label: 'Opening Ad',
-    help: 'Shows after the splash logo ad when users open the website or app.',
-    previewClass: '',
-  },
-  freeUnlock: {
-    label: 'Free Unlock Ad',
-    help: 'Shows before free episode unlock, excluding watch-video unlock.',
-    previewClass: '',
-  },
+  splash: { label: 'Splash Logo Ad', help: 'Shows after the native app splash. Use a clear brand image on black background.', previewClass: 'splash' },
+  opening: { label: 'Opening Ad', help: 'Shows after the splash logo ad when users open the website or app.', previewClass: '' },
+  freeUnlock: { label: 'Free Unlock Ad', help: 'Shows before free episode unlock, excluding watch-video unlock.', previewClass: '' },
 }
 
 function getAdminToken() {
@@ -160,8 +124,10 @@ function Toggle({ enabled, onClick }) {
 }
 
 export default function AdminAdvertisementPage() {
+  const fileInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('splash')
   const [settings, setSettings] = useState(defaultSettings)
+  const [selectedFiles, setSelectedFiles] = useState({})
   const [previewUrls, setPreviewUrls] = useState({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -169,7 +135,6 @@ export default function AdminAdvertisementPage() {
   const [error, setError] = useState('')
 
   const current = settings[activeTab]
-
   const previewImage = useMemo(() => previewUrls[activeTab] || current.imageUrl || '', [previewUrls, activeTab, current.imageUrl])
 
   function updateCurrent(field, value) {
@@ -212,6 +177,7 @@ export default function AdminAdvertisementPage() {
       })
 
       setSettings(nextSettings)
+      setSelectedFiles({})
       setPreviewUrls({})
     } catch (err) {
       setError(err.message || 'Failed to load advertisements')
@@ -224,41 +190,42 @@ export default function AdminAdvertisementPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const localUrl = URL.createObjectURL(file)
+    setSelectedFiles((prev) => ({
+      ...prev,
+      [activeTab]: file,
+    }))
     setPreviewUrls((prev) => ({
       ...prev,
-      [activeTab]: localUrl,
+      [activeTab]: URL.createObjectURL(file),
     }))
     setSaved('')
-    setError('This upload is preview only. Paste a public Image URL to save real data.')
+    setError('')
   }
 
   async function handleSave() {
-    if (current.imageUrl.startsWith('blob:')) {
-      setError('Please paste a public Image URL before saving.')
-      return
-    }
-
     try {
       setSaving(true)
       setSaved('')
       setError('')
 
       const token = getAdminToken()
+      const formData = new FormData()
+      const file = selectedFiles[activeTab]
+
+      if (file) formData.append('image', file)
+      formData.append('enabled', String(current.enabled))
+      formData.append('image_url', current.imageUrl || '')
+      formData.append('link_url', current.linkUrl || '')
+      formData.append('duration_seconds', String(current.durationSeconds))
+      formData.append('close_after_seconds', String(current.closeAfterSeconds))
+      formData.append('frequency', current.frequency)
+
       const response = await fetch(`${API_URL}/api/advertisements/admin/${activeTab}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          enabled: current.enabled,
-          image_url: current.imageUrl,
-          link_url: current.linkUrl,
-          duration_seconds: current.durationSeconds,
-          close_after_seconds: current.closeAfterSeconds,
-          frequency: current.frequency,
-        }),
+        body: formData,
       })
 
       const data = await response.json().catch(() => ({}))
@@ -274,10 +241,15 @@ export default function AdminAdvertisementPage() {
         }))
       }
 
+      setSelectedFiles((prev) => ({
+        ...prev,
+        [activeTab]: null,
+      }))
       setPreviewUrls((prev) => ({
         ...prev,
         [activeTab]: '',
       }))
+      if (fileInputRef.current) fileInputRef.current.value = ''
       setSaved('Saved real advertisement data.')
     } catch (err) {
       setError(err.message || 'Failed to save advertisement')
@@ -332,12 +304,12 @@ export default function AdminAdvertisementPage() {
                 </div>
 
                 <label className="field-label">Image URL</label>
-                <input className="input" value={current.imageUrl} onChange={(event) => updateCurrent('imageUrl', event.target.value)} placeholder="https://example.com/ad-image.jpg" />
+                <input className="input" value={current.imageUrl} onChange={(event) => updateCurrent('imageUrl', event.target.value)} placeholder="Auto-filled after upload" />
 
                 <label className="upload-box">
-                  <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
-                  <div className="upload-title">Upload Preview Image</div>
-                  <div className="upload-help">Preview only. Paste a public Image URL above to save real data.</div>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
+                  <div className="upload-title">Upload Image</div>
+                  <div className="upload-help">This uploads to Supabase Storage when you click Save.</div>
                 </label>
 
                 {activeTab !== 'splash' && (
@@ -368,51 +340,43 @@ export default function AdminAdvertisementPage() {
                 </select>
 
                 <div className="note-box">
-                  Admin now loads and saves real data from the backend. Reader website display will be connected in the next stage.
+                  Upload works like Slide/Banner images. Image URL is filled after Save.
                 </div>
 
-                {loading && <div className="note-box">Loading real advertisement data...</div>}
-                {saved && <div className="saved">{saved}</div>}
-                {error && <div className="error-box">{error}</div>}
+                {saved ? <div className="saved">{saved}</div> : null}
+                {error ? <div className="error-box">{error}</div> : null}
 
                 <div className="btn-row">
-                  <button type="button" className="btn-secondary" onClick={loadAdvertisements} disabled={loading || saving}>
-                    {loading ? 'Loading...' : 'Reload'}
-                  </button>
-                  <button type="button" className="btn-primary" onClick={handleSave} disabled={loading || saving}>
-                    {saving ? 'Saving...' : 'Save'}
-                  </button>
+                  <button type="button" className="btn-secondary" onClick={loadAdvertisements} disabled={loading || saving}>{loading ? 'Loading...' : 'Reload'}</button>
+                  <button type="button" className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
                 </div>
               </div>
             </section>
 
-            <aside className="preview-panel">
-              <div className="panel">
-                <div className="panel-header">
-                  <div>
-                    <h3>Mobile Preview</h3>
-                    <p>Preview how this placement will look on phone.</p>
+            <aside className="panel preview-panel">
+              <div className="panel-header">
+                <div>
+                  <h3>Mobile Preview</h3>
+                  <p>Preview how this placement will look on phone.</p>
+                </div>
+              </div>
+              <div className="panel-body">
+                <div className="phone-preview">
+                  <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
+                    {previewImage ? (
+                      <>
+                        <img src={previewImage} alt="Advertisement preview" />
+                        {current.closeAfterSeconds > 0 && <span className="close-pill">Close in {current.closeAfterSeconds}s</span>}
+                        <span className="time-pill">{current.durationSeconds}s</span>
+                      </>
+                    ) : (
+                      <div className="preview-empty">Upload an image to preview this advertisement.</div>
+                    )}
                   </div>
                 </div>
-                <div className="panel-body">
-                  <div className="phone-preview">
-                    <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
-                      {previewImage ? (
-                        <>
-                          <img src={previewImage} alt="Advertisement preview" />
-                          {activeTab !== 'splash' && <div className="close-pill">Close</div>}
-                          <div className="time-pill">{current.durationSeconds}s</div>
-                        </>
-                      ) : (
-                        <div className="preview-empty">
-                          Add a public Image URL to preview this advertisement.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="note-box">
-                    Active placement: {tabInfo[activeTab].label}. Current status: {current.enabled ? 'Enabled' : 'Disabled'}.
-                  </div>
+
+                <div className="note-box">
+                  Active placement: {tabInfo[activeTab].label}. Current status: {current.enabled ? 'Enabled' : 'Disabled'}.
                 </div>
               </div>
             </aside>
