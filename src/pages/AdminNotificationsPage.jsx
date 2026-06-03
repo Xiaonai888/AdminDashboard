@@ -671,6 +671,7 @@ export default function AdminNotificationsPage() {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
   const [link, setLink] = useState('')
   const [editingReferenceId, setEditingReferenceId] = useState('')
   const [announcements, setAnnouncements] = useState([])
@@ -795,6 +796,48 @@ export default function AdminNotificationsPage() {
       setLoadingRecords(false)
     }
   }
+
+  async function uploadNotificationImage(file) {
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    setError('Only image files are allowed')
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    setError('Image must be under 5MB')
+    return
+  }
+
+  try {
+    setImageUploading(true)
+    setError('')
+    setNotice('')
+
+    const formData = new FormData()
+    formData.append('image', file)
+
+    const response = await fetch(`${API_URL}/api/admin/notifications/upload-image`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: formData,
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Failed to upload image')
+    }
+
+    setImageUrl(data.image_url || '')
+    setNotice('Image uploaded')
+  } catch (err) {
+    setError(err.message || 'Failed to upload image')
+  } finally {
+    setImageUploading(false)
+  }
+}
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -1081,14 +1124,28 @@ export default function AdminNotificationsPage() {
                   </label>
 
                   <label className="notification-admin-field">
-                    <span className="notification-admin-label">Image URL optional 16:9</span>
-                    <input
-                      value={imageUrl}
-                      onChange={(event) => setImageUrl(event.target.value)}
-                      placeholder="https://example.com/image-1280x720.jpg"
-                      className="notification-admin-input"
-                    />
-                  </label>
+  <span className="notification-admin-label">
+    Image optional 16:9
+    <span className="notification-admin-limit">{imageUploading ? 'Uploading...' : 'Max 5MB'}</span>
+  </span>
+  <input
+    type="file"
+    accept="image/*"
+    disabled={imageUploading}
+    onChange={(event) => uploadNotificationImage(event.target.files?.[0])}
+    className="notification-admin-input"
+  />
+</label>
+
+<label className="notification-admin-field">
+  <span className="notification-admin-label">Image URL</span>
+  <input
+    value={imageUrl}
+    onChange={(event) => setImageUrl(event.target.value)}
+    placeholder="Uploaded image URL will appear here"
+    className="notification-admin-input"
+  />
+</label>
 
                   <label className="notification-admin-field">
                     <span className="notification-admin-label">
