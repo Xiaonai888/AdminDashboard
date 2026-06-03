@@ -3,6 +3,12 @@ import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
+const TARGET_OPTIONS = [
+  { key: 'all', label: 'All readers', note: 'Send to every reader account.' },
+  { key: 'single', label: 'Single reader', note: 'Send to one reader by email or username.' },
+  { key: 'selected', label: 'Selected readers', note: 'Send to multiple readers only.' },
+]
+
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
@@ -12,6 +18,12 @@ function formatDate(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleString()
+}
+
+function targetLabel(value) {
+  if (value === 'single') return 'Single reader'
+  if (value === 'selected') return 'Selected readers'
+  return 'All readers'
 }
 
 const styles = `
@@ -108,7 +120,7 @@ const styles = `
 
   .notification-admin-grid {
     display: grid;
-    grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+    grid-template-columns: minmax(340px, 460px) minmax(0, 1fr);
     gap: 20px;
     align-items: start;
   }
@@ -148,6 +160,59 @@ const styles = `
 
   .notification-admin-form {
     padding: 20px 22px 22px;
+  }
+
+  .notification-admin-target-grid {
+    display: grid;
+    gap: 9px;
+    margin-bottom: 16px;
+  }
+
+  .notification-admin-target-button {
+    width: 100%;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    color: #475569;
+    border-radius: 16px;
+    padding: 12px 13px;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .notification-admin-target-button.active {
+    border-color: #4F46E5;
+    background: linear-gradient(135deg, #EEF2FF, #FFFFFF);
+    color: #0F172A;
+    box-shadow: 0 10px 22px rgba(79, 70, 229, .09);
+  }
+
+  .notification-admin-target-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .notification-admin-target-note {
+    margin-top: 4px;
+    color: #64748B;
+    font-size: 11.5px;
+    font-weight: 650;
+    line-height: 1.45;
+  }
+
+  .notification-admin-target-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #CBD5E1;
+  }
+
+  .notification-admin-target-button.active .notification-admin-target-dot {
+    background: #4F46E5;
   }
 
   .notification-admin-field {
@@ -198,10 +263,61 @@ const styles = `
     line-height: 1.6;
   }
 
+  .notification-admin-recipient-box {
+    min-height: 92px;
+  }
+
   .notification-admin-input:focus,
   .notification-admin-textarea:focus {
     border-color: #4F46E5;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, .1);
+  }
+
+  .notification-admin-help {
+    margin-top: -7px;
+    margin-bottom: 14px;
+    color: #64748B;
+    font-size: 11.5px;
+    font-weight: 650;
+    line-height: 1.5;
+  }
+
+  .notification-admin-preview {
+    margin-top: 6px;
+    border: 1px dashed #CBD5E1;
+    background: #F8FAFC;
+    border-radius: 18px;
+    padding: 13px;
+  }
+
+  .notification-admin-preview-label {
+    color: #64748B;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 9px;
+  }
+
+  .notification-admin-preview-card {
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    border-radius: 16px;
+    padding: 12px;
+  }
+
+  .notification-admin-preview-title {
+    color: #0F172A;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .notification-admin-preview-message {
+    margin-top: 5px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.5;
   }
 
   .notification-admin-message {
@@ -221,6 +337,14 @@ const styles = `
   .notification-admin-message.error {
     background: #FEE2E2;
     color: #B91C1C;
+  }
+
+  .notification-admin-not-found {
+    margin-top: 8px;
+    color: #B45309;
+    font-size: 11.5px;
+    font-weight: 800;
+    line-height: 1.45;
   }
 
   .notification-admin-submit {
@@ -297,16 +421,31 @@ const styles = `
     word-break: break-all;
   }
 
+  .notification-admin-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 11px;
+  }
+
+  .notification-admin-target-badge,
   .notification-admin-unread {
-    flex-shrink: 0;
-    min-width: 72px;
-    text-align: center;
+    display: inline-flex;
+    align-items: center;
     border-radius: 999px;
-    background: #FEF3C7;
-    color: #92400E;
-    padding: 7px 10px;
+    padding: 6px 9px;
     font-size: 11px;
     font-weight: 900;
+  }
+
+  .notification-admin-target-badge {
+    background: #EEF2FF;
+    color: #4F46E5;
+  }
+
+  .notification-admin-unread {
+    background: #FEF3C7;
+    color: #92400E;
   }
 
   .notification-admin-meta {
@@ -347,14 +486,26 @@ const styles = `
 `
 
 export default function AdminNotificationsPage() {
+  const [targetType, setTargetType] = useState('all')
+  const [recipient, setRecipient] = useState('')
+  const [recipients, setRecipients] = useState('')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [link, setLink] = useState('')
   const [announcements, setAnnouncements] = useState([])
+  const [totalReaders, setTotalReaders] = useState(0)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [notFound, setNotFound] = useState([])
+
+  const selectedCount = useMemo(() => {
+    return String(recipients || '')
+      .split(/[\n,;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean).length
+  }, [recipients])
 
   const stats = useMemo(() => {
     return {
@@ -383,8 +534,10 @@ export default function AdminNotificationsPage() {
       }
 
       setAnnouncements(data.announcements || [])
+      setTotalReaders(Number(data.total_readers || 0))
     } catch (err) {
       setAnnouncements([])
+      setTotalReaders(0)
       setError(err.message || 'Failed to load announcements')
     } finally {
       setLoading(false)
@@ -399,10 +552,21 @@ export default function AdminNotificationsPage() {
       return
     }
 
+    if (targetType === 'single' && !recipient.trim()) {
+      setError('Reader email or username is required')
+      return
+    }
+
+    if (targetType === 'selected' && selectedCount < 1) {
+      setError('Add at least one reader email or username')
+      return
+    }
+
     try {
       setSending(true)
       setNotice('')
       setError('')
+      setNotFound([])
 
       const token = getAdminToken()
       const response = await fetch(`${API_URL}/api/admin/notifications/announcements`, {
@@ -412,6 +576,9 @@ export default function AdminNotificationsPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
+          target_type: targetType,
+          recipient,
+          recipients,
           title,
           message,
           link,
@@ -421,13 +588,17 @@ export default function AdminNotificationsPage() {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok || data.ok === false) {
+        setNotFound(data.not_found || [])
         throw new Error(data.message || 'Failed to send announcement')
       }
 
       setTitle('')
       setMessage('')
       setLink('')
-      setNotice(`Announcement sent to ${data.announcement?.recipient_count || 0} readers`)
+      setRecipient('')
+      setRecipients('')
+      setNotFound(data.announcement?.not_found || [])
+      setNotice(data.message || `Announcement sent to ${data.announcement?.recipient_count || 0} readers`)
       await loadAnnouncements()
     } catch (err) {
       setError(err.message || 'Failed to send announcement')
@@ -452,7 +623,7 @@ export default function AdminNotificationsPage() {
             </div>
             <h1 className="notification-admin-title">Notification Center</h1>
             <p className="notification-admin-subtitle">
-              Send official announcements to readers. These notifications appear inside the reader app under the Announcements tab only.
+              Send official reader notifications to everyone, one reader, or selected readers only. Author Dashboard notifications stay separate.
             </p>
           </div>
 
@@ -481,12 +652,70 @@ export default function AdminNotificationsPage() {
             <div className="notification-admin-card-head">
               <div>
                 <h2 className="notification-admin-card-title">New Announcement</h2>
-                <p className="notification-admin-card-note">Create one official reader notification.</p>
+                <p className="notification-admin-card-note">Choose who receives this notification.</p>
               </div>
             </div>
 
             <div className="notification-admin-form">
               <form onSubmit={handleSubmit}>
+                <div className="notification-admin-field">
+                  <span className="notification-admin-label">Send to</span>
+                  <div className="notification-admin-target-grid">
+                    {TARGET_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => {
+                          setTargetType(option.key)
+                          setError('')
+                          setNotice('')
+                          setNotFound([])
+                        }}
+                        className={`notification-admin-target-button ${targetType === option.key ? 'active' : ''}`}
+                      >
+                        <span className="notification-admin-target-title">
+                          {option.label}
+                          <span className="notification-admin-target-dot" />
+                        </span>
+                        <span className="notification-admin-target-note">{option.note}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {targetType === 'single' ? (
+                  <label className="notification-admin-field">
+                    <span className="notification-admin-label">Reader email or username</span>
+                    <input
+                      value={recipient}
+                      onChange={(event) => setRecipient(event.target.value)}
+                      placeholder="reader@gmail.com or username"
+                      className="notification-admin-input"
+                    />
+                  </label>
+                ) : null}
+
+                {targetType === 'selected' ? (
+                  <label className="notification-admin-field">
+                    <span className="notification-admin-label">
+                      Reader emails or usernames
+                      <span className="notification-admin-limit">{selectedCount} selected</span>
+                    </span>
+                    <textarea
+                      value={recipients}
+                      onChange={(event) => setRecipients(event.target.value)}
+                      placeholder={'reader1@gmail.com\nreader_two\nreader3@gmail.com'}
+                      className="notification-admin-textarea notification-admin-recipient-box"
+                    />
+                  </label>
+                ) : null}
+
+                {targetType === 'all' ? (
+                  <div className="notification-admin-help">
+                    This will send to all current reader accounts. Current reader count: {totalReaders}
+                  </div>
+                ) : null}
+
                 <label className="notification-admin-field">
                   <span className="notification-admin-label">
                     Title
@@ -526,8 +755,21 @@ export default function AdminNotificationsPage() {
                   />
                 </label>
 
+                <div className="notification-admin-preview">
+                  <div className="notification-admin-preview-label">Preview in reader notification</div>
+                  <div className="notification-admin-preview-card">
+                    <div className="notification-admin-preview-title">{title.trim() || 'Announcement title'}</div>
+                    <div className="notification-admin-preview-message">{message.trim() || 'Announcement message will appear here.'}</div>
+                  </div>
+                </div>
+
                 {notice ? <div className="notification-admin-message success">{notice}</div> : null}
                 {error ? <div className="notification-admin-message error">{error}</div> : null}
+                {notFound.length ? (
+                  <div className="notification-admin-not-found">
+                    Not found: {notFound.slice(0, 8).join(', ')}{notFound.length > 8 ? ` +${notFound.length - 8} more` : ''}
+                  </div>
+                ) : null}
 
                 <button type="submit" disabled={sending} className="notification-admin-submit">
                   {sending ? 'Sending...' : 'Send Announcement'}
@@ -560,8 +802,11 @@ export default function AdminNotificationsPage() {
                         <h3 className="notification-admin-item-title">{item.title}</h3>
                         <p className="notification-admin-item-message">{item.message}</p>
                         {item.link ? <span className="notification-admin-link">{item.link}</span> : null}
+                        <div className="notification-admin-badges">
+                          <span className="notification-admin-target-badge">{item.target_label || targetLabel(item.target_type)}</span>
+                          <span className="notification-admin-unread">{item.unread_count} unread</span>
+                        </div>
                       </div>
-                      <span className="notification-admin-unread">{item.unread_count} unread</span>
                     </div>
 
                     <div className="notification-admin-meta">
