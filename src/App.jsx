@@ -23,6 +23,7 @@ import AdminForgotPasswordPage from './pages/Admin/AdminForgotPasswordPage';
 import AdminResetPasswordPage from './pages/Admin/AdminResetPasswordPage';
 import AdminAdvertisementPage from './pages/AdminAdvertisementPage';
 import AdminNotificationsPage from './pages/AdminNotificationsPage';
+import AdminBlockListPage from './pages/AdminBlockListPage';
 
 
 function ComingSoon({ title }) {
@@ -79,7 +80,7 @@ export default function App() {
         <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
         <Route path="/rule" element={<ProtectedPage><ComingSoon title="Rule" /></ProtectedPage>} />
         <Route path="/account" element={<ProtectedPage><ComingSoon title="Account" /></ProtectedPage>} />
-        <Route path="/block-list" element={<ProtectedPage><ComingSoon title="Block List" /></ProtectedPage>} />
+        <Route path="/block-list" element={<ProtectedPage><AdminBlockListPage /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><ComingSoon title="Income" /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
@@ -96,6 +97,7 @@ export default function App() {
         <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
+        
 
  
         
