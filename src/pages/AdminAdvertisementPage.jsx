@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -12,8 +14,8 @@ const styles = `
   .shell{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:24px;align-items:start}.panel{background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:0 8px 28px rgba(15,23,42,.06);overflow:hidden}.panel-header{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;align-items:center}.panel-header h3{font-size:16px;font-weight:900}.panel-header p{font-size:12.5px;color:var(--muted);margin-top:4px}.panel-body{padding:20px 22px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field-label{display:block;font-size:12px;font-weight:900;color:#334155;margin:12px 0 7px}.input{width:100%;padding:13px 14px;border-radius:13px;border:1px solid var(--border);outline:none;background:#F8FAFC;font-size:14px;font-family:inherit}.input:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
   .upload-box{border:1.5px dashed #CBD5E1;background:#F8FAFC;border-radius:15px;padding:16px;margin-top:10px;cursor:pointer;text-align:center}.upload-box:hover{border-color:var(--primary);background:var(--light)}.upload-title{font-size:13px;font-weight:900}.upload-help{margin-top:4px;font-size:11.5px;color:var(--muted)}
   .toggle-row{margin-top:14px;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:space-between}.toggle-title{font-size:13px;font-weight:900}.toggle-help{margin-top:3px;font-size:11.5px;color:var(--muted)}.switch{width:48px;height:28px;border-radius:999px;background:#CBD5E1;padding:3px;border:none;cursor:pointer}.switch.on{background:var(--success)}.switch-thumb{width:22px;height:22px;border-radius:50%;background:#fff;display:block;transition:.2s;box-shadow:0 2px 6px rgba(15,23,42,.18)}.switch.on .switch-thumb{transform:translateX(20px)}
-  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.btn-primary,.btn-secondary{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}
-  .preview-panel{position:sticky;top:92px}.phone-preview{height:620px;border-radius:34px;background:#050505;padding:16px;border:8px solid #111827;box-shadow:0 24px 60px rgba(15,23,42,.22);overflow:hidden}.phone-screen{position:relative;width:100%;height:100%;border-radius:24px;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}.phone-screen img{width:100%;height:100%;object-fit:cover}.phone-screen.splash img{width:78%;height:78%;object-fit:contain}.preview-empty{color:#94A3B8;text-align:center;font-size:13px;font-weight:800;padding:20px}.close-pill{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.92);color:#111827;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900}.time-pill{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.78);color:#fff;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}.saved{margin-top:14px;padding:12px 14px;border-radius:14px;background:#D1FAE5;color:#047857;font-size:13px;font-weight:900}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}.btn-primary,.btn-secondary{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled{opacity:.65;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}
+  .preview-panel{position:sticky;top:92px}.phone-preview{height:620px;border-radius:34px;background:#050505;padding:16px;border:8px solid #111827;box-shadow:0 24px 60px rgba(15,23,42,.22);overflow:hidden}.phone-screen{position:relative;width:100%;height:100%;border-radius:24px;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}.phone-screen img{width:100%;height:100%;object-fit:cover}.phone-screen.splash img{width:78%;height:78%;object-fit:contain}.preview-empty{color:#94A3B8;text-align:center;font-size:13px;font-weight:800;padding:20px}.close-pill{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.92);color:#111827;border-radius:999px;padding:8px 11px;font-size:12px;font-weight:900}.time-pill{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.78);color:#fff;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:900}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}.saved{margin-top:14px;padding:12px 14px;border-radius:14px;background:#D1FAE5;color:#047857;font-size:13px;font-weight:900}.error-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#FEE2E2;color:#B91C1C;font-size:13px;font-weight:900;line-height:1.45}
   @media(max-width:1100px){.shell{grid-template-columns:1fr}.preview-panel{position:static}.phone-preview{height:520px}}@media(max-width:760px){.content-body{padding:22px 16px}.header{padding:0 18px}.grid{grid-template-columns:1fr}.btn-row{grid-template-columns:1fr}}
 `
 
@@ -51,7 +53,7 @@ const navItems = {
 const defaultSettings = {
   splash: {
     title: 'Splash Logo Ad',
-    enabled: true,
+    enabled: false,
     imageUrl: '',
     linkUrl: '',
     durationSeconds: 2,
@@ -60,7 +62,7 @@ const defaultSettings = {
   },
   opening: {
     title: 'Opening Ad',
-    enabled: true,
+    enabled: false,
     imageUrl: '',
     linkUrl: '',
     durationSeconds: 5,
@@ -69,7 +71,7 @@ const defaultSettings = {
   },
   freeUnlock: {
     title: 'Free Unlock Ad',
-    enabled: true,
+    enabled: false,
     imageUrl: '',
     linkUrl: '',
     durationSeconds: 5,
@@ -94,6 +96,22 @@ const tabInfo = {
     help: 'Shows before free episode unlock, excluding watch-video unlock.',
     previewClass: '',
   },
+}
+
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
+}
+
+function toSetting(item) {
+  return {
+    title: defaultSettings[item.placement]?.title || item.placement,
+    enabled: Boolean(item.enabled),
+    imageUrl: item.image_url || '',
+    linkUrl: item.link_url || '',
+    durationSeconds: Number(item.duration_seconds || 0),
+    closeAfterSeconds: Number(item.close_after_seconds || 0),
+    frequency: item.frequency || 'once_per_session',
+  }
 }
 
 function Icon({ d, size = 20, color }) {
@@ -144,14 +162,19 @@ function Toggle({ enabled, onClick }) {
 export default function AdminAdvertisementPage() {
   const [activeTab, setActiveTab] = useState('splash')
   const [settings, setSettings] = useState(defaultSettings)
-  const [saved, setSaved] = useState(false)
+  const [previewUrls, setPreviewUrls] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState('')
+  const [error, setError] = useState('')
 
   const current = settings[activeTab]
 
-  const previewImage = useMemo(() => current.imageUrl || '', [current.imageUrl])
+  const previewImage = useMemo(() => previewUrls[activeTab] || current.imageUrl || '', [previewUrls, activeTab, current.imageUrl])
 
   function updateCurrent(field, value) {
-    setSaved(false)
+    setSaved('')
+    setError('')
     setSettings((prev) => ({
       ...prev,
       [activeTab]: {
@@ -161,17 +184,111 @@ export default function AdminAdvertisementPage() {
     }))
   }
 
+  async function loadAdvertisements() {
+    try {
+      setLoading(true)
+      setSaved('')
+      setError('')
+
+      const token = getAdminToken()
+      const response = await fetch(`${API_URL}/api/advertisements/admin`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to load advertisements')
+      }
+
+      const nextSettings = { ...defaultSettings }
+
+      ;(data.advertisements || []).forEach((item) => {
+        if (item.placement && nextSettings[item.placement]) {
+          nextSettings[item.placement] = toSetting(item)
+        }
+      })
+
+      setSettings(nextSettings)
+      setPreviewUrls({})
+    } catch (err) {
+      setError(err.message || 'Failed to load advertisements')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   function handleUpload(event) {
     const file = event.target.files?.[0]
     if (!file) return
 
     const localUrl = URL.createObjectURL(file)
-    updateCurrent('imageUrl', localUrl)
+    setPreviewUrls((prev) => ({
+      ...prev,
+      [activeTab]: localUrl,
+    }))
+    setSaved('')
+    setError('This upload is preview only. Paste a public Image URL to save real data.')
   }
 
-  function handleSave() {
-    setSaved(true)
+  async function handleSave() {
+    if (current.imageUrl.startsWith('blob:')) {
+      setError('Please paste a public Image URL before saving.')
+      return
+    }
+
+    try {
+      setSaving(true)
+      setSaved('')
+      setError('')
+
+      const token = getAdminToken()
+      const response = await fetch(`${API_URL}/api/advertisements/admin/${activeTab}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          enabled: current.enabled,
+          image_url: current.imageUrl,
+          link_url: current.linkUrl,
+          duration_seconds: current.durationSeconds,
+          close_after_seconds: current.closeAfterSeconds,
+          frequency: current.frequency,
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to save advertisement')
+      }
+
+      if (data.advertisement?.placement) {
+        setSettings((prev) => ({
+          ...prev,
+          [data.advertisement.placement]: toSetting(data.advertisement),
+        }))
+      }
+
+      setPreviewUrls((prev) => ({
+        ...prev,
+        [activeTab]: '',
+      }))
+      setSaved('Saved real advertisement data.')
+    } catch (err) {
+      setError(err.message || 'Failed to save advertisement')
+    } finally {
+      setSaving(false)
+    }
   }
+
+  useEffect(() => {
+    loadAdvertisements()
+  }, [])
 
   return (
     <div className="dashboard-wrapper">
@@ -220,7 +337,7 @@ export default function AdminAdvertisementPage() {
                 <label className="upload-box">
                   <input type="file" accept="image/*" onChange={handleUpload} style={{ display: 'none' }} />
                   <div className="upload-title">Upload Preview Image</div>
-                  <div className="upload-help">Local preview only in this stage. Backend upload will be connected next.</div>
+                  <div className="upload-help">Preview only. Paste a public Image URL above to save real data.</div>
                 </label>
 
                 {activeTab !== 'splash' && (
@@ -251,35 +368,50 @@ export default function AdminAdvertisementPage() {
                 </select>
 
                 <div className="note-box">
-                  Native app splash may still appear for a short moment. This page controls the in-app splash and ads after the website loads.
+                  Admin now loads and saves real data from the backend. Reader website display will be connected in the next stage.
                 </div>
 
-                {saved && <div className="saved">Saved preview settings.</div>}
+                {loading && <div className="note-box">Loading real advertisement data...</div>}
+                {saved && <div className="saved">{saved}</div>}
+                {error && <div className="error-box">{error}</div>}
 
                 <div className="btn-row">
-                  <button type="button" className="btn-secondary" onClick={() => setSettings(defaultSettings)}>Reset</button>
-                  <button type="button" className="btn-primary" onClick={handleSave}>Save</button>
+                  <button type="button" className="btn-secondary" onClick={loadAdvertisements} disabled={loading || saving}>
+                    {loading ? 'Loading...' : 'Reload'}
+                  </button>
+                  <button type="button" className="btn-primary" onClick={handleSave} disabled={loading || saving}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
                 </div>
               </div>
             </section>
 
-            <aside className="panel preview-panel">
-              <div className="panel-header">
-                <div>
-                  <h3>Mobile Preview</h3>
-                  <p>Preview how this ad feels on reader app.</p>
+            <aside className="preview-panel">
+              <div className="panel">
+                <div className="panel-header">
+                  <div>
+                    <h3>Mobile Preview</h3>
+                    <p>Preview how this placement will look on phone.</p>
+                  </div>
                 </div>
-              </div>
-              <div className="panel-body">
-                <div className="phone-preview">
-                  <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
-                    {previewImage ? (
-                      <img src={previewImage} alt={tabInfo[activeTab].label} />
-                    ) : (
-                      <div className="preview-empty">Upload or paste image URL to preview.</div>
-                    )}
-                    {current.closeAfterSeconds > 0 && <div className="close-pill">X after {current.closeAfterSeconds}s</div>}
-                    <div className="time-pill">{current.durationSeconds}s</div>
+                <div className="panel-body">
+                  <div className="phone-preview">
+                    <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
+                      {previewImage ? (
+                        <>
+                          <img src={previewImage} alt="Advertisement preview" />
+                          {activeTab !== 'splash' && <div className="close-pill">Close</div>}
+                          <div className="time-pill">{current.durationSeconds}s</div>
+                        </>
+                      ) : (
+                        <div className="preview-empty">
+                          Add a public Image URL to preview this advertisement.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="note-box">
+                    Active placement: {tabInfo[activeTab].label}. Current status: {current.enabled ? 'Enabled' : 'Disabled'}.
                   </div>
                 </div>
               </div>
