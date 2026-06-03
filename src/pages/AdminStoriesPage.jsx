@@ -153,8 +153,21 @@ function ModerationModal({ action, story, onClose, onSubmit, loading }) {
 function StoryDrawer({ story, details, loading, onClose, onAction }) {
   if (!story) return null
 
-const slides = Array.isArray(details?.slides) ? details.slides : Array.isArray(fullStory.slides) ? fullStory.slides : []
-const mediaItems = [
+  const fullStory = details?.story || story
+  const episodes = details?.episodes || []
+  const logs = details?.moderation_logs || []
+  const author = fullStory.author_page
+  const slides = Array.isArray(details?.slides) ? details.slides : Array.isArray(fullStory.slides) ? fullStory.slides : []
+  const mediaItems = [
+    fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
+    ...slides.slice(0, 5).map((slide, index) => ({
+      label: `Slide ${index + 1}`,
+      url: slide.image_url || slide.slide_url || slide.url || slide.cover_url,
+      fileName: `${fullStory.title}-slide-${index + 1}`,
+    })),
+  ].filter((item) => item?.url)
+
+  return (
   fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
   ...slides.slice(0, 5).map((slide, index) => ({
     label: `Slide ${index + 1}`,
@@ -207,10 +220,6 @@ const mediaItems = [
 
             <div className="story-admin-action-grid">
 
-              
-  <button type="button" disabled={!fullStory.cover_url} onClick={() => window.open(fullStory.cover_url, '_blank', 'noopener,noreferrer')}>View Cover</button>
-  <button type="button" disabled={!fullStory.cover_url} onClick={() => downloadCover(fullStory.cover_url, fullStory.title)}>Download Cover</button>
-  <button type="button" disabled={!fullStory.cover_url} onClick={() => copyText(fullStory.cover_url)}>Copy Cover URL</button>
   <button type="button" onClick={() => copyText(fullStory.id)}>Copy Story ID</button>
   <button type="button" onClick={() => copyText(fullStory.author_id)}>Copy Author ID</button>
   <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
