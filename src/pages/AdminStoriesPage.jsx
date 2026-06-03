@@ -202,7 +202,11 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                   <div key={item.label} className="story-admin-media-row">
                     <span>{item.label}</span>
                     <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
-                      <span>⬇</span>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <path d="M12 3v11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+  <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+  <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+</svg>
                     </button>
                   </div>
                 ))}
