@@ -168,17 +168,6 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
   ].filter((item) => item?.url)
 
   return (
-
-  return (
-  fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
-  ...slides.slice(0, 5).map((slide, index) => ({
-    label: `Slide ${index + 1}`,
-    url: slide.image_url || slide.slide_url || slide.url || slide.cover_url,
-    fileName: `${fullStory.title}-slide-${index + 1}`,
-  })),
-].filter((item) => item?.url)
-
-  return (
     <div className="story-admin-drawer-layer" onMouseDown={onClose}>
       <aside className="story-admin-drawer" onMouseDown={(event) => event.stopPropagation()}>
         <div className="story-admin-drawer-top">
@@ -207,24 +196,23 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
             </div>
 
             {mediaItems.length ? (
-  <div className="story-admin-media-list">
-    <div className="story-admin-media-title">Media Files</div>
-    {mediaItems.map((item) => (
-      <div key={item.label} className="story-admin-media-row">
-        <span>{item.label}</span>
-        <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
-          <i className="fa-solid fa-download" />
-        </button>
-      </div>
-    ))}
-  </div>
-) : null}
+              <div className="story-admin-media-list">
+                <div className="story-admin-media-title">Media Files</div>
+                {mediaItems.map((item) => (
+                  <div key={item.label} className="story-admin-media-row">
+                    <span>{item.label}</span>
+                    <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
+                      <i className="fa-solid fa-download" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             <div className="story-admin-action-grid">
-
-  <button type="button" onClick={() => copyText(fullStory.id)}>Copy Story ID</button>
-  <button type="button" onClick={() => copyText(fullStory.author_id)}>Copy Author ID</button>
-  <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
+              <button type="button" onClick={() => copyText(fullStory.id)}>Copy Story ID</button>
+              <button type="button" onClick={() => copyText(fullStory.author_id)}>Copy Author ID</button>
+              <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
               {fullStory.admin_visibility_status === 'active' ? <button type="button" onClick={() => onAction('restrict', fullStory)}>Restrict</button> : <button type="button" onClick={() => onAction('active', fullStory)}>Remove Restriction</button>}
               <button type="button" onClick={() => onAction('disable', fullStory)}>Disable Story</button>
               {author?.admin_status === 'disabled' ? <button type="button" onClick={() => onAction('enableAuthor', fullStory)}>Enable Author Page</button> : <button type="button" onClick={() => onAction('disableAuthor', fullStory)}>Disable Author Page</button>}
@@ -566,7 +554,7 @@ export default function AdminStoriesPage() {
                           </div>
                         </div>
                       </td>
-                      <td><button type="button" className="story-admin-copy" onClick={() => copyText(story.id)}>{story.id}</button></td>
+                      <td><button type="button" className="story-admin-copy" onClick={(event) => { event.stopPropagation(); copyText(story.id) }}>{story.id}</button></td>
                       <td>
                         <div className="story-admin-author-name">{story.author_page?.page_name || 'Unknown'}</div>
                         <div className="story-admin-muted">@{story.author_page?.page_username || 'no_username'}</div>
