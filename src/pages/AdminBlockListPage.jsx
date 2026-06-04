@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const WORDS_PAGE_SIZE = 10
+const RECORDS_PAGE_SIZE = 20
 
 const tabs = [
   { key: 'words', label: 'Block Words' },
@@ -42,14 +43,15 @@ const styles = `
   .block-list-tab { border: 1px solid #E2E8F0; background: #FFFFFF; color: #64748B; height: 40px; padding: 0 15px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
   .block-list-tab.active { background: #4F46E5; border-color: #4F46E5; color: #FFFFFF; }
   .block-list-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 22px; box-shadow: 0 8px 28px rgba(15, 23, 42, 0.05); overflow: hidden; }
+  .block-list-record-card { margin-top: 18px; background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 22px; box-shadow: 0 8px 28px rgba(15, 23, 42, 0.05); overflow: hidden; }
   .block-list-card-head { padding: 20px; border-bottom: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
   .block-list-card-title { margin: 0; font-size: 17px; font-weight: 950; color: #0F172A; }
   .block-list-card-desc { margin-top: 5px; color: #64748B; font-size: 12px; font-weight: 700; line-height: 1.5; }
-  .block-list-add-btn { height: 40px; border: 0; border-radius: 13px; background: #4F46E5; color: #FFFFFF; padding: 0 16px; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .block-list-add-btn, .block-list-refresh { height: 40px; border: 1px solid #E2E8F0; border-radius: 13px; background: #FFFFFF; color: #334155; padding: 0 16px; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; }
+  .block-list-add-btn { border: 0; background: #4F46E5; color: #FFFFFF; }
   .block-list-toolbar { padding: 14px 20px; border-bottom: 1px solid #E2E8F0; display: grid; grid-template-columns: minmax(220px, 1fr) 170px 150px 120px; gap: 10px; align-items: center; }
   .block-list-input, .block-list-select { height: 40px; border: 1px solid #E2E8F0; border-radius: 13px; background: #F8FAFC; padding: 0 12px; font: inherit; font-size: 13px; font-weight: 700; color: #0F172A; outline: none; }
   .block-list-input:focus, .block-list-select:focus { background: #FFFFFF; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-  .block-list-refresh { height: 40px; border: 1px solid #E2E8F0; background: #FFFFFF; color: #334155; border-radius: 13px; font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
   .block-list-message { margin: 14px 20px 0; border-radius: 14px; padding: 12px 14px; font-size: 13px; font-weight: 800; line-height: 1.55; }
   .block-list-message.success { background: #D1FAE5; color: #047857; }
   .block-list-message.error { background: #FEE2E2; color: #B91C1C; }
@@ -82,6 +84,15 @@ const styles = `
   .block-list-page-btn { height: 36px; border-radius: 999px; border: 1px solid #E2E8F0; background: #FFFFFF; color: #0F172A; padding: 0 14px; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; }
   .block-list-page-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .block-list-current-page { height: 36px; min-width: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #EEF2FF; color: #4F46E5; padding: 0 12px; font-size: 12px; font-weight: 950; }
+  .block-list-record-list { padding: 10px 18px 2px; }
+  .block-list-record-row { display: grid; grid-template-columns: 92px minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid #F1F5F9; }
+  .block-list-record-action { justify-self: start; border-radius: 999px; background: #EEF2FF; color: #4F46E5; padding: 7px 13px; font-size: 11px; font-weight: 950; text-transform: uppercase; }
+  .block-list-record-action.create, .block-list-record-action.enable { background: #ECFDF3; color: #047857; }
+  .block-list-record-action.disable { background: #FFF7ED; color: #C2410C; }
+  .block-list-record-action.delete { background: #FEF2F2; color: #B91C1C; }
+  .block-list-record-title { color: #111827; font-size: 13px; font-weight: 950; }
+  .block-list-record-meta { margin-top: 4px; color: #64748B; font-size: 11.5px; font-weight: 700; line-height: 1.5; }
+  .block-list-record-date { color: #64748B; font-size: 11.5px; font-weight: 750; white-space: nowrap; }
   .block-list-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.42); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 18px; }
   .block-list-modal { width: min(560px, 100%); background: #FFFFFF; border-radius: 22px; overflow: hidden; box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28); }
   .block-list-modal-head { padding: 20px; border-bottom: 1px solid #E2E8F0; }
@@ -100,6 +111,8 @@ const styles = `
   @media (max-width: 900px) {
     .block-list-toolbar { grid-template-columns: 1fr; }
     .block-list-modal-grid { grid-template-columns: 1fr; }
+    .block-list-record-row { grid-template-columns: 1fr; gap: 7px; }
+    .block-list-record-date { white-space: normal; }
   }
 `
 
@@ -124,7 +137,9 @@ function emptyForm() {
 export default function AdminBlockListPage() {
   const [activeTab, setActiveTab] = useState('words')
   const [words, setWords] = useState([])
+  const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(false)
+  const [recordsLoading, setRecordsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
@@ -133,7 +148,9 @@ export default function AdminBlockListPage() {
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState('all')
   const [page, setPage] = useState(1)
+  const [recordsPage, setRecordsPage] = useState(1)
   const [pageMeta, setPageMeta] = useState({ total: 0, total_pages: 1, has_next: false, has_prev: false })
+  const [recordsMeta, setRecordsMeta] = useState({ total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [modalOpen, setModalOpen] = useState(false)
   const [editingWord, setEditingWord] = useState(null)
   const [form, setForm] = useState(emptyForm())
@@ -145,7 +162,7 @@ export default function AdminBlockListPage() {
       total: pageMeta.total,
       pageCount: words.length,
     }
-  }, [pageMeta.total, words.length])
+  }, [pageMeta.total, words])
 
   function showMessage(text, type = 'success') {
     setMessage(text)
@@ -158,7 +175,10 @@ export default function AdminBlockListPage() {
     const headers = { ...(options.headers || {}) }
 
     if (token) headers.Authorization = `Bearer ${token}`
-    if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json'
+
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json'
+    }
 
     const response = await fetch(`${API_URL}${path}`, { ...options, headers })
     const data = await response.json().catch(() => ({}))
@@ -170,7 +190,10 @@ export default function AdminBlockListPage() {
       throw new Error('Admin session expired. Please login again.')
     }
 
-    if (!response.ok || data.ok === false) throw new Error(data.message || 'Request failed')
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Request failed')
+    }
+
     return data
   }
 
@@ -186,12 +209,14 @@ export default function AdminBlockListPage() {
       if (status !== 'all') params.set('status', status)
 
       const data = await apiFetch(`/api/admin/block-list/words?${params.toString()}`)
+      const nextTotalPages = Math.max(1, Number(data.total_pages || 1))
+      const safePage = Math.min(Number(data.page || targetPage), nextTotalPages)
 
       setWords(data.words || [])
-      setPage(Number(data.page || targetPage))
+      setPage(safePage)
       setPageMeta({
         total: Number(data.total || 0),
-        total_pages: Math.max(1, Number(data.total_pages || 1)),
+        total_pages: nextTotalPages,
         has_next: Boolean(data.has_next),
         has_prev: Boolean(data.has_prev),
       })
@@ -204,8 +229,39 @@ export default function AdminBlockListPage() {
     }
   }
 
+  async function fetchRecords(targetPage = recordsPage) {
+    try {
+      setRecordsLoading(true)
+
+      const params = new URLSearchParams()
+      params.set('page', String(targetPage))
+      params.set('limit', String(RECORDS_PAGE_SIZE))
+
+      const data = await apiFetch(`/api/admin/block-list/records?${params.toString()}`)
+      const nextTotalPages = Math.max(1, Number(data.total_pages || 1))
+      const safePage = Math.min(Number(data.page || targetPage), nextTotalPages)
+
+      setRecords(data.records || [])
+      setRecordsPage(safePage)
+      setRecordsMeta({
+        total: Number(data.total || 0),
+        total_pages: nextTotalPages,
+        has_next: Boolean(data.has_next),
+        has_prev: Boolean(data.has_prev),
+      })
+    } catch {
+      setRecords([])
+      setRecordsMeta({ total: 0, total_pages: 1, has_next: false, has_prev: false })
+    } finally {
+      setRecordsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    if (activeTab === 'words') fetchWords(1)
+    if (activeTab === 'words') {
+      fetchWords(1)
+      fetchRecords(1)
+    }
   }, [activeTab, category, status])
 
   function handleSearchSubmit() {
@@ -266,6 +322,7 @@ export default function AdminBlockListPage() {
 
       closeModal()
       await fetchWords(editingWord ? page : 1)
+      await fetchRecords(1)
     } catch (error) {
       showMessage(error.message || 'Failed to save blocked word', 'error')
     } finally {
@@ -281,6 +338,7 @@ export default function AdminBlockListPage() {
       })
       showMessage(item.is_active ? 'Blocked word disabled.' : 'Blocked word enabled.')
       await fetchWords(page)
+      await fetchRecords(1)
     } catch (error) {
       showMessage(error.message || 'Failed to update status', 'error')
     }
@@ -295,6 +353,7 @@ export default function AdminBlockListPage() {
       showMessage('Blocked word deleted.')
       const nextPage = words.length === 1 && page > 1 ? page - 1 : page
       await fetchWords(nextPage)
+      await fetchRecords(1)
     } catch (error) {
       showMessage(error.message || 'Failed to delete blocked word', 'error')
     }
@@ -358,7 +417,9 @@ export default function AdminBlockListPage() {
 
         <div className="block-list-tabs">
           {tabs.map((tab) => (
-            <button key={tab.key} type="button" className={`block-list-tab ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>
+            <button key={tab.key} type="button" className={`block-list-tab ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>
+              {tab.label}
+            </button>
           ))}
         </div>
 
@@ -449,6 +510,53 @@ export default function AdminBlockListPage() {
             <div className="block-list-empty">Coming soon.</div>
           )}
         </section>
+
+        {activeTab === 'words' ? (
+          <section className="block-list-record-card">
+            <div className="block-list-card-head">
+              <div>
+                <h2 className="block-list-card-title">Block Word Records</h2>
+                <div className="block-list-card-desc">Recent Block Word actions. Records are shown 20 per page.</div>
+              </div>
+
+              <button type="button" className="block-list-refresh" onClick={() => fetchRecords(recordsPage)} disabled={recordsLoading}>
+                {recordsLoading ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+
+            {recordsLoading ? (
+              <div className="block-list-empty">Loading records...</div>
+            ) : records.length ? (
+              <>
+                <div className="block-list-record-list">
+                  {records.map((record) => (
+                    <div className="block-list-record-row" key={record.id}>
+                      <div className={`block-list-record-action ${String(record.action || '').toLowerCase()}`}>{record.action}</div>
+                      <div>
+                        <div className="block-list-record-title">{record.details || `${record.action} blocked word: ${record.word}`}</div>
+                        <div className="block-list-record-meta">
+                          Word: {record.word || '-'} · Category: {record.category || '-'} · Severity: {record.severity || '-'} · By: {record.actor || 'Admin'}
+                        </div>
+                      </div>
+                      <div className="block-list-record-date">{formatDate(record.created_at)}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="block-list-pagination">
+                  <div className="block-list-page-info">Record page {recordsPage} of {recordsMeta.total_pages} · {recordsMeta.total} total records</div>
+                  <div className="block-list-page-buttons">
+                    <button type="button" className="block-list-page-btn" onClick={() => fetchRecords(recordsPage - 1)} disabled={!recordsMeta.has_prev || recordsLoading}>Previous</button>
+                    <span className="block-list-current-page">{recordsPage}</span>
+                    <button type="button" className="block-list-page-btn" onClick={() => fetchRecords(recordsPage + 1)} disabled={!recordsMeta.has_next || recordsLoading}>Next</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="block-list-empty">No block word records yet. New records will appear after add, edit, enable, disable, or delete actions.</div>
+            )}
+          </section>
+        ) : null}
       </div>
     </AdminLayout>
   )
