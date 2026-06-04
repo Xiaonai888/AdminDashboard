@@ -1023,6 +1023,16 @@ const currentUserRole = adminProfile.role || 'Loading...';
                 )}
               </div>
 
+              {/* Reader Mail */}
+<div
+  style={{ position: 'relative', cursor: 'pointer', padding: '6px', borderRadius: '10px' }}
+  onClick={() => navigate('/reader-mails')}
+  title="Reader Mail"
+>
+  <Icon d="M4 4h16v16H4z M4 7l8 6 8-6" size={20} color="#64748B" />
+</div>
+              
+
               {/* Notifications */}
               <div style={{ position: 'relative', cursor: 'pointer', padding: '6px', borderRadius: '10px' }}
                 className="notif-btn">
