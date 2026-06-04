@@ -253,14 +253,32 @@ const styles = `
   }
 
   .reader-mail-message.error {
-    background: #FEF2F2;
-    color: #DC2626;
-  }
+  background: #FEF2F2;
+  color: #DC2626;
+}
 
-  .reader-mail-history {
-    overflow-x: auto;
-  }
+.reader-mail-image-preview {
+  margin-top: 10px;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+}
 
+.reader-mail-thumb {
+  width: 58px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+}
+
+.reader-mail-history {
+  overflow-x: auto;
+}
   .reader-mail-table {
     width: 100%;
     border-collapse: collapse;
@@ -356,6 +374,7 @@ const initialForm = {
   action_type: '',
   reward_type: '',
   reward_amount: '',
+  image_url: '',
   link: '',
 }
 
@@ -446,6 +465,7 @@ export default function AdminReaderMailsPage() {
         reward_type: form.reward_type,
         reward_amount: Number(form.reward_amount || 0),
         link: form.link.trim(),
+        image_url: form.image_url.trim(),
       }
 
       const response = await fetch(endpoint, {
@@ -605,16 +625,33 @@ export default function AdminReaderMailsPage() {
                   />
                 </div>
               </div>
+<div className="reader-mail-field">
+  <label className="reader-mail-label">Link</label>
+  <input
+    className="reader-mail-input"
+    value={form.link}
+    onChange={(event) => updateForm('link', event.target.value)}
+    placeholder="/event or https://..."
+  />
+</div>
 
-              <div className="reader-mail-field">
-                <label className="reader-mail-label">Link</label>
-                <input
-                  className="reader-mail-input"
-                  value={form.link}
-                  onChange={(event) => updateForm('link', event.target.value)}
-                  placeholder="/event or https://..."
-                />
-              </div>
+<div className="reader-mail-field">
+  <label className="reader-mail-label">Image URL</label>
+  <input
+    className="reader-mail-input"
+    value={form.image_url}
+    onChange={(event) => updateForm('image_url', event.target.value)}
+    placeholder="Paste public image URL from reader-mail-images bucket"
+  />
+  {form.image_url ? (
+    <img
+      className="reader-mail-image-preview"
+      src={form.image_url}
+      alt="Mail preview"
+    />
+  ) : null}
+</div>
+              
 
               <button type="submit" className="reader-mail-button" disabled={!canSend || sending}>
                 {sending ? 'Sending...' : form.target === 'all' ? 'Send to All Readers' : 'Send Mail'}
@@ -634,22 +671,30 @@ export default function AdminReaderMailsPage() {
               ) : history.length ? (
                 <table className="reader-mail-table">
                   <thead>
-                    <tr>
-                      <th>Mail</th>
-                      <th>Reader</th>
-                      <th>Type</th>
-                      <th>Reward</th>
-                      <th>Status</th>
-                      <th>Date</th>
-                    </tr>
+                   <tr>
+  <th>Image</th>
+  <th>Mail</th>
+  <th>Reader</th>
+  <th>Type</th>
+  <th>Reward</th>
+  <th>Status</th>
+  <th>Date</th>
+</tr>
                   </thead>
                   <tbody>
                     {history.map((mail) => (
-                      <tr key={mail.id}>
-                        <td>
-                          <div className="reader-mail-mail-title">{mail.title}</div>
-                          <div className="reader-mail-mail-message">{mail.message}</div>
-                        </td>
+                     <tr key={mail.id}>
+  <td>
+    {mail.image_url ? (
+      <img className="reader-mail-thumb" src={mail.image_url} alt="Mail" />
+    ) : (
+      '-'
+    )}
+  </td>
+  <td>
+    <div className="reader-mail-mail-title">{mail.title}</div>
+    <div className="reader-mail-mail-message">{mail.message}</div>
+  </td>
                         <td>
                           <div>{mail.user?.name || 'Reader'}</div>
                           <div style={{ color: '#64748B', marginTop: 4 }}>{mail.user?.email || '-'}</div>
