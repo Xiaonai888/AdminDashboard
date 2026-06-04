@@ -23,6 +23,7 @@ import AdminForgotPasswordPage from './pages/Admin/AdminForgotPasswordPage';
 import AdminResetPasswordPage from './pages/Admin/AdminResetPasswordPage';
 import AdminAdvertisementPage from './pages/AdminAdvertisementPage';
 import AdminNotificationsPage from './pages/AdminNotificationsPage';
+import AdminReaderMailsPage from './pages/AdminReaderMailsPage';
 import AdminBlockListPage from './pages/AdminBlockListPage';
 
 
@@ -76,6 +77,7 @@ export default function App() {
         <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
         <Route path="/advertisement" element={<ProtectedPage><AdminAdvertisementPage /></ProtectedPage>} />
         <Route path="/notifications" element={<ProtectedPage><AdminNotificationsPage /></ProtectedPage>} />
+        <Route path="/reader-mails" element={<ProtectedPage><AdminReaderMailsPage /></ProtectedPage>} />
         <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
         <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
         <Route path="/rule" element={<ProtectedPage><ComingSoon title="Rule" /></ProtectedPage>} />
