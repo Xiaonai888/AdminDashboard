@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const WORDS_PAGE_SIZE = 10
 
 const tabs = [
   { key: 'words', label: 'Block Words' },
@@ -75,6 +76,12 @@ const styles = `
   .block-list-action.enable { border-color: #BBF7D0; background: #ECFDF3; color: #047857; }
   .block-list-action.delete { border-color: #FECACA; background: #FEF2F2; color: #B91C1C; }
   .block-list-empty { padding: 44px 20px; text-align: center; color: #64748B; font-size: 13px; font-weight: 700; line-height: 1.7; }
+  .block-list-pagination { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 20px; border-top: 1px solid #E2E8F0; background: #FFFFFF; flex-wrap: wrap; }
+  .block-list-page-info { font-size: 12px; font-weight: 800; color: #64748B; }
+  .block-list-page-buttons { display: flex; align-items: center; gap: 8px; }
+  .block-list-page-btn { height: 36px; border-radius: 999px; border: 1px solid #E2E8F0; background: #FFFFFF; color: #0F172A; padding: 0 14px; font: inherit; font-size: 12px; font-weight: 950; cursor: pointer; }
+  .block-list-page-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .block-list-current-page { height: 36px; min-width: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #EEF2FF; color: #4F46E5; padding: 0 12px; font-size: 12px; font-weight: 950; }
   .block-list-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.42); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 18px; }
   .block-list-modal { width: min(560px, 100%); background: #FFFFFF; border-radius: 22px; overflow: hidden; box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28); }
   .block-list-modal-head { padding: 20px; border-bottom: 1px solid #E2E8F0; }
@@ -125,6 +132,8 @@ export default function AdminBlockListPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
   const [status, setStatus] = useState('all')
+  const [page, setPage] = useState(1)
+  const [pageMeta, setPageMeta] = useState({ total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [modalOpen, setModalOpen] = useState(false)
   const [editingWord, setEditingWord] = useState(null)
   const [form, setForm] = useState(emptyForm())
@@ -133,11 +142,10 @@ export default function AdminBlockListPage() {
 
   const stats = useMemo(() => {
     return {
-      total: words.length,
-      active: words.filter((item) => item.is_active).length,
-      disabled: words.filter((item) => !item.is_active).length,
+      total: pageMeta.total,
+      pageCount: words.length,
     }
-  }, [words])
+  }, [pageMeta.total, words.length])
 
   function showMessage(text, type = 'success') {
     setMessage(text)
@@ -147,21 +155,12 @@ export default function AdminBlockListPage() {
 
   async function apiFetch(path, options = {}) {
     const token = getAdminToken()
-    const headers = {
-      ...(options.headers || {}),
-    }
+    const headers = { ...(options.headers || {}) }
 
     if (token) headers.Authorization = `Bearer ${token}`
+    if (!(options.body instanceof FormData)) headers['Content-Type'] = 'application/json'
 
-    if (!(options.body instanceof FormData)) {
-      headers['Content-Type'] = 'application/json'
-    }
-
-    const response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      headers,
-    })
-
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers })
     const data = await response.json().catch(() => ({}))
 
     if (response.status === 401 || response.status === 403) {
@@ -171,27 +170,34 @@ export default function AdminBlockListPage() {
       throw new Error('Admin session expired. Please login again.')
     }
 
-    if (!response.ok || data.ok === false) {
-      throw new Error(data.message || 'Request failed')
-    }
-
+    if (!response.ok || data.ok === false) throw new Error(data.message || 'Request failed')
     return data
   }
 
-  async function fetchWords() {
+  async function fetchWords(targetPage = page) {
     try {
       setLoading(true)
 
       const params = new URLSearchParams()
-      params.set('limit', '100')
+      params.set('page', String(targetPage))
+      params.set('limit', String(WORDS_PAGE_SIZE))
       if (search.trim()) params.set('q', search.trim())
       if (category !== 'all') params.set('category', category)
       if (status !== 'all') params.set('status', status)
 
       const data = await apiFetch(`/api/admin/block-list/words?${params.toString()}`)
+
       setWords(data.words || [])
+      setPage(Number(data.page || targetPage))
+      setPageMeta({
+        total: Number(data.total || 0),
+        total_pages: Math.max(1, Number(data.total_pages || 1)),
+        has_next: Boolean(data.has_next),
+        has_prev: Boolean(data.has_prev),
+      })
     } catch (error) {
       setWords([])
+      setPageMeta({ total: 0, total_pages: 1, has_next: false, has_prev: false })
       showMessage(error.message || 'Failed to load blocked words', 'error')
     } finally {
       setLoading(false)
@@ -199,8 +205,13 @@ export default function AdminBlockListPage() {
   }
 
   useEffect(() => {
-    if (activeTab === 'words') fetchWords()
+    if (activeTab === 'words') fetchWords(1)
   }, [activeTab, category, status])
+
+  function handleSearchSubmit() {
+    setPage(1)
+    fetchWords(1)
+  }
 
   function openCreateModal() {
     setEditingWord(null)
@@ -254,7 +265,7 @@ export default function AdminBlockListPage() {
       }
 
       closeModal()
-      await fetchWords()
+      await fetchWords(editingWord ? page : 1)
     } catch (error) {
       showMessage(error.message || 'Failed to save blocked word', 'error')
     } finally {
@@ -269,7 +280,7 @@ export default function AdminBlockListPage() {
         body: JSON.stringify({ is_active: !item.is_active }),
       })
       showMessage(item.is_active ? 'Blocked word disabled.' : 'Blocked word enabled.')
-      await fetchWords()
+      await fetchWords(page)
     } catch (error) {
       showMessage(error.message || 'Failed to update status', 'error')
     }
@@ -280,11 +291,10 @@ export default function AdminBlockListPage() {
     if (!confirmed) return
 
     try {
-      await apiFetch(`/api/admin/block-list/words/${item.id}`, {
-        method: 'DELETE',
-      })
+      await apiFetch(`/api/admin/block-list/words/${item.id}`, { method: 'DELETE' })
       showMessage('Blocked word deleted.')
-      await fetchWords()
+      const nextPage = words.length === 1 && page > 1 ? page - 1 : page
+      await fetchWords(nextPage)
     } catch (error) {
       showMessage(error.message || 'Failed to delete blocked word', 'error')
     }
@@ -300,72 +310,41 @@ export default function AdminBlockListPage() {
         <div className="block-list-modal-backdrop">
           <div className="block-list-modal">
             <div className="block-list-modal-head">
-              <h2 className="block-list-modal-title">
-                {editingWord ? 'Edit Block Word' : 'Add Block Word'}
-              </h2>
-              <div className="block-list-modal-desc">
-                Duplicate words are blocked automatically. Extra spaces and uppercase/lowercase are treated as the same word.
-              </div>
+              <h2 className="block-list-modal-title">{editingWord ? 'Edit Block Word' : 'Add Block Word'}</h2>
+              <div className="block-list-modal-desc">Duplicate words are blocked automatically. Extra spaces and uppercase/lowercase are treated as the same word.</div>
             </div>
 
             <div className="block-list-modal-body">
               <div className="block-list-field">
                 <label className="block-list-label">Blocked Word</label>
-                <input
-                  className="block-list-input"
-                  value={form.word}
-                  onChange={(event) => setForm((current) => ({ ...current, word: event.target.value }))}
-                  placeholder="Enter blocked word..."
-                  autoFocus
-                />
+                <input className="block-list-input" value={form.word} onChange={(event) => setForm((current) => ({ ...current, word: event.target.value }))} placeholder="Enter blocked word..." autoFocus />
               </div>
 
               <div className="block-list-modal-grid">
                 <div className="block-list-field">
                   <label className="block-list-label">Category</label>
-                  <select
-                    className="block-list-select"
-                    value={form.category}
-                    onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
-                  >
-                    {categories.map((item) => (
-                      <option key={item.value} value={item.value}>{item.label}</option>
-                    ))}
+                  <select className="block-list-select" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}>
+                    {categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                 </div>
 
                 <div className="block-list-field">
                   <label className="block-list-label">Severity</label>
-                  <select
-                    className="block-list-select"
-                    value={form.severity}
-                    onChange={(event) => setForm((current) => ({ ...current, severity: event.target.value }))}
-                  >
-                    {severities.map((item) => (
-                      <option key={item.value} value={item.value}>{item.label}</option>
-                    ))}
+                  <select className="block-list-select" value={form.severity} onChange={(event) => setForm((current) => ({ ...current, severity: event.target.value }))}>
+                    {severities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                 </div>
               </div>
 
               <div className="block-list-field">
                 <label className="block-list-label">Admin Note</label>
-                <textarea
-                  className="block-list-textarea"
-                  value={form.note}
-                  onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-                  placeholder="Optional note..."
-                />
+                <textarea className="block-list-textarea" value={form.note} onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))} placeholder="Optional note..." />
               </div>
             </div>
 
             <div className="block-list-modal-foot">
-              <button type="button" className="block-list-cancel" onClick={closeModal} disabled={saving}>
-                Cancel
-              </button>
-              <button type="button" className="block-list-save" onClick={saveWord} disabled={saving || !form.word.trim()}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
+              <button type="button" className="block-list-cancel" onClick={closeModal} disabled={saving}>Cancel</button>
+              <button type="button" className="block-list-save" onClick={saveWord} disabled={saving || !form.word.trim()}>{saving ? 'Saving...' : 'Save'}</button>
             </div>
           </div>
         </div>
@@ -374,21 +353,12 @@ export default function AdminBlockListPage() {
       <div className="block-list-page">
         <div className="block-list-head">
           <h1 className="block-list-title">Block List</h1>
-          <div className="block-list-subtitle">
-            Block Words is active now. Other block sections are prepared as empty tabs for later.
-          </div>
+          <div className="block-list-subtitle">Block Words is active now. Other block sections are prepared as empty tabs for later.</div>
         </div>
 
         <div className="block-list-tabs">
           {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={`block-list-tab ${activeTab === tab.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {tab.label}
-            </button>
+            <button key={tab.key} type="button" className={`block-list-tab ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>
           ))}
         </div>
 
@@ -397,48 +367,28 @@ export default function AdminBlockListPage() {
             <div>
               <h2 className="block-list-card-title">{activeLabel}</h2>
               <div className="block-list-card-desc">
-                {activeTab === 'words'
-                  ? `Total ${stats.total} · Active ${stats.active} · Disabled ${stats.disabled}`
-                  : 'This tab is ready. We will build it later.'}
+                {activeTab === 'words' ? `Total ${stats.total} · Showing ${stats.pageCount} · Page ${page} of ${pageMeta.total_pages}` : 'This tab is ready. We will build it later.'}
               </div>
             </div>
 
-            {activeTab === 'words' ? (
-              <button type="button" className="block-list-add-btn" onClick={openCreateModal}>
-                Add Block Word
-              </button>
-            ) : null}
+            {activeTab === 'words' ? <button type="button" className="block-list-add-btn" onClick={openCreateModal}>Add Block Word</button> : null}
           </div>
 
           {activeTab === 'words' ? (
             <>
               <div className="block-list-toolbar">
-                <input
-                  className="block-list-input"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') fetchWords()
-                  }}
-                  placeholder="Search blocked words..."
-                />
+                <input className="block-list-input" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleSearchSubmit() }} placeholder="Search blocked words..." />
 
-                <select className="block-list-select" value={category} onChange={(event) => setCategory(event.target.value)}>
+                <select className="block-list-select" value={category} onChange={(event) => { setCategory(event.target.value); setPage(1) }}>
                   <option value="all">All Categories</option>
-                  {categories.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
+                  {categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
 
-                <select className="block-list-select" value={status} onChange={(event) => setStatus(event.target.value)}>
-                  {statuses.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
+                <select className="block-list-select" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}>
+                  {statuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
 
-                <button type="button" className="block-list-refresh" onClick={fetchWords} disabled={loading}>
-                  {loading ? 'Loading...' : 'Search'}
-                </button>
+                <button type="button" className="block-list-refresh" onClick={handleSearchSubmit} disabled={loading}>{loading ? 'Loading...' : 'Search'}</button>
               </div>
 
               {message ? <div className={`block-list-message ${messageType}`}>{message}</div> : null}
@@ -446,64 +396,53 @@ export default function AdminBlockListPage() {
               {loading ? (
                 <div className="block-list-empty">Loading blocked words...</div>
               ) : words.length ? (
-                <div className="block-list-table-wrap">
-                  <table className="block-list-table">
-                    <thead>
-                      <tr>
-                        <th>Word</th>
-                        <th>Category</th>
-                        <th>Severity</th>
-                        <th>Status</th>
-                        <th>Created By</th>
-                        <th>Created Date</th>
-                        <th style={{ textAlign: 'right' }}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {words.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <div className="block-list-word">{item.word}</div>
-                          </td>
-                          <td>
-                            <span className={`block-list-pill ${item.category}`}>{item.category}</span>
-                          </td>
-                          <td>
-                            <span className={`block-list-pill ${item.severity}`}>{item.severity}</span>
-                          </td>
-                          <td>
-                            <span className={`block-list-status ${item.is_active ? 'active' : 'disabled'}`}>
-                              {item.is_active ? 'Active' : 'Disabled'}
-                            </span>
-                          </td>
-                          <td>{item.created_by || 'Admin'}</td>
-                          <td>{formatDate(item.created_at)}</td>
-                          <td>
-                            <div className="block-list-actions">
-                              <button type="button" className="block-list-action" onClick={() => openEditModal(item)}>
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className={`block-list-action ${item.is_active ? 'disable' : 'enable'}`}
-                                onClick={() => toggleStatus(item)}
-                              >
-                                {item.is_active ? 'Disable' : 'Enable'}
-                              </button>
-                              <button type="button" className="block-list-action delete" onClick={() => deleteWord(item)}>
-                                Delete
-                              </button>
-                            </div>
-                          </td>
+                <>
+                  <div className="block-list-table-wrap">
+                    <table className="block-list-table">
+                      <thead>
+                        <tr>
+                          <th>Word</th>
+                          <th>Category</th>
+                          <th>Severity</th>
+                          <th>Status</th>
+                          <th>Created By</th>
+                          <th>Created Date</th>
+                          <th style={{ textAlign: 'right' }}>Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {words.map((item) => (
+                          <tr key={item.id}>
+                            <td><div className="block-list-word">{item.word}</div></td>
+                            <td><span className={`block-list-pill ${item.category}`}>{item.category}</span></td>
+                            <td><span className={`block-list-pill ${item.severity}`}>{item.severity}</span></td>
+                            <td><span className={`block-list-status ${item.is_active ? 'active' : 'disabled'}`}>{item.is_active ? 'Active' : 'Disabled'}</span></td>
+                            <td>{item.created_by || 'Admin'}</td>
+                            <td>{formatDate(item.created_at)}</td>
+                            <td>
+                              <div className="block-list-actions">
+                                <button type="button" className="block-list-action" onClick={() => openEditModal(item)}>Edit</button>
+                                <button type="button" className={`block-list-action ${item.is_active ? 'disable' : 'enable'}`} onClick={() => toggleStatus(item)}>{item.is_active ? 'Disable' : 'Enable'}</button>
+                                <button type="button" className="block-list-action delete" onClick={() => deleteWord(item)}>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="block-list-pagination">
+                    <div className="block-list-page-info">Showing page {page} of {pageMeta.total_pages} · {pageMeta.total} total records · {WORDS_PAGE_SIZE} words per page</div>
+                    <div className="block-list-page-buttons">
+                      <button type="button" className="block-list-page-btn" onClick={() => fetchWords(page - 1)} disabled={!pageMeta.has_prev || loading}>Previous</button>
+                      <span className="block-list-current-page">{page}</span>
+                      <button type="button" className="block-list-page-btn" onClick={() => fetchWords(page + 1)} disabled={!pageMeta.has_next || loading}>Next</button>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="block-list-empty">
-                  No blocked words yet. Click Add Block Word to add your first restricted word.
-                </div>
+                <div className="block-list-empty">No blocked words found. Click Add Block Word to add a new restricted word.</div>
               )}
             </>
           ) : (
