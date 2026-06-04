@@ -761,8 +761,8 @@ useEffect(() => {
   }
 })();
 
-const currentUserName = storedAdmin.name || storedAdmin.email || 'Admin';
-const currentUserRole = storedAdmin.role || 'Admin';
+const currentUserName = storedAdmin.name || storedAdmin.full_name || storedAdmin.email || 'Unknown User';
+const currentUserRole = storedAdmin.role || 'Unknown Role';
   const chartData = [
     { day: 'Mon', value: 42, color: '#10B981' },
     { day: 'Tue', value: 65, color: '#10B981' },
