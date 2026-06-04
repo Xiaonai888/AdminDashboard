@@ -224,6 +224,43 @@ const styles = `
     padding: 26px 30px 46px;
   }
 
+.shadow-admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shadow-admin-topbar-icon {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--shadow-admin-border);
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #64748B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shadow-admin-topbar-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #EF4444;
+  color: #FFFFFF;
+  font-size: 10px;
+  font-weight: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
   @media (max-width: 900px) {
     .shadow-admin-sidebar {
       width: 70px;
@@ -275,6 +312,7 @@ const navGroups = [
       { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
       { path: '/genres', label: 'Genre', icon: 'M4 6h16M4 12h16M4 18h16' },
       { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
+      { path: '/reader-mails', label: 'Reader Mail', icon: 'M4 4h16v16H4z M4 7l8 6 8-6' },
       { path: '/notifications', label: 'Notifications', icon: 'M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M13.73 21a2 2 0 01-3.46 0' },
       { path: '/reader-mails', label: 'Reader Mail', icon: 'M4 4h16v16H4z M4 7l8 6 8-6' },
       { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
@@ -326,6 +364,14 @@ function isActivePath(currentPath, itemPath) {
   return currentPath === itemPath || currentPath.startsWith(`${itemPath}/`)
 }
 
+function getStoredAdminUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem('shadow_admin_user') || localStorage.getItem('shadow_admin_user') || '{}')
+  } catch {
+    return {}
+  }
+}
+
 export default function AdminLayout({
   title = 'Admin Dashboard',
   subtitle = '',
@@ -333,7 +379,10 @@ export default function AdminLayout({
 }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [adminName] = useState('Xiaonai Xiao')
+  const [adminUser] = useState(() => getStoredAdminUser())
+  const adminName = adminUser.name || adminUser.full_name || adminUser.email || 'Owner'
+  const adminRole = adminUser.role === 'admin' ? 'Owner' : adminUser.role || 'Owner'
+  const adminMailReplyCount = 0
 
   return (
     <>
@@ -390,7 +439,21 @@ export default function AdminLayout({
               {subtitle ? <div className="shadow-admin-page-subtitle">{subtitle}</div> : null}
             </div>
 
-           <div className="shadow-admin-profile" />
+           <div className="shadow-admin-topbar-actions">
+  <button
+    type="button"
+    className="shadow-admin-topbar-icon"
+    onClick={() => navigate('/reader-mails')}
+    title="Reader Mail"
+  >
+    <Icon d="M4 4h16v16H4z M4 7l8 6 8-6" size={18} />
+    {adminMailReplyCount > 0 ? (
+      <span className="shadow-admin-topbar-badge">
+        {adminMailReplyCount > 99 ? '99+' : adminMailReplyCount}
+      </span>
+    ) : null}
+  </button>
+</div>
           </header>
 
           <main className="shadow-admin-content">{children}</main>
