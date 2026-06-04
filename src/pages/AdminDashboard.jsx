@@ -655,9 +655,8 @@ const Icon = ({ d, size = 20, color }) => (
 );
 
 function getAdminToken() {
-  return sessionStorage.getItem('shadow_admin_token');
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
 }
-
 function getLogInitial(record) {
   const actor = record?.actor || 'Admin';
   return actor.charAt(0).toUpperCase();
@@ -750,19 +749,51 @@ const [activityLogLoading, setActivityLogLoading] = useState(true);
 };
 
 useEffect(() => {
-  fetchActivityLogs();
+  let ignore = false;
+
+  async function loadAdminProfile() {
+    const token = getAdminToken();
+
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!ignore && response.ok && data.ok && data.admin) {
+        setAdminProfile(data.admin);
+        sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
+
+        if (localStorage.getItem('shadow_admin_token')) {
+          localStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
+        }
+      }
+    } catch {
+    }
+  }
+
+  loadAdminProfile();
+
+  return () => {
+    ignore = true;
+  };
 }, []);
 
-  const storedAdmin = (() => {
+ const [adminProfile, setAdminProfile] = useState(() => {
   try {
     return JSON.parse(sessionStorage.getItem('shadow_admin_user') || localStorage.getItem('shadow_admin_user') || '{}');
   } catch {
     return {};
   }
-})();
+});
 
-const currentUserName = storedAdmin.name || storedAdmin.full_name || storedAdmin.email || 'Unknown User';
-const currentUserRole = storedAdmin.role || 'Unknown Role';
+const currentUserName = adminProfile.name || adminProfile.email || 'Loading...';
+const currentUserRole = adminProfile.role || 'Loading...';
   const chartData = [
     { day: 'Mon', value: 42, color: '#10B981' },
     { day: 'Tue', value: 65, color: '#10B981' },
