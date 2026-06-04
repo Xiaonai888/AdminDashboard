@@ -281,7 +281,6 @@ export default function AdminReaderBlockPanel() {
   useEffect(() => {
     fetchBlocks(1)
     fetchRecords(1)
-    fetchReviews(1, reviewStatus)
   }, [])
 
   function renderCommentTab() {
@@ -527,7 +526,7 @@ export default function AdminReaderBlockPanel() {
           <div>
             <h2 className="block-list-card-title">Auto Protection</h2>
             <div className="block-list-card-desc">
-              Blocked words are managed in the Block Words tab. Reader comments containing active blocked words are hidden automatically and sent to Review Queue.
+              Blocked words are managed in the Block Words tab and will be used for platform-wide areas like Echo, Post Article, and public content. Story comments will be handled by Author comment settings later.
             </div>
           </div>
 
@@ -585,7 +584,13 @@ export default function AdminReaderBlockPanel() {
         />
       ) : null}
 
-      {activeReaderTab === 'review' ? renderReviewTab() : null}
+      {activeReaderTab === 'review' ? (
+  <ComingSoonPanel
+    title="Review Queue"
+    description="This section will review platform-wide blocked content later."
+    warning="Story comment reviews will move to Author Dashboard comment protection later."
+  />
+) : null}
 
       {activeReaderTab === 'records' ? renderRecordsTab() : null}
     </div>
