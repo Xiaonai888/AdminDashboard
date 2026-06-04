@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const BLOCKS_PAGE_SIZE = 10
 const RECORDS_PAGE_SIZE = 20
+const REVIEWS_PAGE_SIZE = 10
 
 const reasons = ['Spam', 'Harassment', 'Scam', 'Adult content', 'Hate speech', 'Payment abuse', 'Other']
 
@@ -14,6 +15,13 @@ const durations = [
   { value: 'permanent', label: 'Permanent' },
 ]
 
+const reviewStatuses = [
+  { value: 'hidden', label: 'Hidden' },
+  { value: 'restored', label: 'Restored' },
+  { value: 'kept_hidden', label: 'Kept Hidden' },
+  { value: 'all', label: 'All' },
+]
+
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
@@ -21,6 +29,11 @@ function getAdminToken() {
 function formatDate(value) {
   if (!value) return 'Permanent'
   return new Date(value).toLocaleString()
+}
+
+function matchedWordsText(words) {
+  if (!Array.isArray(words) || !words.length) return 'No matched word'
+  return words.map((item) => `${item.word || ''}${item.count ? ` ×${item.count}` : ''}`).filter(Boolean).join(', ')
 }
 
 export default function AdminReaderBlockPanel() {
@@ -32,12 +45,17 @@ export default function AdminReaderBlockPanel() {
   const [note, setNote] = useState('')
   const [blocks, setBlocks] = useState([])
   const [records, setRecords] = useState([])
+  const [reviews, setReviews] = useState([])
+  const [reviewStatus, setReviewStatus] = useState('hidden')
   const [blockPage, setBlockPage] = useState(1)
   const [recordPage, setRecordPage] = useState(1)
+  const [reviewPage, setReviewPage] = useState(1)
   const [blockMeta, setBlockMeta] = useState({ total_pages: 1, has_next: false, has_prev: false, total: 0 })
   const [recordMeta, setRecordMeta] = useState({ total_pages: 1, has_next: false, has_prev: false, total: 0 })
+  const [reviewMeta, setReviewMeta] = useState({ total_pages: 1, has_next: false, has_prev: false, total: 0 })
   const [loading, setLoading] = useState(false)
   const [recordLoading, setRecordLoading] = useState(false)
+  const [reviewLoading, setReviewLoading] = useState(false)
   const [message, setMessage] = useState('')
 
   const canBlock = useMemo(() => Boolean(selectedReader?.id && reason && duration), [selectedReader, reason, duration])
@@ -61,7 +79,7 @@ export default function AdminReaderBlockPanel() {
 
   function showMessage(text) {
     setMessage(text)
-    window.setTimeout(() => setMessage(''), 3800)
+    window.setTimeout(() => setMessage(''), 5000)
   }
 
   async function searchReaders() {
@@ -116,6 +134,25 @@ export default function AdminReaderBlockPanel() {
     }
   }
 
+  async function fetchReviews(targetPage = reviewPage, nextStatus = reviewStatus) {
+    try {
+      setReviewLoading(true)
+      const data = await apiFetch(`/api/admin/block-list/readers/hidden-comments?page=${targetPage}&limit=${REVIEWS_PAGE_SIZE}&status=${nextStatus}`)
+      setReviews(data.reviews || [])
+      setReviewPage(Number(data.page || targetPage))
+      setReviewMeta({
+        total_pages: Number(data.total_pages || 1),
+        has_next: Boolean(data.has_next),
+        has_prev: Boolean(data.has_prev),
+        total: Number(data.total || 0),
+      })
+    } catch (error) {
+      showMessage(error.message || 'Failed to load hidden comment reviews')
+    } finally {
+      setReviewLoading(false)
+    }
+  }
+
   async function blockReader() {
     if (!canBlock) return
 
@@ -159,9 +196,61 @@ export default function AdminReaderBlockPanel() {
     }
   }
 
+  async function restoreComment(review) {
+    const ok = window.confirm('Restore this comment to public?')
+    if (!ok) return
+
+    try {
+      await apiFetch(`/api/admin/block-list/readers/hidden-comments/${review.id}/restore`, {
+        method: 'PATCH',
+        body: JSON.stringify({ admin_note: 'Restored by admin review' }),
+      })
+      showMessage('Comment restored.')
+      await fetchReviews(reviewPage)
+    } catch (error) {
+      showMessage(error.message || 'Failed to restore comment')
+    }
+  }
+
+  async function keepCommentHidden(review) {
+    const ok = window.confirm('Keep this comment hidden?')
+    if (!ok) return
+
+    try {
+      await apiFetch(`/api/admin/block-list/readers/hidden-comments/${review.id}/keep-hidden`, {
+        method: 'PATCH',
+        body: JSON.stringify({ admin_note: 'Kept hidden by admin review' }),
+      })
+      showMessage('Comment kept hidden.')
+      await fetchReviews(reviewPage)
+    } catch (error) {
+      showMessage(error.message || 'Failed to keep comment hidden')
+    }
+  }
+
+  async function blockReaderFromReview(review) {
+    try {
+      await apiFetch('/api/admin/block-list/readers/blocks', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: review.user_id,
+          reason: 'Spam',
+          duration: '7d',
+          note: 'Blocked from hidden comment review',
+        }),
+      })
+      showMessage('Reader blocked from commenting for 7 days.')
+      await fetchBlocks(1)
+      await fetchRecords(1)
+    } catch (error) {
+      showMessage(error.message || 'Failed to block reader')
+    }
+  }
+
   useEffect(() => {
     fetchBlocks(1)
     fetchRecords(1)
+    fetchReviews(1, reviewStatus)
   }, [])
 
   return (
@@ -169,7 +258,100 @@ export default function AdminReaderBlockPanel() {
       <section className="block-list-card">
         <div className="block-list-card-head">
           <div>
-            <h2 className="block-list-card-title">Reader Comment Block</h2>
+            <h2 className="block-list-card-title">Auto Protection</h2>
+            <div className="block-list-card-desc">Blocked words automatically hide unsafe reader comments and save them for review.</div>
+          </div>
+
+          <span className="block-list-status active">Active</span>
+        </div>
+
+        <div className="block-list-record-list">
+          <div className="block-list-record-row">
+            <div className="block-list-record-action enable">Auto</div>
+            <div>
+              <div className="block-list-record-title">Auto Hide Comment by Block Words</div>
+              <div className="block-list-record-meta">Reader comments with blocked words are hidden automatically and sent to Hidden Comment Review.</div>
+            </div>
+            <div className="block-list-record-date">Enabled</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="block-list-record-card">
+        <div className="block-list-card-head">
+          <div>
+            <h2 className="block-list-card-title">Hidden Comment Review</h2>
+            <div className="block-list-card-desc">Review comments hidden automatically by blocked words. Showing {REVIEWS_PAGE_SIZE} per page.</div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select
+              className="block-list-select"
+              value={reviewStatus}
+              onChange={(event) => {
+                setReviewStatus(event.target.value)
+                fetchReviews(1, event.target.value)
+              }}
+            >
+              {reviewStatuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+
+            <button type="button" className="block-list-refresh" onClick={() => fetchReviews(reviewPage)} disabled={reviewLoading}>
+              {reviewLoading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+
+        {message ? <div className="block-list-message error">{message}</div> : null}
+
+        {reviewLoading ? (
+          <div className="block-list-empty">Loading hidden comments...</div>
+        ) : reviews.length ? (
+          <>
+            <div className="block-list-record-list">
+              {reviews.map((review) => (
+                <div className="block-list-record-row" key={review.id}>
+                  <div className={`block-list-record-action ${review.status === 'restored' ? 'enable' : review.status === 'kept_hidden' ? 'delete' : 'disable'}`}>
+                    {review.status}
+                  </div>
+                  <div>
+                    <div className="block-list-record-title">{review.reader?.email || review.reader?.name || 'Reader'} · {review.story?.title || 'Story'}</div>
+                    <div className="block-list-record-meta">Matched: {matchedWordsText(review.matched_words)}</div>
+                    <div className="block-list-record-meta">Comment: {review.comment_text}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {review.status === 'hidden' ? (
+                      <>
+                        <button type="button" className="block-list-page-btn" onClick={() => restoreComment(review)}>Restore</button>
+                        <button type="button" className="block-list-page-btn" onClick={() => keepCommentHidden(review)}>Keep Hidden</button>
+                        <button type="button" className="block-list-page-btn" onClick={() => blockReaderFromReview(review)}>Block Reader</button>
+                      </>
+                    ) : (
+                      <div className="block-list-record-date">{formatDate(review.reviewed_at || review.created_at)}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="block-list-pagination">
+              <div className="block-list-page-info">Review page {reviewPage} of {reviewMeta.total_pages} · {reviewMeta.total} total reviews</div>
+              <div className="block-list-page-buttons">
+                <button type="button" className="block-list-page-btn" disabled={!reviewMeta.has_prev || reviewLoading} onClick={() => fetchReviews(reviewPage - 1)}>Previous</button>
+                <span className="block-list-current-page">{reviewPage}</span>
+                <button type="button" className="block-list-page-btn" disabled={!reviewMeta.has_next || reviewLoading} onClick={() => fetchReviews(reviewPage + 1)}>Next</button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="block-list-empty">No hidden comments waiting for review.</div>
+        )}
+      </section>
+
+      <section className="block-list-record-card">
+        <div className="block-list-card-head">
+          <div>
+            <h2 className="block-list-card-title">Manual Reader Comment Block</h2>
             <div className="block-list-card-desc">Temporarily or permanently restrict a reader from posting comments.</div>
           </div>
         </div>
@@ -189,8 +371,6 @@ export default function AdminReaderBlockPanel() {
             Search
           </button>
         </div>
-
-        {message ? <div className="block-list-message error">{message}</div> : null}
 
         {readers.length ? (
           <div className="block-list-record-list">
