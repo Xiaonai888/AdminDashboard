@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import AdminReaderBlockPanel from '../components/AdminReaderBlockPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const WORDS_PAGE_SIZE = 10
@@ -506,9 +507,11 @@ export default function AdminBlockListPage() {
                 <div className="block-list-empty">No blocked words found. Click Add Block Word to add a new restricted word.</div>
               )}
             </>
-          ) : (
-            <div className="block-list-empty">Coming soon.</div>
-          )}
+         ) : activeTab === 'readers' ? (
+  <AdminReaderBlockPanel />
+) : (
+  <div className="block-list-empty">Coming soon.</div>
+)}
         </section>
 
         {activeTab === 'words' ? (
