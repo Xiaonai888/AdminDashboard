@@ -4,6 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 const BLOCKS_PAGE_SIZE = 10
 const RECORDS_PAGE_SIZE = 20
 const REVIEWS_PAGE_SIZE = 10
+const QUICK_WORDS_LIMIT = 10
 
 const reasons = ['Spam', 'Harassment', 'Scam', 'Adult content', 'Hate speech', 'Payment abuse', 'Other']
 
@@ -22,6 +23,20 @@ const reviewStatuses = [
   { value: 'all', label: 'All' },
 ]
 
+const wordCategories = [
+  { value: 'adult', label: 'Adult' },
+  { value: 'violence', label: 'Violence' },
+  { value: 'hate', label: 'Hate' },
+  { value: 'spam', label: 'Spam' },
+  { value: 'custom', label: 'Custom' },
+]
+
+const wordSeverities = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+]
+
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
@@ -37,6 +52,11 @@ function matchedWordsText(words) {
 }
 
 export default function AdminReaderBlockPanel() {
+  const [quickWord, setQuickWord] = useState('')
+  const [quickCategory, setQuickCategory] = useState('violence')
+  const [quickSeverity, setQuickSeverity] = useState('high')
+  const [quickWords, setQuickWords] = useState([])
+  const [quickLoading, setQuickLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [readers, setReaders] = useState([])
   const [selectedReader, setSelectedReader] = useState(null)
@@ -57,8 +77,10 @@ export default function AdminReaderBlockPanel() {
   const [recordLoading, setRecordLoading] = useState(false)
   const [reviewLoading, setReviewLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('success')
 
   const canBlock = useMemo(() => Boolean(selectedReader?.id && reason && duration), [selectedReader, reason, duration])
+  const canAddQuickWord = useMemo(() => Boolean(quickWord.trim() && quickCategory && quickSeverity), [quickWord, quickCategory, quickSeverity])
 
   async function apiFetch(path, options = {}) {
     const token = getAdminToken()
@@ -77,9 +99,43 @@ export default function AdminReaderBlockPanel() {
     return data
   }
 
-  function showMessage(text) {
+  function showMessage(text, type = 'success') {
     setMessage(text)
+    setMessageType(type)
     window.setTimeout(() => setMessage(''), 5000)
+  }
+
+  async function fetchQuickWords() {
+    try {
+      const data = await apiFetch(`/api/admin/block-list/words?page=1&limit=${QUICK_WORDS_LIMIT}&status=active`)
+      setQuickWords(data.words || [])
+    } catch {
+      setQuickWords([])
+    }
+  }
+
+  async function addQuickWord() {
+    if (!canAddQuickWord) return
+
+    try {
+      setQuickLoading(true)
+      await apiFetch('/api/admin/block-list/words', {
+        method: 'POST',
+        body: JSON.stringify({
+          word: quickWord,
+          category: quickCategory,
+          severity: quickSeverity,
+          note: 'Added from Readers Auto Protection',
+        }),
+      })
+      setQuickWord('')
+      showMessage('Blocked word added. Auto Protection will use it immediately.')
+      await fetchQuickWords()
+    } catch (error) {
+      showMessage(error.message || 'Failed to add blocked word', 'error')
+    } finally {
+      setQuickLoading(false)
+    }
   }
 
   async function searchReaders() {
@@ -92,7 +148,7 @@ export default function AdminReaderBlockPanel() {
       const data = await apiFetch(`/api/admin/block-list/readers/search?q=${encodeURIComponent(search.trim())}&limit=10`)
       setReaders(data.readers || [])
     } catch (error) {
-      showMessage(error.message || 'Failed to search readers')
+      showMessage(error.message || 'Failed to search readers', 'error')
     }
   }
 
@@ -109,7 +165,7 @@ export default function AdminReaderBlockPanel() {
         total: Number(data.total || 0),
       })
     } catch (error) {
-      showMessage(error.message || 'Failed to load blocked readers')
+      showMessage(error.message || 'Failed to load blocked readers', 'error')
     } finally {
       setLoading(false)
     }
@@ -147,7 +203,7 @@ export default function AdminReaderBlockPanel() {
         total: Number(data.total || 0),
       })
     } catch (error) {
-      showMessage(error.message || 'Failed to load hidden comment reviews')
+      showMessage(error.message || 'Failed to load hidden comment reviews', 'error')
     } finally {
       setReviewLoading(false)
     }
@@ -176,7 +232,7 @@ export default function AdminReaderBlockPanel() {
       await fetchBlocks(1)
       await fetchRecords(1)
     } catch (error) {
-      showMessage(error.message || 'Failed to block reader')
+      showMessage(error.message || 'Failed to block reader', 'error')
     } finally {
       setLoading(false)
     }
@@ -192,7 +248,7 @@ export default function AdminReaderBlockPanel() {
       await fetchBlocks(blockPage)
       await fetchRecords(1)
     } catch (error) {
-      showMessage(error.message || 'Failed to unblock reader')
+      showMessage(error.message || 'Failed to unblock reader', 'error')
     }
   }
 
@@ -208,7 +264,7 @@ export default function AdminReaderBlockPanel() {
       showMessage('Comment restored.')
       await fetchReviews(reviewPage)
     } catch (error) {
-      showMessage(error.message || 'Failed to restore comment')
+      showMessage(error.message || 'Failed to restore comment', 'error')
     }
   }
 
@@ -224,7 +280,7 @@ export default function AdminReaderBlockPanel() {
       showMessage('Comment kept hidden.')
       await fetchReviews(reviewPage)
     } catch (error) {
-      showMessage(error.message || 'Failed to keep comment hidden')
+      showMessage(error.message || 'Failed to keep comment hidden', 'error')
     }
   }
 
@@ -243,11 +299,12 @@ export default function AdminReaderBlockPanel() {
       await fetchBlocks(1)
       await fetchRecords(1)
     } catch (error) {
-      showMessage(error.message || 'Failed to block reader')
+      showMessage(error.message || 'Failed to block reader', 'error')
     }
   }
 
   useEffect(() => {
+    fetchQuickWords()
     fetchBlocks(1)
     fetchRecords(1)
     fetchReviews(1, reviewStatus)
@@ -259,20 +316,62 @@ export default function AdminReaderBlockPanel() {
         <div className="block-list-card-head">
           <div>
             <h2 className="block-list-card-title">Auto Protection</h2>
-            <div className="block-list-card-desc">Blocked words automatically hide unsafe reader comments and save them for review.</div>
+            <div className="block-list-card-desc">Add blocked words here. Reader comments with these words will be hidden automatically and sent to review.</div>
           </div>
 
           <span className="block-list-status active">Active</span>
         </div>
 
-        <div className="block-list-record-list">
-          <div className="block-list-record-row">
-            <div className="block-list-record-action enable">Auto</div>
-            <div>
-              <div className="block-list-record-title">Auto Hide Comment by Block Words</div>
-              <div className="block-list-record-meta">Reader comments with blocked words are hidden automatically and sent to Hidden Comment Review.</div>
+        {message ? <div className={`block-list-message ${messageType}`}>{message}</div> : null}
+
+        <div style={{ padding: 20, borderBottom: '1px solid #E2E8F0' }}>
+          <div className="block-list-card-title">Quick Add Block Word</div>
+          <div className="block-list-card-desc">This uses the same real Block Words database. Words added here also appear in the Block Words tab.</div>
+
+          <div className="block-list-toolbar" style={{ paddingLeft: 0, paddingRight: 0, gridTemplateColumns: 'minmax(220px,1fr) 170px 150px 120px' }}>
+            <input
+              className="block-list-input"
+              value={quickWord}
+              onChange={(event) => setQuickWord(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') addQuickWord()
+              }}
+              placeholder="Enter word to auto hide comments..."
+            />
+
+            <select className="block-list-select" value={quickCategory} onChange={(event) => setQuickCategory(event.target.value)}>
+              {wordCategories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+
+            <select className="block-list-select" value={quickSeverity} onChange={(event) => setQuickSeverity(event.target.value)}>
+              {wordSeverities.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+
+            <button type="button" className="block-list-add-btn" disabled={!canAddQuickWord || quickLoading} onClick={addQuickWord}>
+              {quickLoading ? 'Adding...' : 'Add Word'}
+            </button>
+          </div>
+
+          <div className="block-list-record-list" style={{ paddingLeft: 0, paddingRight: 0 }}>
+            <div className="block-list-record-row">
+              <div className="block-list-record-action enable">Auto</div>
+              <div>
+                <div className="block-list-record-title">Auto Hide Comment by Block Words</div>
+                <div className="block-list-record-meta">When a reader comment contains an active blocked word, the comment is hidden and saved for review.</div>
+              </div>
+              <div className="block-list-record-date">Enabled</div>
             </div>
-            <div className="block-list-record-date">Enabled</div>
+          </div>
+
+          <div className="block-list-card-desc" style={{ marginTop: 12 }}>Recent active blocked words</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {quickWords.length ? quickWords.map((item) => (
+              <span key={item.id} className={`block-list-pill ${item.category}`}>
+                {item.word}
+              </span>
+            )) : (
+              <span className="block-list-page-info">No active blocked words yet.</span>
+            )}
           </div>
         </div>
       </section>
@@ -301,8 +400,6 @@ export default function AdminReaderBlockPanel() {
             </button>
           </div>
         </div>
-
-        {message ? <div className="block-list-message error">{message}</div> : null}
 
         {reviewLoading ? (
           <div className="block-list-empty">Loading hidden comments...</div>
