@@ -398,6 +398,24 @@ const styles = `
     font-weight: 700;
   }
 
+.reader-mail-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reader-mail-edit-button {
+  border: 1px solid #C7D2FE;
+  background: #EEF2FF;
+  color: #4F46E5;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
   @media (max-width: 980px) {
     .reader-mail-grid {
       grid-template-columns: 1fr;
@@ -434,6 +452,7 @@ export default function AdminReaderMailsPage() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [sending, setSending] = useState(false)
   const [deletingMailId, setDeletingMailId] = useState('')
+  const [editingMailId, setEditingMailId] = useState('')
   const [status, setStatus] = useState({ type: '', message: '' })
 
   const isRewardMail = form.mail_type === 'reward' || form.action_type === 'claim'
@@ -469,7 +488,7 @@ export default function AdminReaderMailsPage() {
     try {
       setLoadingHistory(true)
 
-      const response = await fetch(`${API_URL}/api/admin/mails/history?limit=30`, {
+      const response = await fetch(`${API_URL}/api/admin/mails/history?limit=5`, {
         headers: getAdminHeaders(),
       })
 
@@ -529,6 +548,32 @@ export default function AdminReaderMailsPage() {
   }
 }
 
+function handleEditMail(mail) {
+  if (!mail) return
+
+  setEditingMailId(mail.id)
+  setImageFile(null)
+  setImagePreviewUrl(mail.image_url || '')
+
+  setForm({
+    target: 'single',
+    email: mail.user?.username || mail.user?.email || '',
+    sender_type: mail.sender_type || 'admin',
+    mail_type: mail.mail_type || 'admin',
+    title: mail.title || '',
+    message: mail.message || '',
+    detail: mail.detail || '',
+    action_type: mail.action_type || '',
+    reward_type: mail.reward_type || '',
+    reward_amount: mail.reward_amount || '',
+    image_url: mail.image_url || '',
+    link: mail.link || '',
+  })
+
+  setStatus({ type: 'success', message: 'Mail loaded for editing. After editing, click Update Mail.' })
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+  
   async function handleDeleteMail(mailId) {
   if (!mailId || deletingMailId) return
 
@@ -820,6 +865,7 @@ if (imageFile && !finalImageUrl) {
 
               <button type="submit" className="reader-mail-button" disabled={!canSend || sending}>
                 {sending ? 'Sending...' : form.target === 'all' ? 'Send to All Readers' : 'Send Mail'}
+                {sending ? 'Saving...' : editingMailId ? 'Update Mail' : form.target === 'all' ? 'Send to All Readers' : 'Send Mail'}
               </button>
             </form>
           </section>
@@ -836,17 +882,17 @@ if (imageFile && !finalImageUrl) {
               ) : history.length ? (
                 <table className="reader-mail-table">
                   <thead>
-                    <th>Actions</th>
-                   <tr>
-  <th>Image</th>
-  <th>Mail</th>
-  <th>Reader</th>
-  <th>Type</th>
-  <th>Reward</th>
-  <th>Status</th>
-  <th>Date</th>
-</tr>
-                  </thead>
+  <tr>
+    <th>Image</th>
+    <th>Mail</th>
+    <th>Reader</th>
+    <th>Type</th>
+    <th>Reward</th>
+    <th>Status</th>
+    <th>Date</th>
+    <th>Actions</th>
+  </tr>
+</thead>
                   <tbody>
                     {history.map((mail) => (
                      <tr key={mail.id}>
@@ -862,7 +908,7 @@ if (imageFile && !finalImageUrl) {
     <div className="reader-mail-mail-message">{mail.message}</div>
   </td>
 
-                       <td>
+  <td>
   <button
     type="button"
     className="reader-mail-delete-button"
@@ -894,6 +940,25 @@ if (imageFile && !finalImageUrl) {
                           )}
                         </td>
                         <td>{formatDate(mail.created_at)}</td>
+                       <td>
+  <div className="reader-mail-actions">
+    <button
+      type="button"
+      className="reader-mail-edit-button"
+      onClick={() => handleEditMail(mail)}
+    >
+      Edit
+    </button>
+    <button
+      type="button"
+      className="reader-mail-delete-button"
+      onClick={() => handleDeleteMail(mail.id)}
+      disabled={deletingMailId === mail.id}
+    >
+      {deletingMailId === mail.id ? 'Deleting...' : 'Delete'}
+    </button>
+  </div>
+</td>
                       </tr>
                     ))}
                   </tbody>
