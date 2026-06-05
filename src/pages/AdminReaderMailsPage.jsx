@@ -257,6 +257,28 @@ const styles = `
   color: #DC2626;
 }
 
+.reader-mail-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 10px;
+}
+
+.reader-mail-upload-button {
+  border: 0;
+  background: #4F46E5;
+  color: #FFFFFF;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.reader-mail-upload-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
 .reader-mail-image-preview {
   margin-top: 10px;
   width: 100%;
@@ -382,6 +404,8 @@ export default function AdminReaderMailsPage() {
   const [form, setForm] = useState(initialForm)
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [imageFile, setImageFile] = useState(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [sending, setSending] = useState(false)
   const [status, setStatus] = useState({ type: '', message: '' })
 
@@ -441,6 +465,38 @@ export default function AdminReaderMailsPage() {
     loadHistory()
   }, [])
 
+
+  async function handleUploadImage() {
+  if (!imageFile || uploadingImage) return
+
+  try {
+    setUploadingImage(true)
+    setStatus({ type: '', message: '' })
+
+    const formData = new FormData()
+    formData.append('image', imageFile)
+
+    const response = await fetch(`${API_URL}/api/admin/mails/upload-image`, {
+      method: 'POST',
+      headers: getAdminHeaders(),
+      body: formData,
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || !data.ok || !data.image_url) {
+      throw new Error(data.message || 'Failed to upload image')
+    }
+
+    updateForm('image_url', data.image_url)
+    setStatus({ type: 'success', message: 'Image uploaded successfully.' })
+  } catch (error) {
+    setStatus({ type: 'error', message: error.message || 'Failed to upload image' })
+  } finally {
+    setUploadingImage(false)
+  }
+}
+
   async function handleSubmit(event) {
     event.preventDefault()
 
@@ -485,6 +541,7 @@ export default function AdminReaderMailsPage() {
         message: form.target === 'all' ? `Mail sent to ${data.sent_count || 0} readers.` : 'Mail sent successfully.',
       })
       setForm(initialForm)
+      setImageFile(null)
       loadHistory()
     } catch (error) {
       setStatus({ type: 'error', message: error.message || 'Failed to send mail' })
@@ -636,13 +693,24 @@ export default function AdminReaderMailsPage() {
 </div>
 
 <div className="reader-mail-field">
-  <label className="reader-mail-label">Image URL</label>
-  <input
-    className="reader-mail-input"
-    value={form.image_url}
-    onChange={(event) => updateForm('image_url', event.target.value)}
-    placeholder="Paste public image URL from reader-mail-images bucket"
-  />
+  <div className="reader-mail-field">
+  <label className="reader-mail-label">Upload Image</label>
+  <div className="reader-mail-upload-row">
+    <input
+      className="reader-mail-input"
+      type="file"
+      accept="image/*"
+      onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+    />
+    <button
+      type="button"
+      className="reader-mail-upload-button"
+      onClick={handleUploadImage}
+      disabled={!imageFile || uploadingImage}
+    >
+      {uploadingImage ? 'Uploading...' : 'Upload'}
+    </button>
+  </div>
   {form.image_url ? (
     <img
       className="reader-mail-image-preview"
