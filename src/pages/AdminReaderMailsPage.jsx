@@ -907,17 +907,6 @@ if (imageFile && !finalImageUrl) {
     <div className="reader-mail-mail-title">{mail.title}</div>
     <div className="reader-mail-mail-message">{mail.message}</div>
   </td>
-
-  <td>
-  <button
-    type="button"
-    className="reader-mail-delete-button"
-    onClick={() => handleDeleteMail(mail.id)}
-    disabled={deletingMailId === mail.id}
-  >
-    {deletingMailId === mail.id ? 'Deleting...' : 'Delete'}
-  </button>
-</td>
                        
                         <td>
                           <div>{mail.user?.name || 'Reader'}</div>
