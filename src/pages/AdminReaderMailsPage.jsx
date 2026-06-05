@@ -613,10 +613,12 @@ function handleEditMail(mail) {
       setSending(true)
       setStatus({ type: '', message: '' })
 
-      const endpoint = form.target === 'all'
-        ? `${API_URL}/api/admin/mails/send-all`
-        : `${API_URL}/api/admin/mails/send`
-
+     const endpoint = editingMailId
+  ? `${API_URL}/api/admin/mails/${editingMailId}`
+  : form.target === 'all'
+    ? `${API_URL}/api/admin/mails/send-all`
+    : `${API_URL}/api/admin/mails/send`
+      
       let finalImageUrl = form.image_url.trim()
 
 if (imageFile && !finalImageUrl) {
@@ -641,7 +643,7 @@ if (imageFile && !finalImageUrl) {
       }
 
       const response = await fetch(endpoint, {
-        method: 'POST',
+        method: editingMailId ? 'PUT' : 'POST',
         headers: getAdminHeaders(true),
         body: JSON.stringify(payload),
       })
@@ -654,9 +656,11 @@ if (imageFile && !finalImageUrl) {
 
       setStatus({
         type: 'success',
-        message: form.target === 'all' ? `Mail sent to ${data.sent_count || 0} readers.` : 'Mail sent successfully.',
+        message: editingMailId ? 'Mail updated successfully.' : form.target === 'all' ? `Mail sent to ${data.sent_count || 0} readers.` : 'Mail sent successfully.',
       })
       setForm(initialForm)
+      setEditingMailId('')
+      setImageFile(null)
       setImagePreviewUrl('')
       loadHistory()
     } catch (error) {
