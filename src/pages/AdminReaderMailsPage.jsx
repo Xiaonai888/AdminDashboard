@@ -390,6 +390,90 @@ const styles = `
   cursor: not-allowed;
 }
 
+.reader-mail-record-list {
+  display: grid;
+  gap: 0;
+}
+
+.reader-mail-record-item {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 18px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.reader-mail-record-image {
+  width: 72px;
+  height: 46px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.reader-mail-record-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reader-mail-record-main {
+  min-width: 0;
+}
+
+.reader-mail-record-title {
+  color: #0F172A;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.reader-mail-record-sub {
+  margin-top: 4px;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.reader-mail-record-meta {
+  margin-top: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.reader-mail-record-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .reader-mail-record-item {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .reader-mail-record-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .reader-mail-record-image {
+    width: 58px;
+    height: 38px;
+  }
+}
+
   .reader-mail-empty {
     padding: 34px;
     text-align: center;
@@ -884,83 +968,65 @@ if (imageFile && !finalImageUrl) {
 
             <div className="reader-mail-history">
               {loadingHistory ? (
-                <div className="reader-mail-empty">Loading mail history...</div>
-              ) : history.length ? (
-                <table className="reader-mail-table">
-                  <thead>
-  <tr>
-    <th>Image</th>
-    <th>Mail</th>
-    <th>Reader</th>
-    <th>Type</th>
-    <th>Reward</th>
-    <th>Status</th>
-    <th>Date</th>
-    <th>Actions</th>
-  </tr>
-</thead>
-                  <tbody>
-                    {history.map((mail) => (
-                     <tr key={mail.id}>
-  <td>
-    {mail.image_url ? (
-      <img className="reader-mail-thumb" src={mail.image_url} alt="Mail" />
-    ) : (
-      '-'
-    )}
-  </td>
-  <td>
-    <div className="reader-mail-mail-title">{mail.title}</div>
-    <div className="reader-mail-mail-message">{mail.message}</div>
-  </td>
-                       
-                        <td>
-                          <div>{mail.user?.name || 'Reader'}</div>
-                          <div style={{ color: '#64748B', marginTop: 4 }}>{mail.user?.email || '-'}</div>
-                        </td>
-                        <td>
-                          <div className="reader-mail-pill">{mailTypeLabel(mail.mail_type)}</div>
-                          <div style={{ color: '#64748B', marginTop: 6 }}>{senderLabel(mail.sender_type)}</div>
-                        </td>
-                        <td>
-                          {mail.reward_type ? `${mail.reward_amount || 0} ${mail.reward_type}` : '-'}
-                        </td>
-                        <td>
-                          {mail.claimed_at ? (
-                            <span className="reader-mail-pill claimed">Claimed</span>
-                          ) : mail.is_read ? (
-                            <span className="reader-mail-pill">Read</span>
-                          ) : (
-                            <span className="reader-mail-pill unread">Unread</span>
-                          )}
-                        </td>
-                        <td>{formatDate(mail.created_at)}</td>
-                       <td>
-  <div className="reader-mail-actions">
-    <button
-      type="button"
-      className="reader-mail-edit-button"
-      onClick={() => handleEditMail(mail)}
-    >
-      Edit
-    </button>
-    <button
-      type="button"
-      className="reader-mail-delete-button"
-      onClick={() => handleDeleteMail(mail.id)}
-      disabled={deletingMailId === mail.id}
-    >
-      {deletingMailId === mail.id ? 'Deleting...' : 'Delete'}
-    </button>
+  <div className="reader-mail-empty">Loading mail history...</div>
+) : history.length ? (
+  <div className="reader-mail-record-list">
+    {history.map((mail) => (
+      <div className="reader-mail-record-item" key={mail.id}>
+        <div className="reader-mail-record-image">
+          {mail.image_url ? (
+            <img src={mail.image_url} alt="Mail" />
+          ) : (
+            '-'
+          )}
+        </div>
+
+        <div className="reader-mail-record-main">
+          <div className="reader-mail-record-title">{mail.title}</div>
+          <div className="reader-mail-record-sub">{mail.message}</div>
+          <div className="reader-mail-record-sub">
+            Reader: {mail.user?.name || 'Reader'} · {mail.user?.email || '-'}
+          </div>
+          <div className="reader-mail-record-meta">
+            <span className="reader-mail-pill">{mailTypeLabel(mail.mail_type)}</span>
+            <span className="reader-mail-pill">{senderLabel(mail.sender_type)}</span>
+            {mail.reward_type ? (
+              <span className="reader-mail-pill">{mail.reward_amount || 0} {mail.reward_type}</span>
+            ) : null}
+            {mail.claimed_at ? (
+              <span className="reader-mail-pill claimed">Claimed</span>
+            ) : mail.is_read ? (
+              <span className="reader-mail-pill">Read</span>
+            ) : (
+              <span className="reader-mail-pill unread">Unread</span>
+            )}
+            <span className="reader-mail-record-sub">{formatDate(mail.created_at)}</span>
+          </div>
+        </div>
+
+        <div className="reader-mail-record-actions">
+          <button
+            type="button"
+            className="reader-mail-edit-button"
+            onClick={() => handleEditMail(mail)}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            className="reader-mail-delete-button"
+            onClick={() => handleDeleteMail(mail.id)}
+            disabled={deletingMailId === mail.id}
+          >
+            {deletingMailId === mail.id ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    ))}
   </div>
-</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="reader-mail-empty">No mail history yet.</div>
-              )}
+) : (
+  <div className="reader-mail-empty">No mail history yet.</div>
+)}
             </div>
           </section>
         </div>
