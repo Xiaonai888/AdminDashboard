@@ -622,10 +622,13 @@ function handleEditMail(mail) {
       let finalImageUrl = form.image_url.trim()
 
 if (imageFile && !finalImageUrl) {
-  setUploadingImage(true)
-  finalImageUrl = await uploadReaderMailImage(imageFile)
-  updateForm('image_url', finalImageUrl)
-  setUploadingImage(false)
+  try {
+    setUploadingImage(true)
+    finalImageUrl = await uploadReaderMailImage(imageFile)
+    updateForm('image_url', finalImageUrl)
+  } finally {
+    setUploadingImage(false)
+  }
 }
 
       const payload = {
