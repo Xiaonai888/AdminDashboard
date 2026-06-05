@@ -474,34 +474,35 @@ export default function AdminReaderMailsPage() {
     loadHistory()
   }, [])
 
+  async function uploadReaderMailImage(file) {
+  const formData = new FormData()
+  formData.append('image', file)
+
+  const response = await fetch(`${API_URL}/api/admin/mails/upload-image`, {
+    method: 'POST',
+    headers: getAdminHeaders(),
+    body: formData,
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok || !data.ok || !data.image_url) {
+    throw new Error(data.message || 'Failed to upload image')
+  }
+
+  return data.image_url
+}
 
   async function handleUploadImage() {
   if (!imageFile || uploadingImage) return
-  if (imageFile.size > 300 * 1024) {
-  setStatus({ type: 'error', message: 'Image must be 300KB or smaller.' })
-  return
-}  
 
   try {
     setUploadingImage(true)
     setStatus({ type: '', message: '' })
 
-    const formData = new FormData()
-    formData.append('image', imageFile)
+    const imageUrl = await uploadReaderMailImage(imageFile)
 
-    const response = await fetch(`${API_URL}/api/admin/mails/upload-image`, {
-      method: 'POST',
-      headers: getAdminHeaders(),
-      body: formData,
-    })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok || !data.ok || !data.image_url) {
-      throw new Error(data.message || 'Failed to upload image')
-    }
-
-    updateForm('image_url', data.image_url)
+    updateForm('image_url', imageUrl)
     setStatus({ type: 'success', message: 'Image uploaded successfully.' })
   } catch (error) {
     setStatus({ type: 'error', message: error.message || 'Failed to upload image' })
@@ -523,6 +524,15 @@ export default function AdminReaderMailsPage() {
         ? `${API_URL}/api/admin/mails/send-all`
         : `${API_URL}/api/admin/mails/send`
 
+      let finalImageUrl = form.image_url.trim()
+
+if (imageFile && !finalImageUrl) {
+  setUploadingImage(true)
+  finalImageUrl = await uploadReaderMailImage(imageFile)
+  updateForm('image_url', finalImageUrl)
+  setUploadingImage(false)
+}
+
       const payload = {
         email: form.email.trim(),
         sender_type: form.sender_type,
@@ -534,7 +544,7 @@ export default function AdminReaderMailsPage() {
         reward_type: form.reward_type,
         reward_amount: Number(form.reward_amount || 0),
         link: form.link.trim(),
-        image_url: form.image_url.trim(),
+        image_url: finalImageUrl,
       }
 
       const response = await fetch(endpoint, {
@@ -554,7 +564,7 @@ export default function AdminReaderMailsPage() {
         message: form.target === 'all' ? `Mail sent to ${data.sent_count || 0} readers.` : 'Mail sent successfully.',
       })
       setForm(initialForm)
-      setImageFile(null)
+      setImagePreviewUrl('')
       loadHistory()
     } catch (error) {
       setStatus({ type: 'error', message: error.message || 'Failed to send mail' })
