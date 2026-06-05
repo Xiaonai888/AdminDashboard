@@ -962,8 +962,8 @@ if (imageFile && !finalImageUrl) {
 
           <section className="reader-mail-card">
             <div className="reader-mail-card-head">
-              <h3 className="reader-mail-card-title">Mail History</h3>
-              <div className="reader-mail-card-note">Latest reader mails created by Admin or System.</div>
+              <h3 className="reader-mail-card-title">Mail Records</h3>
+              <div className="reader-mail-card-note">Recent reader mail actions. Records are shown 5 per page.</div>
             </div>
 
             <div className="reader-mail-history">
