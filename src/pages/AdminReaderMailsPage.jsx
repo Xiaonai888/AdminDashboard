@@ -373,6 +373,23 @@ const styles = `
     color: #047857;
   }
 
+.reader-mail-delete-button {
+  border: 1px solid #FECACA;
+  background: #FEF2F2;
+  color: #DC2626;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.reader-mail-delete-button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
   .reader-mail-empty {
     padding: 34px;
     text-align: center;
@@ -416,6 +433,7 @@ export default function AdminReaderMailsPage() {
   const [imageFile, setImageFile] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [sending, setSending] = useState(false)
+  const [deletingMailId, setDeletingMailId] = useState('')
   const [status, setStatus] = useState({ type: '', message: '' })
 
   const isRewardMail = form.mail_type === 'reward' || form.action_type === 'claim'
@@ -508,6 +526,36 @@ export default function AdminReaderMailsPage() {
     setStatus({ type: 'error', message: error.message || 'Failed to upload image' })
   } finally {
     setUploadingImage(false)
+  }
+}
+
+  async function handleDeleteMail(mailId) {
+  if (!mailId || deletingMailId) return
+
+  const confirmed = window.confirm('Delete this mail from history?')
+  if (!confirmed) return
+
+  try {
+    setDeletingMailId(mailId)
+    setStatus({ type: '', message: '' })
+
+    const response = await fetch(`${API_URL}/api/admin/mails/${mailId}`, {
+      method: 'DELETE',
+      headers: getAdminHeaders(),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || 'Failed to delete mail')
+    }
+
+    setHistory((current) => current.filter((mail) => mail.id !== mailId))
+    setStatus({ type: 'success', message: 'Mail deleted successfully.' })
+  } catch (error) {
+    setStatus({ type: 'error', message: error.message || 'Failed to delete mail' })
+  } finally {
+    setDeletingMailId('')
   }
 }
 
@@ -788,6 +836,7 @@ if (imageFile && !finalImageUrl) {
               ) : history.length ? (
                 <table className="reader-mail-table">
                   <thead>
+                    <th>Actions</th>
                    <tr>
   <th>Image</th>
   <th>Mail</th>
@@ -812,6 +861,18 @@ if (imageFile && !finalImageUrl) {
     <div className="reader-mail-mail-title">{mail.title}</div>
     <div className="reader-mail-mail-message">{mail.message}</div>
   </td>
+
+                       <td>
+  <button
+    type="button"
+    className="reader-mail-delete-button"
+    onClick={() => handleDeleteMail(mail.id)}
+    disabled={deletingMailId === mail.id}
+  >
+    {deletingMailId === mail.id ? 'Deleting...' : 'Delete'}
+  </button>
+</td>
+                       
                         <td>
                           <div>{mail.user?.name || 'Reader'}</div>
                           <div style={{ color: '#64748B', marginTop: 4 }}>{mail.user?.email || '-'}</div>
