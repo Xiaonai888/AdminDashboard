@@ -693,7 +693,6 @@ export default function AdminReaderMailsPage() {
 </div>
 
 <div className="reader-mail-field">
-  <div className="reader-mail-field">
   <label className="reader-mail-label">Upload Image</label>
   <div className="reader-mail-upload-row">
     <input
