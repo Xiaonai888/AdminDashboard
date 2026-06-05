@@ -614,13 +614,13 @@ export default function AdminReaderMailsPage() {
 
               {form.target === 'single' ? (
                 <div className="reader-mail-field">
-                  <label className="reader-mail-label">Reader Email</label>
-                  <input
-                    className="reader-mail-input"
-                    value={form.email}
-                    onChange={(event) => updateForm('email', event.target.value)}
-                    placeholder="reader@email.com"
-                  />
+                  <label className="reader-mail-label">Reader Username / Email</label>
+<input
+  className="reader-mail-input"
+  value={form.email}
+  onChange={(event) => updateForm('email', event.target.value)}
+  placeholder="username or reader@email.com"
+/>
                 </div>
               ) : null}
 
