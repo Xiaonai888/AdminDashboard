@@ -279,10 +279,17 @@ const styles = `
   cursor: not-allowed;
 }
 
+.reader-mail-upload-note {
+  margin-top: 8px;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .reader-mail-image-preview {
   margin-top: 10px;
   width: 100%;
-  max-height: 160px;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
   border-radius: 16px;
   border: 1px solid #E2E8F0;
@@ -404,6 +411,7 @@ export default function AdminReaderMailsPage() {
   const [form, setForm] = useState(initialForm)
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [sending, setSending] = useState(false)
@@ -468,6 +476,10 @@ export default function AdminReaderMailsPage() {
 
   async function handleUploadImage() {
   if (!imageFile || uploadingImage) return
+  if (imageFile.size > 300 * 1024) {
+  setStatus({ type: 'error', message: 'Image must be 300KB or smaller.' })
+  return
+}  
 
   try {
     setUploadingImage(true)
@@ -699,7 +711,20 @@ export default function AdminReaderMailsPage() {
       className="reader-mail-input"
       type="file"
       accept="image/*"
-      onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+      onChange={(event) => {
+  const file = event.target.files?.[0] || null
+  if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
+
+  if (file && file.size > 300 * 1024) {
+    setImageFile(null)
+    setImagePreviewUrl('')
+    setStatus({ type: 'error', message: 'Image must be 300KB or smaller.' })
+    return
+  }
+
+  setImageFile(file)
+  setImagePreviewUrl(file ? URL.createObjectURL(file) : '')
+}}
     />
     <button
       type="button"
@@ -710,13 +735,14 @@ export default function AdminReaderMailsPage() {
       {uploadingImage ? 'Uploading...' : 'Upload'}
     </button>
   </div>
-  {form.image_url ? (
-    <img
-      className="reader-mail-image-preview"
-      src={form.image_url}
-      alt="Mail preview"
-    />
-  ) : null}
+ <div className="reader-mail-upload-note">Recommended: 16:9 image, max 300KB.</div>
+{imagePreviewUrl || form.image_url ? (
+  <img
+    className="reader-mail-image-preview"
+    src={imagePreviewUrl || form.image_url}
+    alt="Mail preview"
+  />
+) : null}
 </div>
               
 
