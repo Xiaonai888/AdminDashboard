@@ -868,7 +868,6 @@ if (imageFile && !finalImageUrl) {
               
 
               <button type="submit" className="reader-mail-button" disabled={!canSend || sending}>
-                {sending ? 'Sending...' : form.target === 'all' ? 'Send to All Readers' : 'Send Mail'}
                 {sending ? 'Saving...' : editingMailId ? 'Update Mail' : form.target === 'all' ? 'Send to All Readers' : 'Send Mail'}
               </button>
             </form>
