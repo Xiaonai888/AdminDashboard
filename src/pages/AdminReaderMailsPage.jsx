@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import { compressImage } from '../utils/compressImage'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -711,19 +712,32 @@ export default function AdminReaderMailsPage() {
       className="reader-mail-input"
       type="file"
       accept="image/*"
-      onChange={(event) => {
+      onChange={async (event) => {
   const file = event.target.files?.[0] || null
   if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl)
 
-  if (file && file.size > 300 * 1024) {
+  if (!file) {
     setImageFile(null)
     setImagePreviewUrl('')
-    setStatus({ type: 'error', message: 'Image must be 300KB or smaller.' })
     return
   }
 
-  setImageFile(file)
-  setImagePreviewUrl(file ? URL.createObjectURL(file) : '')
+  try {
+    setStatus({ type: '', message: '' })
+
+    const compressedFile = await compressImage(file, {
+      aspectRatio: 16 / 9,
+      maxSizeKB: 300,
+      maxWidth: 1280,
+    })
+
+    setImageFile(compressedFile)
+    setImagePreviewUrl(URL.createObjectURL(compressedFile))
+  } catch (error) {
+    setImageFile(null)
+    setImagePreviewUrl('')
+    setStatus({ type: 'error', message: error.message || 'Failed to compress image.' })
+  }
 }}
     />
     <button
