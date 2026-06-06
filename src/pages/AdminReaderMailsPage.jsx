@@ -474,6 +474,77 @@ const styles = `
   }
 }
 
+.reader-mail-activity-list {
+  display: grid;
+  gap: 0;
+}
+
+.reader-mail-activity-item {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 18px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.reader-mail-activity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #EEF2FF;
+  color: #4F46E5;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.reader-mail-activity-main {
+  min-width: 0;
+}
+
+.reader-mail-activity-title {
+  color: #0F172A;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.reader-mail-activity-sub {
+  margin-top: 4px;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.reader-mail-activity-meta {
+  margin-top: 5px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.reader-mail-activity-date {
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .reader-mail-activity-item {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .reader-mail-activity-date {
+    grid-column: 1 / -1;
+    text-align: right;
+  }
+}
+
   .reader-mail-empty {
     padding: 34px;
     text-align: center;
@@ -531,6 +602,8 @@ export default function AdminReaderMailsPage() {
   const [form, setForm] = useState(initialForm)
   const [history, setHistory] = useState([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [logs, setLogs] = useState([])
+  const [loadingLogs, setLoadingLogs] = useState(false)
   const [imagePreviewUrl, setImagePreviewUrl] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -592,8 +665,32 @@ export default function AdminReaderMailsPage() {
   }
 
   useEffect(() => {
-    loadHistory()
-  }, [])
+  loadHistory()
+  loadLogs()
+}, [])
+
+  async function loadLogs() {
+  try {
+    setLoadingLogs(true)
+
+    const response = await fetch(`${API_URL}/api/admin/mails/logs?limit=20`, {
+      headers: getAdminHeaders(),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || 'Failed to load mail records')
+    }
+
+    setLogs(data.logs || [])
+  } catch (error) {
+    setStatus({ type: 'error', message: error.message || 'Failed to load mail records' })
+    setLogs([])
+  } finally {
+    setLoadingLogs(false)
+  }
+}
 
   async function uploadReaderMailImage(file) {
   const formData = new FormData()
@@ -774,10 +871,17 @@ if (imageFile && !finalImageUrl) {
             </div>
           </div>
 
-          <button type="button" className="reader-mail-refresh" onClick={loadHistory} disabled={loadingHistory}>
-            {loadingHistory ? 'Loading...' : 'Refresh'}
-          </button>
-        </div>
+          <button
+  type="button"
+  className="reader-mail-refresh"
+  onClick={() => {
+    loadHistory()
+    loadLogs()
+  }}
+  disabled={loadingHistory || loadingLogs}
+>
+  {loadingHistory || loadingLogs ? 'Loading...' : 'Refresh'}
+</button>
 
         <div className="reader-mail-grid">
           <section className="reader-mail-card">
@@ -1029,6 +1133,37 @@ if (imageFile && !finalImageUrl) {
 )}
             </div>
           </section>
+          <section className="reader-mail-card">
+  <div className="reader-mail-card-head">
+    <h3 className="reader-mail-card-title">Mail Activity Records</h3>
+    <div className="reader-mail-card-note">Recent reader mail actions. Records are shown 20 per page.</div>
+  </div>
+
+  <div className="reader-mail-activity-list">
+    {loadingLogs ? (
+      <div className="reader-mail-empty">Loading mail records...</div>
+    ) : logs.length ? (
+      logs.map((item) => (
+        <div className="reader-mail-activity-item" key={item.id}>
+          <div className="reader-mail-activity-badge">{item.action || 'RECORD'}</div>
+
+          <div className="reader-mail-activity-main">
+            <div className="reader-mail-activity-title">{item.title || 'Untitled mail'}</div>
+            <div className="reader-mail-activity-sub">{item.message || 'No message'}</div>
+            <div className="reader-mail-activity-meta">
+              Reader: {item.reader_name || 'Reader'} {item.reader_email ? `· ${item.reader_email}` : ''}
+            </div>
+            <div className="reader-mail-activity-meta">By: {item.admin_name || 'Admin'}</div>
+          </div>
+
+          <div className="reader-mail-activity-date">{formatDate(item.created_at)}</div>
+        </div>
+      ))
+    ) : (
+      <div className="reader-mail-empty">No mail activity records yet.</div>
+    )}
+  </div>
+</section>
         </div>
       </div>
     </AdminLayout>
