@@ -880,8 +880,9 @@ if (imageFile && !finalImageUrl) {
   }}
   disabled={loadingHistory || loadingLogs}
 >
-  {loadingHistory || loadingLogs ? 'Loading...' : 'Refresh'}
+    {loadingHistory || loadingLogs ? 'Loading...' : 'Refresh'}
 </button>
+</div>
 
         <div className="reader-mail-grid">
           <section className="reader-mail-card">
