@@ -891,8 +891,8 @@ if (imageFile && !finalImageUrl) {
         <div className="reader-mail-grid">
         <section className="reader-mail-card reader-mail-activity-card">
   <div className="reader-mail-card-head">
-    <h3 className="reader-mail-card-title">Mail Activity Records</h3>
-              <div className="reader-mail-card-note">Use Single Reader for testing first. Use All Readers only for real announcements.</div>
+    <h3 className="reader-mail-card-title">Compose Reader Mail</h3>
+<div className="reader-mail-card-note">Use Single Reader for testing first. Use All Readers only for real announcements.</div>
             </div>
 
             <form className="reader-mail-form" onSubmit={handleSubmit}>
