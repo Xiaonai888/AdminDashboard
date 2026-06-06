@@ -111,22 +111,16 @@ const styles = `
     cursor: pointer;
   }
 
-  .reader-mail-activity-card {
-  grid-column: 2 / 3;
-}
-
-@media (max-width: 980px) {
-  .reader-mail-activity-card {
-    grid-column: 1 / -1;
-  }
+ .reader-mail-activity-card {
+  grid-column: 1 / -1;
 }
 
   .reader-mail-grid {
-    display: grid;
-    grid-template-columns: minmax(360px, 520px) minmax(0, 1fr);
-    gap: 20px;
-    align-items: start;
-  }
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  align-items: start;
+}
 
   .reader-mail-card {
     background: #FFFFFF;
