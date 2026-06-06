@@ -111,6 +111,16 @@ const styles = `
     cursor: pointer;
   }
 
+  .reader-mail-activity-card {
+  grid-column: 2 / 3;
+}
+
+@media (max-width: 980px) {
+  .reader-mail-activity-card {
+    grid-column: 1 / -1;
+  }
+}
+
   .reader-mail-grid {
     display: grid;
     grid-template-columns: minmax(360px, 520px) minmax(0, 1fr);
@@ -885,9 +895,9 @@ if (imageFile && !finalImageUrl) {
 </div>
 
         <div className="reader-mail-grid">
-          <section className="reader-mail-card">
-            <div className="reader-mail-card-head">
-              <h3 className="reader-mail-card-title">Compose Mail</h3>
+        <section className="reader-mail-card reader-mail-activity-card">
+  <div className="reader-mail-card-head">
+    <h3 className="reader-mail-card-title">Mail Activity Records</h3>
               <div className="reader-mail-card-note">Use Single Reader for testing first. Use All Readers only for real announcements.</div>
             </div>
 
