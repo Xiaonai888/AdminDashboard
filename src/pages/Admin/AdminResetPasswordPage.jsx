@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import TurnstileBox from '../../components/TurnstileBox';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 
@@ -11,9 +12,18 @@ export default function AdminResetPasswordPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+
+  const handleTurnstileToken = useCallback((token) => setTurnstileToken(token), []);
+
+  function resetSecurityCheck() {
+    setTurnstileToken('');
+    setTurnstileResetKey((value) => value + 1);
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -43,6 +53,11 @@ export default function AdminResetPasswordPage() {
       return;
     }
 
+    if (!turnstileToken) {
+      setError('Please complete the security check.');
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -56,6 +71,7 @@ export default function AdminResetPasswordPage() {
           otp: cleanOtp,
           newPassword,
           confirmPassword,
+          turnstileToken,
         }),
       });
 
@@ -63,6 +79,7 @@ export default function AdminResetPasswordPage() {
 
       if (!response.ok || !data?.ok) {
         setError(data?.message || 'Failed to reset admin password.');
+        resetSecurityCheck();
         return;
       }
 
@@ -72,6 +89,7 @@ export default function AdminResetPasswordPage() {
       }, 1000);
     } catch {
       setError('Cannot connect to backend API.');
+      resetSecurityCheck();
     } finally {
       setLoading(false);
     }
@@ -143,16 +161,18 @@ export default function AdminResetPasswordPage() {
             />
           </label>
 
+          <TurnstileBox onTokenChange={handleTurnstileToken} resetKey={turnstileResetKey} />
+
           {error ? <div style={styles.errorBox}>{error}</div> : null}
           {message ? <div style={styles.successBox}>{message}</div> : null}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !turnstileToken}
             style={{
               ...styles.primaryButton,
-              opacity: loading ? 0.72 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading || !turnstileToken ? 0.72 : 1,
+              cursor: loading || !turnstileToken ? 'not-allowed' : 'pointer',
             }}
           >
             {loading ? 'Resetting...' : 'Reset Password'}
