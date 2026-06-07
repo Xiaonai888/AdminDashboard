@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import TurnstileBox from '../components/TurnstileBox';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 
@@ -47,10 +48,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState(() => makeVerifyCode());
   const [verifyInput, setVerifyInput] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const verifyCodeDisplay = useMemo(() => verifyCode.split('').join('  '), [verifyCode]);
+  const handleTurnstileToken = useCallback((token) => setTurnstileToken(token), []);
 
   if (existingToken) {
     return <Navigate to="/admin" replace />;
@@ -59,6 +63,11 @@ export default function LoginPage() {
   function refreshVerifyCode() {
     setVerifyCode(makeVerifyCode());
     setVerifyInput('');
+  }
+
+  function resetSecurityCheck() {
+    setTurnstileToken('');
+    setTurnstileResetKey((value) => value + 1);
   }
 
   async function handleSubmit(event) {
@@ -87,6 +96,12 @@ export default function LoginPage() {
     if (cleanVerifyInput !== verifyCode) {
       setError('Verify code is incorrect. Please type the code shown in the box.');
       refreshVerifyCode();
+      resetSecurityCheck();
+      return;
+    }
+
+    if (!turnstileToken) {
+      setError('Please complete the security check.');
       return;
     }
 
@@ -101,6 +116,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           email: cleanEmail,
           password,
+          turnstileToken,
         }),
       });
 
@@ -115,6 +131,7 @@ export default function LoginPage() {
       if (!response.ok || !data?.ok || !data?.token) {
         setError(getFriendlyError(data?.message));
         refreshVerifyCode();
+        resetSecurityCheck();
         return;
       }
 
@@ -138,6 +155,7 @@ export default function LoginPage() {
     } catch (error) {
       setError('Cannot connect to backend API. Please check VITE_API_URL or backend status.');
       refreshVerifyCode();
+      resetSecurityCheck();
     } finally {
       setLoading(false);
     }
@@ -203,6 +221,8 @@ export default function LoginPage() {
             />
           </label>
 
+          <TurnstileBox onTokenChange={handleTurnstileToken} resetKey={turnstileResetKey} />
+
           <label style={styles.checkboxRow}>
             <input
               type="checkbox"
@@ -225,11 +245,11 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !turnstileToken}
             style={{
               ...styles.loginButton,
-              opacity: loading ? 0.72 : 1,
-              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading || !turnstileToken ? 0.72 : 1,
+              cursor: loading || !turnstileToken ? 'not-allowed' : 'pointer',
             }}
           >
             {loading ? 'Signing in...' : 'Sign In'}
