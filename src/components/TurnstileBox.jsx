@@ -39,10 +39,9 @@ export default function TurnstileBox({ onTokenChange, resetKey = 0 }) {
     setError('');
 
     if (!SITE_KEY) {
-      setError('Security check is not configured.');
-      return undefined;
-    }
-
+  setError('Missing VITE_TURNSTILE_SITE_KEY in AdminDashboard frontend build.');
+  return undefined;
+}
     loadTurnstileScript()
       .then(() => {
         if (cancelled || !containerRef.current || !window.turnstile) return;
