@@ -536,8 +536,8 @@ export default function AuthorStoreReviewPage() {
                     <div className="actions">
                       {(order.status || order.order_status) === 'under_review' ? (
                         <button type="button" className="action-button confirm" onClick={() => updateOrderStatus(orderId, 'confirmed')}>
-                          Confirm Order
-                        </button>
+  Approve Order
+</button>
                       ) : null}
 
                       {['under_review', 'confirmed'].includes(order.status || order.order_status) ? (
