@@ -84,6 +84,33 @@ const styles = `
     color: #4F46E5;
   }
 
+  .inner-tabs {
+    display: inline-flex;
+    gap: 8px;
+    padding: 6px;
+    background: #F1F5F9;
+    border-radius: 16px;
+    margin-top: 2px;
+  }
+
+  .inner-tab {
+    height: 38px;
+    border: 0;
+    border-radius: 12px;
+    padding: 0 16px;
+    background: transparent;
+    color: #64748B;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .inner-tab.active {
+    background: #FFFFFF;
+    color: #4F46E5;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  }
+
   .orders-toolbar {
     margin-top: 18px;
     display: grid;
@@ -167,7 +194,7 @@ const styles = `
     padding: 18px 20px;
     border-bottom: 1px solid #F1F5F9;
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(260px, 1fr) minmax(260px, 1fr) 180px;
+    grid-template-columns: minmax(0, 1.05fr) minmax(250px, .95fr) minmax(270px, 1fr) 170px;
     gap: 16px;
     align-items: start;
   }
@@ -211,7 +238,9 @@ const styles = `
   .status-preparing { background: #F3E8FF; color: #7E22CE; }
   .status-shipped { background: #DCFCE7; color: #15803D; }
   .status-completed { background: #D1FAE5; color: #047857; }
-  .status-cancelled, .status-rejected { background: #FEE2E2; color: #B91C1C; }
+  .status-cancelled,
+  .status-rejected,
+  .status-amount_mismatch { background: #FEE2E2; color: #B91C1C; }
 
   .book-list {
     display: grid;
@@ -316,7 +345,7 @@ function statusLabel(status) {
 function BuyerInfo({ buyer }) {
   return (
     <div>
-      <div className="strong">Buyer</div>
+      <div className="strong">Reader</div>
       <div className="small">Name: <span className="strong">{buyer?.name || buyer?.buyer_name || '-'}</span></div>
       <div className="small">Phone: <span className="strong">{buyer?.phone_number || buyer?.buyer_phone || '-'}</span></div>
       {buyer?.telegram_username ? <div className="small">Telegram: <span className="strong">{buyer.telegram_username}</span></div> : null}
@@ -328,7 +357,7 @@ function BuyerInfo({ buyer }) {
   )
 }
 
-function BooksInfo({ items }) {
+function ProductsInfo({ items }) {
   const safeItems = Array.isArray(items) ? items : []
 
   return (
@@ -352,9 +381,24 @@ function BooksInfo({ items }) {
   )
 }
 
+function MoneyInfo({ order }) {
+  return (
+    <div>
+      <div className="strong">Payment / Income</div>
+      <div className="small">Product subtotal: <span className="strong">{formatUsd(order.product_subtotal_usd || order.subtotal_usd || order.subtotal)}</span></div>
+      <div className="small">Delivery fee: <span className="strong">{formatUsd(order.delivery_fee_usd || order.delivery_fee || 0)}</span></div>
+      <div className="small">Total paid: <span className="strong">{formatUsd(order.total_usd || order.total_amount)}</span></div>
+      <div className="small">Platform fee: <span className="strong">{formatUsd(order.platform_fee_usd || 0)}</span></div>
+      <div className="small">Author income: <span className="strong">{formatUsd(order.author_income_usd || 0)}</span></div>
+      <div className="small">Payment: <span className="strong">{statusLabel(order.payment_status || '-')}</span></div>
+    </div>
+  )
+}
+
 export default function AuthorStoreReviewPage() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
+  const [orderType, setOrderType] = useState('pdf')
   const [status, setStatus] = useState('under_review')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
@@ -374,6 +418,7 @@ export default function AuthorStoreReviewPage() {
         page: String(nextPage),
         limit: '20',
         status,
+        type: orderType,
         q: query.trim(),
       })
 
@@ -406,6 +451,13 @@ export default function AuthorStoreReviewPage() {
   }
 
   async function updateOrderStatus(orderId, nextStatus) {
+    const confirmText =
+      nextStatus === 'confirmed'
+        ? 'Are you sure you checked the money and want to approve this order?'
+        : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
+
+    if (!window.confirm(confirmText)) return
+
     try {
       setMessage('')
 
@@ -434,36 +486,59 @@ export default function AuthorStoreReviewPage() {
 
   useEffect(() => {
     fetchOrders(1)
-  }, [status])
+  }, [status, orderType])
 
   return (
     <AdminLayout
-      title="Author Store Review"
-      subtitle="Review paid or reviewed author store orders."
+      title="Author Orders"
+      subtitle="Review reader orders from Author Pages."
     >
       <style>{styles}</style>
 
       <div className="orders-page">
         <main className="orders-body">
           <section className="orders-top">
-            <div className="orders-kicker">✍️ Author Store</div>
-            <h1 className="orders-heading">Review Author</h1>
+            <div className="orders-kicker">✍️ Author Orders</div>
+            <h1 className="orders-heading">Author Orders</h1>
             <p className="orders-note">
-              Shows only paid or reviewed author store orders. Waiting payment and expired orders are hidden from this report.
+              Review reader purchases from Author Pages. PDF and Book orders stay In Review until admin checks the money and approves.
             </p>
 
             <div className="tab-row">
               <button type="button" className="tab-button" onClick={() => navigate('/shadow-mall')}>
-                Shadow Mall Products
+                Products
               </button>
               <button type="button" className="tab-button" onClick={() => navigate('/shadow-mall/orders')}>
-                Shadow Mall Review
+                Review Orders
               </button>
               <button type="button" className="tab-button active">
-                Review Author
+                Author Orders
               </button>
               <button type="button" className="tab-button" onClick={() => navigate('/shadow-mall/publishers')}>
                 Publishers
+              </button>
+            </div>
+
+            <div className="inner-tabs">
+              <button
+                type="button"
+                className={`inner-tab ${orderType === 'pdf' ? 'active' : ''}`}
+                onClick={() => {
+                  setOrderType('pdf')
+                  setPage(1)
+                }}
+              >
+                PDF Orders
+              </button>
+              <button
+                type="button"
+                className={`inner-tab ${orderType === 'book' ? 'active' : ''}`}
+                onClick={() => {
+                  setOrderType('book')
+                  setPage(1)
+                }}
+              >
+                Book Orders
               </button>
             </div>
 
@@ -472,7 +547,7 @@ export default function AuthorStoreReviewPage() {
                 className="input"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search Order ID or ABA Trx ID..."
+                placeholder="Search Order ID, ABA Trx ID, reader name, phone..."
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') fetchOrders(1)
                 }}
@@ -486,6 +561,7 @@ export default function AuthorStoreReviewPage() {
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="rejected">Rejected</option>
+                <option value="amount_mismatch">Amount Mismatch</option>
                 <option value="all">All Reports</option>
               </select>
 
@@ -498,8 +574,12 @@ export default function AuthorStoreReviewPage() {
           <section className="orders-card">
             <div className="orders-card-head">
               <div>
-                <div className="orders-card-title">Author Order Report</div>
-                <div className="small">Admin review, delivery preparation, PDF/product checks, and status tracking.</div>
+                <div className="orders-card-title">{orderType === 'pdf' ? 'PDF Orders' : 'Book Orders'}</div>
+                <div className="small">
+                  {orderType === 'pdf'
+                    ? 'Approve after checking payment. Approved PDFs unlock reader library access.'
+                    : 'Approve after checking payment. Approved books can notify the author through Telegram.'}
+                </div>
               </div>
 
               <div className="count-pill">{totalText}</div>
@@ -512,9 +592,12 @@ export default function AuthorStoreReviewPage() {
             ) : orders.length ? (
               orders.map((order) => {
                 const orderId = order.order_id || order.order_number || order.id
+                const currentStatus = order.status || order.order_status
                 const buyer = order.buyer_profile || {
                   name: order.buyer_name,
+                  buyer_name: order.buyer_name,
                   phone_number: order.buyer_phone,
+                  buyer_phone: order.buyer_phone,
                   delivery_address: order.delivery_address,
                 }
 
@@ -522,43 +605,48 @@ export default function AuthorStoreReviewPage() {
                   <div className="order-row" key={orderId}>
                     <div>
                       <div className="order-id">{orderId}</div>
-                      <div className={`status-pill status-${order.status || order.order_status}`}>{statusLabel(order.status || order.order_status)}</div>
-                      <div className="small">Amount: <span className="strong">{formatUsd(order.total_usd || order.total_amount)}</span></div>
+                      <div className={`status-pill status-${currentStatus}`}>{statusLabel(currentStatus)}</div>
                       <div className="small">ABA Trx: <span className="strong">{order.aba_transaction_id || '-'}</span></div>
                       <div className="small">Paid: <span className="strong">{formatDate(order.paid_at)}</span></div>
+                      <div className="small">Created: <span className="strong">{formatDate(order.created_at)}</span></div>
                       <div className="small">Updated: <span className="strong">{formatDate(order.updated_at)}</span></div>
                     </div>
 
                     <BuyerInfo buyer={buyer} />
 
-                    <BooksInfo items={order.items || []} />
+                    <div>
+                      <ProductsInfo items={order.items || []} />
+                      <div style={{ marginTop: 12 }}>
+                        <MoneyInfo order={order} />
+                      </div>
+                    </div>
 
                     <div className="actions">
-                      {(order.status || order.order_status) === 'under_review' ? (
+                      {currentStatus === 'under_review' ? (
                         <button type="button" className="action-button confirm" onClick={() => updateOrderStatus(orderId, 'confirmed')}>
-  Approve Order
-</button>
+                          Approve Order
+                        </button>
                       ) : null}
 
-                      {['under_review', 'confirmed'].includes(order.status || order.order_status) ? (
+                      {orderType === 'book' && ['under_review', 'confirmed'].includes(currentStatus) ? (
                         <button type="button" className="action-button prepare" onClick={() => updateOrderStatus(orderId, 'preparing')}>
                           Mark Preparing
                         </button>
                       ) : null}
 
-                      {['confirmed', 'preparing'].includes(order.status || order.order_status) ? (
+                      {orderType === 'book' && ['confirmed', 'preparing'].includes(currentStatus) ? (
                         <button type="button" className="action-button ship" onClick={() => updateOrderStatus(orderId, 'shipped')}>
                           Mark Shipped
                         </button>
                       ) : null}
 
-                      {(order.status || order.order_status) === 'shipped' ? (
+                      {orderType === 'book' && currentStatus === 'shipped' ? (
                         <button type="button" className="action-button complete" onClick={() => updateOrderStatus(orderId, 'completed')}>
                           Complete
                         </button>
                       ) : null}
 
-                      {!['completed', 'cancelled', 'rejected'].includes(order.status || order.order_status) ? (
+                      {!['completed', 'cancelled', 'rejected'].includes(currentStatus) ? (
                         <button type="button" className="action-button cancel" onClick={() => updateOrderStatus(orderId, 'cancelled')}>
                           Cancel
                         </button>
@@ -568,7 +656,7 @@ export default function AuthorStoreReviewPage() {
                 )
               })
             ) : (
-              <div className="empty">No orders found.</div>
+              <div className="empty">No {orderType === 'pdf' ? 'PDF' : 'Book'} orders found.</div>
             )}
 
             <div className="pager">
