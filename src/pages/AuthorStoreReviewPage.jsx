@@ -395,6 +395,22 @@ function MoneyInfo({ order }) {
   )
 }
 
+{String(order.items?.[0]?.product_type || '').toLowerCase() === 'pdf' ? (
+  <>
+    <div className="small">PDF access: <span className="strong">{statusLabel(order.pdf_unlock_status || 'pending')}</span></div>
+    <div className="small">Unlocked count: <span className="strong">{order.pdf_unlock_count || 0}</span></div>
+  </>
+) : null}
+
+{String(order.items?.[0]?.product_type || '').toLowerCase() === 'book' ? (
+  <>
+    <div className="small">Telegram: <span className="strong">{statusLabel(order.telegram_status || 'pending')}</span></div>
+    {order.telegram_error ? (
+      <div className="small">Telegram error: <span className="strong">{order.telegram_error}</span></div>
+    ) : null}
+  </>
+) : null}
+
 export default function AuthorStoreReviewPage() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState([])
