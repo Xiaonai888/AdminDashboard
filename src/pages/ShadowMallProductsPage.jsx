@@ -1352,84 +1352,82 @@ export default function ShadowMallProductsPage() {
               </button>
             </div>
             <div style={{
-              display: 'flex',
-              gap: 10,
-              marginBottom: 18,
-              flexWrap: 'wrap',
-            }}>
-              <button
-                type="button"
-                style={{
-                  height: 40,
-                  border: 0,
-                  borderRadius: 14,
-                  padding: '0 16px',
-                  background: '#EEF2FF',
-                  color: '#4F46E5',
-                  fontSize: 12,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                }}
-              >
-                Products
-              </button>
+  display: 'flex',
+  gap: 10,
+  marginBottom: 18,
+  flexWrap: 'wrap',
+}}>
+  <button
+    type="button"
+    style={{
+      height: 40,
+      border: 0,
+      borderRadius: 14,
+      padding: '0 16px',
+      background: '#EEF2FF',
+      color: '#4F46E5',
+      fontSize: 12,
+      fontWeight: 900,
+      cursor: 'pointer',
+    }}
+  >
+    Products
+  </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/shadow-mall/orders')}
-                style={{
-                  height: 40,
-                  border: '1px solid #E2E8F0',
-                  borderRadius: 14,
-                  padding: '0 16px',
-                  background: '#FFFFFF',
-                  color: '#0F172A',
-                  fontSize: 12,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                }}
-              >
-                Review Orders
-              </button>
+  <button
+    type="button"
+    onClick={() => navigate('/shadow-mall/orders')}
+    style={{
+      height: 40,
+      border: '1px solid #E2E8F0',
+      borderRadius: 14,
+      padding: '0 16px',
+      background: '#FFFFFF',
+      color: '#0F172A',
+      fontSize: 12,
+      fontWeight: 900,
+      cursor: 'pointer',
+    }}
+  >
+    Review Orders
+  </button>
 
-              <button
-  type="button"
-  onClick={() => navigate('/shadow-mall/publishers')}
-  style={{
-    height: 40,
-    border: '1px solid #E2E8F0',
-    borderRadius: 14,
-    padding: '0 16px',
-    background: '#FFFFFF',
-    color: '#0F172A',
-    fontSize: 12,
-    fontWeight: 900,
-    cursor: 'pointer',
-  }}
->
+  <button
+    type="button"
+    onClick={() => navigate('/author-store/review')}
+    style={{
+      height: 40,
+      border: '1px solid #E2E8F0',
+      borderRadius: 14,
+      padding: '0 16px',
+      background: '#FFFFFF',
+      color: '#0F172A',
+      fontSize: 12,
+      fontWeight: 900,
+      cursor: 'pointer',
+    }}
+  >
+    Author Orders
+  </button>
 
- <button
-  type="button"
-  onClick={() => navigate('/author-store/review')}
-  style={{
-    height: 40,
-    border: '1px solid #E2E8F0',
-    borderRadius: 14,
-    padding: '0 16px',
-    background: '#FFFFFF',
-    color: '#0F172A',
-    fontSize: 12,
-    fontWeight: 900,
-    cursor: 'pointer',
-  }}
->
-  Author Orders
-</button>               
-                
-  Publishers
-</button>
-              
-            </div>
+  <button
+    type="button"
+    onClick={() => navigate('/shadow-mall/publishers')}
+    style={{
+      height: 40,
+      border: '1px solid #E2E8F0',
+      borderRadius: 14,
+      padding: '0 16px',
+      background: '#FFFFFF',
+      color: '#0F172A',
+      fontSize: 12,
+      fontWeight: 900,
+      cursor: 'pointer',
+    }}
+  >
+    Publishers
+  </button>
+</div>
             <div className="shadow-media-grid">
               <section className="shadow-card">
                 <div className="shadow-card-head">
