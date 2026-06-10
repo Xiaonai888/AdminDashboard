@@ -466,40 +466,57 @@ export default function AuthorStoreReviewPage() {
     }
   }
 
-  async function updateOrderStatus(orderId, nextStatus) {
-    const confirmText =
-  nextStatus === 'confirmed'
-    ? `Are you sure you checked the money and want to approve this ${orderType === 'pdf' ? 'PDF' : 'book'} order?`
-    : nextStatus === 'rejected'
-      ? 'Reject this order? This will not unlock PDF access or notify the author.'
-      : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
-    if (!window.confirm(confirmText)) return
+ async function updateOrderStatus(orderId, nextStatus) {
+  let adminNote = ''
 
-    try {
-      setMessage('')
+  if (nextStatus === 'rejected') {
+    adminNote = window.prompt('Reject reason / Admin note:')
 
-      const token = getAdminToken()
-      const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: nextStatus }),
-      })
+    if (adminNote === null) return
 
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to update order')
-      }
-
-      setMessage(`Order ${orderId} updated to ${statusLabel(nextStatus)}.`)
-      fetchOrders(page)
-    } catch (error) {
-      setMessage(error.message || 'Failed to update order')
+    if (!adminNote.trim()) {
+      setMessage('Reject reason is required.')
+      return
     }
   }
+
+  const confirmText =
+    nextStatus === 'confirmed'
+      ? `Are you sure you checked the money and want to approve this ${orderType === 'pdf' ? 'PDF' : 'book'} order?`
+      : nextStatus === 'rejected'
+        ? 'Reject this order? This will not unlock PDF access or notify the author.'
+        : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
+
+  if (!window.confirm(confirmText)) return
+
+  try {
+    setMessage('')
+
+    const token = getAdminToken()
+    const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/status`, {
+      method: 'PATCH',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        status: nextStatus,
+        admin_note: adminNote.trim() || null,
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Failed to update order')
+    }
+
+    setMessage(`Order ${orderId} updated to ${statusLabel(nextStatus)}.`)
+    fetchOrders(page)
+  } catch (error) {
+    setMessage(error.message || 'Failed to update order')
+  }
+}
 
   useEffect(() => {
     fetchOrders(1)
@@ -627,6 +644,10 @@ export default function AuthorStoreReviewPage() {
                       <div className="small">Paid: <span className="strong">{formatDate(order.paid_at)}</span></div>
                       <div className="small">Created: <span className="strong">{formatDate(order.created_at)}</span></div>
                       <div className="small">Updated: <span className="strong">{formatDate(order.updated_at)}</span></div>
+                      {order.admin_note ? (
+  <div className="small">Admin note: <span className="strong">{order.admin_note}</span></div>
+) : null}
+                      
                     </div>
 
                     <BuyerInfo buyer={buyer} />
