@@ -382,6 +382,8 @@ function ProductsInfo({ items }) {
 }
 
 function MoneyInfo({ order }) {
+  const firstType = String(order.items?.[0]?.product_type || '').toLowerCase()
+
   return (
     <div>
       <div className="strong">Payment / Income</div>
@@ -391,25 +393,25 @@ function MoneyInfo({ order }) {
       <div className="small">Platform fee: <span className="strong">{formatUsd(order.platform_fee_usd || 0)}</span></div>
       <div className="small">Author income: <span className="strong">{formatUsd(order.author_income_usd || 0)}</span></div>
       <div className="small">Payment: <span className="strong">{statusLabel(order.payment_status || '-')}</span></div>
+
+      {firstType === 'pdf' ? (
+        <>
+          <div className="small">PDF access: <span className="strong">{statusLabel(order.pdf_unlock_status || 'pending')}</span></div>
+          <div className="small">Unlocked count: <span className="strong">{order.pdf_unlock_count || 0}</span></div>
+        </>
+      ) : null}
+
+      {firstType === 'book' ? (
+        <>
+          <div className="small">Telegram: <span className="strong">{statusLabel(order.telegram_status || 'pending')}</span></div>
+          {order.telegram_error ? (
+            <div className="small">Telegram error: <span className="strong">{order.telegram_error}</span></div>
+          ) : null}
+        </>
+      ) : null}
     </div>
   )
 }
-
-{String(order.items?.[0]?.product_type || '').toLowerCase() === 'pdf' ? (
-  <>
-    <div className="small">PDF access: <span className="strong">{statusLabel(order.pdf_unlock_status || 'pending')}</span></div>
-    <div className="small">Unlocked count: <span className="strong">{order.pdf_unlock_count || 0}</span></div>
-  </>
-) : null}
-
-{String(order.items?.[0]?.product_type || '').toLowerCase() === 'book' ? (
-  <>
-    <div className="small">Telegram: <span className="strong">{statusLabel(order.telegram_status || 'pending')}</span></div>
-    {order.telegram_error ? (
-      <div className="small">Telegram error: <span className="strong">{order.telegram_error}</span></div>
-    ) : null}
-  </>
-) : null}
 
 export default function AuthorStoreReviewPage() {
   const navigate = useNavigate()
