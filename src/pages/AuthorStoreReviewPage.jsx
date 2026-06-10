@@ -628,6 +628,12 @@ export default function AuthorStoreReviewPage() {
                         </button>
                       ) : null}
 
+                      {orderType === 'book' && ['confirmed', 'preparing', 'shipped', 'completed'].includes(currentStatus) ? (
+  <button type="button" className="action-button prepare" onClick={() => resendTelegram(orderId)}>
+    Resend Telegram
+  </button>
+) : null}
+
                       {orderType === 'book' && ['under_review', 'confirmed'].includes(currentStatus) ? (
                         <button type="button" className="action-button prepare" onClick={() => updateOrderStatus(orderId, 'preparing')}>
                           Mark Preparing
@@ -675,4 +681,32 @@ export default function AuthorStoreReviewPage() {
       </div>
     </AdminLayout>
   )
+}
+
+async function resendTelegram(orderId) {
+  if (!window.confirm('Resend Telegram notification to the author group?')) return
+
+  try {
+    setMessage('')
+
+    const token = getAdminToken()
+    const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/resend-telegram`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
+      },
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Failed to resend Telegram')
+    }
+
+    setMessage(`Telegram notification resent for order ${orderId}.`)
+    fetchOrders(page)
+  } catch (error) {
+    setMessage(error.message || 'Failed to resend Telegram')
+  }
 }
