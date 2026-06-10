@@ -207,6 +207,7 @@ const styles = `
     font-size: 13px;
     font-weight: 900;
     color: #0F172A;
+    word-break: break-word;
   }
 
   .small {
@@ -215,6 +216,7 @@ const styles = `
     font-weight: 700;
     line-height: 1.6;
     margin-top: 4px;
+    word-break: break-word;
   }
 
   .strong {
@@ -274,12 +276,13 @@ const styles = `
   }
 
   .action-button {
-    height: 36px;
+    min-height: 36px;
     border: 0;
     border-radius: 12px;
     font-size: 11px;
     font-weight: 900;
     cursor: pointer;
+    padding: 0 10px;
   }
 
   .confirm { background: #DBEAFE; color: #1D4ED8; }
@@ -342,6 +345,11 @@ function statusLabel(status) {
   return String(status || '').replace(/_/g, ' ')
 }
 
+function getOrderFirstType(order) {
+  const items = Array.isArray(order?.items) ? order.items : []
+  return String(items[0]?.product_type || items[0]?.type || '').toLowerCase()
+}
+
 function BuyerInfo({ buyer }) {
   return (
     <div>
@@ -365,14 +373,14 @@ function ProductsInfo({ items }) {
       <div className="strong">Products</div>
       <div className="book-list" style={{ marginTop: 8 }}>
         {safeItems.map((item, index) => (
-          <div className="book-item" key={`${item.product_id || index}`}>
+          <div className="book-item" key={`${item.product_id || item.id || index}`}>
             <div className="book-cover">
               {item.cover_url ? <img src={item.cover_url} alt={item.title || item.product_title || 'Product'} /> : null}
             </div>
             <div>
               <div className="small"><span className="strong">{item.title || item.product_title || 'Product'}</span></div>
               <div className="small">Qty: {item.quantity || 1} · {formatUsd(item.unit_price_usd || item.unit_price)} each</div>
-              <div className="small">{item.product_type === 'pdf' ? 'PDF' : 'Book'}</div>
+              <div className="small">{String(item.product_type || '').toLowerCase() === 'pdf' ? 'PDF' : 'Book'}</div>
             </div>
           </div>
         ))}
@@ -382,7 +390,7 @@ function ProductsInfo({ items }) {
 }
 
 function MoneyInfo({ order }) {
-  const firstType = String(order.items?.[0]?.product_type || '').toLowerCase()
+  const firstType = getOrderFirstType(order)
 
   return (
     <div>
@@ -463,65 +471,95 @@ export default function AuthorStoreReviewPage() {
     } catch (error) {
       setMessage(error.message || 'Failed to load Author Store orders')
       setOrders([])
+      setMeta({ total: 0, total_pages: 1, has_next: false, has_prev: false })
     } finally {
       setLoading(false)
     }
   }
 
- async function updateOrderStatus(orderId, nextStatus) {
-  let adminNote = ''
+  async function updateOrderStatus(orderId, nextStatus) {
+    let adminNote = ''
 
-  if (nextStatus === 'rejected') {
-    adminNote = window.prompt('Reject reason / Admin note:')
+    if (nextStatus === 'rejected') {
+      adminNote = window.prompt('Reject reason / Admin note:')
 
-    if (adminNote === null) return
+      if (adminNote === null) return
 
-    if (!adminNote.trim()) {
-      setMessage('Reject reason is required.')
-      return
+      if (!adminNote.trim()) {
+        setMessage('Reject reason is required.')
+        return
+      }
+    }
+
+    const confirmText =
+      nextStatus === 'confirmed'
+        ? `Are you sure you checked the money and want to approve this ${orderType === 'pdf' ? 'PDF' : 'book'} order?`
+        : nextStatus === 'rejected'
+          ? 'Reject this order? This will not unlock PDF access or notify the author.'
+          : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
+
+    if (!window.confirm(confirmText)) return
+
+    try {
+      setMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+          admin_note: adminNote.trim() || null,
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to update order')
+      }
+
+      setMessage(`Order ${orderId} updated to ${statusLabel(nextStatus)}.`)
+      fetchOrders(page)
+    } catch (error) {
+      setMessage(error.message || 'Failed to update order')
     }
   }
 
-  const confirmText =
-    nextStatus === 'confirmed'
-      ? `Are you sure you checked the money and want to approve this ${orderType === 'pdf' ? 'PDF' : 'book'} order?`
-      : nextStatus === 'rejected'
-        ? 'Reject this order? This will not unlock PDF access or notify the author.'
-        : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
+  async function resendTelegram(orderId) {
+    if (!window.confirm('Resend Telegram notification to the author group?')) return
 
-  if (!window.confirm(confirmText)) return
+    try {
+      setMessage('')
 
-  try {
-    setMessage('')
+      const token = getAdminToken()
+      const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/resend-telegram`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+      })
 
-    const token = getAdminToken()
-    const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        status: nextStatus,
-        admin_note: adminNote.trim() || null,
-      }),
-    })
+      const data = await response.json().catch(() => ({}))
 
-    const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to resend Telegram')
+      }
 
-    if (!response.ok || data.ok === false) {
-      throw new Error(data.message || 'Failed to update order')
+      setMessage(`Telegram notification resent for order ${orderId}.`)
+      fetchOrders(page)
+    } catch (error) {
+      setMessage(error.message || 'Failed to resend Telegram')
     }
-
-    setMessage(`Order ${orderId} updated to ${statusLabel(nextStatus)}.`)
-    fetchOrders(page)
-  } catch (error) {
-    setMessage(error.message || 'Failed to update order')
   }
-}
 
   useEffect(() => {
     fetchOrders(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, orderType])
 
   return (
@@ -647,9 +685,8 @@ export default function AuthorStoreReviewPage() {
                       <div className="small">Created: <span className="strong">{formatDate(order.created_at)}</span></div>
                       <div className="small">Updated: <span className="strong">{formatDate(order.updated_at)}</span></div>
                       {order.admin_note ? (
-  <div className="small">Admin note: <span className="strong">{order.admin_note}</span></div>
-) : null}
-                      
+                        <div className="small">Admin note: <span className="strong">{order.admin_note}</span></div>
+                      ) : null}
                     </div>
 
                     <BuyerInfo buyer={buyer} />
@@ -662,90 +699,94 @@ export default function AuthorStoreReviewPage() {
                     </div>
 
                     <div className="actions">
-                     {currentStatus === 'under_review' ? (
-  <button
-    type="button"
-    className="action-button confirm"
-    onClick={() => updateOrderStatus(orderId, 'confirmed')}
-  >
-    {orderType === 'pdf' ? 'Approve PDF' : 'Approve Book'}
-  </button>
-) : null}
+                      {currentStatus === 'under_review' ? (
+                        <button
+                          type="button"
+                          className="action-button confirm"
+                          onClick={() => updateOrderStatus(orderId, 'confirmed')}
+                        >
+                          {orderType === 'pdf' ? 'Approve PDF' : 'Approve Book'}
+                        </button>
+                      ) : null}
 
-{currentStatus === 'under_review' ? (
-  <button
-    type="button"
-    className="action-button cancel"
-    onClick={() => updateOrderStatus(orderId, 'rejected')}
-  >
-    Reject
-  </button>
-) : null}
+                      {currentStatus === 'under_review' ? (
+                        <button
+                          type="button"
+                          className="action-button cancel"
+                          onClick={() => updateOrderStatus(orderId, 'rejected')}
+                        >
+                          Reject
+                        </button>
+                      ) : null}
 
-{orderType === 'book' && ['confirmed', 'preparing', 'shipped', 'completed'].includes(currentStatus) ? (
-  <button
-    type="button"
-    className="action-button prepare"
-    onClick={() => resendTelegram(orderId)}
-  >
-    Resend Telegram
-  </button>
-) : null}
+                      {orderType === 'book' && ['confirmed', 'preparing', 'shipped', 'completed'].includes(currentStatus) ? (
+                        <button
+                          type="button"
+                          className="action-button prepare"
+                          onClick={() => resendTelegram(orderId)}
+                        >
+                          Resend Telegram
+                        </button>
+                      ) : null}
 
-{orderType === 'book' && currentStatus === 'confirmed' ? (
-  <button
-    type="button"
-    className="action-button prepare"
-    onClick={() => updateOrderStatus(orderId, 'preparing')}
-  >
-    Mark Preparing
-  </button>
-) : null}
+                      {orderType === 'book' && currentStatus === 'confirmed' ? (
+                        <button
+                          type="button"
+                          className="action-button prepare"
+                          onClick={() => updateOrderStatus(orderId, 'preparing')}
+                        >
+                          Mark Preparing
+                        </button>
+                      ) : null}
 
-{orderType === 'book' && currentStatus === 'preparing' ? (
-  <button
-    type="button"
-    className="action-button ship"
-    onClick={() => updateOrderStatus(orderId, 'shipped')}
-  >
-    Mark Shipped
-  </button>
-) : null}
+                      {orderType === 'book' && currentStatus === 'preparing' ? (
+                        <button
+                          type="button"
+                          className="action-button ship"
+                          onClick={() => updateOrderStatus(orderId, 'shipped')}
+                        >
+                          Mark Shipped
+                        </button>
+                      ) : null}
 
-{orderType === 'book' && currentStatus === 'shipped' ? (
-  <button
-    type="button"
-    className="action-button complete"
-    onClick={() => updateOrderStatus(orderId, 'completed')}
-  >
-    Complete
-  </button>
-) : null}
+                      {orderType === 'book' && currentStatus === 'shipped' ? (
+                        <button
+                          type="button"
+                          className="action-button complete"
+                          onClick={() => updateOrderStatus(orderId, 'completed')}
+                        >
+                          Complete
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="empty">No Author Store orders found.</div>
+            )}
 
-async function resendTelegram(orderId) {
-  if (!window.confirm('Resend Telegram notification to the author group?')) return
-
-  try {
-    setMessage('')
-
-    const token = getAdminToken()
-    const response = await fetch(`${API_URL}/api/author-store/admin/orders/${orderId}/resend-telegram`, {
-      method: 'POST',
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        'Content-Type': 'application/json',
-      },
-    })
-
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok || data.ok === false) {
-      throw new Error(data.message || 'Failed to resend Telegram')
-    }
-
-    setMessage(`Telegram notification resent for order ${orderId}.`)
-    fetchOrders(page)
-  } catch (error) {
-    setMessage(error.message || 'Failed to resend Telegram')
-  }
+            <div className="pager">
+              <button
+                type="button"
+                className="page-button"
+                disabled={!meta.has_prev || loading}
+                onClick={() => fetchOrders(Math.max(page - 1, 1))}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="page-button"
+                disabled={!meta.has_next || loading}
+                onClick={() => fetchOrders(page + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </section>
+        </main>
+      </div>
+    </AdminLayout>
+  )
 }
