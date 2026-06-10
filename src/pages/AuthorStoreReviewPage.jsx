@@ -468,10 +468,11 @@ export default function AuthorStoreReviewPage() {
 
   async function updateOrderStatus(orderId, nextStatus) {
     const confirmText =
-      nextStatus === 'confirmed'
-        ? 'Are you sure you checked the money and want to approve this order?'
-        : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
-
+  nextStatus === 'confirmed'
+    ? `Are you sure you checked the money and want to approve this ${orderType === 'pdf' ? 'PDF' : 'book'} order?`
+    : nextStatus === 'rejected'
+      ? 'Reject this order? This will not unlock PDF access or notify the author.'
+      : `Are you sure you want to mark this order as ${statusLabel(nextStatus)}?`
     if (!window.confirm(confirmText)) return
 
     try {
@@ -638,66 +639,65 @@ export default function AuthorStoreReviewPage() {
                     </div>
 
                     <div className="actions">
-                      {currentStatus === 'under_review' ? (
-                        <button type="button" className="action-button confirm" onClick={() => updateOrderStatus(orderId, 'confirmed')}>
-                          Approve Order
-                        </button>
-                      ) : null}
+                     {currentStatus === 'under_review' ? (
+  <button
+    type="button"
+    className="action-button confirm"
+    onClick={() => updateOrderStatus(orderId, 'confirmed')}
+  >
+    {orderType === 'pdf' ? 'Approve PDF' : 'Approve Book'}
+  </button>
+) : null}
 
-                      {orderType === 'book' && ['confirmed', 'preparing', 'shipped', 'completed'].includes(currentStatus) ? (
-  <button type="button" className="action-button prepare" onClick={() => resendTelegram(orderId)}>
+{currentStatus === 'under_review' ? (
+  <button
+    type="button"
+    className="action-button cancel"
+    onClick={() => updateOrderStatus(orderId, 'rejected')}
+  >
+    Reject
+  </button>
+) : null}
+
+{orderType === 'book' && ['confirmed', 'preparing', 'shipped', 'completed'].includes(currentStatus) ? (
+  <button
+    type="button"
+    className="action-button prepare"
+    onClick={() => resendTelegram(orderId)}
+  >
     Resend Telegram
   </button>
 ) : null}
 
-                      {orderType === 'book' && ['under_review', 'confirmed'].includes(currentStatus) ? (
-                        <button type="button" className="action-button prepare" onClick={() => updateOrderStatus(orderId, 'preparing')}>
-                          Mark Preparing
-                        </button>
-                      ) : null}
+{orderType === 'book' && currentStatus === 'confirmed' ? (
+  <button
+    type="button"
+    className="action-button prepare"
+    onClick={() => updateOrderStatus(orderId, 'preparing')}
+  >
+    Mark Preparing
+  </button>
+) : null}
 
-                      {orderType === 'book' && ['confirmed', 'preparing'].includes(currentStatus) ? (
-                        <button type="button" className="action-button ship" onClick={() => updateOrderStatus(orderId, 'shipped')}>
-                          Mark Shipped
-                        </button>
-                      ) : null}
+{orderType === 'book' && currentStatus === 'preparing' ? (
+  <button
+    type="button"
+    className="action-button ship"
+    onClick={() => updateOrderStatus(orderId, 'shipped')}
+  >
+    Mark Shipped
+  </button>
+) : null}
 
-                      {orderType === 'book' && currentStatus === 'shipped' ? (
-                        <button type="button" className="action-button complete" onClick={() => updateOrderStatus(orderId, 'completed')}>
-                          Complete
-                        </button>
-                      ) : null}
-
-                      {!['completed', 'cancelled', 'rejected'].includes(currentStatus) ? (
-                        <button type="button" className="action-button cancel" onClick={() => updateOrderStatus(orderId, 'cancelled')}>
-                          Cancel
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                )
-              })
-            ) : (
-              <div className="empty">No {orderType === 'pdf' ? 'PDF' : 'Book'} orders found.</div>
-            )}
-
-            <div className="pager">
-              <button className="page-button" disabled={!meta.has_prev} onClick={() => fetchOrders(page - 1)}>
-                Previous
-              </button>
-              <button className="page-button" disabled>
-                Page {page} / {meta.total_pages || 1}
-              </button>
-              <button className="page-button" disabled={!meta.has_next} onClick={() => fetchOrders(page + 1)}>
-                Next
-              </button>
-            </div>
-          </section>
-        </main>
-      </div>
-    </AdminLayout>
-  )
-}
+{orderType === 'book' && currentStatus === 'shipped' ? (
+  <button
+    type="button"
+    className="action-button complete"
+    onClick={() => updateOrderStatus(orderId, 'completed')}
+  >
+    Complete
+  </button>
+) : null}
 
 async function resendTelegram(orderId) {
   if (!window.confirm('Resend Telegram notification to the author group?')) return
