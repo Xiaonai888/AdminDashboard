@@ -214,6 +214,40 @@ const styles = `
     cursor: not-allowed;
   }
 
+
+  .action-stack {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .action-button {
+    height: 36px;
+    border: 0;
+    border-radius: 12px;
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .action-button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+  }
+
+  .approve-button {
+    background: #2563EB;
+  }
+
+  .reject-button {
+    background: #DC2626;
+  }
+
+  .paid-button {
+    background: #16A34A;
+  }
+
   @media (max-width: 1100px) {
     .withdraw-row {
       grid-template-columns: 1fr;
@@ -311,6 +345,77 @@ export default function AdminWithdrawalPage() {
   useEffect(() => {
     fetchWithdrawals(1)
   }, [status])
+
+
+  async function updateWithdrawalStatus(withdrawal, nextStatus) {
+    let adminNote = ''
+    let rejectReason = ''
+    let paidTransactionId = ''
+    let paidAmountUsd = ''
+
+    if (nextStatus === 'rejected') {
+      rejectReason = window.prompt('Reject reason:')
+      if (rejectReason === null) return
+
+      if (!rejectReason.trim()) {
+        setMessage('Reject reason is required.')
+        return
+      }
+    }
+
+    if (nextStatus === 'approved') {
+      adminNote = window.prompt('Admin note for approval (optional):') || ''
+    }
+
+    if (nextStatus === 'paid') {
+      paidAmountUsd = window.prompt('Paid amount:', String(withdrawal.amount_usd || ''))
+      if (paidAmountUsd === null) return
+
+      paidTransactionId = window.prompt('Transaction ID / Reference number (optional):') || ''
+    }
+
+    const confirmText =
+      nextStatus === 'approved'
+        ? 'Approve this withdrawal request?'
+        : nextStatus === 'rejected'
+          ? 'Reject this withdrawal request?'
+          : nextStatus === 'paid'
+            ? 'Mark this withdrawal as paid? Make sure you already sent the money.'
+            : `Update withdrawal to ${nextStatus}?`
+
+    if (!window.confirm(confirmText)) return
+
+    try {
+      setMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${withdrawal.id}/status`, {
+        method: 'PATCH',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+          admin_note: adminNote.trim() || null,
+          reject_reason: rejectReason.trim() || null,
+          paid_amount_usd: paidAmountUsd ? Number(paidAmountUsd) : null,
+          paid_transaction_id: paidTransactionId.trim() || null,
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to update withdrawal request')
+      }
+
+      setMessage(data.message || 'Withdrawal updated')
+      fetchWithdrawals(page)
+    } catch (error) {
+      setMessage(error.message || 'Failed to update withdrawal request')
+    }
+  }
 
   return (
     <AdminLayout>
@@ -412,6 +517,35 @@ export default function AdminWithdrawalPage() {
                       <div className="small">Paid at: <span className="strong">{formatDate(withdrawal.paid_at)}</span></div>
                       <div className="small">Admin note: <span className="strong">{withdrawal.admin_note || '-'}</span></div>
                       <div className="small">Reject reason: <span className="strong">{withdrawal.reject_reason || '-'}</span></div>
+
+                      <div className="action-stack">
+                        <button
+                          className="action-button approve-button"
+                          type="button"
+                          disabled={!['in_review'].includes(withdrawal.status)}
+                          onClick={() => updateWithdrawalStatus(withdrawal, 'approved')}
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          className="action-button reject-button"
+                          type="button"
+                          disabled={!['in_review', 'approved'].includes(withdrawal.status)}
+                          onClick={() => updateWithdrawalStatus(withdrawal, 'rejected')}
+                        >
+                          Reject
+                        </button>
+
+                        <button
+                          className="action-button paid-button"
+                          type="button"
+                          disabled={!['in_review', 'approved'].includes(withdrawal.status)}
+                          onClick={() => updateWithdrawalStatus(withdrawal, 'paid')}
+                        >
+                          Mark Paid
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )
