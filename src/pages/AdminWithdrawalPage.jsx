@@ -352,6 +352,7 @@ export default function AdminWithdrawalPage() {
     let rejectReason = ''
     let paidTransactionId = ''
     let paidAmountUsd = ''
+    let paidProofUrl = ''
 
     if (nextStatus === 'rejected') {
       rejectReason = window.prompt('Reject reason:')
@@ -368,12 +369,19 @@ export default function AdminWithdrawalPage() {
     }
 
     if (nextStatus === 'paid') {
-      paidAmountUsd = window.prompt('Paid amount:', String(withdrawal.amount_usd || ''))
-      if (paidAmountUsd === null) return
+  paidAmountUsd = window.prompt('Paid amount:', String(withdrawal.amount_usd || ''))
+  if (paidAmountUsd === null) return
 
-      paidTransactionId = window.prompt('Transaction ID / Reference number (optional):') || ''
-    }
+  paidTransactionId = window.prompt('Transaction ID / Reference number (optional):') || ''
 
+  paidProofUrl = window.prompt('Payment proof screenshot URL:')
+  if (paidProofUrl === null) return
+
+  if (!paidProofUrl.trim()) {
+    setMessage('Payment proof screenshot URL is required.')
+    return
+  }
+}
     const confirmText =
       nextStatus === 'approved'
         ? 'Approve this withdrawal request?'
@@ -401,6 +409,8 @@ export default function AdminWithdrawalPage() {
           reject_reason: rejectReason.trim() || null,
           paid_amount_usd: paidAmountUsd ? Number(paidAmountUsd) : null,
           paid_transaction_id: paidTransactionId.trim() || null,
+          paid_proof_url: paidProofUrl.trim() || null,
+paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop() : null,
         }),
       })
 
