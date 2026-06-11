@@ -26,7 +26,7 @@ import AdminAdvertisementPage from './pages/AdminAdvertisementPage';
 import AdminNotificationsPage from './pages/AdminNotificationsPage';
 import AdminReaderMailsPage from './pages/AdminReaderMailsPage';
 import AdminBlockListPage from './pages/AdminBlockListPage';
-
+import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 
 function ComingSoon({ title }) {
   return (
@@ -88,7 +88,7 @@ export default function App() {
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
-        <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
+        <Route path="/withdraw" element={<ProtectedPage><AdminWithdrawalPage /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><AdminRankingPage /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<AdminActivityLogsPage />} />
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
