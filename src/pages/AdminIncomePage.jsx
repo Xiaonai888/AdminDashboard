@@ -1,137 +1,196 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
-  body {
-    margin: 0;
-    background: #F8FAFC;
-    color: #0F172A;
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  }
-
   .income-page {
     min-height: 100vh;
     background: #F8FAFC;
   }
 
-  .income-body {
-    padding: 26px;
-    max-width: 1380px;
-    margin: 0 auto;
+  .income-wrap {
+    display: grid;
+    gap: 18px;
   }
 
-  .income-top {
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 24px;
-    padding: 20px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
-    margin-bottom: 16px;
+  .income-hero {
+    background: linear-gradient(135deg, #111827, #312E81);
+    color: #FFFFFF;
+    border-radius: 28px;
+    padding: 24px;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+  }
+
+  .income-hero-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
   }
 
   .income-kicker {
-    color: #4F46E5;
-    background: #EEF2FF;
-    border-radius: 999px;
-    padding: 7px 11px;
     display: inline-flex;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 7px 11px;
     font-size: 11px;
-    font-weight: 900;
-    margin-bottom: 10px;
+    font-weight: 950;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
   }
 
-  .income-heading {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: -0.04em;
+  .income-title {
     margin: 0;
+    font-size: 32px;
+    font-weight: 950;
+    letter-spacing: -0.05em;
   }
 
-  .income-note {
-    color: #64748B;
+  .income-subtitle {
+    color: rgba(255, 255, 255, 0.72);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
+    line-height: 1.7;
     margin-top: 8px;
-    line-height: 1.6;
+    max-width: 720px;
   }
 
-  .income-toolbar {
-    margin-top: 18px;
+  .income-filter {
     display: grid;
-    grid-template-columns: 190px 190px 120px;
+    grid-template-columns: 160px 160px 110px;
     gap: 10px;
+    align-items: center;
   }
 
   .income-input {
     height: 42px;
-    border: 1px solid #E2E8F0;
+    border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 14px;
-    background: #FFFFFF;
-    color: #0F172A;
+    background: rgba(255, 255, 255, 0.1);
+    color: #FFFFFF;
     padding: 0 12px;
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 900;
     outline: none;
   }
 
+  .income-input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
   .income-button {
+    height: 42px;
     border: 0;
     border-radius: 14px;
-    background: #4F46E5;
-    color: #FFFFFF;
+    background: #FFFFFF;
+    color: #312E81;
     font-size: 13px;
-    font-weight: 900;
+    font-weight: 950;
     cursor: pointer;
   }
 
-  .income-grid {
+  .income-rule-strip {
+    margin-top: 20px;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  .income-card {
+  .income-rule {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .income-rule-label {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .income-rule-value {
+    margin-top: 4px;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .income-main-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  .income-main-card {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
-    border-radius: 22px;
-    padding: 18px;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+    border-radius: 26px;
+    padding: 22px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+  }
+
+  .income-main-card.primary {
+    border-color: #C7D2FE;
+    background: linear-gradient(180deg, #FFFFFF, #F8FAFF);
   }
 
   .income-card-label {
     color: #64748B;
     font-size: 12px;
-    font-weight: 900;
-    text-transform: uppercase;
+    font-weight: 950;
     letter-spacing: .04em;
+    text-transform: uppercase;
   }
 
   .income-card-value {
     color: #0F172A;
-    font-size: 28px;
+    font-size: 34px;
+    font-weight: 950;
+    letter-spacing: -0.05em;
+    margin-top: 10px;
+  }
+
+  .income-card-sub {
+    color: #64748B;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+
+  .income-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .income-mini-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 22px;
+    padding: 16px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.035);
+  }
+
+  .income-mini-value {
+    color: #0F172A;
+    font-size: 22px;
     font-weight: 950;
     letter-spacing: -0.04em;
     margin-top: 8px;
   }
 
-  .income-card-sub {
-    color: #94A3B8;
-    font-size: 12px;
-    font-weight: 800;
-    margin-top: 8px;
-    line-height: 1.5;
-  }
-
   .income-panel {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
-    border-radius: 24px;
+    border-radius: 26px;
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
     overflow: hidden;
-    margin-bottom: 16px;
   }
 
   .income-panel-head {
@@ -145,7 +204,8 @@ const styles = `
 
   .income-panel-title {
     font-size: 16px;
-    font-weight: 900;
+    font-weight: 950;
+    color: #0F172A;
   }
 
   .income-pill {
@@ -154,37 +214,53 @@ const styles = `
     color: #4F46E5;
     padding: 7px 11px;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 950;
   }
 
   .income-message {
-    margin: 14px 20px 0;
-    border-radius: 14px;
-    padding: 12px 14px;
+    border-radius: 16px;
+    padding: 13px 14px;
     background: #FEF3C7;
     color: #92400E;
     font-size: 12px;
-    font-weight: 800;
-  }
-
-  .income-empty {
-    padding: 44px 20px;
-    text-align: center;
-    color: #94A3B8;
-    font-size: 13px;
     font-weight: 900;
   }
 
-  .income-source-row {
-    padding: 18px 20px;
-    border-bottom: 1px solid #F1F5F9;
-    display: grid;
-    grid-template-columns: 1.2fr repeat(4, 1fr);
-    gap: 14px;
-    align-items: center;
+  .income-empty {
+    padding: 46px 20px;
+    text-align: center;
+    color: #94A3B8;
+    font-size: 13px;
+    font-weight: 950;
   }
 
-  .income-source-row:last-child {
+  .income-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .income-table th {
+    background: #F8FAFC;
+    color: #64748B;
+    font-size: 11px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 13px 20px;
+    text-align: left;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .income-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #F1F5F9;
+    color: #0F172A;
+    font-size: 13px;
+    font-weight: 850;
+    vertical-align: top;
+  }
+
+  .income-table tr:last-child td {
     border-bottom: 0;
   }
 
@@ -197,39 +273,78 @@ const styles = `
   .income-small {
     color: #64748B;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 750;
     line-height: 1.6;
     margin-top: 4px;
   }
 
-  .income-strong {
-    font-weight: 900;
-    color: #0F172A;
-  }
-
-  .income-amount {
-    font-size: 18px;
+  .income-money {
+    font-size: 15px;
     font-weight: 950;
     color: #0F172A;
   }
 
-  @media (max-width: 1100px) {
-    .income-grid {
+  .income-withdraw-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) 170px;
+    gap: 12px;
+    padding: 18px 20px;
+    align-items: center;
+  }
+
+  .income-withdraw-item {
+    border-radius: 18px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 13px;
+  }
+
+  .income-withdraw-action {
+    height: 44px;
+    border: 0;
+    border-radius: 15px;
+    background: #4F46E5;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+
+  @media (max-width: 1180px) {
+    .income-hero-top {
+      display: grid;
+    }
+
+    .income-main-grid,
+    .income-mini-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .income-toolbar {
-      grid-template-columns: 1fr;
+    .income-rule-strip,
+    .income-withdraw-grid {
+      grid-template-columns: 1fr 1fr;
     }
 
-    .income-source-row {
-      grid-template-columns: 1fr;
+    .income-filter {
+      grid-template-columns: 1fr 1fr 110px;
     }
   }
 
-  @media (max-width: 620px) {
-    .income-grid {
+  @media (max-width: 760px) {
+    .income-main-grid,
+    .income-mini-grid,
+    .income-rule-strip,
+    .income-withdraw-grid,
+    .income-filter {
       grid-template-columns: 1fr;
+    }
+
+    .income-table {
+      min-width: 760px;
+    }
+
+    .income-panel {
+      overflow-x: auto;
     }
   }
 `
@@ -259,7 +374,12 @@ function getMonthStartInputValue() {
   return new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)).toISOString().slice(0, 10)
 }
 
+function findSource(sources, name) {
+  return (sources || []).find((source) => source.source === name) || {}
+}
+
 export default function AdminIncomePage() {
+  const navigate = useNavigate()
   const [from, setFrom] = useState(getMonthStartInputValue())
   const [to, setTo] = useState(getTodayInputValue())
   const [data, setData] = useState(null)
@@ -269,49 +389,49 @@ export default function AdminIncomePage() {
   const summary = data?.summary || {}
   const sources = data?.sources || []
   const withdrawals = data?.withdrawals || {}
+  const authorStore = findSource(sources, 'author_store')
 
-  const cardItems = useMemo(() => [
+  const mainCards = useMemo(() => [
     {
       label: 'Net Platform Income',
       value: formatUsd(summary.net_platform_income_usd),
-      sub: 'Admin real income',
+      sub: 'Real admin income after current rules',
+      primary: true,
     },
     {
-      label: 'Shadow Mall Income',
+      label: 'Gross Sales',
+      value: formatUsd(summary.gross_sales_usd),
+      sub: `${summary.total_orders || 0} paid records`,
+    },
+    {
+      label: 'Pending Author Payout',
+      value: formatUsd(summary.pending_payout_usd),
+      sub: 'Author money not counted as platform income',
+    },
+  ], [summary])
+
+  const miniCards = useMemo(() => [
+    {
+      label: 'Shadow Mall',
       value: formatUsd(summary.shadow_mall_income_usd),
       sub: `Shipping excluded: ${formatUsd(summary.shipping_fee_excluded_usd)}`,
     },
     {
       label: 'Author Page 10%',
       value: formatUsd(summary.author_store_income_usd),
-      sub: 'Books/PDF platform fee',
-    },
-    {
-      label: 'Gross Sales',
-      value: formatUsd(summary.gross_sales_usd),
-      sub: `${summary.total_orders || 0} paid orders/unlocks`,
-    },
-    {
-      label: 'Author Earnings',
-      value: formatUsd(summary.author_earnings_usd),
-      sub: 'Episode + Author Page earnings',
-    },
-    {
-      label: 'Pending Payout',
-      value: formatUsd(summary.pending_payout_usd),
-      sub: 'Money owed to authors',
-    },
-    {
-      label: 'Episode Platform Income',
-      value: formatUsd(summary.episode_platform_income_usd),
-      sub: 'Should be $0 with current rule',
+      sub: `${authorStore.order_count || 0} paid records`,
     },
     {
       label: 'Episode Author Payout',
       value: formatUsd(summary.episode_author_payout_usd),
       sub: 'Author gets 100%',
     },
-  ], [summary])
+    {
+      label: 'Episode Platform Income',
+      value: formatUsd(summary.episode_platform_income_usd),
+      sub: 'Should stay $0',
+    },
+  ], [summary, authorStore.order_count])
 
   async function fetchIncome() {
     try {
@@ -350,36 +470,43 @@ export default function AdminIncomePage() {
   }, [])
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Income" subtitle="Finance & Growth">
       <style>{styles}</style>
 
       <div className="income-page">
-        <div className="income-body">
-          <div className="income-top">
-            <div className="income-kicker">ADMIN INCOME</div>
-            <h1 className="income-heading">Income Overview</h1>
-            <div className="income-note">
-              Track real platform income, author earnings, pending payouts, and Shadow Mall sales without counting shipping as profit.
+        <div className="income-wrap">
+          <section className="income-hero">
+            <div className="income-hero-top">
+              <div>
+                <div className="income-kicker">Professional Finance View</div>
+                <h1 className="income-title">Income Overview</h1>
+                <div className="income-subtitle">
+                  Focus on real platform income first. Author earnings and shipping fees are shown separately so they do not inflate admin profit.
+                </div>
+              </div>
+
+              <div className="income-filter">
+                <input className="income-input" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+                <input className="income-input" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+                <button className="income-button" type="button" onClick={fetchIncome}>Refresh</button>
+              </div>
             </div>
 
-            <div className="income-toolbar">
-              <input
-                className="income-input"
-                type="date"
-                value={from}
-                onChange={(event) => setFrom(event.target.value)}
-              />
-              <input
-                className="income-input"
-                type="date"
-                value={to}
-                onChange={(event) => setTo(event.target.value)}
-              />
-              <button className="income-button" type="button" onClick={fetchIncome}>
-                Refresh
-              </button>
+            <div className="income-rule-strip">
+              <div className="income-rule">
+                <div className="income-rule-label">Episode Sales</div>
+                <div className="income-rule-value">Author 100% · Platform $0</div>
+              </div>
+              <div className="income-rule">
+                <div className="income-rule-label">Author Page</div>
+                <div className="income-rule-value">Platform 10% · Author 90%</div>
+              </div>
+              <div className="income-rule">
+                <div className="income-rule-label">Shadow Mall</div>
+                <div className="income-rule-value">Admin 100% · Shipping excluded</div>
+              </div>
             </div>
-          </div>
+          </section>
 
           {message ? <div className="income-message">{message}</div> : null}
 
@@ -389,81 +516,99 @@ export default function AdminIncomePage() {
             </div>
           ) : (
             <>
-              <div className="income-grid">
-                {cardItems.map((item) => (
-                  <div className="income-card" key={item.label}>
-                    <div className="income-card-label">{item.label}</div>
-                    <div className="income-card-value">{item.value}</div>
-                    <div className="income-card-sub">{item.sub}</div>
+              <section className="income-main-grid">
+                {mainCards.map((card) => (
+                  <div className={`income-main-card ${card.primary ? 'primary' : ''}`} key={card.label}>
+                    <div className="income-card-label">{card.label}</div>
+                    <div className="income-card-value">{card.value}</div>
+                    <div className="income-card-sub">{card.sub}</div>
                   </div>
                 ))}
-              </div>
+              </section>
 
-              <div className="income-panel">
+              <section className="income-mini-grid">
+                {miniCards.map((card) => (
+                  <div className="income-mini-card" key={card.label}>
+                    <div className="income-card-label">{card.label}</div>
+                    <div className="income-mini-value">{card.value}</div>
+                    <div className="income-card-sub">{card.sub}</div>
+                  </div>
+                ))}
+              </section>
+
+              <section className="income-panel">
                 <div className="income-panel-head">
-                  <div className="income-panel-title">Income by Source</div>
+                  <div className="income-panel-title">Source Breakdown</div>
                   <div className="income-pill">{sources.length} sources</div>
                 </div>
 
                 {sources.length === 0 ? (
-                  <div className="income-empty">No income source data found.</div>
+                  <div className="income-empty">No source data found.</div>
                 ) : (
-                  sources.map((source) => (
-                    <div className="income-source-row" key={source.source}>
-                      <div>
-                        <div className="income-source-name">{sourceName(source.source)}</div>
-                        <div className="income-small">{source.order_count || 0} paid records</div>
-                      </div>
-                      <div>
-                        <div className="income-small">Gross Sales</div>
-                        <div className="income-amount">{formatUsd(source.gross_sales_usd)}</div>
-                      </div>
-                      <div>
-                        <div className="income-small">Platform Income</div>
-                        <div className="income-amount">{formatUsd(source.platform_income_usd)}</div>
-                      </div>
-                      <div>
-                        <div className="income-small">Author/Seller Earnings</div>
-                        <div className="income-amount">{formatUsd(source.author_earnings_usd)}</div>
-                      </div>
-                      <div>
-                        <div className="income-small">Pending Payout</div>
-                        <div className="income-amount">{formatUsd(source.pending_payout_usd)}</div>
-                      </div>
-                    </div>
-                  ))
+                  <table className="income-table">
+                    <thead>
+                      <tr>
+                        <th>Source</th>
+                        <th>Gross</th>
+                        <th>Platform Income</th>
+                        <th>Author Earnings</th>
+                        <th>Pending Payout</th>
+                        <th>Records</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sources.map((source) => (
+                        <tr key={source.source}>
+                          <td>
+                            <div className="income-source-name">{sourceName(source.source)}</div>
+                            <div className="income-small">
+                              {source.source === 'shadow_mall'
+                                ? `Shipping excluded: ${formatUsd(source.shipping_fee_usd)}`
+                                : source.source === 'episode_sales'
+                                  ? 'Author payout only'
+                                  : 'Platform 10% fee'}
+                            </div>
+                          </td>
+                          <td><div className="income-money">{formatUsd(source.gross_sales_usd)}</div></td>
+                          <td><div className="income-money">{formatUsd(source.platform_income_usd)}</div></td>
+                          <td><div className="income-money">{formatUsd(source.author_earnings_usd)}</div></td>
+                          <td><div className="income-money">{formatUsd(source.pending_payout_usd)}</div></td>
+                          <td><div className="income-money">{source.order_count || 0}</div></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
-              </div>
+              </section>
 
-              <div className="income-panel">
+              <section className="income-panel">
                 <div className="income-panel-head">
-                  <div className="income-panel-title">Author Page Withdraw Status</div>
+                  <div className="income-panel-title">Withdraw Snapshot</div>
                   <div className="income-pill">{withdrawals.request_count || 0} requests</div>
                 </div>
 
-                <div className="income-source-row">
-                  <div>
-                    <div className="income-source-name">Withdraw Requests</div>
-                    <div className="income-small">Only Author Page Book/PDF withdraws</div>
+                <div className="income-withdraw-grid">
+                  <div className="income-withdraw-item">
+                    <div className="income-card-label">In Review</div>
+                    <div className="income-mini-value">{formatUsd(withdrawals.in_review_usd)}</div>
                   </div>
-                  <div>
-                    <div className="income-small">In Review</div>
-                    <div className="income-amount">{formatUsd(withdrawals.in_review_usd)}</div>
+                  <div className="income-withdraw-item">
+                    <div className="income-card-label">Approved</div>
+                    <div className="income-mini-value">{formatUsd(withdrawals.approved_usd)}</div>
                   </div>
-                  <div>
-                    <div className="income-small">Approved</div>
-                    <div className="income-amount">{formatUsd(withdrawals.approved_usd)}</div>
+                  <div className="income-withdraw-item">
+                    <div className="income-card-label">Paid</div>
+                    <div className="income-mini-value">{formatUsd(withdrawals.paid_usd)}</div>
                   </div>
-                  <div>
-                    <div className="income-small">Paid</div>
-                    <div className="income-amount">{formatUsd(withdrawals.paid_usd)}</div>
+                  <div className="income-withdraw-item">
+                    <div className="income-card-label">Rejected</div>
+                    <div className="income-mini-value">{formatUsd(withdrawals.rejected_usd)}</div>
                   </div>
-                  <div>
-                    <div className="income-small">Rejected</div>
-                    <div className="income-amount">{formatUsd(withdrawals.rejected_usd)}</div>
-                  </div>
+                  <button className="income-withdraw-action" type="button" onClick={() => navigate('/withdraw')}>
+                    Open Withdraw
+                  </button>
                 </div>
-              </div>
+              </section>
             </>
           )}
         </div>
