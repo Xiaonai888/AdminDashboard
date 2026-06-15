@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -321,6 +322,18 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
 }
 
 export default function AdminStoriesPage() {
+  const navigate = useNavigate()
+
+  function handleExpiredAdminToken(response, data) {
+    if (response.status !== 401) return false
+    sessionStorage.removeItem('shadow_admin_token')
+    localStorage.removeItem('shadow_admin_token')
+    sessionStorage.removeItem('shadow_admin_user')
+    localStorage.removeItem('shadow_admin_user')
+    navigate('/login', { replace: true })
+    return true
+  }
+
   const [activeTab, setActiveTab] = useState('active')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -360,7 +373,8 @@ export default function AdminStoriesPage() {
         const token = getAdminToken()
         const response = await fetch(`${API_URL}/api/admin/stories/overview`, { headers: { Authorization: `Bearer ${token}` } })
         const data = await response.json().catch(() => ({}))
-        if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load overview')
+        if (handleExpiredAdminToken(response, data)) return
+if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load overview')
         if (!alive) return
         setSummary(data.summary || {})
       } catch (err) {
@@ -398,7 +412,8 @@ export default function AdminStoriesPage() {
 
         const response = await fetch(`${API_URL}/api/admin/stories?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
         const data = await response.json().catch(() => ({}))
-        if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load stories')
+        if (handleExpiredAdminToken(response, data)) return
+if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load stories')
         if (!alive) return
 
         setStories(data.stories || [])
@@ -435,7 +450,8 @@ export default function AdminStoriesPage() {
         const token = getAdminToken()
         const response = await fetch(`${API_URL}/api/admin/stories/${selectedStory.id}`, { headers: { Authorization: `Bearer ${token}` } })
         const data = await response.json().catch(() => ({}))
-        if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load story details')
+        if (handleExpiredAdminToken(response, data)) return
+if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load story details')
         if (!alive) return
         setDetails(data)
       } catch (err) {
@@ -505,7 +521,8 @@ export default function AdminStoriesPage() {
         body: JSON.stringify(body),
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to save moderation action')
+      if (handleExpiredAdminToken(response, data)) return
+if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to save moderation action')
 
       closeAction()
       setRefreshKey((value) => value + 1)
