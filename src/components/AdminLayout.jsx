@@ -287,10 +287,12 @@ const navGroups = [
         label: 'Shadow Mall',
         icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6',
         children: [
-          { path: '/shadow-mall', label: 'Products' },
-          { path: '/shadow-mall/orders', label: 'Review Orders' },
-          { path: '/shadow-mall/publishers', label: 'Publishers' },
-        ],
+  { path: '/shadow-mall', label: 'Products' },
+  { path: '/shadow-mall/orders', label: 'Review Orders' },
+  { path: '/author-store/review', label: 'Author Orders' },
+  { path: '/author-stores', label: 'Author Stores' },
+  { path: '/shadow-mall/publishers', label: 'Publishers' },
+],
       },
       {
   path: '/shadow-exclusive',
