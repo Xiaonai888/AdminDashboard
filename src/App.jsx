@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+
 import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
 import BannerSystem from './pages/BannerSystem';
@@ -28,6 +29,7 @@ import AdminReaderMailsPage from './pages/AdminReaderMailsPage';
 import AdminBlockListPage from './pages/AdminBlockListPage';
 import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 import AdminIncomePage from './pages/AdminIncomePage';
+import AuthorStoresPage from './pages/AuthorStoresPage';
 
 function ComingSoon({ title }) {
   return (
@@ -102,6 +104,7 @@ export default function App() {
         <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
+        <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
         
         
 
