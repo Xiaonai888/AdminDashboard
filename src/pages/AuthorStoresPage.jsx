@@ -588,7 +588,13 @@ export default function AuthorStoresPage() {
         throw new Error(data.message || 'Failed to load author stores')
       }
 
-      setStores(Array.isArray(data.stores) ? data.stores : [])
+      const sortedStores = (Array.isArray(data.stores) ? data.stores : []).sort((a, b) => {
+  const productDiff = Number(b.total_products || 0) - Number(a.total_products || 0)
+  if (productDiff !== 0) return productDiff
+  return Number(b.gross_sales_usd || 0) - Number(a.gross_sales_usd || 0)
+})
+
+setStores(sortedStores)
       setPage(Number(data.page || nextPage))
       setMeta({
         total: Number(data.total || 0),
