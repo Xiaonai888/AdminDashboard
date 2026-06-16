@@ -332,11 +332,14 @@ export default function AuthorsCommunity() {
     setSelectedItem(null)
   }
 
-  useEffect(() => {
+    useEffect(() => {
+    let refreshCount = 0
     const timer = window.setInterval(() => {
+      if (document.hidden) return
+      refreshCount += 1
       setRefreshKey((current) => current + 1)
-    }, 30000)
-
+      if (refreshCount >= 5) window.clearInterval(timer)
+    }, 600000)
     return () => window.clearInterval(timer)
   }, [])
 
