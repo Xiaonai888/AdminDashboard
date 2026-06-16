@@ -440,21 +440,6 @@ export default function AdminLayout({
               {subtitle ? <div className="shadow-admin-page-subtitle">{subtitle}</div> : null}
             </div>
 
-           <div className="shadow-admin-topbar-actions">
-  <button
-    type="button"
-    className="shadow-admin-topbar-icon"
-    onClick={() => navigate('/reader-mails')}
-    title="Reader Mail"
-  >
-    <Icon d="M4 4h16v16H4z M4 7l8 6 8-6" size={18} />
-    {adminMailReplyCount > 0 ? (
-      <span className="shadow-admin-topbar-badge">
-        {adminMailReplyCount > 99 ? '99+' : adminMailReplyCount}
-      </span>
-    ) : null}
-  </button>
-</div>
           </header>
 
           <main className="shadow-admin-content">{children}</main>
