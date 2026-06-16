@@ -272,6 +272,13 @@ export default function AuthorsCommunity() {
   useEffect(() => {
     let alive = true
 
+    if (activeTab === 'visitors') {
+      setListLoading(false)
+      return () => {
+        alive = false
+      }
+    }
+
     async function loadList() {
       try {
         setListLoading(true)
@@ -332,7 +339,7 @@ export default function AuthorsCommunity() {
     setSelectedItem(null)
   }
 
-    useEffect(() => {
+  useEffect(() => {
     let refreshCount = 0
     const timer = window.setInterval(() => {
       if (document.hidden) return
@@ -375,7 +382,7 @@ export default function AuthorsCommunity() {
       { label: 'Reader Authors', value: authorReaders },
       { label: 'Active Readers', value: activeReaders },
     ]
-  }, [readers, filteredReaders.length])
+  }, [readers, filteredReaders.length, pagination.total])
 
   const authorQuickStats = useMemo(() => {
     const withBooks = authors.filter((author) => Number(author.books_count || 0) > 0).length
@@ -388,7 +395,7 @@ export default function AuthorsCommunity() {
       { label: 'No Books', value: noBooks },
       { label: 'Active Authors', value: activeAuthors },
     ]
-  }, [authors, filteredAuthors.length])
+  }, [authors, filteredAuthors.length, pagination.total])
 
   const quickStats = activeTab === 'authors' ? authorQuickStats : readerQuickStats
 
@@ -427,23 +434,32 @@ export default function AuthorsCommunity() {
     ? 'Search author name, username, or email...'
     : 'Search reader name, username, or email...'
 
-  const currentTotal = activeTab === 'authors' ? summary.total_authors : summary.total_readers
+  const currentTotal = activeTab === 'visitors'
+    ? 0
+    : activeTab === 'authors'
+      ? summary.total_authors
+      : summary.total_readers
+  const currentTotalLabel = activeTab === 'visitors'
+    ? 'Visitors shown'
+    : activeTab === 'authors'
+      ? 'Authors shown'
+      : 'Readers shown'
   const selectedType = activeTab === 'authors' ? 'author' : 'reader'
 
   return (
-    <AdminLayout title="Community" subtitle="View readers and authors in one place.">
+    <AdminLayout title="Community" subtitle="View readers, authors, and visitors in one place.">
       <style>{styles}</style>
 
       <div className="community-page">
         <section className="community-hero">
           <div>
             <div className="community-kicker">Community Overview</div>
-            <h2>Readers and authors</h2>
-            <p>Track your user base, author accounts, and community growth from one clean admin page.</p>
+            <h2>Readers, authors and visitors</h2>
+            <p>Track registered users, author accounts, and visitor activity from one clean admin page.</p>
           </div>
           <div className="community-hero-pill">
             <span>{formatNumber(currentTotal)}</span>
-            <small>{activeTab === 'authors' ? 'Authors shown' : 'Readers shown'}</small>
+            <small>{currentTotalLabel}</small>
           </div>
         </section>
 
@@ -465,43 +481,58 @@ export default function AuthorsCommunity() {
             <div className="community-tabs" role="tablist">
               <button type="button" className={activeTab === 'readers' ? 'active' : ''} onClick={() => switchTab('readers')}>Reader</button>
               <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => switchTab('authors')}>Author</button>
+              <button type="button" className={activeTab === 'visitors' ? 'active' : ''} onClick={() => switchTab('visitors')}>Visitor</button>
             </div>
 
-            <div className="community-search-wrap">
-              <span>⌕</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
-            </div>
-          </div>
-
-          <div className="community-filter-row">
-            {currentFilters.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={filter === item.key ? 'active' : ''}
-                onClick={() => {
-                  setFilter(item.key)
-                  setPage(1)
-                  setSelectedItem(null)
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="community-quick-stats">
-            {quickStats.map((stat) => (
-              <div className="community-quick-stat" key={stat.label}>
-                <span>{stat.label}</span>
-                <strong>{formatNumber(stat.value)}</strong>
+            {activeTab !== 'visitors' ? (
+              <div className="community-search-wrap">
+                <span>⌕</span>
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
               </div>
-            ))}
+            ) : null}
           </div>
+
+          {activeTab !== 'visitors' ? (
+            <div className="community-filter-row">
+              {currentFilters.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={filter === item.key ? 'active' : ''}
+                  onClick={() => {
+                    setFilter(item.key)
+                    setPage(1)
+                    setSelectedItem(null)
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {activeTab !== 'visitors' ? (
+            <div className="community-quick-stats">
+              {quickStats.map((stat) => (
+                <div className="community-quick-stat" key={stat.label}>
+                  <span>{stat.label}</span>
+                  <strong>{formatNumber(stat.value)}</strong>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {error ? <div className="community-alert">{error}</div> : null}
 
-          {activeTab === 'readers' ? (
+          {activeTab === 'visitors' ? (
+            <div className="community-empty-state">
+              <div className="community-empty-icon">◎</div>
+              <div className="community-empty-title">Visitor analytics</div>
+              <div className="community-empty-text">
+                Visitor tracking will appear here after the tracking API is connected.
+              </div>
+            </div>
+          ) : activeTab === 'readers' ? (
             <div className="community-table-wrap">
               <table className="community-table">
                 <thead>
@@ -587,11 +618,13 @@ export default function AuthorsCommunity() {
             </div>
           )}
 
-          <div className="community-pagination">
-            <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
-            <span>Page {pagination.page} of {pagination.total_pages}</span>
-            <button type="button" disabled={!pagination.has_next || listLoading} onClick={() => setPage((current) => current + 1)}>Next</button>
-          </div>
+          {activeTab !== 'visitors' ? (
+            <div className="community-pagination">
+              <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+              <span>Page {pagination.page} of {pagination.total_pages}</span>
+              <button type="button" disabled={!pagination.has_next || listLoading} onClick={() => setPage((current) => current + 1)}>Next</button>
+            </div>
+          ) : null}
         </section>
       </div>
 
