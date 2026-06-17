@@ -81,6 +81,43 @@ function VisitorStatusBadge({ visitor }) {
   )
 }
 
+function normalizeRiskLevel(value) {
+  const risk = String(value || 'normal').toLowerCase()
+
+  if (risk === 'low_risk') return 'Low Risk'
+  if (risk === 'suspicious') return 'Suspicious'
+  if (risk === 'likely_bot') return 'Likely Bot'
+  if (risk === 'high_risk') return 'High Risk'
+
+  return 'Normal'
+}
+
+function riskClass(value) {
+  const risk = String(value || 'normal').toLowerCase()
+
+  if (risk === 'low_risk') return 'low-risk'
+  if (risk === 'suspicious') return 'suspicious'
+  if (risk === 'likely_bot') return 'likely-bot'
+  if (risk === 'high_risk') return 'high-risk'
+
+  return 'normal'
+}
+
+function RiskBadge({ value }) {
+  return (
+    <span className={`community-risk-badge ${riskClass(value)}`}>
+      {normalizeRiskLevel(value)}
+    </span>
+  )
+}
+
+function BotScoreBadge({ value }) {
+  const score = Math.max(0, Math.min(100, Number(value || 0)))
+  const tone = score >= 85 ? 'high' : score >= 70 ? 'likely' : score >= 50 ? 'suspicious' : score >= 30 ? 'low' : 'normal'
+
+  return <span className={`community-score-badge ${tone}`}>{score}/100</span>
+}
+
 function Avatar({ name, username, email, avatarUrl, type, size = 'normal' }) {
   const [failed, setFailed] = useState(false)
   const showImage = avatarUrl && !failed
@@ -253,6 +290,8 @@ function VisitorDetailDrawer({ visitor, onClose }) {
             </div>
             <div className="community-drawer-badges">
               <VisitorStatusBadge visitor={visitor} />
+              <RiskBadge value={visitor.risk_level} />
+              <BotScoreBadge value={visitor.bot_score} />
               {visitor.country_code ? <span className="community-country-badge">{visitor.country_code}</span> : null}
             </div>
           </div>
@@ -272,12 +311,37 @@ function VisitorDetailDrawer({ visitor, onClose }) {
           <DetailItem label="Operating System" value={visitor.operating_system} />
           <DetailItem label="Country" value={visitor.country_code} />
           <DetailItem label="Page Views" value={formatNumber(visitor.page_views)} />
+          <DetailItem label="Bot Score" value={`${Number(visitor.bot_score || 0)}/100`} />
+          <DetailItem label="Risk Level" value={normalizeRiskLevel(visitor.risk_level)} />
+          <DetailItem label="Event Count" value={formatNumber(visitor.event_count)} />
+          <DetailItem label="Rapid Repeats" value={formatNumber(visitor.rapid_repeat_count)} />
+          <DetailItem label="WebDriver Detected" value={visitor.webdriver_detected ? 'Yes' : 'No'} />
+          <DetailItem label="Last Risk Event" value={formatDateTime(visitor.last_event_at)} />
           <DetailItem label="First Path" value={visitor.first_path} />
           <DetailItem label="Last Path" value={visitor.last_path} />
           <DetailItem label="Referrer" value={visitor.referrer} />
           <DetailItem label="First Seen" value={formatDateTime(visitor.first_seen_at)} />
           <DetailItem label="Last Seen" value={formatDateTime(visitor.last_seen_at)} />
           <DetailItem label="Bot Reason" value={visitor.bot_reason} />
+        </div>
+
+        <div className="community-signal-box">
+          <div className="community-id-label">Bot Signals</div>
+          {Array.isArray(visitor.bot_signals) && visitor.bot_signals.length ? (
+            <div className="community-signal-list">
+              {visitor.bot_signals.map((signal, index) => (
+                <div className="community-signal-item" key={`${signal.code || 'signal'}-${index}`}>
+                  <div>
+                    <strong>{signal.reason || signal.code || 'Risk signal'}</strong>
+                    <span>{signal.code || 'unknown_signal'}</span>
+                  </div>
+                  <b>+{Number(signal.score || 0)}</b>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="community-signal-empty">No bot signals recorded.</div>
+          )}
         </div>
 
         <div className="community-id-box">
@@ -351,6 +415,11 @@ export default function AuthorsCommunity() {
     active_last_10_minutes: 0,
     total_page_views: 0,
     suspected_bots: 0,
+    normal_risk: 0,
+    low_risk: 0,
+    suspicious_risk: 0,
+    likely_bot_risk: 0,
+    high_risk: 0,
   })
   const [readers, setReaders] = useState([])
   const [authors, setAuthors] = useState([])
@@ -570,6 +639,11 @@ export default function AuthorsCommunity() {
     { key: 'all', label: 'All' },
     { key: 'active', label: 'Active 10 Min' },
     { key: 'today', label: 'Today' },
+    { key: 'normal', label: 'Normal' },
+    { key: 'low_risk', label: 'Low Risk' },
+    { key: 'suspicious', label: 'Suspicious' },
+    { key: 'likely_bot', label: 'Likely Bot' },
+    { key: 'high_risk', label: 'High Risk' },
     { key: 'humans', label: 'Humans' },
     { key: 'bots', label: 'Suspected Bots' },
   ]
@@ -609,9 +683,17 @@ export default function AuthorsCommunity() {
 
   const visitorQuickStats = useMemo(() => [
     { label: 'Matched Sessions', value: pagination.total || visitors.length },
-    { label: 'Unique Visitors', value: visitorSummary.total_unique_visitors },
-    { label: 'Total Page Views', value: visitorSummary.total_page_views },
-    { label: 'This Month', value: visitorSummary.visitors_this_month },
+    { label: 'Normal Risk', value: visitorSummary.normal_risk },
+    { label: 'Low Risk', value: visitorSummary.low_risk },
+    {
+      label: 'Suspicious or Higher',
+      value:
+        Number(visitorSummary.suspicious_risk || 0)
+        + Number(visitorSummary.likely_bot_risk || 0)
+        + Number(visitorSummary.high_risk || 0),
+    },
+    { label: 'Likely Bot', value: visitorSummary.likely_bot_risk },
+    { label: 'High Risk', value: visitorSummary.high_risk },
   ], [pagination.total, visitorSummary, visitors.length])
 
   const quickStats =
@@ -690,7 +772,7 @@ export default function AuthorsCommunity() {
     activeTab === 'authors'
       ? 'Search author name, username, or email...'
       : activeTab === 'visitors'
-        ? 'Search visitor ID, IP, device, browser, country, or CF Ray...'
+        ? 'Search visitor ID, IP, device, browser, country, risk, or CF Ray...'
         : 'Search reader name, username, or email...'
 
   const currentTotal =
@@ -793,6 +875,8 @@ export default function AuthorsCommunity() {
                     <th>Device</th>
                     <th>Country</th>
                     <th>Views</th>
+                    <th>Bot Score</th>
+                    <th>Risk</th>
                     <th>Last Seen</th>
                     <th>Status</th>
                     <th>Action</th>
@@ -800,7 +884,7 @@ export default function AuthorsCommunity() {
                 </thead>
                 <tbody>
                   {listLoading ? (
-                    <LoadingRows columns={8} label="Loading visitors..." />
+                    <LoadingRows columns={10} label="Loading visitors..." />
                   ) : visitors.length ? visitors.map((visitor) => (
                     <tr key={visitor.id} className="community-clickable-row" onClick={() => setSelectedItem(visitor)}>
                       <td>
@@ -818,6 +902,8 @@ export default function AuthorsCommunity() {
                       </td>
                       <td><span className="community-country-badge">{visitor.country_code || '-'}</span></td>
                       <td>{formatNumber(visitor.page_views)}</td>
+                      <td><BotScoreBadge value={visitor.bot_score} /></td>
+                      <td><RiskBadge value={visitor.risk_level} /></td>
                       <td>{formatDateTime(visitor.last_seen_at)}</td>
                       <td><VisitorStatusBadge visitor={visitor} /></td>
                       <td>
@@ -829,7 +915,7 @@ export default function AuthorsCommunity() {
                       </td>
                     </tr>
                   )) : (
-                    <tr><td colSpan="8"><EmptyState type="visitors" /></td></tr>
+                    <tr><td colSpan="10"><EmptyState type="visitors" /></td></tr>
                   )}
                 </tbody>
               </table>
@@ -967,7 +1053,7 @@ const styles = `
   .community-alert { margin: 16px; padding: 13px 15px; border-radius: 15px; background: #FEF2F2; color: #DC2626; font-size: 13px; font-weight: 850; word-break: break-word; }
   .community-table-wrap { width: 100%; overflow-x: auto; }
   .community-table { width: 100%; border-collapse: collapse; min-width: 840px; }
-  .community-table.visitor-table { min-width: 1220px; }
+  .community-table.visitor-table { min-width: 1480px; }
   .community-table th { text-align: left; padding: 13px 16px; background: #F8FAFC; color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #E2E8F0; }
   .community-table td { padding: 15px 16px; border-bottom: 1px solid #EEF2F7; color: #334155; font-size: 13px; font-weight: 800; vertical-align: middle; }
   .community-table tbody tr { transition: background 0.14s ease; }
@@ -983,7 +1069,7 @@ const styles = `
   .community-name { color: #0F172A; font-size: 13px; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
   .community-username { color: #64748B; font-size: 12px; font-weight: 750; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
   .community-email { color: #334155; font-size: 13px; font-weight: 800; }
-  .community-role-badge, .community-status-badge, .community-book-badge, .community-visitor-badge, .community-country-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 950; white-space: nowrap; }
+  .community-role-badge, .community-status-badge, .community-book-badge, .community-visitor-badge, .community-country-badge, .community-risk-badge, .community-score-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 0 10px; border-radius: 999px; font-size: 11px; font-weight: 950; white-space: nowrap; }
   .community-role-badge.reader { background: #EFF6FF; color: #2563EB; }
   .community-role-badge.author { background: #FDF2F8; color: #DB2777; }
   .community-status-badge.active { background: #DCFCE7; color: #16A34A; }
@@ -993,6 +1079,16 @@ const styles = `
   .community-book-badge { background: #EEF2FF; color: #4F46E5; }
   .community-visitor-badge.human { background: #DCFCE7; color: #15803D; }
   .community-visitor-badge.bot { background: #FEE2E2; color: #DC2626; }
+  .community-risk-badge.normal { background: #ECFDF5; color: #047857; }
+  .community-risk-badge.low-risk { background: #EFF6FF; color: #2563EB; }
+  .community-risk-badge.suspicious { background: #FFF7ED; color: #C2410C; }
+  .community-risk-badge.likely-bot { background: #FEF3C7; color: #A16207; }
+  .community-risk-badge.high-risk { background: #FEE2E2; color: #B91C1C; }
+  .community-score-badge.normal { background: #F1F5F9; color: #475569; }
+  .community-score-badge.low { background: #DBEAFE; color: #1D4ED8; }
+  .community-score-badge.suspicious { background: #FFEDD5; color: #C2410C; }
+  .community-score-badge.likely { background: #FEF3C7; color: #A16207; }
+  .community-score-badge.high { background: #FEE2E2; color: #B91C1C; }
   .community-country-badge { background: #F1F5F9; color: #334155; }
   .community-table-actions { display: flex; align-items: center; gap: 8px; }
   .community-table-actions button { height: 30px; border: 1px solid #E2E8F0; border-radius: 10px; background: #FFFFFF; color: #4F46E5; padding: 0 10px; font-size: 11px; font-weight: 950; cursor: pointer; white-space: nowrap; transition: all 0.14s ease; }
@@ -1033,7 +1129,13 @@ const styles = `
   .community-id-box { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px; background: #F8FAFC; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-top: 10px; }
   .community-id-value { color: #0F172A; font-size: 12px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .community-id-box button, .community-user-agent-box button { min-height: 32px; border: 1px solid #D8E2EF; border-radius: 11px; background: #FFFFFF; color: #4F46E5; font-size: 12px; font-weight: 950; padding: 0 12px; cursor: pointer; }
-  .community-user-agent-box { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px; background: #F8FAFC; margin-top: 10px; }
+  .community-user-agent-box, .community-signal-box { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px; background: #F8FAFC; margin-top: 10px; }
+  .community-signal-list { display: flex; flex-direction: column; gap: 8px; }
+  .community-signal-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid #E2E8F0; border-radius: 13px; padding: 10px 11px; background: #FFFFFF; }
+  .community-signal-item strong { display: block; color: #0F172A; font-size: 12px; font-weight: 900; line-height: 1.4; }
+  .community-signal-item span { display: block; color: #94A3B8; font-size: 10px; font-weight: 800; margin-top: 3px; word-break: break-word; }
+  .community-signal-item b { color: #DC2626; font-size: 12px; font-weight: 950; }
+  .community-signal-empty { color: #64748B; font-size: 12px; font-weight: 800; }
   .community-user-agent-value { color: #0F172A; font-size: 12px; font-weight: 800; line-height: 1.55; word-break: break-word; margin-bottom: 10px; }
   @keyframes communitySpin { to { transform: rotate(360deg); } }
   @keyframes communityFade { from { opacity: 0; } to { opacity: 1; } }
