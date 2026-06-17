@@ -406,6 +406,14 @@ export default function AuthorsCommunity() {
   useEffect(() => {
     let alive = true
 
+    if (activeTab !== 'visitors') {
+      setVisitorSummaryLoading(false)
+
+      return () => {
+        alive = false
+      }
+    }
+
     async function loadVisitorSummary() {
       try {
         setVisitorSummaryLoading(true)
@@ -432,7 +440,7 @@ export default function AuthorsCommunity() {
     return () => {
       alive = false
     }
-  }, [refreshKey])
+  }, [activeTab, refreshKey])
 
   useEffect(() => {
     let alive = true
@@ -490,6 +498,14 @@ export default function AuthorsCommunity() {
         if (activeTab === 'authors') setAuthors([])
         else if (activeTab === 'visitors') setVisitors([])
         else setReaders([])
+
+        setPagination({
+          page: 1,
+          total: 0,
+          total_pages: 1,
+          has_next: false,
+          has_prev: false,
+        })
       } finally {
         if (alive) setListLoading(false)
       }
@@ -525,6 +541,13 @@ export default function AuthorsCommunity() {
     setFilter('all')
     setError('')
     setSelectedItem(null)
+    setPagination({
+      page: 1,
+      total: 0,
+      total_pages: 1,
+      has_next: false,
+      has_prev: false,
+    })
   }
 
   const readerFilters = [
