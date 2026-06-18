@@ -308,6 +308,13 @@ const navGroups = [
     ],
   },
   {
+
+{
+  path: '/spam-guard',
+  label: 'Spam Guard',
+  icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-5',
+},
+    
     label: 'Visual Media',
     items: [
       { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
