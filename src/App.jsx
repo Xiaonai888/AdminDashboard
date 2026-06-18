@@ -7,6 +7,7 @@ import SlideSection from './pages/SlideSection';
 import BannerSystem from './pages/BannerSystem';
 import ShadowExclusiveAdmin from './pages/ShadowExclusiveAdmin';
 import AuthorsCommunity from './pages/AuthorsCommunity';
+import AdminSpamGuardPage from './pages/AdminSpamGuardPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminActivityLogsPage from "./pages/Admin/AdminActivityLogsPage";
@@ -108,7 +109,10 @@ export default function App() {
         
         
 
- 
+ <Route
+  path="/spam-guard"
+  element={<ProtectedPage><AdminSpamGuardPage /></ProtectedPage>}
+/>
         
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
