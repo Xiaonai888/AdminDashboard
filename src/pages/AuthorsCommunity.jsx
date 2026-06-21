@@ -255,11 +255,13 @@ const customGender = item.custom_gender
           <DetailItem label={isAuthor ? 'Author Name' : 'Reader Name'} value={name} />
           <DetailItem label="Username" value={username ? `@${username}` : '-'} />
           <DetailItem label="Email" value={email} />
-          {isAuthor ? (
-            <DetailItem label="Books" value={`${formatNumber(item.books_count)} books`} />
-          ) : (
-            <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
-          )}
+{!isAuthor ? <DetailItem label="Gender" value={formatGender(gender, customGender)} /> : null}
+{!isAuthor ? <DetailItem label="Age" value={formatAge(dateOfBirth)} /> : null}
+{isAuthor ? (
+  <DetailItem label="Books" value={`${formatNumber(item.books_count)} books`} />
+) : (
+  <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
+)}
           <DetailItem label="Joined Date" value={formatDate(joinedAt)} />
           <DetailItem label="Status" value={normalizeStatus(status)} />
         </div>
