@@ -33,6 +33,24 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString()
 }
 
+function formatAge(value) {
+  if (!value) return '-'
+  const birthDate = new Date(value)
+  if (Number.isNaN(birthDate.getTime())) return '-'
+  const today = new Date()
+  let age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) age -= 1
+  return `${age} years old`
+}
+
+function formatGender(gender, customGender) {
+  if (gender === 'female') return 'Female'
+  if (gender === 'male') return 'Male'
+  if (gender === 'custom') return customGender || 'Custom'
+  return '-'
+}
+
 function getInitial(name, username, email) {
   return String(name || username || email || 'U').trim().slice(0, 1).toUpperCase()
 }
