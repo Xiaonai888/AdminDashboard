@@ -213,10 +213,13 @@ function UserDetailDrawer({ item, type, onClose }) {
   const username = item.username
   const email = item.email
   const avatarUrl = item.avatar_url
-  const status = item.status
-  const joinedAt = item.joined_at
-  const id = item.id
-  const userId = item.user_id
+const status = item.status
+const joinedAt = item.joined_at
+const id = item.id
+const userId = item.user_id
+const dateOfBirth = item.date_of_birth
+const gender = item.gender
+const customGender = item.custom_gender
 
   return (
     <div className="community-drawer-layer" role="presentation" onMouseDown={onClose}>
