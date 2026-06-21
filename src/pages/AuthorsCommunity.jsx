@@ -2,6 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const EMPTY_GENDER_SUMMARY = {
+  total: 0,
+  female: 0,
+  male: 0,
+  custom: 0,
+  not_provided: 0,
+}
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
@@ -213,13 +220,13 @@ function UserDetailDrawer({ item, type, onClose }) {
   const username = item.username
   const email = item.email
   const avatarUrl = item.avatar_url
-const status = item.status
-const joinedAt = item.joined_at
-const id = item.id
-const userId = item.user_id
-const dateOfBirth = item.date_of_birth
-const gender = item.gender
-const customGender = item.custom_gender
+  const status = item.status
+  const joinedAt = item.joined_at
+  const id = item.id
+  const userId = item.user_id
+  const dateOfBirth = item.date_of_birth
+  const gender = item.gender
+  const customGender = item.custom_gender
 
   return (
     <div className="community-drawer-layer" role="presentation" onMouseDown={onClose}>
@@ -255,13 +262,13 @@ const customGender = item.custom_gender
           <DetailItem label={isAuthor ? 'Author Name' : 'Reader Name'} value={name} />
           <DetailItem label="Username" value={username ? `@${username}` : '-'} />
           <DetailItem label="Email" value={email} />
-{!isAuthor ? <DetailItem label="Gender" value={formatGender(gender, customGender)} /> : null}
-{!isAuthor ? <DetailItem label="Age" value={formatAge(dateOfBirth)} /> : null}
-{isAuthor ? (
-  <DetailItem label="Books" value={`${formatNumber(item.books_count)} books`} />
-) : (
-  <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
-)}
+          {!isAuthor ? <DetailItem label="Gender" value={formatGender(gender, customGender)} /> : null}
+          {!isAuthor ? <DetailItem label="Age" value={formatAge(dateOfBirth)} /> : null}
+          {isAuthor ? (
+            <DetailItem label="Books" value={`${formatNumber(item.books_count)} books`} />
+          ) : (
+            <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
+          )}
           <DetailItem label="Joined Date" value={formatDate(joinedAt)} />
           <DetailItem label="Status" value={normalizeStatus(status)} />
         </div>
@@ -430,6 +437,8 @@ export default function AuthorsCommunity() {
     total_community_members: 0,
     new_this_month: 0,
   })
+
+  const [genderSummary, setGenderSummary] = useState(EMPTY_GENDER_SUMMARY)
   const [visitorSummary, setVisitorSummary] = useState({
     total_unique_visitors: 0,
     total_sessions: 0,
@@ -573,6 +582,7 @@ export default function AuthorsCommunity() {
           setVisitors(Array.isArray(data.visitors) ? data.visitors : [])
         } else {
           setReaders(Array.isArray(data.readers) ? data.readers : [])
+          setGenderSummary(data.gender_summary || EMPTY_GENDER_SUMMARY)
         }
 
         setPagination({
@@ -725,6 +735,31 @@ export default function AuthorsCommunity() {
       : activeTab === 'visitors'
         ? visitorQuickStats
         : readerQuickStats
+
+  const readerGenderStats = useMemo(() => {
+    const female = Number(genderSummary.female || 0)
+    const male = Number(genderSummary.male || 0)
+    const custom = Number(genderSummary.custom || 0)
+    const notProvided = Number(genderSummary.not_provided || 0)
+    const total = Number(genderSummary.total || female + male + custom + notProvided)
+
+    const femaleEnd = total ? (female / total) * 360 : 0
+    const maleEnd = femaleEnd + (total ? (male / total) * 360 : 0)
+    const customEnd = maleEnd + (total ? (custom / total) * 360 : 0)
+
+    return {
+      total,
+      gradient: total
+        ? `conic-gradient(#ec4899 0deg ${femaleEnd}deg, #3b82f6 ${femaleEnd}deg ${maleEnd}deg, #8b5cf6 ${maleEnd}deg ${customEnd}deg, #cbd5e1 ${customEnd}deg 360deg)`
+        : '#eef2ff',
+      items: [
+        { label: 'Female', value: female, color: '#ec4899' },
+        { label: 'Male', value: male, color: '#3b82f6' },
+        { label: 'Custom/Other', value: custom, color: '#8b5cf6' },
+        { label: 'Not Provided', value: notProvided, color: '#cbd5e1' },
+      ],
+    }
+  }, [genderSummary])
 
   const communityCards = useMemo(() => [
     {
@@ -881,6 +916,36 @@ export default function AuthorsCommunity() {
               </div>
             ))}
           </div>
+
+          {activeTab === 'readers' ? (
+            <div className="community-gender-card">
+              <div className="community-gender-copy">
+                <h3>Reader Gender Breakdown</h3>
+                <p>Overview of registered reader gender data.</p>
+              </div>
+
+              <div className="community-gender-chart-wrap">
+                <div className="community-gender-donut" style={{ background: readerGenderStats.gradient }}>
+                  <div>
+                    <strong>{formatNumber(readerGenderStats.total)}</strong>
+                    <span>Total</span>
+                  </div>
+                </div>
+
+                <div className="community-gender-legend">
+                  {readerGenderStats.items.map((item) => (
+                    <div className="community-gender-legend-item" key={item.label}>
+                      <span className="community-gender-dot" style={{ background: item.color }} />
+                      <div>
+                        <span>{item.label}</span>
+                        <strong>{formatNumber(item.value)}</strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {error ? (
             <div className="community-alert">
@@ -1180,4 +1245,130 @@ const styles = `
     .community-drawer { width: 100%; }
     .community-drawer-actions { grid-template-columns: 1fr; }
   }
+
+.community-gender-card {
+  margin: 12px 18px 14px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+}
+
+.community-gender-copy h3 {
+  margin: 0;
+  color: #0F172A;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.02em;
+}
+
+.community-gender-copy p {
+  margin: 4px 0 0;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.community-gender-chart-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 520px;
+}
+
+.community-gender-donut {
+  width: 70px;
+  height: 70px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.community-gender-donut > div {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.community-gender-donut strong {
+  color: #0F172A;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.community-gender-donut span {
+  margin-top: 2px;
+  color: #64748B;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.community-gender-legend {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.community-gender-legend-item {
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.community-gender-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.community-gender-legend-item span {
+  display: block;
+  color: #64748B;
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.community-gender-legend-item strong {
+  display: block;
+  margin-top: 2px;
+  color: #0F172A;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+@media (max-width: 900px) {
+  .community-gender-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .community-gender-chart-wrap {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .community-gender-legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 `
