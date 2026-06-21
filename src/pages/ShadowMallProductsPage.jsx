@@ -1054,19 +1054,8 @@ export default function ShadowMallProductsPage() {
       (recordStatusFilter === 'active' && product.is_active) ||
       (recordStatusFilter === 'hidden' && !product.is_active);
 
-    const searchText = [
-      product.id,
-      product.title,
-      product.author_name,
-      product.category,
-      product.stock_status,
-      product.condition_label,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-
-    const searchMatch = !keyword || searchText.includes(keyword);
+    const title = String(product.title || '').toLowerCase();
+const searchMatch = !keyword || title.includes(keyword);
 
     return categoryMatch && stockMatch && statusMatch && searchMatch;
   });
