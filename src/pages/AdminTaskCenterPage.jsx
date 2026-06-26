@@ -34,10 +34,52 @@ const navItems = [
 ]
 
 const rewardTasks = [
-  { title: 'Read 10 minutes', text: 'Read stories for 10 minutes today.', reward: '+20 Coins' },
-  { title: 'Read 30 minutes', text: 'Keep reading longer to earn more coins.', reward: '+60 Coins' },
-  { title: 'Add story to Library', text: 'Save one story you want to continue reading.', reward: '+30 Coins' },
-  { title: 'Read selected story', text: 'Admin can choose a story target later.', reward: '+50 Coins' },
+  {
+    id: 'read-selected-story',
+    title: 'Read selected story',
+    text: 'Send readers to one selected story for over 10 minutes.',
+    reward: '+50 Coins',
+    storyTitle: 'Ex-wife of A Billionaire',
+    requiredTime: '10 minutes',
+    buttonText: 'Go',
+    dailyLimit: '1 time per day',
+    status: 'Full option UI',
+    type: 'featured',
+    icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+  },
+  {
+    id: 'watch-video',
+    title: 'Watch AD',
+    text: 'Watch videos to earn coins.',
+    reward: '+3 Coins',
+    status: 'UI only',
+    type: 'ad',
+    icon: 'M4 6h16v12H4z M8 21h8 M12 18v3',
+  },
+  {
+    id: 'read-10-minutes',
+    title: 'Read 10 minutes',
+    text: 'Read stories for 10 minutes today.',
+    reward: '+20 Coins',
+    status: 'Later',
+    icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+  },
+  {
+    id: 'read-30-minutes',
+    title: 'Read 30 minutes',
+    text: 'Keep reading longer to earn more coins.',
+    reward: '+60 Coins',
+    status: 'Later',
+    icon: 'M12 6v6l4 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  },
+  {
+    id: 'add-story-library',
+    title: 'Add story to Library',
+    text: 'Save one story you want to continue reading.',
+    reward: '+30 Coins',
+    status: 'Later',
+    icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+  },
 ]
 
 function getAdminToken() {
@@ -238,22 +280,65 @@ export default function AdminTaskCenterPage() {
 
                   <div className="panel-body">
                     <div className="task-list">
-                      {rewardTasks.map((task) => (
-                        <div className="task-card" key={task.title}>
-                          <div className="task-left">
-                            <div className="task-icon">
-                              <Icon d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" size={18} />
-                            </div>
-                            <div>
-                              <div className="task-title">{task.title}</div>
-                              <div className="task-sub">{task.text}</div>
-                              <div className="task-reward">{task.reward}</div>
-                            </div>
-                          </div>
-                          <span className="status-pill">Later</span>
-                        </div>
-                      ))}
-                    </div>
+  {rewardTasks.map((task) => (
+    <div className={`task-card ${task.type === 'featured' ? 'featured' : ''}`} key={task.id}>
+      <div className="task-top">
+        <div className="task-left">
+          <div className={`task-icon ${task.type === 'featured' ? 'featured' : task.type === 'ad' ? 'ad' : ''}`}>
+            <Icon d={task.icon} size={18} />
+          </div>
+          <div>
+            <div className="task-title">{task.title}</div>
+            <div className="task-sub">{task.text}</div>
+            <div className="task-reward">{task.reward}</div>
+          </div>
+        </div>
+        <span className={`status-pill ${task.type === 'featured' ? 'active' : task.type === 'ad' ? 'ui' : ''}`}>
+          {task.status}
+        </span>
+      </div>
+
+      {task.type === 'featured' ? (
+        <div className="task-feature-body">
+          <div className="task-section-label">Full option placeholder</div>
+
+          <div className="task-form-grid">
+            <div className="fake-input">
+              <span>Story title</span>
+              <strong>{task.storyTitle}</strong>
+            </div>
+            <div className="fake-input">
+              <span>Read time</span>
+              <strong>{task.requiredTime}</strong>
+            </div>
+            <div className="fake-input">
+              <span>Reward</span>
+              <strong>{task.reward}</strong>
+            </div>
+            <div className="fake-input">
+              <span>Button</span>
+              <strong>{task.buttonText}</strong>
+            </div>
+            <div className="fake-input">
+              <span>Daily limit</span>
+              <strong>{task.dailyLimit}</strong>
+            </div>
+            <div className="fake-input">
+              <span>Status</span>
+              <strong>Active / Inactive later</strong>
+            </div>
+          </div>
+
+          <div className="task-action-pill">{task.buttonText}</div>
+
+          <div className="note-box task-note">
+            This is UI only. Story search, story ID, active switch, and read tracking logic will be connected later.
+          </div>
+        </div>
+      ) : null}
+    </div>
+  ))}
+</div>
                   </div>
                 </div>
               </div>
