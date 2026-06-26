@@ -32,6 +32,7 @@ import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 import AdminIncomePage from './pages/AdminIncomePage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
+import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 
 function ComingSoon({ title }) {
   return (
@@ -114,6 +115,11 @@ export default function App() {
  <Route
   path="/spam-guard"
   element={<ProtectedPage><AdminSpamGuardPage /></ProtectedPage>}
+/>
+
+        <Route
+  path="/admin-login-guard"
+  element={<ProtectedPage><AdminLoginGuardPage /></ProtectedPage>}
 />
         
 
