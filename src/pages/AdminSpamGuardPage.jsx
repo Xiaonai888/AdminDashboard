@@ -28,14 +28,8 @@ function formatDateTime(value) {
   })
 }
 
-function formatDuration(seconds) {
-  const total = Math.max(0, Number(seconds || 0))
-
-  if (total >= 86400) return `${Math.ceil(total / 86400)} day`
-  if (total >= 3600) return `${Math.ceil(total / 3600)} hour`
-  if (total >= 60) return `${Math.ceil(total / 60)} min`
-
-  return `${total} sec`
+function isFuture(value) {
+  return Boolean(value && new Date(value).getTime() > Date.now())
 }
 
 function normalizeScope(value) {
@@ -68,6 +62,59 @@ function scoreClass(value) {
   if (score >= 50) return 'watch'
 
   return 'normal'
+}
+
+function getBlockStatus(item) {
+  if (!item) return 'allowed'
+
+  if (item.is_permanent_blocked || item.block_status === 'permanent_block') {
+    return 'permanent_block'
+  }
+
+  if (item.is_in_quarantine || item.block_status === 'seven_day_quarantine' || isFuture(item.quarantine_until)) {
+    return 'seven_day_quarantine'
+  }
+
+  if (item.is_in_cooldown || item.block_status === 'temporary_cooldown' || isFuture(item.cooldown_until)) {
+    return 'temporary_cooldown'
+  }
+
+  return 'allowed'
+}
+
+function statusLabel(status) {
+  if (status === 'permanent_block') return 'Permanent Blocked'
+  if (status === 'seven_day_quarantine') return '7-Day Quarantine'
+  if (status === 'temporary_cooldown') return 'In Cooldown'
+  return 'Allowed'
+}
+
+function statusClass(status) {
+  if (status === 'permanent_block') return 'permanent'
+  if (status === 'seven_day_quarantine') return 'quarantine'
+  if (status === 'temporary_cooldown') return 'cooldown'
+  return 'allowed'
+}
+
+function getBlockUntil(item) {
+  const status = getBlockStatus(item)
+
+  if (status === 'permanent_block') return '-'
+  if (status === 'seven_day_quarantine') return formatDateTime(item.quarantine_until)
+  if (status === 'temporary_cooldown') return formatDateTime(item.cooldown_until)
+
+  return '-'
+}
+
+function getReason(item) {
+  return (
+    item?.permanent_block_reason
+    || item?.quarantine_reason
+    || item?.block_reason
+    || item?.last_reason
+    || item?.reason
+    || 'No reason recorded.'
+  )
 }
 
 async function readApiResponse(response) {
@@ -109,10 +156,12 @@ function SummaryCard({ label, value, note, tone }) {
 }
 
 function StatusBadge({ state }) {
-  return state.is_in_cooldown ? (
-    <span className="spam-status-badge cooldown">In Cooldown</span>
-  ) : (
-    <span className="spam-status-badge allowed">Allowed</span>
+  const status = getBlockStatus(state)
+
+  return (
+    <span className={`spam-status-badge ${statusClass(status)}`}>
+      {statusLabel(status)}
+    </span>
   )
 }
 
@@ -132,10 +181,12 @@ function ScoreBadge({ value }) {
   )
 }
 
-function DetailDrawer({ item, type, onClose, onRelease, releasing }) {
+function DetailDrawer({ item, type, onClose, onReleaseCooldown, onReleaseQuarantine, onPermanentBlock, onUnblock, workingKey }) {
   if (!item) return null
 
   const isState = type === 'states'
+  const status = getBlockStatus(item)
+  const isWorking = workingKey.startsWith(`${item.id}:`)
 
   return (
     <div className="spam-drawer-layer" onMouseDown={onClose}>
@@ -148,7 +199,7 @@ function DetailDrawer({ item, type, onClose, onRelease, releasing }) {
             <div className="spam-drawer-kicker">
               {isState ? 'Spam Guard State' : 'Spam Guard Event'}
             </div>
-            <h3>{isState ? 'Request protection details' : 'Cooldown event details'}</h3>
+            <h3>{isState ? 'Request protection details' : 'Spam Guard event details'}</h3>
           </div>
           <button type="button" onClick={onClose}>×</button>
         </div>
@@ -191,8 +242,24 @@ function DetailDrawer({ item, type, onClose, onRelease, releasing }) {
             <strong>{Number(item.spam_score || 0)}/100</strong>
           </div>
           <div>
+            <span>Status</span>
+            <strong>{isState ? statusLabel(status) : item.action || '-'}</strong>
+          </div>
+          <div>
             <span>Cooldown Until</span>
             <strong>{formatDateTime(item.cooldown_until)}</strong>
+          </div>
+          <div>
+            <span>Quarantine Until</span>
+            <strong>{formatDateTime(item.quarantine_until)}</strong>
+          </div>
+          <div>
+            <span>Permanent Blocked At</span>
+            <strong>{formatDateTime(item.permanent_blocked_at)}</strong>
+          </div>
+          <div>
+            <span>Permanent Blocked By</span>
+            <strong>{item.permanent_blocked_by || '-'}</strong>
           </div>
           <div>
             <span>Endpoint</span>
@@ -214,18 +281,53 @@ function DetailDrawer({ item, type, onClose, onRelease, releasing }) {
 
         <div className="spam-reason-box">
           <span>Reason</span>
-          <p>{item.last_reason || item.reason || 'No reason recorded.'}</p>
+          <p>{getReason(item)}</p>
         </div>
 
-        {isState && item.is_in_cooldown ? (
-          <button
-            type="button"
-            className="spam-release-main"
-            onClick={() => onRelease(item)}
-            disabled={releasing}
-          >
-            {releasing ? 'Releasing...' : 'Release Temporary Cooldown'}
-          </button>
+        {isState ? (
+          <div className="spam-drawer-actions">
+            {status === 'temporary_cooldown' ? (
+              <button
+                type="button"
+                className="release"
+                onClick={() => onReleaseCooldown(item)}
+                disabled={isWorking}
+              >
+                {isWorking ? 'Working...' : 'Release Temporary Cooldown'}
+              </button>
+            ) : null}
+
+            {status === 'seven_day_quarantine' ? (
+              <button
+                type="button"
+                className="release"
+                onClick={() => onReleaseQuarantine(item)}
+                disabled={isWorking}
+              >
+                {isWorking ? 'Working...' : 'Release 7-Day Quarantine'}
+              </button>
+            ) : null}
+
+            {status === 'permanent_block' ? (
+              <button
+                type="button"
+                className="unblock"
+                onClick={() => onUnblock(item)}
+                disabled={isWorking}
+              >
+                {isWorking ? 'Working...' : 'Unblock Permanent Block'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="block"
+                onClick={() => onPermanentBlock(item)}
+                disabled={isWorking}
+              >
+                {isWorking ? 'Working...' : 'Permanent Block'}
+              </button>
+            )}
+          </div>
         ) : null}
       </aside>
     </div>
@@ -237,6 +339,9 @@ export default function AdminSpamGuardPage() {
   const [summary, setSummary] = useState({
     total_tracked: 0,
     active_cooldowns: 0,
+    active_quarantines: 0,
+    permanent_blocks: 0,
+    active_blocks: 0,
     offenses_today: 0,
     high_spam_score: 0,
     visitor_tracking_cooldowns: 0,
@@ -258,11 +363,11 @@ export default function AdminSpamGuardPage() {
     has_next: false,
     has_prev: false,
   })
-  const [loading, setLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
-  const [releasing, setReleasing] = useState(false)
+  const [workingKey, setWorkingKey] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -371,7 +476,10 @@ export default function AdminSpamGuardPage() {
 
   const stateFilters = [
     { key: 'all', label: 'All' },
-    { key: 'cooldown', label: 'In Cooldown' },
+    { key: 'active', label: 'Active Block' },
+    { key: 'cooldown', label: 'Cooldown' },
+    { key: 'quarantine', label: '7-Day Quarantine' },
+    { key: 'permanent', label: 'Permanent Block' },
     { key: 'released', label: 'Allowed' },
     { key: 'high_score', label: 'High Score' },
     { key: 'repeat_offender', label: 'Repeat Offender' },
@@ -381,6 +489,10 @@ export default function AdminSpamGuardPage() {
     { key: 'all', label: 'All Events' },
     { key: 'cooldown_started', label: 'Cooldown Started' },
     { key: 'cooldown_released', label: 'Cooldown Released' },
+    { key: 'quarantine_started', label: 'Quarantine Started' },
+    { key: 'block_released', label: 'Block Released' },
+    { key: 'permanent_blocked', label: 'Permanent Blocked' },
+    { key: 'permanent_unblocked', label: 'Permanent Unblocked' },
   ]
 
   const currentFilters =
@@ -405,32 +517,78 @@ export default function AdminSpamGuardPage() {
     },
   ], [summary])
 
+  function refreshData() {
+    setSelectedItem(null)
+    setRefreshKey((current) => current + 1)
+  }
+
+  async function runStateAction(item, actionKey, requestPath, options = {}) {
+    try {
+      setWorkingKey(`${item.id}:${actionKey}`)
+      setError('')
+
+      await apiRequest(requestPath, {
+        method: 'PATCH',
+        body: JSON.stringify(options.body || {}),
+      })
+
+      refreshData()
+    } catch (err) {
+      setError(err.message || 'Failed to update Spam Guard state')
+    } finally {
+      setWorkingKey('')
+    }
+  }
+
   async function releaseCooldown(item) {
-    const confirmed = window.confirm(
-      'Release this temporary cooldown now?'
-    )
+    const confirmed = window.confirm('Release this temporary cooldown now?')
 
     if (!confirmed) return
 
-    try {
-      setReleasing(true)
-      setError('')
+    await runStateAction(
+      item,
+      'release',
+      `/api/admin/spam-guard/states/${item.id}/release`
+    )
+  }
 
-      await apiRequest(
-        `/api/admin/spam-guard/states/${item.id}/release`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({}),
-        }
-      )
+  async function releaseQuarantine(item) {
+    const confirmed = window.confirm('Release this 7-day quarantine now?')
 
-      setSelectedItem(null)
-      setRefreshKey((current) => current + 1)
-    } catch (err) {
-      setError(err.message || 'Failed to release cooldown')
-    } finally {
-      setReleasing(false)
-    }
+    if (!confirmed) return
+
+    await runStateAction(
+      item,
+      'release-quarantine',
+      `/api/admin/spam-guard/states/${item.id}/release-quarantine`
+    )
+  }
+
+  async function permanentBlock(item) {
+    const reason = window.prompt('Reason for permanent block?')
+      ?.trim()
+
+    if (!reason) return
+
+    await runStateAction(
+      item,
+      'permanent-block',
+      `/api/admin/spam-guard/states/${item.id}/permanent-block`,
+      { body: { reason } }
+    )
+  }
+
+  async function unblockPermanent(item) {
+    const reason = window.prompt('Reason for unblock?')
+      ?.trim()
+      || 'Manual unblock'
+
+    await runStateAction(
+      item,
+      'unblock',
+      `/api/admin/spam-guard/states/${item.id}/unblock`,
+      { body: { reason } }
+    )
   }
 
   function changeTab(tab) {
@@ -445,25 +603,24 @@ export default function AdminSpamGuardPage() {
   return (
     <AdminLayout
       title="Spam Guard"
-      subtitle="Monitor request volume, temporary cooldowns, and repeat offenders."
+      subtitle="Monitor request volume, cooldowns, 7-day quarantines, and permanent blocks."
     >
       <style>{styles}</style>
 
       <div className="spam-page">
         <section className="spam-hero">
           <div>
-            <div className="spam-kicker">Persistent Protection</div>
+            <div className="spam-kicker">Visitor Protection</div>
             <h2>Spam Guard monitoring</h2>
             <p>
-              Request counters are stored in Supabase and remain active after
-              Backend restarts or deployments.
+              Request counters, cooldowns, quarantines, and permanent blocks are stored in Supabase.
             </p>
           </div>
 
           <button
             type="button"
             className="spam-refresh"
-            onClick={() => setRefreshKey((current) => current + 1)}
+            onClick={refreshData}
           >
             Refresh
           </button>
@@ -477,21 +634,21 @@ export default function AdminSpamGuardPage() {
             tone="blue"
           />
           <SummaryCard
-            label="Active Cooldowns"
+            label="Temporary Cooldowns"
             value={summaryLoading ? '...' : summary.active_cooldowns}
-            note="Blocked temporarily now"
+            note="Short protection now"
             tone="red"
           />
           <SummaryCard
-            label="Offenses Today"
-            value={summaryLoading ? '...' : summary.offenses_today}
-            note="Cooldown events today"
+            label="7-Day Quarantines"
+            value={summaryLoading ? '...' : summary.active_quarantines}
+            note="Repeated spam protection"
             tone="purple"
           />
           <SummaryCard
-            label="High Spam Score"
-            value={summaryLoading ? '...' : summary.high_spam_score}
-            note="Score 90 or higher"
+            label="Permanent Blocks"
+            value={summaryLoading ? '...' : summary.permanent_blocks}
+            note="Manual admin blocks"
             tone="orange"
           />
         </section>
@@ -583,7 +740,7 @@ export default function AdminSpamGuardPage() {
                     <th>Requests</th>
                     <th>Offenses</th>
                     <th>Score</th>
-                    <th>Cooldown Until</th>
+                    <th>Block Until</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
@@ -591,10 +748,10 @@ export default function AdminSpamGuardPage() {
                   <tr>
                     <th>Identity</th>
                     <th>Scope</th>
-                    <th>Action</th>
+                    <th>Event</th>
                     <th>Requests</th>
                     <th>Offenses</th>
-                    <th>Cooldown Until</th>
+                    <th>Block Until</th>
                     <th>Occurred</th>
                     <th>Action</th>
                   </tr>
@@ -611,35 +768,118 @@ export default function AdminSpamGuardPage() {
                     </td>
                   </tr>
                 ) : currentRows.length ? (
-                  currentRows.map((item) => (
-                    <tr
-                      key={item.id}
-                      onClick={() => setSelectedItem(item)}
-                    >
-                      <td>
-                        <div className="spam-identity">
-                          <strong>{item.ip_address || item.guard_key || '-'}</strong>
-                          <span>
-                            {item.account_id
-                              ? `Account: ${item.account_id}`
-                              : item.visitor_id
-                                ? `Visitor: ${item.visitor_id}`
-                                : item.guard_key || '-'}
-                          </span>
-                        </div>
-                      </td>
-                      <td><ScopeBadge value={item.scope} /></td>
-                      {activeTab === 'states' ? (
-                        <>
-                          <td>{formatNumber(item.request_count)}</td>
-                          <td>{formatNumber(item.offense_count)}</td>
-                          <td><ScoreBadge value={item.spam_score} /></td>
-                          <td>{formatDateTime(item.cooldown_until)}</td>
-                          <td><StatusBadge state={item} /></td>
-                          <td>
-                            <div className="spam-actions">
+                  currentRows.map((item) => {
+                    const status = getBlockStatus(item)
+                    const isWorking = workingKey.startsWith(`${item.id}:`)
+
+                    return (
+                      <tr
+                        key={item.id}
+                        onClick={() => setSelectedItem(item)}
+                      >
+                        <td>
+                          <div className="spam-identity">
+                            <strong>{item.ip_address || item.guard_key || '-'}</strong>
+                            <span>
+                              {item.account_id
+                                ? `Account: ${item.account_id}`
+                                : item.visitor_id
+                                  ? `Visitor: ${item.visitor_id}`
+                                  : item.guard_key || '-'}
+                            </span>
+                          </div>
+                        </td>
+                        <td><ScopeBadge value={item.scope} /></td>
+                        {activeTab === 'states' ? (
+                          <>
+                            <td>{formatNumber(item.request_count)}</td>
+                            <td>{formatNumber(item.offense_count)}</td>
+                            <td><ScoreBadge value={item.spam_score} /></td>
+                            <td>{getBlockUntil(item)}</td>
+                            <td><StatusBadge state={item} /></td>
+                            <td>
+                              <div className="spam-actions">
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    setSelectedItem(item)
+                                  }}
+                                >
+                                  View
+                                </button>
+
+                                {status === 'temporary_cooldown' ? (
+                                  <button
+                                    type="button"
+                                    className="release"
+                                    disabled={isWorking}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      releaseCooldown(item)
+                                    }}
+                                  >
+                                    Release
+                                  </button>
+                                ) : null}
+
+                                {status === 'seven_day_quarantine' ? (
+                                  <button
+                                    type="button"
+                                    className="release"
+                                    disabled={isWorking}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      releaseQuarantine(item)
+                                    }}
+                                  >
+                                    Release Q
+                                  </button>
+                                ) : null}
+
+                                {status === 'permanent_block' ? (
+                                  <button
+                                    type="button"
+                                    className="unblock"
+                                    disabled={isWorking}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      unblockPermanent(item)
+                                    }}
+                                  >
+                                    Unblock
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="block"
+                                    disabled={isWorking}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      permanentBlock(item)
+                                    }}
+                                  >
+                                    Block
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td>
+                              <span className="spam-event-badge">
+                                {item.action || '-'}
+                              </span>
+                            </td>
+                            <td>{formatNumber(item.request_count)}</td>
+                            <td>{formatNumber(item.offense_count)}</td>
+                            <td>{formatDateTime(item.block_until || item.quarantine_until || item.cooldown_until)}</td>
+                            <td>{formatDateTime(item.occurred_at)}</td>
+                            <td>
                               <button
                                 type="button"
+                                className="spam-view-button"
                                 onClick={(event) => {
                                   event.stopPropagation()
                                   setSelectedItem(item)
@@ -647,48 +887,12 @@ export default function AdminSpamGuardPage() {
                               >
                                 View
                               </button>
-                              {item.is_in_cooldown ? (
-                                <button
-                                  type="button"
-                                  className="release"
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    releaseCooldown(item)
-                                  }}
-                                >
-                                  Release
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td>
-                            <span className="spam-event-badge">
-                              {item.action || '-'}
-                            </span>
-                          </td>
-                          <td>{formatNumber(item.request_count)}</td>
-                          <td>{formatNumber(item.offense_count)}</td>
-                          <td>{formatDateTime(item.cooldown_until)}</td>
-                          <td>{formatDateTime(item.occurred_at)}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="spam-view-button"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                setSelectedItem(item)
-                              }}
-                            >
-                              View
-                            </button>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr>
                     <td colSpan="8">
@@ -733,8 +937,11 @@ export default function AdminSpamGuardPage() {
         item={selectedItem}
         type={activeTab}
         onClose={() => setSelectedItem(null)}
-        onRelease={releaseCooldown}
-        releasing={releasing}
+        onReleaseCooldown={releaseCooldown}
+        onReleaseQuarantine={releaseQuarantine}
+        onPermanentBlock={permanentBlock}
+        onUnblock={unblockPermanent}
+        workingKey={workingKey}
       />
     </AdminLayout>
   )
@@ -995,7 +1202,7 @@ const styles = `
   .spam-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1180px;
+    min-width: 1240px;
   }
 
   .spam-table th {
@@ -1076,11 +1283,14 @@ const styles = `
 
   .spam-status-badge.allowed { background: #ECFDF5; color: #059669; }
   .spam-status-badge.cooldown { background: #FEF2F2; color: #DC2626; }
+  .spam-status-badge.quarantine { background: #FFF7ED; color: #EA580C; }
+  .spam-status-badge.permanent { background: #450A0A; color: #FFFFFF; }
   .spam-status-badge.event,
   .spam-event-badge { background: #EEF2FF; color: #4F46E5; }
 
   .spam-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 7px;
   }
 
@@ -1097,10 +1307,28 @@ const styles = `
     cursor: pointer;
   }
 
+  .spam-actions button:disabled,
+  .spam-view-button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+
   .spam-actions button.release {
+    border-color: #FDBA74;
+    color: #EA580C;
+    background: #FFF7ED;
+  }
+
+  .spam-actions button.block {
     border-color: #FCA5A5;
     color: #DC2626;
     background: #FEF2F2;
+  }
+
+  .spam-actions button.unblock {
+    border-color: #86EFAC;
+    color: #059669;
+    background: #ECFDF5;
   }
 
   .spam-loading,
@@ -1164,7 +1392,7 @@ const styles = `
   }
 
   .spam-drawer {
-    width: min(560px, 100%);
+    width: min(580px, 100%);
     height: 100%;
     background: #FFFFFF;
     padding: 22px;
@@ -1260,20 +1488,28 @@ const styles = `
     line-height: 1.6;
   }
 
-  .spam-release-main {
+  .spam-drawer-actions {
+    margin-top: 14px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .spam-drawer-actions button {
     width: 100%;
     height: 42px;
-    margin-top: 14px;
     border: 0;
     border-radius: 13px;
-    background: #DC2626;
     color: #FFFFFF;
     font-size: 12px;
     font-weight: 950;
     cursor: pointer;
   }
 
-  .spam-release-main:disabled {
+  .spam-drawer-actions button.release { background: #EA580C; }
+  .spam-drawer-actions button.block { background: #DC2626; }
+  .spam-drawer-actions button.unblock { background: #059669; }
+
+  .spam-drawer-actions button:disabled {
     opacity: 0.6;
     cursor: wait;
   }
