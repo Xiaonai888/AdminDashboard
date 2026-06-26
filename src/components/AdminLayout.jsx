@@ -141,8 +141,7 @@ const styles = `
     gap: 3px;
   }
 
-  .shadow-admin-sidebar:hover .shadow-admin-subnav { display: flex; }
-
+  .shadow-admin-sidebar:hover .shadow-admin-subnav { display: flex; }.shadow-admin-nav-item:hover + .shadow-admin-subnav, .shadow-admin-nav-item.active + .shadow-admin-subnav, .shadow-admin-subnav:hover { display: flex; }
   .shadow-admin-subnav-item {
     width: 100%;
     height: 32px;
