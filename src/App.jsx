@@ -31,6 +31,7 @@ import AdminBlockListPage from './pages/AdminBlockListPage';
 import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 import AdminIncomePage from './pages/AdminIncomePage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
+import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 
 function ComingSoon({ title }) {
   return (
@@ -106,6 +107,7 @@ export default function App() {
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
+        <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
         
         
 
