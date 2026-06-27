@@ -108,7 +108,7 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+     const response = await fetch(`${API_URL}/api/auth/login`, {
   method: 'POST',
   credentials: 'include',
   headers: {
