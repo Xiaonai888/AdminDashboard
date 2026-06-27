@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import ChangePasswordSection from './sections/ChangePasswordSection'
 import ComingSoonSection from './sections/ComingSoonSection'
+import LoginDevicesSection from './sections/LoginDevicesSection'
+
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -374,7 +376,13 @@ export default function AdminSettingsPage() {
               </div>
 
               <div key={activeKey} className="settings-section-body">
-                {activeKey === 'password' ? <ChangePasswordSection /> : <ComingSoonSection />}
+                {activeKey === 'password' ? (
+  <ChangePasswordSection />
+) : activeKey === 'devices' ? (
+  <LoginDevicesSection />
+) : (
+  <ComingSoonSection />
+)}
               </div>
             </main>
           </div>
