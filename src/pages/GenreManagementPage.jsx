@@ -250,10 +250,10 @@ const styles = `
   }
 
   .genre-dark-btn {
-  background:linear-gradient(135deg, #4F46E5, #6D5DF6);
-  color:#fff;
-  box-shadow:0 10px 22px rgba(79,70,229,.24);
-}
+    background:linear-gradient(135deg, #4F46E5, #6D5DF6);
+    color:#fff;
+    box-shadow:0 10px 22px rgba(79,70,229,.24);
+  }
 
   .genre-ghost-btn {
     background:#fff;
@@ -358,6 +358,39 @@ const styles = `
     color:var(--soft);
     font-size:12.5px;
     font-weight:700;
+  }
+
+  .genre-section-tabs {
+    display:flex;
+    gap:10px;
+    margin:0 0 18px;
+    padding:6px;
+    width:max-content;
+    max-width:100%;
+    background:#EEF2FF;
+    border:1px solid #E0E7FF;
+    border-radius:16px;
+    overflow:auto;
+  }
+
+  .genre-section-tab {
+    border:0;
+    height:38px;
+    border-radius:12px;
+    padding:0 16px;
+    font-size:12.5px;
+    font-weight:950;
+    color:#475569;
+    background:transparent;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:.16s ease;
+  }
+
+  .genre-section-tab.active {
+    color:#fff;
+    background:linear-gradient(135deg, #4F46E5, #6D5DF6);
+    box-shadow:0 8px 18px rgba(79,70,229,.2);
   }
 
   .genre-control-grid {
@@ -497,9 +530,9 @@ const styles = `
   }
 
   .genre-switch input:checked + .genre-slider {
-  background:#10B981;
-  box-shadow:0 0 0 4px rgba(16,185,129,.12);
-}
+    background:#10B981;
+    box-shadow:0 0 0 4px rgba(16,185,129,.12);
+  }
 
   .genre-switch input:checked + .genre-slider:before {
     transform:translateX(22px);
@@ -835,12 +868,105 @@ const styles = `
     font-weight:800;
   }
 
+  .genre-image-grid {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:18px;
+  }
+
+  .genre-image-card {
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:16px;
+    display:grid;
+    gap:14px;
+    box-shadow:0 1px 2px rgba(15,23,42,.03);
+  }
+
+  .genre-image-top {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+  }
+
+  .genre-image-name {
+    margin:0;
+    font-size:16px;
+    font-weight:950;
+    color:var(--text);
+  }
+
+  .genre-image-slug {
+    margin-top:3px;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:800;
+  }
+
+  .genre-image-preview-wrap {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+
+  .genre-image-preview-label {
+    margin-bottom:6px;
+    color:#334155;
+    font-size:11.5px;
+    font-weight:950;
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+
+  .genre-image-preview {
+    position:relative;
+    aspect-ratio:4.25/1;
+    overflow:hidden;
+    border-radius:14px;
+    background:linear-gradient(135deg, #FCE7F3, #EEF2FF);
+    border:1px solid #E2E8F0;
+  }
+
+  .genre-image-preview.mobile {
+    aspect-ratio:3.4/1;
+  }
+
+  .genre-image-preview img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+  }
+
+  .genre-image-empty-preview {
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#64748B;
+    font-size:12px;
+    font-weight:900;
+  }
+
+  .genre-image-fields {
+    display:grid;
+    gap:10px;
+  }
+
+  .genre-image-actions {
+    display:flex;
+    justify-content:flex-end;
+  }
+
   @media (max-width:1100px) {
     .genre-stat-grid {
       grid-template-columns:repeat(2, minmax(0, 1fr));
     }
 
-    .genre-control-grid {
+    .genre-control-grid,
+    .genre-image-grid {
       grid-template-columns:1fr;
     }
   }
@@ -856,12 +982,16 @@ const styles = `
 
     .genre-page-top,
     .genre-toolbar,
-    .genre-tab-tools {
+    .genre-tab-tools,
+    .genre-table-footer,
+    .genre-image-top,
+    .genre-image-actions {
       flex-direction:column;
       align-items:stretch;
     }
 
-    .genre-stat-grid {
+    .genre-stat-grid,
+    .genre-image-preview-wrap {
       grid-template-columns:1fr;
     }
   }
@@ -880,11 +1010,15 @@ export default function GenreManagementPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [showAllGenres, setShowAllGenres] = useState(false)
+  const [activePanel, setActivePanel] = useState('manage')
+  const [imageDrafts, setImageDrafts] = useState({})
   const [form, setForm] = useState({
     name: '',
     slug: '',
     sort_order: 0,
     is_active: true,
+    banner_image_url: '',
+    mobile_banner_image_url: '',
   })
 
   const navItems = {
@@ -997,6 +1131,13 @@ export default function GenreManagementPage() {
 
   const visibleGenres = showAllGenres ? filteredGenres : filteredGenres.slice(0, 5)
 
+  function getDraft(genre) {
+    return imageDrafts[genre.id] || {
+      banner_image_url: genre.banner_image_url || '',
+      mobile_banner_image_url: genre.mobile_banner_image_url || '',
+    }
+  }
+
   function pushRecord(title, detail) {
     setRecords((current) => [
       {
@@ -1029,8 +1170,19 @@ export default function GenreManagementPage() {
         throw new Error(tabsData.message || 'Failed to load featured tabs')
       }
 
-      setGenres(genresData.genres || [])
+      const nextGenres = genresData.genres || []
+      const nextDrafts = {}
+
+      nextGenres.forEach((genre) => {
+        nextDrafts[genre.id] = {
+          banner_image_url: genre.banner_image_url || '',
+          mobile_banner_image_url: genre.mobile_banner_image_url || '',
+        }
+      })
+
+      setGenres(nextGenres)
       setFeaturedTabs(tabsData.tabs || [])
+      setImageDrafts(nextDrafts)
     } catch (error) {
       setMessage(error.message || 'Failed to load genre data')
     } finally {
@@ -1049,6 +1201,8 @@ export default function GenreManagementPage() {
       slug: '',
       sort_order: 0,
       is_active: true,
+      banner_image_url: '',
+      mobile_banner_image_url: '',
     })
   }
 
@@ -1062,13 +1216,59 @@ export default function GenreManagementPage() {
 
   function handleEdit(genre) {
     setEditingId(genre.id)
+    setActivePanel('manage')
     setForm({
       name: genre.name || '',
       slug: genre.slug || '',
       sort_order: genre.sort_order || 0,
       is_active: Boolean(genre.is_active),
+      banner_image_url: genre.banner_image_url || '',
+      mobile_banner_image_url: genre.mobile_banner_image_url || '',
     })
     setMessage(`Editing ${genre.name}`)
+  }
+
+  function updateImageDraft(genreId, field, value) {
+    setImageDrafts((current) => ({
+      ...current,
+      [genreId]: {
+        ...(current[genreId] || {}),
+        [field]: value,
+      },
+    }))
+  }
+
+  async function handleSaveGenreImages(genre) {
+    try {
+      setSaving(true)
+      setMessage('')
+
+      const draft = getDraft(genre)
+      const payload = {
+        banner_image_url: String(draft.banner_image_url || '').trim(),
+        mobile_banner_image_url: String(draft.mobile_banner_image_url || '').trim(),
+      }
+
+      const res = await fetch(`${API_URL}/api/genres/admin/records/${genre.id}`, {
+        method: 'PUT',
+        headers: requestHeaders,
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to save genre images')
+      }
+
+      setMessage(`${genre.name} images updated successfully`)
+      pushRecord('Updated genre images', genre.name)
+      await loadData()
+    } catch (error) {
+      setMessage(error.message || 'Failed to save genre images')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleSubmit(event) {
@@ -1083,6 +1283,8 @@ export default function GenreManagementPage() {
         slug: form.slug || slugify(form.name),
         sort_order: Number(form.sort_order) || 0,
         is_active: Boolean(form.is_active),
+        banner_image_url: String(form.banner_image_url || '').trim(),
+        mobile_banner_image_url: String(form.mobile_banner_image_url || '').trim(),
       }
 
       const url = editingId
@@ -1222,6 +1424,21 @@ export default function GenreManagementPage() {
     )
   }
 
+  function renderImagePreview(url, label, mobile = false) {
+    return (
+      <div>
+        <div className="genre-image-preview-label">{label}</div>
+        <div className={`genre-image-preview ${mobile ? 'mobile' : ''}`}>
+          {url ? (
+            <img src={url} alt={label} loading="lazy" />
+          ) : (
+            <div className="genre-image-empty-preview">No image</div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <style>{styles}</style>
@@ -1250,7 +1467,7 @@ export default function GenreManagementPage() {
             <div className="genre-page-top">
               <div>
                 <h1>Genre Management</h1>
-                <p>Manage story genres, active status, and the Novel tab genres shown on For You.</p>
+                <p>Manage story genres, active status, images, and the Novel tab genres shown on For You.</p>
               </div>
               <button className="genre-ghost-btn" type="button" onClick={loadData} disabled={loading || saving}>
                 Refresh
@@ -1285,256 +1502,356 @@ export default function GenreManagementPage() {
               ))}
             </div>
 
-            <div className="genre-stack">
-              <div className="genre-control-grid">
-                <div className="genre-card">
-                  <div className="genre-card-head">
-                    <div>
-                      <h3>{editingId ? 'Edit Genre' : 'Create Genre'}</h3>
-                      <p>{editingId ? 'Update selected genre information.' : 'Add a new story genre.'}</p>
+            <div className="genre-section-tabs">
+              <button
+                className={`genre-section-tab ${activePanel === 'manage' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setActivePanel('manage')}
+              >
+                Manage Genres
+              </button>
+              <button
+                className={`genre-section-tab ${activePanel === 'images' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setActivePanel('images')}
+              >
+                Genre Images
+              </button>
+            </div>
+
+            {activePanel === 'manage' ? (
+              <div className="genre-stack">
+                <div className="genre-control-grid">
+                  <div className="genre-card">
+                    <div className="genre-card-head">
+                      <div>
+                        <h3>{editingId ? 'Edit Genre' : 'Create Genre'}</h3>
+                        <p>{editingId ? 'Update selected genre information.' : 'Add a new story genre.'}</p>
+                      </div>
+                    </div>
+
+                    <div className="genre-card-body">
+                      <form onSubmit={handleSubmit}>
+                        <div className="genre-field">
+                          <label className="genre-label">Name</label>
+                          <input
+                            className="genre-input"
+                            value={form.name}
+                            onChange={(event) => handleNameChange(event.target.value)}
+                            placeholder="Romance"
+                            required
+                          />
+                        </div>
+
+                        <div className="genre-field">
+                          <label className="genre-label">Slug</label>
+                          <input
+                            className="genre-input"
+                            value={form.slug}
+                            onChange={(event) => setForm((current) => ({ ...current, slug: slugify(event.target.value) }))}
+                            placeholder="romance"
+                            required
+                          />
+                        </div>
+
+                        <div className="genre-field">
+                          <label className="genre-label">Sort Order</label>
+                          <input
+                            className="genre-input"
+                            type="number"
+                            value={form.sort_order}
+                            onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))}
+                          />
+                        </div>
+
+                        <div className="genre-switch-row">
+                          <span className="genre-switch-label">Active Genre</span>
+                          <label className="genre-switch">
+                            <input
+                              type="checkbox"
+                              checked={form.is_active}
+                              onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
+                            />
+                            <span className="genre-slider" />
+                          </label>
+                        </div>
+
+                        <div className="genre-form-actions">
+                          <button className="genre-dark-btn" type="submit" disabled={saving}>
+                            {saving ? 'Saving...' : editingId ? 'Update Genre' : 'Create Genre'}
+                          </button>
+                          {editingId && (
+                            <button className="genre-ghost-btn" type="button" onClick={resetForm}>
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </form>
                     </div>
                   </div>
 
-                  <div className="genre-card-body">
-                    <form onSubmit={handleSubmit}>
-                      <div className="genre-field">
-                        <label className="genre-label">Name</label>
-                        <input
-                          className="genre-input"
-                          value={form.name}
-                          onChange={(event) => handleNameChange(event.target.value)}
-                          placeholder="Romance"
-                          required
-                        />
+                  <div className="genre-card">
+                    <div className="genre-card-head">
+                      <div>
+                        <h3>For You Genre Tabs</h3>
+                        <p>Today is locked. Choose up to 11 more genres for the Novel tab.</p>
+                      </div>
+                      <span className="genre-counter">{selectedGenreIds.length + 1}/12 Tabs</span>
+                    </div>
+
+                    <div className="genre-card-body">
+                      <div className="genre-tab-tools">
+                        <div className="genre-counter">Selected genres appear as black buttons</div>
+                        <div className="genre-counter">Today + {selectedGenreIds.length} genres selected</div>
                       </div>
 
-                      <div className="genre-field">
-                        <label className="genre-label">Slug</label>
-                        <input
-                          className="genre-input"
-                          value={form.slug}
-                          onChange={(event) => setForm((current) => ({ ...current, slug: slugify(event.target.value) }))}
-                          placeholder="romance"
-                          required
-                        />
-                      </div>
-
-                      <div className="genre-field">
-                        <label className="genre-label">Sort Order</label>
-                        <input
-                          className="genre-input"
-                          type="number"
-                          value={form.sort_order}
-                          onChange={(event) => setForm((current) => ({ ...current, sort_order: event.target.value }))}
-                        />
-                      </div>
-
-                      <div className="genre-switch-row">
-                        <span className="genre-switch-label">Active Genre</span>
-                        <label className="genre-switch">
-                          <input
-                            type="checkbox"
-                            checked={form.is_active}
-                            onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
-                          />
-                          <span className="genre-slider" />
-                        </label>
-                      </div>
-
-                      <div className="genre-form-actions">
-                        <button className="genre-dark-btn" type="submit" disabled={saving}>
-                          {saving ? 'Saving...' : editingId ? 'Update Genre' : 'Create Genre'}
+                      <div className="genre-chip-wrap">
+                        <button className="genre-chip locked" type="button">
+                          Today 🔒
                         </button>
-                        {editingId && (
-                          <button className="genre-ghost-btn" type="button" onClick={resetForm}>
-                            Cancel
+
+                        {genres.map((genre) => {
+                          const selected = selectedGenreIds.includes(genre.id)
+                          return (
+                            <button
+                              key={genre.id}
+                              type="button"
+                              className={`genre-chip ${selected ? 'selected' : ''} ${!genre.is_active ? 'disabled' : ''}`}
+                              onClick={() => toggleFeaturedGenre(genre.id)}
+                              disabled={!genre.is_active}
+                            >
+                              {selected ? '✓ ' : ''}{genre.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="genre-card">
+                  <div className="genre-card-head">
+                    <div>
+                      <h3>All Genres</h3>
+                      <p>Search, filter, edit, disable, or delete unused genres.</p>
+                    </div>
+                  </div>
+
+                  <div className="genre-toolbar">
+                    <div className="genre-search">
+                      <span>⌕</span>
+                      <input
+                        value={searchQuery}
+                        onChange={(event) => {
+                          setSearchQuery(event.target.value)
+                          setShowAllGenres(false)
+                        }}
+                        placeholder="Search genre by name or slug..."
+                      />
+                    </div>
+
+                    <div className="genre-filter-row">
+                      {['all', 'active', 'disabled', 'featured'].map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          className={`genre-filter-btn ${filter === item ? 'active' : ''}`}
+                          onClick={() => {
+                            setFilter(item)
+                            setShowAllGenres(false)
+                          }}
+                        >
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {loading ? (
+                    <div className="genre-empty">Loading genres...</div>
+                  ) : filteredGenres.length === 0 ? (
+                    <div className="genre-empty">No genre found</div>
+                  ) : (
+                    <>
+                      <div className="genre-table-wrap">
+                        <table className="genre-table">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Slug</th>
+                              <th>Stories</th>
+                              <th>For You</th>
+                              <th>Status</th>
+                              <th>Sort</th>
+                              <th style={{ textAlign: 'right' }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visibleGenres.map((genre) => {
+                              const isFeatured = featuredIdSet.has(genre.id)
+                              const hasStories = Number(genre.story_count || 0) > 0
+
+                              return (
+                                <tr key={genre.id} className={editingId === genre.id ? 'editing' : ''}>
+                                  <td className="genre-name-cell">{genre.name}</td>
+                                  <td className="genre-muted">{genre.slug}</td>
+                                  <td className="genre-muted">{genre.story_count || 0}</td>
+                                  <td>
+                                    {isFeatured ? (
+                                      <span className="genre-badge featured">Featured</span>
+                                    ) : (
+                                      <span className="genre-muted">No</span>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <span className={`genre-badge ${genre.is_active ? 'active' : 'disabled'}`}>
+                                      {genre.is_active ? 'Active' : 'Disabled'}
+                                    </span>
+                                  </td>
+                                  <td className="genre-muted">{genre.sort_order || 0}</td>
+                                  <td>
+                                    <div className="genre-row-actions">
+                                      <button className="genre-small-btn edit" type="button" onClick={() => handleEdit(genre)}>
+                                        Edit
+                                      </button>
+                                      <button
+                                        className="genre-small-btn delete"
+                                        type="button"
+                                        onClick={() => handleDelete(genre)}
+                                        disabled={saving || hasStories}
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="genre-table-footer">
+                        <span>Showing {visibleGenres.length} of {filteredGenres.length} genres</span>
+                        {filteredGenres.length > 5 && (
+                          <button className="genre-ghost-btn" type="button" onClick={() => setShowAllGenres((current) => !current)}>
+                            {showAllGenres ? 'Show Less' : 'View All Genres'}
                           </button>
                         )}
                       </div>
-                    </form>
-                  </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="genre-card">
                   <div className="genre-card-head">
                     <div>
-                      <h3>For You Genre Tabs</h3>
-                      <p>Today is locked. Choose up to 11 more genres for the Novel tab.</p>
+                      <h3>Recent Genre Records</h3>
+                      <p>Latest genre changes from this admin session.</p>
                     </div>
-                    <span className="genre-counter">{selectedGenreIds.length + 1}/12 Tabs</span>
                   </div>
 
                   <div className="genre-card-body">
-                    <div className="genre-tab-tools">
-                      <div className="genre-counter">Selected genres appear as black buttons</div>
-                      <div className="genre-counter">Today + {selectedGenreIds.length} genres selected</div>
-                    </div>
-
-                    <div className="genre-chip-wrap">
-                      <button className="genre-chip locked" type="button">
-                        Today 🔒
-                      </button>
-
-                      {genres.map((genre) => {
-                        const selected = selectedGenreIds.includes(genre.id)
-                        return (
-                          <button
-                            key={genre.id}
-                            type="button"
-                            className={`genre-chip ${selected ? 'selected' : ''} ${!genre.is_active ? 'disabled' : ''}`}
-                            onClick={() => toggleFeaturedGenre(genre.id)}
-                            disabled={!genre.is_active}
-                          >
-                            {selected ? '✓ ' : ''}{genre.name}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    {records.length === 0 ? (
+                      <div className="genre-empty">No recent genre records yet</div>
+                    ) : (
+                      <div className="genre-record-list">
+                        {records.map((record) => (
+                          <div className="genre-record-item" key={record.id}>
+                            <div className="genre-record-dot">✓</div>
+                            <div>
+                              <div className="genre-record-title">{record.title}</div>
+                              <div className="genre-record-sub">{record.detail} · {record.time}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
+            ) : null}
 
+            {activePanel === 'images' ? (
               <div className="genre-card">
                 <div className="genre-card-head">
                   <div>
-                    <h3>All Genres</h3>
-                    <p>Search, filter, edit, disable, or delete unused genres.</p>
+                    <h3>Genre Images</h3>
+                    <p>Paste Cloudflare image URLs for each genre banner.</p>
                   </div>
-                </div>
-
-                <div className="genre-toolbar">
-                  <div className="genre-search">
-                    <span>⌕</span>
-                    <input
-                      value={searchQuery}
-                      onChange={(event) => {
-                        setSearchQuery(event.target.value)
-                        setShowAllGenres(false)
-                      }}
-                      placeholder="Search genre by name or slug..."
-                    />
-                  </div>
-
-                  <div className="genre-filter-row">
-                    {['all', 'active', 'disabled', 'featured'].map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        className={`genre-filter-btn ${filter === item ? 'active' : ''}`}
-                        onClick={() => {
-                          setFilter(item)
-                          setShowAllGenres(false)
-                        }}
-                      >
-                        {item}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div className="genre-empty">Loading genres...</div>
-                ) : filteredGenres.length === 0 ? (
-                  <div className="genre-empty">No genre found</div>
-                ) : (
-                  <>
-                    <div className="genre-table-wrap">
-                      <table className="genre-table">
-                        <thead>
-                          <tr>
-                            <th>Name</th>
-                            <th>Slug</th>
-                            <th>Stories</th>
-                            <th>For You</th>
-                            <th>Status</th>
-                            <th>Sort</th>
-                            <th style={{ textAlign: 'right' }}>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {visibleGenres.map((genre) => {
-                            const isFeatured = featuredIdSet.has(genre.id)
-                            const hasStories = Number(genre.story_count || 0) > 0
-
-                            return (
-                              <tr key={genre.id} className={editingId === genre.id ? 'editing' : ''}>
-                                <td className="genre-name-cell">{genre.name}</td>
-                                <td className="genre-muted">{genre.slug}</td>
-                                <td className="genre-muted">{genre.story_count || 0}</td>
-                                <td>
-                                  {isFeatured ? (
-                                    <span className="genre-badge featured">Featured</span>
-                                  ) : (
-                                    <span className="genre-muted">No</span>
-                                  )}
-                                </td>
-                                <td>
-                                  <span className={`genre-badge ${genre.is_active ? 'active' : 'disabled'}`}>
-                                    {genre.is_active ? 'Active' : 'Disabled'}
-                                  </span>
-                                </td>
-                                <td className="genre-muted">{genre.sort_order || 0}</td>
-                                <td>
-                                  <div className="genre-row-actions">
-                                    <button className="genre-small-btn edit" type="button" onClick={() => handleEdit(genre)}>
-                                      Edit
-                                    </button>
-                                    <button
-                                      className="genre-small-btn delete"
-                                      type="button"
-                                      onClick={() => handleDelete(genre)}
-                                      disabled={saving || hasStories}
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="genre-table-footer">
-                      <span>Showing {visibleGenres.length} of {filteredGenres.length} genres</span>
-                      {filteredGenres.length > 5 && (
-                        <button className="genre-ghost-btn" type="button" onClick={() => setShowAllGenres((current) => !current)}>
-                          {showAllGenres ? 'Show Less' : 'View All Genres'}
-                        </button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="genre-card">
-                <div className="genre-card-head">
-                  <div>
-                    <h3>Recent Genre Records</h3>
-                    <p>Latest genre changes from this admin session.</p>
-                  </div>
+                  <span className="genre-counter">{genres.length} Genres</span>
                 </div>
 
                 <div className="genre-card-body">
-                  {records.length === 0 ? (
-                    <div className="genre-empty">No recent genre records yet</div>
+                  {loading ? (
+                    <div className="genre-empty">Loading genres...</div>
+                  ) : genres.length === 0 ? (
+                    <div className="genre-empty">No genres found</div>
                   ) : (
-                    <div className="genre-record-list">
-                      {records.map((record) => (
-                        <div className="genre-record-item" key={record.id}>
-                          <div className="genre-record-dot">✓</div>
-                          <div>
-                            <div className="genre-record-title">{record.title}</div>
-                            <div className="genre-record-sub">{record.detail} · {record.time}</div>
+                    <div className="genre-image-grid">
+                      {genres.map((genre) => {
+                        const draft = getDraft(genre)
+                        const desktopUrl = draft.banner_image_url || ''
+                        const mobileUrl = draft.mobile_banner_image_url || ''
+
+                        return (
+                          <div className="genre-image-card" key={`image-${genre.id}`}>
+                            <div className="genre-image-top">
+                              <div>
+                                <h4 className="genre-image-name">{genre.name}</h4>
+                                <div className="genre-image-slug">{genre.slug}</div>
+                              </div>
+                              <span className={`genre-badge ${genre.is_active ? 'active' : 'disabled'}`}>
+                                {genre.is_active ? 'Active' : 'Disabled'}
+                              </span>
+                            </div>
+
+                            <div className="genre-image-preview-wrap">
+                              {renderImagePreview(desktopUrl, 'Desktop Banner')}
+                              {renderImagePreview(mobileUrl || desktopUrl, 'Mobile Banner', true)}
+                            </div>
+
+                            <div className="genre-image-fields">
+                              <div className="genre-field">
+                                <label className="genre-label">Desktop Banner URL</label>
+                                <input
+                                  className="genre-input"
+                                  value={desktopUrl}
+                                  onChange={(event) => updateImageDraft(genre.id, 'banner_image_url', event.target.value)}
+                                  placeholder="https://..."
+                                />
+                              </div>
+
+                              <div className="genre-field">
+                                <label className="genre-label">Mobile Banner URL</label>
+                                <input
+                                  className="genre-input"
+                                  value={mobileUrl}
+                                  onChange={(event) => updateImageDraft(genre.id, 'mobile_banner_image_url', event.target.value)}
+                                  placeholder="https://..."
+                                />
+                              </div>
+                            </div>
+
+                            <div className="genre-image-actions">
+                              <button
+                                className="genre-dark-btn"
+                                type="button"
+                                onClick={() => handleSaveGenreImages(genre)}
+                                disabled={saving}
+                              >
+                                {saving ? 'Saving...' : 'Save Images'}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
               </div>
-            </div>          </div>
+            ) : null}
+          </div>
         </main>
       </div>
     </>
