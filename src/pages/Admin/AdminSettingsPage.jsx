@@ -3,6 +3,7 @@ import ChangePasswordSection from './sections/ChangePasswordSection'
 import ComingSoonSection from './sections/ComingSoonSection'
 import LoginDevicesSection from './sections/LoginDevicesSection'
 import LoginHistorySection from './sections/LoginHistorySection'
+import SecurityAlertsSection from './sections/SecurityAlertsSection'
 
 
 const styles = `
@@ -312,7 +313,7 @@ const tabs = [
   { key: 'passkey', title: 'Passkey', subtitle: 'Device passkey or biometrics', icon: '🔑', available: false },
   { key: 'devices', title: 'Login Devices', subtitle: 'Signed-in browsers and devices', icon: '💻', available: true },
   { key: 'history', title: 'Login History', subtitle: 'Recent sign-ins and IP records', icon: '📍', available: true },
-  { key: 'alerts', title: 'Security Alerts', subtitle: 'Failed login and risk alerts', icon: '🚨', available: false },
+  { key: 'alerts', title: 'Security Alerts', subtitle: 'Failed login and risk alerts', icon: '🚨', available: true },
 ]
 
 export default function AdminSettingsPage() {
@@ -383,6 +384,8 @@ export default function AdminSettingsPage() {
   <LoginDevicesSection />
 ) : activeKey === 'history' ? (
   <LoginHistorySection />
+) : activeKey === 'alerts' ? (
+  <SecurityAlertsSection />
 ) : (
   <ComingSoonSection />
 )}
