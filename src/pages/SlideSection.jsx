@@ -134,6 +134,7 @@ export default function SlideSection() {
   const [slides, setSlides] = useState([]);
   const [title, setTitle] = useState('');
   const [badge, setBadge] = useState('');
+  const [genreLabel, setGenreLabel] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [linkUrl, setLinkUrl] = useState('/story/1');
   const [isActive, setIsActive] = useState(true);
@@ -224,6 +225,7 @@ useEffect(() => {
   const parsedTitle = parseBadgeTitle(slide?.title || '');
   setBadge(parsedTitle.badge);
   setTitle(parsedTitle.title);
+  setGenreLabel(slide?.genre_label || '');
   setSubtitle(slide?.subtitle || '');
     setLinkUrl(slide?.link_url || '/story/1');
     setIsActive(slide?.is_active ?? true);
@@ -262,6 +264,7 @@ useEffect(() => {
   buildBadgeTitle(badge, title || `${currentSection.label} ${selectedSlot}`)
 );
       formData.append('subtitle', subtitle);
+      formData.append('genre_label', genreLabel);
       formData.append('link_url', linkUrl || '/');
       formData.append('order_index', String(selectedSlot));
       formData.append('is_active', String(isActive));
@@ -305,6 +308,7 @@ useEffect(() => {
       setMessage({ type: 'success', text: `${currentSection.label} ${selectedSlot} deleted successfully.` });
       setTitle('');
       setSubtitle('');
+      setGenreLabel('');
       setLinkUrl('/story/1');
       setIsActive(true);
       setSelectedFile(null);
@@ -322,6 +326,7 @@ useEffect(() => {
     const slide = slotMap[selectedSlot];
     setTitle(slide?.title || '');
     setSubtitle(slide?.subtitle || '');
+    setGenreLabel(slide?.genre_label || '');
     setLinkUrl(slide?.link_url || '/story/1');
     setIsActive(slide?.is_active ?? true);
     setSelectedFile(null);
@@ -417,9 +422,11 @@ useEffect(() => {
   <option value="TOP">TOP</option>
 </select>
 
+<label className="field-label">Genre</label>
+<input className="input" value={genreLabel} onChange={(e) => setGenreLabel(e.target.value)} placeholder="Fantasy / Romance / Horror" />
+
 <label className="field-label">Title</label>
 <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
-
                   <label className="field-label">Subtitle</label>
                   <textarea className="textarea" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Short slide subtitle or note" />
 
