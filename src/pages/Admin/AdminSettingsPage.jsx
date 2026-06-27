@@ -4,6 +4,7 @@ import ComingSoonSection from './sections/ComingSoonSection'
 import LoginDevicesSection from './sections/LoginDevicesSection'
 import LoginHistorySection from './sections/LoginHistorySection'
 import SecurityAlertsSection from './sections/SecurityAlertsSection'
+import TwoFactorSection from './sections/TwoFactorSection'
 
 
 const styles = `
@@ -309,7 +310,7 @@ const styles = `
 
 const tabs = [
   { key: 'password', title: 'Change Password', subtitle: 'Update your admin login password', icon: '🔐', available: true },
-  { key: '2fa', title: 'Two-Factor Authentication', subtitle: 'Email or app verification code', icon: '🛡️', available: false },
+  { key: '2fa', title: 'Two-Factor Authentication', subtitle: 'Email or app verification code', icon: '🛡️', available: true },
   { key: 'passkey', title: 'Passkey', subtitle: 'Device passkey or biometrics', icon: '🔑', available: false },
   { key: 'devices', title: 'Login Devices', subtitle: 'Signed-in browsers and devices', icon: '💻', available: true },
   { key: 'history', title: 'Login History', subtitle: 'Recent sign-ins and IP records', icon: '📍', available: true },
@@ -380,6 +381,8 @@ export default function AdminSettingsPage() {
               <div key={activeKey} className="settings-section-body">
                 {activeKey === 'password' ? (
   <ChangePasswordSection />
+) : activeKey === '2fa' ? (
+  <TwoFactorSection />
 ) : activeKey === 'devices' ? (
   <LoginDevicesSection />
 ) : activeKey === 'history' ? (
