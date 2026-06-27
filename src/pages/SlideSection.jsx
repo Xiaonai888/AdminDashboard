@@ -306,6 +306,7 @@ useEffect(() => {
       setMessage(null);
       await apiFetch(`${API_URL}/api/slides/${selectedSlide.id}`, { method: 'DELETE' });
       setMessage({ type: 'success', text: `${currentSection.label} ${selectedSlot} deleted successfully.` });
+      setBadge('');
       setTitle('');
       setSubtitle('');
       setGenreLabel('');
@@ -324,7 +325,9 @@ useEffect(() => {
 
   const handleResetForm = () => {
     const slide = slotMap[selectedSlot];
-    setTitle(slide?.title || '');
+    const parsedTitle = parseBadgeTitle(slide?.title || '');
+    setBadge(parsedTitle.badge);
+    setTitle(parsedTitle.title);
     setSubtitle(slide?.subtitle || '');
     setGenreLabel(slide?.genre_label || '');
     setLinkUrl(slide?.link_url || '/story/1');
