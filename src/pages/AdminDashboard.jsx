@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import AdminSecurityBell from '../components/AdminSecurityBell';
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
+
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -1038,15 +1040,7 @@ const currentUserRole = adminProfile.role || 'Loading...';
               
 
               {/* Notifications */}
-              <div style={{ position: 'relative', cursor: 'pointer', padding: '6px', borderRadius: '10px' }}
-                className="notif-btn">
-                <Icon d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0" size={20} color="#64748B" />
-                <span style={{
-                  position: 'absolute', top: '4px', right: '4px',
-                  width: '8px', height: '8px', background: 'var(--danger)',
-                  borderRadius: '50%', border: '2px solid white'
-                }} />
-              </div>
+              <AdminSecurityBell />
 
               {/* Profile */}
               <div style={{ position: 'relative' }}>
