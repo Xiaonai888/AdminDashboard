@@ -960,13 +960,116 @@ const styles = `
     justify-content:flex-end;
   }
 
+
+  .genre-image-search {
+    position:relative;
+    width:min(420px, 100%);
+  }
+
+  .genre-image-search i {
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    color:var(--soft);
+    font-size:14px;
+  }
+
+  .genre-image-search input {
+    width:100%;
+    height:42px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:0 16px 0 40px;
+    outline:none;
+    font-weight:800;
+  }
+
+  .genre-image-chip-panel {
+    display:grid;
+    gap:16px;
+  }
+
+  .genre-image-chip-wrap {
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  .genre-image-chip {
+    min-height:36px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    background:#fff;
+    color:var(--text);
+    padding:0 14px;
+    font-size:12.5px;
+    font-weight:950;
+    cursor:pointer;
+    transition:.16s ease;
+  }
+
+  .genre-image-chip:hover,
+  .genre-image-chip.active {
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent);
+    box-shadow:0 10px 22px rgba(79,70,229,.22);
+  }
+
+  .genre-image-editor {
+    display:grid;
+    gap:16px;
+  }
+
+  .genre-image-editor-top {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    padding:16px;
+    border:1px solid var(--border);
+    border-radius:18px;
+    background:#fff;
+  }
+
+  .genre-image-editor-grid {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:16px;
+  }
+
+  .genre-upload-btn {
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:42px;
+    border:0;
+    border-radius:13px;
+    padding:0 16px;
+    background:linear-gradient(135deg, #4F46E5, #6D5DF6);
+    color:#fff;
+    font-weight:950;
+    cursor:pointer;
+    box-shadow:0 10px 22px rgba(79,70,229,.24);
+  }
+
+  .genre-upload-btn input {
+    position:absolute;
+    inset:0;
+    opacity:0;
+    cursor:pointer;
+  }
+
   @media (max-width:1100px) {
     .genre-stat-grid {
       grid-template-columns:repeat(2, minmax(0, 1fr));
     }
 
     .genre-control-grid,
-    .genre-image-grid {
+    .genre-image-grid,
+    .genre-image-editor-grid {
       grid-template-columns:1fr;
     }
   }
@@ -985,6 +1088,7 @@ const styles = `
     .genre-tab-tools,
     .genre-table-footer,
     .genre-image-top,
+    .genre-image-editor-top,
     .genre-image-actions {
       flex-direction:column;
       align-items:stretch;
@@ -1012,6 +1116,9 @@ export default function GenreManagementPage() {
   const [showAllGenres, setShowAllGenres] = useState(false)
   const [activePanel, setActivePanel] = useState('manage')
   const [imageDrafts, setImageDrafts] = useState({})
+  const [selectedImageGenreId, setSelectedImageGenreId] = useState('')
+  const [genreImageSearch, setGenreImageSearch] = useState('')
+  const [uploadingImage, setUploadingImage] = useState('')
   const [form, setForm] = useState({
     name: '',
     slug: '',
@@ -1138,6 +1245,25 @@ export default function GenreManagementPage() {
     }
   }
 
+  const selectedImageGenre = useMemo(() => {
+    if (!genres.length) return null
+
+    return genres.find((genre) => genre.id === selectedImageGenreId) || genres[0]
+  }, [genres, selectedImageGenreId])
+
+  const imageGenreOptions = useMemo(() => {
+    const keyword = genreImageSearch.trim().toLowerCase()
+
+    return genres.filter((genre) => {
+      if (!keyword) return true
+
+      return (
+        String(genre.name || '').toLowerCase().includes(keyword) ||
+        String(genre.slug || '').toLowerCase().includes(keyword)
+      )
+    })
+  }, [genres, genreImageSearch])
+
   function pushRecord(title, detail) {
     setRecords((current) => [
       {
@@ -1183,6 +1309,7 @@ export default function GenreManagementPage() {
       setGenres(nextGenres)
       setFeaturedTabs(tabsData.tabs || [])
       setImageDrafts(nextDrafts)
+      setSelectedImageGenreId((current) => current || nextGenres[0]?.id || '')
     } catch (error) {
       setMessage(error.message || 'Failed to load genre data')
     } finally {
@@ -1268,6 +1395,47 @@ export default function GenreManagementPage() {
       setMessage(error.message || 'Failed to save genre images')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleUploadGenreBanner(genre, type, file) {
+    if (!genre || !file) return
+
+    try {
+      const uploadKey = `${genre.id}-${type}`
+      setUploadingImage(uploadKey)
+      setMessage('')
+
+      const formData = new FormData()
+      formData.append('image', file)
+      formData.append('type', type)
+
+      const res = await fetch(`${API_URL}/api/genres/admin/upload-banner`, {
+        method: 'POST',
+        headers: {
+          ...(getAdminToken() ? { Authorization: `Bearer ${getAdminToken()}` } : {}),
+          'X-Admin-Name': 'Admin',
+        },
+        body: formData,
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to upload banner')
+      }
+
+      updateImageDraft(
+        genre.id,
+        type === 'mobile' ? 'mobile_banner_image_url' : 'banner_image_url',
+        data.image_url || data.imageUrl || ''
+      )
+
+      setMessage(`${genre.name} ${type} banner uploaded`)
+    } catch (error) {
+      setMessage(error.message || 'Failed to upload banner')
+    } finally {
+      setUploadingImage('')
     }
   }
 
@@ -1777,7 +1945,7 @@ export default function GenreManagementPage() {
                 <div className="genre-card-head">
                   <div>
                     <h3>Genre Images</h3>
-                    <p>Paste Cloudflare image URLs for each genre banner.</p>
+                    <p>Select one genre, upload desktop and mobile banners, then save.</p>
                   </div>
                   <span className="genre-counter">{genres.length} Genres</span>
                 </div>
@@ -1788,69 +1956,106 @@ export default function GenreManagementPage() {
                   ) : genres.length === 0 ? (
                     <div className="genre-empty">No genres found</div>
                   ) : (
-                    <div className="genre-image-grid">
-                      {genres.map((genre) => {
-                        const draft = getDraft(genre)
-                        const desktopUrl = draft.banner_image_url || ''
-                        const mobileUrl = draft.mobile_banner_image_url || ''
+                    <div className="genre-image-chip-panel">
+          <div className="genre-image-search">
+            <i className="fa-solid fa-magnifying-glass" />
+            <input
+              value={genreImageSearch}
+              onChange={(event) => setGenreImageSearch(event.target.value)}
+              placeholder="Search genres..."
+            />
+          </div>
 
-                        return (
-                          <div className="genre-image-card" key={`image-${genre.id}`}>
-                            <div className="genre-image-top">
-                              <div>
-                                <h4 className="genre-image-name">{genre.name}</h4>
-                                <div className="genre-image-slug">{genre.slug}</div>
-                              </div>
-                              <span className={`genre-badge ${genre.is_active ? 'active' : 'disabled'}`}>
-                                {genre.is_active ? 'Active' : 'Disabled'}
-                              </span>
-                            </div>
+          <div className="genre-image-chip-wrap">
+            {imageGenreOptions.map((genre) => (
+              <button
+                key={genre.id}
+                className={`genre-image-chip ${selectedImageGenre?.id === genre.id ? 'active' : ''}`}
+                type="button"
+                onClick={() => setSelectedImageGenreId(genre.id)}
+              >
+                {genre.name}
+              </button>
+            ))}
+          </div>
 
-                            <div className="genre-image-preview-wrap">
-                              {renderImagePreview(desktopUrl, 'Desktop Banner')}
-                              {renderImagePreview(mobileUrl || desktopUrl, 'Mobile Banner', true)}
-                            </div>
+          {selectedImageGenre ? (
+            <div className="genre-image-editor">
+              <div className="genre-image-editor-top">
+                <div>
+                  <h4 className="genre-image-name">{selectedImageGenre.name}</h4>
+                  <div className="genre-image-slug">{selectedImageGenre.slug}</div>
+                </div>
+                <span className={`genre-badge ${selectedImageGenre.is_active ? 'active' : 'disabled'}`}>
+                  {selectedImageGenre.is_active ? 'Active' : 'Disabled'}
+                </span>
+              </div>
 
-                            <div className="genre-image-fields">
-                              <div className="genre-field">
-                                <label className="genre-label">Desktop Banner URL</label>
-                                <input
-                                  className="genre-input"
-                                  value={desktopUrl}
-                                  onChange={(event) => updateImageDraft(genre.id, 'banner_image_url', event.target.value)}
-                                  placeholder="https://..."
-                                />
-                              </div>
+              <div className="genre-image-editor-grid">
+                <div className="genre-image-card">
+                  <div>
+                    <div className="genre-image-preview-label">Desktop Banner</div>
+                    {renderImagePreview(getDraft(selectedImageGenre).banner_image_url, 'Desktop Banner')}
+                  </div>
 
-                              <div className="genre-field">
-                                <label className="genre-label">Mobile Banner URL</label>
-                                <input
-                                  className="genre-input"
-                                  value={mobileUrl}
-                                  onChange={(event) => updateImageDraft(genre.id, 'mobile_banner_image_url', event.target.value)}
-                                  placeholder="https://..."
-                                />
-                              </div>
-                            </div>
+                  <label className="genre-upload-btn">
+                    {uploadingImage === `${selectedImageGenre.id}-desktop` ? 'Uploading...' : 'Upload Desktop Banner'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={Boolean(uploadingImage)}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ''
+                        handleUploadGenreBanner(selectedImageGenre, 'desktop', file)
+                      }}
+                    />
+                  </label>
+                </div>
 
-                            <div className="genre-image-actions">
-                              <button
-                                className="genre-dark-btn"
-                                type="button"
-                                onClick={() => handleSaveGenreImages(genre)}
-                                disabled={saving}
-                              >
-                                {saving ? 'Saving...' : 'Save Images'}
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                <div className="genre-image-card">
+                  <div>
+                    <div className="genre-image-preview-label">Mobile Banner</div>
+                    {renderImagePreview(
+                      getDraft(selectedImageGenre).mobile_banner_image_url || getDraft(selectedImageGenre).banner_image_url,
+                      'Mobile Banner',
+                      true
+                    )}
+                  </div>
+
+                  <label className="genre-upload-btn">
+                    {uploadingImage === `${selectedImageGenre.id}-mobile` ? 'Uploading...' : 'Upload Mobile Banner'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={Boolean(uploadingImage)}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ''
+                        handleUploadGenreBanner(selectedImageGenre, 'mobile', file)
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
-            ) : null}
+
+              <div className="genre-image-actions">
+                <button
+                  className="genre-dark-btn"
+                  type="button"
+                  onClick={() => handleSaveGenreImages(selectedImageGenre)}
+                  disabled={saving || Boolean(uploadingImage)}
+                >
+                  {saving ? 'Saving...' : 'Save Images'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  </div>
+) : null}
           </div>
         </main>
       </div>
