@@ -4,55 +4,73 @@ import { useNavigate } from 'react-router-dom'
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
-  .admin-security-bell { position: relative; }
-  .admin-security-bell-btn { position: relative; cursor: pointer; padding: 6px; border-radius: 10px; border: none; background: transparent; display: flex; align-items: center; justify-content: center; }
-  .admin-security-bell-btn:hover { background: #F1F5F9; }
-  .admin-security-bell-dot { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #EF4444; color: #FFFFFF; border: 2px solid #FFFFFF; font-size: 9px; font-weight: 900; display: flex; align-items: center; justify-content: center; line-height: 1; }
-  .admin-security-bell-panel { position: absolute; top: calc(100% + 10px); right: -8px; width: 360px; max-width: calc(100vw - 24px); background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 18px; box-shadow: 0 18px 48px rgba(15,23,42,0.16); overflow: hidden; z-index: 500; animation: securityBellIn 0.16s ease; }
-  .admin-security-bell-head { padding: 15px; background: linear-gradient(135deg, #FFF7F7 0%, #EEF2FF 100%); border-bottom: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .admin-security-bell-head h3 { margin: 0; color: #0F172A; font-size: 14px; font-weight: 900; }
-  .admin-security-bell-head span { color: #64748B; font-size: 11px; font-weight: 800; }
-  .admin-security-bell-refresh { border: none; background: #FFFFFF; color: #4F46E5; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 900; cursor: pointer; }
-  .admin-security-bell-list { max-height: 340px; overflow-y: auto; }
-  .admin-security-alert-item { padding: 13px 15px; border-bottom: 1px solid #F1F5F9; display: grid; gap: 7px; }
-  .admin-security-alert-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-  .admin-security-alert-title { color: #0F172A; font-size: 12px; font-weight: 900; line-height: 1.35; }
-  .admin-security-alert-text { color: #64748B; font-size: 11px; font-weight: 700; line-height: 1.45; }
-  .admin-security-alert-meta { color: #475569; font-size: 11px; font-weight: 800; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .admin-security-severity { border-radius: 999px; padding: 4px 7px; font-size: 10px; font-weight: 900; white-space: nowrap; }
-  .admin-security-severity.critical { background: #7F1D1D; color: #FFFFFF; }
-  .admin-security-severity.high { background: #FEF2F2; color: #B91C1C; }
-  .admin-security-severity.medium { background: #FFF7ED; color: #C2410C; }
-  .admin-security-severity.low { background: #ECFDF5; color: #047857; }
-  .admin-security-alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .admin-security-alert-action { border: none; background: #EEF2FF; color: #4F46E5; border-radius: 9px; padding: 7px 9px; font-size: 11px; font-weight: 900; cursor: pointer; }
-  .admin-security-bell-empty { padding: 24px 15px; color: #64748B; text-align: center; font-size: 12px; font-weight: 800; }
-  .admin-security-bell-footer { padding: 12px; background: #F8FAFC; border-top: 1px solid #E2E8F0; }
-  .admin-security-bell-view-all { width: 100%; border: none; background: #0F172A; color: #FFFFFF; min-height: 38px; border-radius: 12px; font-size: 12px; font-weight: 900; cursor: pointer; }
-  @keyframes securityBellIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .admin-notification-root { position: relative; }
+  .admin-notification-button { position: relative; width: 34px; height: 34px; border: none; background: transparent; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .admin-notification-button:hover { background: #F1F5F9; }
+  .admin-notification-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #EF4444; color: #FFFFFF; border: 2px solid #FFFFFF; font-size: 9px; font-weight: 900; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .admin-notification-panel { position: absolute; top: calc(100% + 10px); right: -12px; width: 390px; max-width: calc(100vw - 22px); max-height: 620px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 24px; box-shadow: 0 22px 56px rgba(15, 23, 42, 0.18); overflow: hidden; z-index: 600; animation: adminNotificationIn 0.18s ease; }
+  .admin-notification-head { padding: 22px 20px 14px; background: #FFFFFF; border-bottom: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .admin-notification-title { margin: 0; color: #111827; font-size: 20px; font-weight: 900; letter-spacing: -0.03em; }
+  .admin-notification-check { width: 40px; height: 40px; border: none; border-radius: 999px; background: #F8FAFC; color: #94A3B8; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: 900; }
+  .admin-notification-check:hover { background: #EEF2FF; color: #4F46E5; }
+  .admin-notification-tabs { padding: 10px 16px 12px; background: #FFFFFF; display: flex; gap: 9px; overflow-x: auto; border-bottom: 1px solid #E2E8F0; }
+  .admin-notification-tab { border: 1px solid #E2E8F0; background: #FFFFFF; color: #475569; border-radius: 999px; min-height: 30px; padding: 0 14px; font-size: 11px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+  .admin-notification-tab.active { background: #111827; border-color: #111827; color: #FFFFFF; }
+  .admin-notification-list { padding: 12px 14px 16px; max-height: 440px; overflow-y: auto; display: grid; gap: 12px; }
+  .admin-notification-card { background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 20px; padding: 14px; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06); display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; }
+  .admin-notification-card.unread { border-color: #FCA5A5; background: linear-gradient(135deg, #FFFFFF 0%, #FFF7F7 100%); }
+  .admin-notification-icon { width: 44px; height: 44px; border-radius: 999px; background: #FEF3C7; color: #D97706; display: flex; align-items: center; justify-content: center; font-size: 19px; }
+  .admin-notification-content { min-width: 0; }
+  .admin-notification-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .admin-notification-item-title { color: #111827; font-size: 13px; font-weight: 900; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; }
+  .admin-notification-time { color: #94A3B8; font-size: 11px; font-weight: 900; white-space: nowrap; }
+  .admin-notification-message { margin-top: 5px; color: #64748B; font-size: 12px; font-weight: 700; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .admin-notification-meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .admin-notification-pill { border-radius: 999px; background: #F1F5F9; color: #64748B; font-size: 10px; font-weight: 900; padding: 4px 8px; }
+  .admin-notification-pill.critical { background: #7F1D1D; color: #FFFFFF; }
+  .admin-notification-pill.high { background: #FEF2F2; color: #B91C1C; }
+  .admin-notification-pill.medium { background: #FFF7ED; color: #C2410C; }
+  .admin-notification-pill.low { background: #ECFDF5; color: #047857; }
+  .admin-notification-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .admin-notification-action { border: none; background: #EEF2FF; color: #4F46E5; border-radius: 10px; min-height: 28px; padding: 0 10px; font-size: 11px; font-weight: 900; cursor: pointer; }
+  .admin-notification-action.dark { background: #111827; color: #FFFFFF; }
+  .admin-notification-empty { background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 20px; padding: 28px 18px; text-align: center; color: #64748B; font-size: 12px; font-weight: 800; line-height: 1.55; }
+  .admin-notification-footer { padding: 0 14px 14px; background: #F8FAFC; }
+  .admin-notification-footer-button { width: 100%; border: none; min-height: 42px; background: #111827; color: #FFFFFF; border-radius: 14px; font-size: 12px; font-weight: 900; cursor: pointer; }
+  @keyframes adminNotificationIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 `
+
+const tabs = [
+  { key: 'all', label: 'All' },
+  { key: 'unread', label: 'Unread' },
+  { key: 'alerts', label: 'Alerts' },
+  { key: 'actions', label: 'Actions' },
+  { key: 'system', label: 'System' },
+]
 
 function getToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
 
 function formatTime(value) {
-  if (!value) return '—'
+  if (!value) return ''
   const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return ''
+
   const diff = Date.now() - date.getTime()
   const minutes = Math.max(0, Math.floor(diff / 60000))
 
-  if (Number.isNaN(date.getTime())) return '—'
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1) return 'Now'
+  if (minutes < 60) return `${minutes}m`
 
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return `${hours}h`
 
   const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
+  if (days < 7) return `${days}d`
 
-  return date.toLocaleString()
+  return date.toLocaleDateString()
 }
 
 function BellIcon({ color = '#64748B' }) {
@@ -63,31 +81,60 @@ function BellIcon({ color = '#64748B' }) {
   )
 }
 
+function CheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  )
+}
+
+function normalizeAlert(alert) {
+  return {
+    id: alert.id,
+    type: 'alert',
+    icon: '🚨',
+    title: alert.title || 'Security Alert',
+    message: alert.message || 'Admin security risk detected.',
+    severity: alert.severity || 'medium',
+    country: alert.country_name || alert.country_code || 'Unknown country',
+    ip: alert.ip_address || 'No IP',
+    isRead: Boolean(alert.is_read),
+    time: alert.created_at,
+  }
+}
+
 export default function AdminSecurityBell() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [alerts, setAlerts] = useState([])
-  const [summary, setSummary] = useState({ unread: 0, critical: 0, high: 0 })
+  const [activeTab, setActiveTab] = useState('all')
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const dangerCount = useMemo(
-    () => Number(summary.critical || 0) + Number(summary.high || 0),
-    [summary]
+  const unreadCount = useMemo(
+    () => items.filter((item) => !item.isRead).length,
+    [items]
   )
 
-  const loadAlerts = useCallback(async () => {
+  const filteredItems = useMemo(() => {
+    if (activeTab === 'unread') return items.filter((item) => !item.isRead)
+    if (activeTab === 'alerts') return items.filter((item) => item.type === 'alert')
+    if (activeTab === 'all') return items
+    return []
+  }, [activeTab, items])
+
+  const loadNotifications = useCallback(async () => {
     const token = getToken()
 
     if (!token) {
-      setAlerts([])
-      setSummary({ unread: 0, critical: 0, high: 0 })
+      setItems([])
       return
     }
 
     try {
       setLoading(true)
 
-      const response = await fetch(`${API_URL}/api/admin/device-access/security-alerts?status=unread&limit=10`, {
+      const response = await fetch(`${API_URL}/api/admin/device-access/security-alerts?limit=30`, {
         credentials: 'include',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -97,34 +144,33 @@ export default function AdminSecurityBell() {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load security alerts')
+        throw new Error(data.message || 'Failed to load admin notifications')
       }
 
-      setAlerts(Array.isArray(data.alerts) ? data.alerts : [])
-      setSummary(data.summary || { unread: 0, critical: 0, high: 0 })
+      const alertItems = Array.isArray(data.alerts) ? data.alerts.map(normalizeAlert) : []
+      setItems(alertItems)
     } catch {
-      setAlerts([])
-      setSummary({ unread: 0, critical: 0, high: 0 })
+      setItems([])
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    loadAlerts()
+    loadNotifications()
 
-    const timer = window.setInterval(loadAlerts, 60000)
+    const timer = window.setInterval(loadNotifications, 60000)
 
     return () => window.clearInterval(timer)
-  }, [loadAlerts])
+  }, [loadNotifications])
 
-  async function markRead(alertId) {
+  async function markRead(item) {
     const token = getToken()
 
-    if (!token || !alertId) return
+    if (!token || !item?.id || item.type !== 'alert') return
 
     try {
-      await fetch(`${API_URL}/api/admin/device-access/security-alerts/${alertId}/read`, {
+      await fetch(`${API_URL}/api/admin/device-access/security-alerts/${item.id}/read`, {
         method: 'PATCH',
         credentials: 'include',
         headers: {
@@ -132,12 +178,33 @@ export default function AdminSecurityBell() {
         },
       })
 
-      await loadAlerts()
+      setItems((current) => current.map((record) => (
+        record.id === item.id ? { ...record, isRead: true } : record
+      )))
     } catch {
     }
   }
 
-  function goToSecurityAlerts() {
+  async function markAllRead() {
+    const token = getToken()
+
+    if (!token) return
+
+    try {
+      await fetch(`${API_URL}/api/admin/device-access/security-alerts/read-all`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      setItems((current) => current.map((item) => ({ ...item, isRead: true })))
+    } catch {
+    }
+  }
+
+  function viewDetails() {
     setOpen(false)
     navigate('/admin/settings?tab=alerts')
   }
@@ -146,70 +213,82 @@ export default function AdminSecurityBell() {
     <>
       <style>{styles}</style>
 
-      <div className="admin-security-bell">
+      <div className="admin-notification-root">
         <button
           type="button"
-          className="admin-security-bell-btn"
+          className="admin-notification-button"
           onClick={() => setOpen((value) => !value)}
-          title="Security Alerts"
+          title="Admin Notifications"
         >
-          <BellIcon color={dangerCount ? '#EF4444' : '#64748B'} />
-          {summary.unread ? <span className="admin-security-bell-dot">{summary.unread > 9 ? '9+' : summary.unread}</span> : null}
+          <BellIcon color={unreadCount ? '#EF4444' : '#64748B'} />
+          {unreadCount ? <span className="admin-notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}
         </button>
 
         {open ? (
-          <div className="admin-security-bell-panel">
-            <div className="admin-security-bell-head">
-              <div>
-                <h3>Security Alerts</h3>
-                <span>{summary.unread || 0} unread · {dangerCount} critical/high</span>
-              </div>
-              <button type="button" className="admin-security-bell-refresh" onClick={loadAlerts}>
-                {loading ? '...' : 'Refresh'}
+          <div className="admin-notification-panel">
+            <div className="admin-notification-head">
+              <h3 className="admin-notification-title">Shadow Notification</h3>
+              <button type="button" className="admin-notification-check" onClick={markAllRead} title="Mark all read">
+                <CheckIcon />
               </button>
             </div>
 
-            <div className="admin-security-bell-list">
-              {alerts.length ? (
-                alerts.map((alert) => (
-                  <div key={alert.id} className="admin-security-alert-item">
-                    <div className="admin-security-alert-top">
-                      <div>
-                        <div className="admin-security-alert-title">{alert.title || 'Security alert'}</div>
-                        <div className="admin-security-alert-text">{alert.message || 'Admin security risk detected.'}</div>
+            <div className="admin-notification-tabs">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={`admin-notification-tab ${activeTab === tab.key ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="admin-notification-list">
+              {filteredItems.length ? (
+                filteredItems.map((item) => (
+                  <div key={`${item.type}-${item.id}`} className={`admin-notification-card ${item.isRead ? '' : 'unread'}`}>
+                    <div className="admin-notification-icon">{item.icon}</div>
+
+                    <div className="admin-notification-content">
+                      <div className="admin-notification-row">
+                        <div className="admin-notification-item-title">{item.title}</div>
+                        <div className="admin-notification-time">{formatTime(item.time)}</div>
                       </div>
-                      <span className={`admin-security-severity ${alert.severity || 'medium'}`}>
-                        {alert.severity || 'medium'}
-                      </span>
-                    </div>
 
-                    <div className="admin-security-alert-meta">
-                      <span>{formatTime(alert.created_at)}</span>
-                      <span>•</span>
-                      <span>{alert.country_name || alert.country_code || 'Unknown country'}</span>
-                      <span>•</span>
-                      <span>{alert.ip_address || 'No IP'}</span>
-                    </div>
+                      <div className="admin-notification-message">{item.message}</div>
 
-                    <div className="admin-security-alert-actions">
-                      <button type="button" className="admin-security-alert-action" onClick={() => markRead(alert.id)}>
-                        Mark read
-                      </button>
-                      <button type="button" className="admin-security-alert-action" onClick={goToSecurityAlerts}>
-                        View details
-                      </button>
+                      <div className="admin-notification-meta">
+                        <span className={`admin-notification-pill ${item.severity}`}>{item.severity}</span>
+                        <span className="admin-notification-pill">Security</span>
+                        <span className="admin-notification-pill">{item.country}</span>
+                        <span className="admin-notification-pill">{item.ip}</span>
+                      </div>
+
+                      <div className="admin-notification-actions">
+                        {!item.isRead ? (
+                          <button type="button" className="admin-notification-action" onClick={() => markRead(item)}>
+                            Mark read
+                          </button>
+                        ) : null}
+                        <button type="button" className="admin-notification-action dark" onClick={viewDetails}>
+                          View details
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="admin-security-bell-empty">
-                  {loading ? 'Loading security alerts...' : 'No unread security alerts.'}
+                <div className="admin-notification-empty">
+                  {loading ? 'Loading notifications...' : activeTab === 'actions' ? 'Actions notifications will be added later.' : activeTab === 'system' ? 'System notifications will be added later.' : 'No notifications yet.'}
                 </div>
               )}
             </div>
 
-            <div className="admin-security-bell-footer">
-              <button type="button" className="admin-security-bell-view-all" onClick={goToSecurityAlerts}>
+            <div className="admin-notification-footer">
+              <button type="button" className="admin-notification-footer-button" onClick={viewDetails}>
                 View all security alerts
               </button>
             </div>
