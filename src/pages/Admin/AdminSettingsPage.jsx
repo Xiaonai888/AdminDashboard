@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import ChangePasswordSection from './sections/ChangePasswordSection'
 import ComingSoonSection from './sections/ComingSoonSection'
 import LoginDevicesSection from './sections/LoginDevicesSection'
 import LoginHistorySection from './sections/LoginHistorySection'
 import SecurityAlertsSection from './sections/SecurityAlertsSection'
 import TwoFactorSection from './sections/TwoFactorSection'
+
 
 
 const styles = `
@@ -319,7 +320,15 @@ const tabs = [
 
 export default function AdminSettingsPage() {
   const [activeKey, setActiveKey] = useState('password')
+
+  useEffect(() => {
+  const tab = new URLSearchParams(window.location.search).get('tab')
+  if (tabs.some((item) => item.key === tab)) setActiveKey(tab)
+}, [])
+  
   const activeTab = tabs.find((tab) => tab.key === activeKey) || tabs[0]
+
+  
 
   return (
     <>
