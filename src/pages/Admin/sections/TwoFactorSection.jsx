@@ -93,6 +93,7 @@ export default function TwoFactorSection() {
   const [setupCode, setSetupCode] = useState('')
   const [disableCode, setDisableCode] = useState('')
   const [regenCode, setRegenCode] = useState('')
+  const [emailOtpCode, setEmailOtpCode] = useState('')
   const [recoveryCodes, setRecoveryCodes] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState('')
@@ -207,6 +208,54 @@ export default function TwoFactorSection() {
       await loadData()
     } catch (err) {
       setError(err.message || 'Failed to disable two-factor authentication')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  async function enableEmailOtp() {
+    setActionLoading('email-enable')
+    setError('')
+    setMessage('')
+
+    try {
+      const data = await twoFactorRequest('/api/admin/two-factor/email/enable', {
+        method: 'POST',
+        body: JSON.stringify({ code: emailOtpCode }),
+      })
+
+      setStatus(data.status || status)
+      setEmailOtpCode('')
+      setMessage('Email code backup enabled')
+      await loadData()
+    } catch (err) {
+      setError(err.message || 'Failed to enable email code backup')
+    } finally {
+      setActionLoading('')
+    }
+  }
+
+  async function disableEmailOtp() {
+    const ok = window.confirm('Disable email code backup?')
+
+    if (!ok) return
+
+    setActionLoading('email-disable')
+    setError('')
+    setMessage('')
+
+    try {
+      const data = await twoFactorRequest('/api/admin/two-factor/email/disable', {
+        method: 'POST',
+        body: JSON.stringify({ code: emailOtpCode }),
+      })
+
+      setStatus(data.status || status)
+      setEmailOtpCode('')
+      setMessage('Email code backup disabled')
+      await loadData()
+    } catch (err) {
+      setError(err.message || 'Failed to disable email code backup')
     } finally {
       setActionLoading('')
     }
@@ -355,6 +404,50 @@ export default function TwoFactorSection() {
                 </div>
               ) : null}
             </section>
+
+            {status.authenticator_enabled ? (
+              <section className="two-factor-card">
+                <h3>Email Code Backup</h3>
+                <p>Allow Shadow Admin to send a 6-digit login backup code to your admin email if your authenticator app is not available.</p>
+
+                <div className="two-factor-field">
+                  <label>Enter authenticator code or recovery code</label>
+                  <input
+                    className="two-factor-input"
+                    value={emailOtpCode}
+                    onChange={(event) => setEmailOtpCode(event.target.value)}
+                    placeholder="123456 or recovery code"
+                  />
+                </div>
+
+                <div className="two-factor-actions">
+                  {status.email_otp_enabled ? (
+                    <button
+                      type="button"
+                      className="two-factor-button danger"
+                      onClick={disableEmailOtp}
+                      disabled={Boolean(actionLoading) || !emailOtpCode}
+                    >
+                      {actionLoading === 'email-disable' ? 'Disabling...' : 'Disable email code'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="two-factor-button"
+                      onClick={enableEmailOtp}
+                      disabled={Boolean(actionLoading) || !emailOtpCode}
+                    >
+                      {actionLoading === 'email-enable' ? 'Enabling...' : 'Enable email code'}
+                    </button>
+                  )}
+                </div>
+              </section>
+            ) : (
+              <section className="two-factor-card">
+                <h3>Email Code Backup</h3>
+                <p>Enable Google Authenticator first before adding email code backup.</p>
+              </section>
+            )}
 
             {status.authenticator_enabled ? (
               <section className="two-factor-card">
