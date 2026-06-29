@@ -249,8 +249,8 @@ export default function AdminTaskCenterPage() {
                     </div>
                   </div>
 
-                  <div className="panel-body">
-                    <div classNa                    <div className="task-list">
+                 <div className="panel-body">
+                    <div className="task-list">
                       <div className="task-card featured">
                         <div className="task-top">
                           <div className="task-left">
