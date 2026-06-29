@@ -50,11 +50,20 @@ export default function LoginPage() {
   const [verifyInput, setVerifyInput] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
+  const [pendingTwoFactor, setPendingTwoFactor] = useState(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const verifyCodeDisplay = useMemo(() => verifyCode.split('').join('  '), [verifyCode]);
   const handleTurnstileToken = useCallback((token) => setTurnstileToken(token), []);
+
+  const canUseEmailCode = useMemo(() => {
+    const methods = pendingTwoFactor?.methods || [];
+    return methods.includes('email_code') || methods.includes('email_otp');
+  }, [pendingTwoFactor]);
 
   if (existingToken) {
     return <Navigate to="/admin" replace />;
@@ -70,9 +79,39 @@ export default function LoginPage() {
     setTurnstileResetKey((value) => value + 1);
   }
 
+  function saveLoginSession({ token, admin, cleanEmail }) {
+    if (rememberEmail || rememberLogin) {
+      localStorage.setItem('shadow_admin_email', cleanEmail);
+    } else {
+      localStorage.removeItem('shadow_admin_email');
+    }
+
+    sessionStorage.setItem('shadow_admin_token', token);
+    sessionStorage.setItem('shadow_admin_user', JSON.stringify(admin || {}));
+
+    if (rememberLogin) {
+      localStorage.setItem('shadow_admin_token', token);
+      localStorage.setItem('shadow_admin_user', JSON.stringify(admin || {}));
+    } else {
+      localStorage.removeItem('shadow_admin_token');
+      localStorage.removeItem('shadow_admin_user');
+    }
+  }
+
+  function cancelTwoFactor() {
+    setPendingTwoFactor(null);
+    setTwoFactorCode('');
+    setPassword('');
+    refreshVerifyCode();
+    resetSecurityCheck();
+    setError('');
+    setMessage('');
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setError('');
+    setMessage('');
 
     const cleanEmail = email.trim();
     const cleanPassword = password.trim();
@@ -108,12 +147,12 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-     const response = await fetch(`${API_URL}/api/auth/login`, {
-  method: 'POST',
-  credentials: 'include',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           email: cleanEmail,
           password,
@@ -129,34 +168,145 @@ export default function LoginPage() {
         data = null;
       }
 
-      if (!response.ok || !data?.ok || !data?.token) {
+      if (!response.ok || !data?.ok) {
         setError(getFriendlyError(data?.message));
         refreshVerifyCode();
         resetSecurityCheck();
         return;
       }
 
-      if (rememberEmail || rememberLogin) {
-        localStorage.setItem('shadow_admin_email', cleanEmail);
-      } else {
-        localStorage.removeItem('shadow_admin_email');
+      if (data.two_factor_required) {
+        setPendingTwoFactor({
+          challengeId: data.challenge_id || '',
+          expiresAt: data.expires_at || '',
+          methods: Array.isArray(data.methods) ? data.methods : [],
+          admin: data.admin || {},
+          email: cleanEmail,
+        });
+        setTwoFactorCode('');
+        setError('');
+        setMessage('');
+        return;
       }
 
-      sessionStorage.setItem('shadow_admin_token', data.token);
-      sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin || {}));
-
-      if (rememberLogin) {
-        localStorage.setItem('shadow_admin_token', data.token);
-        localStorage.setItem('shadow_admin_user', JSON.stringify(data.admin || {}));
-      } else {
-        localStorage.removeItem('shadow_admin_user');
+      if (!data?.token) {
+        setError('Admin token was not returned. Please try again.');
+        refreshVerifyCode();
+        resetSecurityCheck();
+        return;
       }
+
+      saveLoginSession({
+        token: data.token,
+        admin: data.admin || {},
+        cleanEmail,
+      });
 
       navigate('/admin', { replace: true });
-    } catch (error) {
+    } catch {
       setError('Cannot connect to backend API. Please check VITE_API_URL or backend status.');
       refreshVerifyCode();
       resetSecurityCheck();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function sendEmailCode() {
+    if (!pendingTwoFactor?.challengeId) {
+      setError('2FA challenge is missing. Please login again.');
+      return;
+    }
+
+    setError('');
+    setMessage('');
+
+    try {
+      setEmailSending(true);
+
+      const response = await fetch(`${API_URL}/api/auth/login/2fa/email/send`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          challengeId: pendingTwoFactor.challengeId,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.ok) {
+        setError(getFriendlyError(data?.message || 'Failed to send email code.'));
+        return;
+      }
+
+      setMessage('Email code sent. Check your admin email and enter the 6-digit code.');
+    } catch {
+      setError('Cannot send email code right now. Please try again.');
+    } finally {
+      setEmailSending(false);
+    }
+  }
+
+  async function handleTwoFactorSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+
+    const cleanCode = twoFactorCode.trim();
+
+    if (!pendingTwoFactor?.challengeId) {
+      setError('2FA challenge is missing. Please login again.');
+      cancelTwoFactor();
+      return;
+    }
+
+    if (!cleanCode) {
+      setError('Please enter your authenticator code, email code, or recovery code.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${API_URL}/api/auth/login/2fa/verify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          challengeId: pendingTwoFactor.challengeId,
+          code: cleanCode,
+        }),
+      });
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok || !data?.ok || !data?.token) {
+        setError(getFriendlyError(data?.message || '2FA verification failed.'));
+        return;
+      }
+
+      saveLoginSession({
+        token: data.token,
+        admin: data.admin || {},
+        cleanEmail: pendingTwoFactor.email || email.trim(),
+      });
+
+      setPendingTwoFactor(null);
+      setTwoFactorCode('');
+      navigate('/admin', { replace: true });
+    } catch {
+      setError('Cannot verify 2FA right now. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -167,95 +317,167 @@ export default function LoginPage() {
       <main style={styles.card}>
         <div style={styles.brand}>SHADOW ADMIN</div>
 
-        <h1 style={styles.title}>Admin Login</h1>
-        <p style={styles.subtitle}>Enter your admin credentials to continue.</p>
+        {!pendingTwoFactor ? (
+          <>
+            <h1 style={styles.title}>Admin Login</h1>
+            <p style={styles.subtitle}>Enter your admin credentials to continue.</p>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.label}>
-            Admin Email
-            <input
-              style={styles.input}
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@example.com"
-              autoComplete="email"
-            />
-          </label>
+            <form onSubmit={handleSubmit} style={styles.form}>
+              <label style={styles.label}>
+                Admin Email
+                <input
+                  style={styles.input}
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="admin@example.com"
+                  autoComplete="email"
+                />
+              </label>
 
-          <label style={styles.label}>
-            Password
-            <div style={styles.passwordWrap}>
-              <input
-                style={{ ...styles.input, paddingRight: 54 }}
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter password"
-                autoComplete="current-password"
-              />
+              <label style={styles.label}>
+                Password
+                <div style={styles.passwordWrap}>
+                  <input
+                    style={{ ...styles.input, paddingRight: 54 }}
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter password"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    style={styles.eyeButton}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </label>
+
+              <label style={styles.label}>
+                Verify Code
+                <div style={styles.verifyRow}>
+                  <div style={styles.verifyCode}>{verifyCodeDisplay}</div>
+                  <button type="button" onClick={refreshVerifyCode} style={styles.refreshButton}>
+                    ↻
+                  </button>
+                </div>
+                <input
+                  style={styles.input}
+                  value={verifyInput}
+                  onChange={(event) => setVerifyInput(event.target.value)}
+                  placeholder="Type the code above"
+                  autoComplete="off"
+                />
+              </label>
+
+              <TurnstileBox onTokenChange={handleTurnstileToken} resetKey={turnstileResetKey} />
+
+              <label style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={rememberEmail}
+                  onChange={(event) => setRememberEmail(event.target.checked)}
+                />
+                <span>Remember email only</span>
+              </label>
+
+              <label style={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={rememberLogin}
+                  onChange={(event) => setRememberLogin(event.target.checked)}
+                />
+                <span>Keep me signed in on this device</span>
+              </label>
+
+              {error ? <div style={styles.errorBox}>{error}</div> : null}
+              {message ? <div style={styles.successBox}>{message}</div> : null}
+
+              <button
+                type="submit"
+                disabled={loading || !turnstileToken}
+                style={{
+                  ...styles.loginButton,
+                  opacity: loading || !turnstileToken ? 0.72 : 1,
+                  cursor: loading || !turnstileToken ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'Checking...' : 'Sign In'}
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1 style={styles.title}>Two-Factor Verification</h1>
+            <p style={styles.subtitle}>
+              Enter the 6-digit code from Google Authenticator, your email code, or one recovery code.
+            </p>
+
+            <form onSubmit={handleTwoFactorSubmit} style={styles.form}>
+              <div style={styles.infoBox}>
+                <strong>2FA required</strong>
+                <span>{pendingTwoFactor.admin?.email || pendingTwoFactor.email}</span>
+              </div>
+
+              {canUseEmailCode ? (
+                <button
+                  type="button"
+                  onClick={sendEmailCode}
+                  style={styles.emailButton}
+                  disabled={emailSending || loading}
+                >
+                  {emailSending ? 'Sending email code...' : 'Send email code'}
+                </button>
+              ) : null}
+
+              <label style={styles.label}>
+                2FA code
+                <input
+                  style={styles.input}
+                  value={twoFactorCode}
+                  onChange={(event) => setTwoFactorCode(event.target.value)}
+                  placeholder="123456 or XXXX-XXXX-XXXX-XXXX"
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </label>
+
+              {pendingTwoFactor.expiresAt ? (
+                <div style={styles.hintBox}>
+                  This verification expires soon. If it fails, go back and login again.
+                </div>
+              ) : null}
+
+              {error ? <div style={styles.errorBox}>{error}</div> : null}
+              {message ? <div style={styles.successBox}>{message}</div> : null}
+
+              <button
+                type="submit"
+                disabled={loading || !twoFactorCode.trim()}
+                style={{
+                  ...styles.loginButton,
+                  opacity: loading || !twoFactorCode.trim() ? 0.72 : 1,
+                  cursor: loading || !twoFactorCode.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'Verifying...' : 'Verify 2FA'}
+              </button>
+
               <button
                 type="button"
-                onClick={() => setShowPassword((value) => !value)}
-                style={styles.eyeButton}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={cancelTwoFactor}
+                style={styles.secondaryButton}
+                disabled={loading}
               >
-                {showPassword ? '🙈' : '👁️'}
+                Back to login
               </button>
-            </div>
-          </label>
-
-          <label style={styles.label}>
-            Verify Code
-            <div style={styles.verifyRow}>
-              <div style={styles.verifyCode}>{verifyCodeDisplay}</div>
-              <button type="button" onClick={refreshVerifyCode} style={styles.refreshButton}>
-                ↻
-              </button>
-            </div>
-            <input
-              style={styles.input}
-              value={verifyInput}
-              onChange={(event) => setVerifyInput(event.target.value)}
-              placeholder="Type the code above"
-              autoComplete="off"
-            />
-          </label>
-
-          <TurnstileBox onTokenChange={handleTurnstileToken} resetKey={turnstileResetKey} />
-
-          <label style={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={rememberEmail}
-              onChange={(event) => setRememberEmail(event.target.checked)}
-            />
-            <span>Remember email only</span>
-          </label>
-
-          <label style={styles.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={rememberLogin}
-              onChange={(event) => setRememberLogin(event.target.checked)}
-            />
-            <span>Keep me signed in on this device</span>
-          </label>
-
-          {error ? <div style={styles.errorBox}>{error}</div> : null}
-
-          <button
-            type="submit"
-            disabled={loading || !turnstileToken}
-            style={{
-              ...styles.loginButton,
-              opacity: loading || !turnstileToken ? 0.72 : 1,
-              cursor: loading || !turnstileToken ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            </form>
+          </>
+        )}
       </main>
     </div>
   );
@@ -297,6 +519,7 @@ const styles = {
     margin: '8px 0 26px',
     color: '#64748B',
     fontSize: 14,
+    lineHeight: 1.55,
   },
   form: {
     display: 'grid',
@@ -368,12 +591,42 @@ const styles = {
     fontSize: 14,
     userSelect: 'none',
   },
+  infoBox: {
+    display: 'grid',
+    gap: 4,
+    padding: '13px 14px',
+    borderRadius: 14,
+    background: '#EEF2FF',
+    border: '1px solid #C7D2FE',
+    color: '#3730A3',
+    fontSize: 13,
+    fontWeight: 800,
+  },
+  hintBox: {
+    padding: '11px 13px',
+    borderRadius: 14,
+    background: '#F8FAFC',
+    border: '1px solid #E2E8F0',
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: 700,
+    lineHeight: 1.5,
+  },
   errorBox: {
     padding: '12px 14px',
     borderRadius: 14,
     background: '#FEF2F2',
     border: '1px solid #FECACA',
     color: '#B91C1C',
+    fontSize: 14,
+    fontWeight: 700,
+  },
+  successBox: {
+    padding: '12px 14px',
+    borderRadius: 14,
+    background: '#ECFDF5',
+    border: '1px solid #A7F3D0',
+    color: '#047857',
     fontSize: 14,
     fontWeight: 700,
   },
@@ -387,5 +640,25 @@ const styles = {
     fontSize: 15,
     fontWeight: 900,
     boxShadow: '0 12px 26px rgba(0,0,0,0.22)',
+  },
+  emailButton: {
+    border: 0,
+    borderRadius: 16,
+    padding: '14px 18px',
+    background: '#EEF2FF',
+    color: '#4F46E5',
+    fontSize: 14,
+    fontWeight: 900,
+    cursor: 'pointer',
+  },
+  secondaryButton: {
+    border: '1px solid #CBD5E1',
+    borderRadius: 16,
+    padding: '13px 18px',
+    background: '#FFFFFF',
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: 900,
+    cursor: 'pointer',
   },
 };
