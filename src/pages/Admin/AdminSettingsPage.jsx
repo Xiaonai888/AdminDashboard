@@ -5,6 +5,7 @@ import LoginDevicesSection from './sections/LoginDevicesSection'
 import LoginHistorySection from './sections/LoginHistorySection'
 import SecurityAlertsSection from './sections/SecurityAlertsSection'
 import TwoFactorSection from './sections/TwoFactorSection'
+import PasskeyPinSection from './sections/PasskeyPinSection'
 
 
 
@@ -312,7 +313,7 @@ const styles = `
 const tabs = [
   { key: 'password', title: 'Change Password', subtitle: 'Update your admin login password', icon: '🔐', available: true },
   { key: '2fa', title: 'Two-Factor Authentication', subtitle: 'Email or app verification code', icon: '🛡️', available: true },
-  { key: 'passkey', title: 'Passkey', subtitle: 'Device passkey or biometrics', icon: '🔑', available: false },
+  { key: 'passkey', title: 'Passkey PIN', subtitle: '6-digit admin security PIN', icon: '🔑', available: true },
   { key: 'devices', title: 'Login Devices', subtitle: 'Signed-in browsers and devices', icon: '💻', available: true },
   { key: 'history', title: 'Login History', subtitle: 'Recent sign-ins and IP records', icon: '📍', available: true },
   { key: 'alerts', title: 'Security Alerts', subtitle: 'Failed login and risk alerts', icon: '🚨', available: true },
@@ -392,6 +393,8 @@ export default function AdminSettingsPage() {
   <ChangePasswordSection />
 ) : activeKey === '2fa' ? (
   <TwoFactorSection />
+) : activeKey === 'passkey' ? (
+  <PasskeyPinSection />
 ) : activeKey === 'devices' ? (
   <LoginDevicesSection />
 ) : activeKey === 'history' ? (
