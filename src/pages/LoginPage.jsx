@@ -35,6 +35,14 @@ function getFriendlyError(message) {
   return message;
 }
 
+function getPasskeyToken(data) {
+  return data?.passkey_token || data?.passkeyToken || data?.passkey_challenge?.token || '';
+}
+
+function cleanPin(value) {
+  return String(value || '').replace(/\D/g, '').slice(0, 6);
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
 
@@ -52,6 +60,8 @@ export default function LoginPage() {
   const [turnstileResetKey, setTurnstileResetKey] = useState(0);
   const [pendingTwoFactor, setPendingTwoFactor] = useState(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [pendingPasskeyPin, setPendingPasskeyPin] = useState(null);
+  const [passkeyPin, setPasskeyPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
   const [error, setError] = useState('');
@@ -98,7 +108,43 @@ export default function LoginPage() {
     }
   }
 
+  function startPasskeyPin(data, cleanEmail) {
+    const passkeyToken = getPasskeyToken(data);
+
+    if (!passkeyToken) {
+      setError('Passkey PIN challenge was not returned. Please login again.');
+      return false;
+    }
+
+    setPendingPasskeyPin({
+      passkeyToken,
+      admin: data.admin || {},
+      email: cleanEmail,
+      twoFactor: data.two_factor || null,
+      expiresInSeconds: data.passkey_challenge?.expires_in_seconds || 300,
+    });
+    setPendingTwoFactor(null);
+    setTwoFactorCode('');
+    setPasskeyPin('');
+    setError('');
+    setMessage('');
+
+    return true;
+  }
+
   function cancelTwoFactor() {
+    setPendingTwoFactor(null);
+    setTwoFactorCode('');
+    setPassword('');
+    refreshVerifyCode();
+    resetSecurityCheck();
+    setError('');
+    setMessage('');
+  }
+
+  function cancelPasskeyPin() {
+    setPendingPasskeyPin(null);
+    setPasskeyPin('');
     setPendingTwoFactor(null);
     setTwoFactorCode('');
     setPassword('');
@@ -155,7 +201,7 @@ export default function LoginPage() {
         },
         body: JSON.stringify({
           email: cleanEmail,
-          password,
+          password: cleanPassword,
           turnstileToken,
         }),
       });
@@ -184,8 +230,15 @@ export default function LoginPage() {
           email: cleanEmail,
         });
         setTwoFactorCode('');
+        setPendingPasskeyPin(null);
+        setPasskeyPin('');
         setError('');
         setMessage('');
+        return;
+      }
+
+      if (data.passkey_pin_required) {
+        startPasskeyPin(data, cleanEmail);
         return;
       }
 
@@ -255,7 +308,7 @@ export default function LoginPage() {
     setError('');
     setMessage('');
 
-    const cleanCode = twoFactorCode.trim();
+    const code = twoFactorCode.trim();
 
     if (!pendingTwoFactor?.challengeId) {
       setError('2FA challenge is missing. Please login again.');
@@ -263,7 +316,7 @@ export default function LoginPage() {
       return;
     }
 
-    if (!cleanCode) {
+    if (!code) {
       setError('Please enter your authenticator code, email code, or recovery code.');
       return;
     }
@@ -279,7 +332,7 @@ export default function LoginPage() {
         },
         body: JSON.stringify({
           challengeId: pendingTwoFactor.challengeId,
-          code: cleanCode,
+          code,
         }),
       });
 
@@ -291,8 +344,18 @@ export default function LoginPage() {
         data = null;
       }
 
-      if (!response.ok || !data?.ok || !data?.token) {
+      if (!response.ok || !data?.ok) {
         setError(getFriendlyError(data?.message || '2FA verification failed.'));
+        return;
+      }
+
+      if (data.passkey_pin_required) {
+        startPasskeyPin(data, pendingTwoFactor.email || email.trim());
+        return;
+      }
+
+      if (!data?.token) {
+        setError('Admin token was not returned. Please try again.');
         return;
       }
 
@@ -312,12 +375,195 @@ export default function LoginPage() {
     }
   }
 
+  async function handlePasskeyPinSubmit(event) {
+    event.preventDefault();
+    setError('');
+    setMessage('');
+
+    const pin = cleanPin(passkeyPin);
+
+    if (!pendingPasskeyPin?.passkeyToken) {
+      setError('Passkey PIN challenge is missing. Please login again.');
+      cancelPasskeyPin();
+      return;
+    }
+
+    if (pin.length !== 6) {
+      setError('Please enter your 6-digit Passkey PIN.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${API_URL}/api/auth/login/passkey-pin/verify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          passkeyToken: pendingPasskeyPin.passkeyToken,
+          pin,
+        }),
+      });
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok || !data?.ok || !data?.token) {
+        setError(getFriendlyError(data?.message || 'Passkey PIN verification failed.'));
+        return;
+      }
+
+      saveLoginSession({
+        token: data.token,
+        admin: data.admin || {},
+        cleanEmail: pendingPasskeyPin.email || email.trim(),
+      });
+
+      setPendingPasskeyPin(null);
+      setPasskeyPin('');
+      navigate('/admin', { replace: true });
+    } catch {
+      setError('Cannot verify Passkey PIN right now. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div style={styles.page}>
       <main style={styles.card}>
         <div style={styles.brand}>SHADOW ADMIN</div>
 
-        {!pendingTwoFactor ? (
+        {pendingPasskeyPin ? (
+          <>
+            <h1 style={styles.title}>Passkey PIN</h1>
+            <p style={styles.subtitle}>Enter your 6-digit Admin Passkey PIN to finish login.</p>
+
+            <form onSubmit={handlePasskeyPinSubmit} style={styles.form}>
+              <div style={styles.infoBox}>
+                <strong>PIN required</strong>
+                <span>{pendingPasskeyPin.admin?.email || pendingPasskeyPin.email}</span>
+              </div>
+
+              <label style={styles.label}>
+                6-digit Passkey PIN
+                <input
+                  style={{ ...styles.input, textAlign: 'center', letterSpacing: 6, fontWeight: 900 }}
+                  type="password"
+                  value={passkeyPin}
+                  onChange={(event) => setPasskeyPin(cleanPin(event.target.value))}
+                  placeholder="••••••"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </label>
+
+              <div style={styles.hintBox}>
+                This PIN expires soon with your login challenge. If it fails, go back and login again.
+              </div>
+
+              {error ? <div style={styles.errorBox}>{error}</div> : null}
+              {message ? <div style={styles.successBox}>{message}</div> : null}
+
+              <button
+                type="submit"
+                disabled={loading || passkeyPin.length !== 6}
+                style={{
+                  ...styles.loginButton,
+                  opacity: loading || passkeyPin.length !== 6 ? 0.72 : 1,
+                  cursor: loading || passkeyPin.length !== 6 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'Verifying...' : 'Verify PIN'}
+              </button>
+
+              <button
+                type="button"
+                onClick={cancelPasskeyPin}
+                style={styles.secondaryButton}
+                disabled={loading}
+              >
+                Back to login
+              </button>
+            </form>
+          </>
+        ) : pendingTwoFactor ? (
+          <>
+            <h1 style={styles.title}>Two-Factor Verification</h1>
+            <p style={styles.subtitle}>
+              Enter the 6-digit code from Google Authenticator, your email code, or one recovery code.
+            </p>
+
+            <form onSubmit={handleTwoFactorSubmit} style={styles.form}>
+              <div style={styles.infoBox}>
+                <strong>2FA required</strong>
+                <span>{pendingTwoFactor.admin?.email || pendingTwoFactor.email}</span>
+              </div>
+
+              {canUseEmailCode ? (
+                <button
+                  type="button"
+                  onClick={sendEmailCode}
+                  style={styles.emailButton}
+                  disabled={emailSending || loading}
+                >
+                  {emailSending ? 'Sending email code...' : 'Send email code'}
+                </button>
+              ) : null}
+
+              <label style={styles.label}>
+                2FA code
+                <input
+                  style={styles.input}
+                  value={twoFactorCode}
+                  onChange={(event) => setTwoFactorCode(event.target.value)}
+                  placeholder="123456 or XXXX-XXXX-XXXX-XXXX"
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </label>
+
+              {pendingTwoFactor.expiresAt ? (
+                <div style={styles.hintBox}>
+                  This verification expires soon. If it fails, go back and login again.
+                </div>
+              ) : null}
+
+              {error ? <div style={styles.errorBox}>{error}</div> : null}
+              {message ? <div style={styles.successBox}>{message}</div> : null}
+
+              <button
+                type="submit"
+                disabled={loading || !twoFactorCode.trim()}
+                style={{
+                  ...styles.loginButton,
+                  opacity: loading || !twoFactorCode.trim() ? 0.72 : 1,
+                  cursor: loading || !twoFactorCode.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'Verifying...' : 'Verify 2FA'}
+              </button>
+
+              <button
+                type="button"
+                onClick={cancelTwoFactor}
+                style={styles.secondaryButton}
+                disabled={loading}
+              >
+                Back to login
+              </button>
+            </form>
+          </>
+        ) : (
           <>
             <h1 style={styles.title}>Admin Login</h1>
             <p style={styles.subtitle}>Enter your admin credentials to continue.</p>
@@ -407,73 +653,6 @@ export default function LoginPage() {
                 }}
               >
                 {loading ? 'Checking...' : 'Sign In'}
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            <h1 style={styles.title}>Two-Factor Verification</h1>
-            <p style={styles.subtitle}>
-              Enter the 6-digit code from Google Authenticator, your email code, or one recovery code.
-            </p>
-
-            <form onSubmit={handleTwoFactorSubmit} style={styles.form}>
-              <div style={styles.infoBox}>
-                <strong>2FA required</strong>
-                <span>{pendingTwoFactor.admin?.email || pendingTwoFactor.email}</span>
-              </div>
-
-              {canUseEmailCode ? (
-                <button
-                  type="button"
-                  onClick={sendEmailCode}
-                  style={styles.emailButton}
-                  disabled={emailSending || loading}
-                >
-                  {emailSending ? 'Sending email code...' : 'Send email code'}
-                </button>
-              ) : null}
-
-              <label style={styles.label}>
-                2FA code
-                <input
-                  style={styles.input}
-                  value={twoFactorCode}
-                  onChange={(event) => setTwoFactorCode(event.target.value)}
-                  placeholder="123456 or XXXX-XXXX-XXXX-XXXX"
-                  autoComplete="one-time-code"
-                  autoFocus
-                />
-              </label>
-
-              {pendingTwoFactor.expiresAt ? (
-                <div style={styles.hintBox}>
-                  This verification expires soon. If it fails, go back and login again.
-                </div>
-              ) : null}
-
-              {error ? <div style={styles.errorBox}>{error}</div> : null}
-              {message ? <div style={styles.successBox}>{message}</div> : null}
-
-              <button
-                type="submit"
-                disabled={loading || !twoFactorCode.trim()}
-                style={{
-                  ...styles.loginButton,
-                  opacity: loading || !twoFactorCode.trim() ? 0.72 : 1,
-                  cursor: loading || !twoFactorCode.trim() ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {loading ? 'Verifying...' : 'Verify 2FA'}
-              </button>
-
-              <button
-                type="button"
-                onClick={cancelTwoFactor}
-                style={styles.secondaryButton}
-                disabled={loading}
-              >
-                Back to login
               </button>
             </form>
           </>
