@@ -66,6 +66,7 @@ export default function AdminTaskCenterPage() {
   const [previewUrl, setPreviewUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [readingSaving, setReadingSaving] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
   const [readingTask, setReadingTask] = useState(defaultReadingTask)
 
@@ -93,6 +94,10 @@ export default function AdminTaskCenterPage() {
       }
 
       setSettings(data.settings || { cover_url: '' })
+setReadingTask({
+  ...defaultReadingTask,
+  ...(data.settings?.reading_task || {}),
+})
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to load task center cover' })
     } finally {
@@ -148,6 +153,38 @@ export default function AdminTaskCenterPage() {
       setSaving(false)
     }
   }
+
+  async function saveReadingTask() {
+  try {
+    setReadingSaving(true)
+
+    const response = await fetch(`${API_URL}/api/task-center/admin/reading-task`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${getAdminToken()}`,
+      },
+      body: JSON.stringify(readingTask),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || 'Failed to save reading mission')
+    }
+
+    setSettings(data.settings || { cover_url: '' })
+    setReadingTask({
+      ...defaultReadingTask,
+      ...(data.settings?.reading_task || {}),
+    })
+    setMessage({ type: 'success', text: 'Reading mission saved successfully.' })
+  } catch (error) {
+    setMessage({ type: 'error', text: error.message || 'Failed to save reading mission' })
+  } finally {
+    setReadingSaving(false)
+  }
+}
 
   useEffect(() => {
     loadSettings()
@@ -357,9 +394,19 @@ export default function AdminTaskCenterPage() {
                             </div>
                           </div>
 
-                          <div className="note-box task-note">
-                            This UI is ready. Next stage will save these settings to backend and make the reader Task Page use them.
-                          </div>
+                          <div className="btn-row">
+  <button type="button" className="btn-primary" onClick={saveReadingTask} disabled={readingSaving}>
+    {readingSaving ? 'Saving...' : 'Save Reading Mission'}
+  </button>
+
+  <button type="button" className="btn-secondary" onClick={loadSettings} disabled={readingSaving}>
+    Reset
+  </button>
+</div>
+
+<div className="note-box task-note">
+  Save this mission to show or hide it on the reader Task Page.
+</div>
                         </div>
                       </div>
                     </div>
