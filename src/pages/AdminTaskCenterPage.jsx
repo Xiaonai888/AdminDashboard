@@ -15,7 +15,7 @@ const styles = `
   .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.btn-primary,.btn-secondary{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled{opacity:.65;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}
   .message{margin-top:14px;padding:12px 14px;border-radius:14px;font-size:13px;font-weight:900;line-height:1.45}.message.success{background:#D1FAE5;color:#047857}.message.error{background:#FEE2E2;color:#B91C1C}.message.info{background:#EEF2FF;color:#4F46E5}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
   .task-list{display:grid;gap:12px}.task-card{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--border);background:#fff;border-radius:18px;padding:16px}.task-left{display:flex;align-items:center;gap:13px}.task-icon{width:42px;height:42px;border-radius:50%;background:#F8FAFC;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#0F172A}.task-title{font-size:14px;font-weight:900}.task-sub{font-size:12px;color:var(--muted);margin-top:3px}.task-reward{margin-top:7px;font-size:12px;font-weight:900;color:#D97706}.status-pill{border-radius:999px;background:#F1F5F9;color:#64748B;font-size:11px;font-weight:900;padding:7px 10px}.preview-panel{position:sticky;top:92px}.mini-cover{aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#EEF2FF;border:1px solid var(--border)}.mini-cover img{width:100%;height:100%;object-fit:cover}.mini-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;font-weight:900;text-align:center;padding:18px}
-  .task-card{display:block}.task-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-icon.ad{background:#FFF7ED;color:#D97706;border-color:#FED7AA}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.fake-input{border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:11px 12px}.fake-input span{display:block;font-size:10.5px;font-weight:900;color:#94A3B8;text-transform:uppercase;letter-spacing:.04em}.fake-input strong{display:block;margin-top:5px;font-size:13px;font-weight:900;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.task-action-pill{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;border-radius:999px;background:#FF3B68;color:#fff;font-size:12px;font-weight:900;padding:8px 18px}.task-note{margin-top:12px}.status-pill.active{background:#D1FAE5;color:#047857}.status-pill.ui{background:#EEF2FF;color:#4F46E5}
+    .task-card{display:block}.task-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-field{display:flex;flex-direction:column;gap:6px}.task-field.full{grid-column:1/-1}.task-field label{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#64748B}.task-field input,.task-field textarea{width:100%;border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:12px 13px;font:inherit;font-size:13px;font-weight:800;color:#0F172A;outline:none}.task-field textarea{min-height:76px;resize:vertical}.task-field input:focus,.task-field textarea:focus{border-color:#4F46E5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.08)}.switch-btn{width:62px;height:34px;border:0;border-radius:999px;background:#CBD5E1;padding:4px;cursor:pointer;transition:.2s}.switch-btn.on{background:#10B981}.switch-knob{display:block;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 3px 8px rgba(15,23,42,.22);transition:.2s}.switch-btn.on .switch-knob{transform:translateX(28px)}.task-preview-box{margin-top:14px;border:1px solid #E2E8F0;background:#fff;border-radius:16px;padding:14px}.task-preview-title{font-size:13px;font-weight:900}.task-preview-sub{margin-top:4px;font-size:12px;color:#64748B;font-weight:700}.task-preview-meta{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}.task-preview-pill{border-radius:999px;background:#F1F5F9;color:#334155;font-size:11px;font-weight:900;padding:7px 10px}.task-note{margin-top:12px}.status-pill.active{background:#D1FAE5;color:#047857}.status-pill.inactive{background:#F1F5F9;color:#64748B}
   @media(max-width:1100px){.shell{grid-template-columns:1fr}.preview-panel{position:static}}@media(max-width:760px){.content-body{padding:22px 16px}.header{padding:0 18px}.btn-row{grid-template-columns:1fr}}
 `
 
@@ -34,54 +34,16 @@ const navItems = [
   { path: '/stories', label: 'Stories', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
 ]
 
-const rewardTasks = [
-  {
-    id: 'read-selected-story',
-    title: 'Read selected story',
-    text: 'Send readers to one selected story for over 10 minutes.',
-    reward: '+50 Coins',
-    storyTitle: 'Ex-wife of A Billionaire',
-    requiredTime: '10 minutes',
-    buttonText: 'Go',
-    dailyLimit: '1 time per day',
-    status: 'Full option UI',
-    type: 'featured',
-    icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-  },
-  {
-    id: 'watch-video',
-    title: 'Watch AD',
-    text: 'Watch videos to earn coins.',
-    reward: '+3 Coins',
-    status: 'UI only',
-    type: 'ad',
-    icon: 'M4 6h16v12H4z M8 21h8 M12 18v3',
-  },
-  {
-    id: 'read-10-minutes',
-    title: 'Read 10 minutes',
-    text: 'Read stories for 10 minutes today.',
-    reward: '+20 Coins',
-    status: 'Later',
-    icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-  },
-  {
-    id: 'read-30-minutes',
-    title: 'Read 30 minutes',
-    text: 'Keep reading longer to earn more coins.',
-    reward: '+60 Coins',
-    status: 'Later',
-    icon: 'M12 6v6l4 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
-  },
-  {
-    id: 'add-story-library',
-    title: 'Add story to Library',
-    text: 'Save one story you want to continue reading.',
-    reward: '+30 Coins',
-    status: 'Later',
-    icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
-  },
-]
+const defaultReadingTask = {
+  is_active: false,
+  title: 'Read 30 minutes',
+  subtitle: 'Keep reading longer to earn more coins.',
+  reward_coins: 60,
+  target_minutes: 30,
+  story_link: '',
+  button_text: 'Go',
+  icon: 'M12 6v6l4 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+}
 
 function getAdminToken() {
   const sessionToken = sessionStorage.getItem('shadow_admin_token') || ''
@@ -105,8 +67,16 @@ export default function AdminTaskCenterPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
+  const [readingTask, setReadingTask] = useState(defaultReadingTask)
 
   const coverUrl = previewUrl || settings.cover_url || ''
+
+  function updateReadingTask(field, value) {
+    setReadingTask((current) => ({
+      ...current,
+      [field]: value,
+    }))
+  }
 
   async function loadSettings() {
     try {
@@ -274,72 +244,124 @@ export default function AdminTaskCenterPage() {
                 <div className="panel" style={{ marginTop: 24 }}>
                   <div className="panel-header">
                     <div>
-                      <h3>Reward Tasks</h3>
-                      <p>UI placeholder for future task active controls and story target rewards.</p>
+                                            <h3>Reading Mission</h3>
+                      <p>Control the reading reward shown on the reader Task Page.</p>
                     </div>
                   </div>
 
                   <div className="panel-body">
-                    <div className="task-list">
-  {rewardTasks.map((task) => (
-    <div className={`task-card ${task.type === 'featured' ? 'featured' : ''}`} key={task.id}>
-      <div className="task-top">
-        <div className="task-left">
-          <div className={`task-icon ${task.type === 'featured' ? 'featured' : task.type === 'ad' ? 'ad' : ''}`}>
-            <Icon d={task.icon} size={18} />
-          </div>
-          <div>
-            <div className="task-title">{task.title}</div>
-            <div className="task-sub">{task.text}</div>
-            <div className="task-reward">{task.reward}</div>
-          </div>
-        </div>
-        <span className={`status-pill ${task.type === 'featured' ? 'active' : task.type === 'ad' ? 'ui' : ''}`}>
-          {task.status}
-        </span>
-      </div>
+                    <div classNa                    <div className="task-list">
+                      <div className="task-card featured">
+                        <div className="task-top">
+                          <div className="task-left">
+                            <div className="task-icon featured">
+                              <Icon d={readingTask.icon} size={18} />
+                            </div>
+                            <div>
+                              <div className="task-title">{readingTask.title}</div>
+                              <div className="task-sub">{readingTask.subtitle}</div>
+                              <div className="task-reward">+{readingTask.reward_coins || 0} Coins</div>
+                            </div>
+                          </div>
 
-      {task.type === 'featured' ? (
-        <div className="task-feature-body">
-          <div className="task-section-label">Full option placeholder</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <span className={`status-pill ${readingTask.is_active ? 'active' : 'inactive'}`}>
+                              {readingTask.is_active ? 'Active' : 'Inactive'}
+                            </span>
 
-          <div className="task-form-grid">
-            <div className="fake-input">
-              <span>Story title</span>
-              <strong>{task.storyTitle}</strong>
-            </div>
-            <div className="fake-input">
-              <span>Read time</span>
-              <strong>{task.requiredTime}</strong>
-            </div>
-            <div className="fake-input">
-              <span>Reward</span>
-              <strong>{task.reward}</strong>
-            </div>
-            <div className="fake-input">
-              <span>Button</span>
-              <strong>{task.buttonText}</strong>
-            </div>
-            <div className="fake-input">
-              <span>Daily limit</span>
-              <strong>{task.dailyLimit}</strong>
-            </div>
-            <div className="fake-input">
-              <span>Status</span>
-              <strong>Active / Inactive later</strong>
-            </div>
-          </div>
+                            <button
+                              type="button"
+                              className={`switch-btn ${readingTask.is_active ? 'on' : ''}`}
+                              onClick={() => updateReadingTask('is_active', !readingTask.is_active)}
+                              aria-label="Toggle reading mission"
+                            >
+                              <span className="switch-knob" />
+                            </button>
+                          </div>
+                        </div>
 
-          <div className="task-action-pill">{task.buttonText}</div>
+                        <div className="task-feature-body">
+                          <div className="task-section-label">Reader Task Settings</div>
 
-          <div className="note-box task-note">
-            This is UI only. Story search, story ID, active switch, and read tracking logic will be connected later.
-          </div>
-        </div>
-      ) : null}
-    </div>
-  ))}
-</div>
+                          <div className="task-control-grid">
+                            <div className="task-field">
+                              <label>Task title</label>
+                              <input
+                                value={readingTask.title}
+                                onChange={(event) => updateReadingTask('title', event.target.value)}
+                                placeholder="Read 30 minutes"
+                              />
+                            </div>
+
+                            <div className="task-field">
+                              <label>Reward coins</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={readingTask.reward_coins}
+                                onChange={(event) => updateReadingTask('reward_coins', Number(event.target.value || 0))}
+                                placeholder="60"
+                              />
+                            </div>
+
+                            <div className="task-field">
+                              <label>Target minutes</label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="300"
+                                value={readingTask.target_minutes}
+                                onChange={(event) => updateReadingTask('target_minutes', Number(event.target.value || 1))}
+                                placeholder="30"
+                              />
+                            </div>
+
+                            <div className="task-field">
+                              <label>Reader button</label>
+                              <input
+                                value={readingTask.button_text}
+                                onChange={(event) => updateReadingTask('button_text', event.target.value)}
+                                placeholder="Go"
+                              />
+                            </div>
+
+                            <div className="task-field full">
+                              <label>Story link</label>
+                              <input
+                                value={readingTask.story_link}
+                                onChange={(event) => updateReadingTask('story_link', event.target.value)}
+                                placeholder="/story/story-id"
+                              />
+                            </div>
+
+                            <div className="task-field full">
+                              <label>Subtitle</label>
+                              <textarea
+                                value={readingTask.subtitle}
+                                onChange={(event) => updateReadingTask('subtitle', event.target.value)}
+                                placeholder="Keep reading longer to earn more coins."
+                              />
+                            </div>
+                          </div>
+
+                          <div className="task-preview-box">
+                            <div className="task-section-label">Reader Preview</div>
+                            <div className="task-preview-title">{readingTask.title || 'Read 30 minutes'}</div>
+                            <div className="task-preview-sub">{readingTask.subtitle || 'Keep reading longer to earn more coins.'}</div>
+                            <div className="task-preview-meta">
+                              <span className="task-preview-pill">+{readingTask.reward_coins || 0} Coins</span>
+                              <span className="task-preview-pill">{readingTask.target_minutes || 0} min</span>
+                              <span className="task-preview-pill">{readingTask.button_text || 'Go'}</span>
+                              <span className="task-preview-pill">{readingTask.is_active ? 'Shown on Task Page' : 'Hidden from readers'}</span>
+                            </div>
+                          </div>
+
+                          <div className="note-box task-note">
+                            This UI is ready. Next stage will save these settings to backend and make the reader Task Page use them.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
