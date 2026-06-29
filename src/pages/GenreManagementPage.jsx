@@ -956,9 +956,14 @@ const styles = `
   }
 
   .genre-image-actions {
-    display:flex;
-    justify-content:flex-end;
-  }
+  display:grid;
+  grid-template-columns:1fr;
+}
+
+.genre-image-actions .genre-dark-btn {
+  width:100%;
+  height:48px;
+}
 
 
   .genre-image-search {
@@ -1425,11 +1430,21 @@ export default function GenreManagementPage() {
         throw new Error(data.message || 'Failed to upload banner')
       }
 
-      updateImageDraft(
-        genre.id,
-        type === 'mobile' ? 'mobile_banner_image_url' : 'banner_image_url',
-        data.image_url || data.imageUrl || ''
-      )
+      const imageUrl = data.image_url || data.imageUrl || ''
+
+setImageDrafts((current) => {
+  const draft = current[genre.id] || {}
+  const isMobile = type === 'mobile'
+
+  return {
+    ...current,
+    [genre.id]: {
+      ...draft,
+      banner_image_url: isMobile ? (draft.banner_image_url || imageUrl) : imageUrl,
+      mobile_banner_image_url: isMobile ? imageUrl : (draft.mobile_banner_image_url || imageUrl),
+    },
+  }
+})
 
       setMessage(`${genre.name} ${type} banner uploaded`)
     } catch (error) {
@@ -1626,9 +1641,11 @@ export default function GenreManagementPage() {
         <main className="genre-main">
           <header className="genre-header">
             <h2>Genre Management</h2>
-            <button className="genre-dark-btn" type="button" onClick={saveFeaturedTabs} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Tabs'}
-            </button>
+            {activePanel === 'manage' ? (
+  <button className="genre-dark-btn" type="button" onClick={saveFeaturedTabs} disabled={saving}>
+    {saving ? 'Saving...' : 'Save Tabs'}
+  </button>
+) : null}
           </header>
 
           <div className="genre-content">
@@ -1993,11 +2010,7 @@ export default function GenreManagementPage() {
 
               <div className="genre-image-editor-grid">
                 <div className="genre-image-card">
-                  <div>
-                    <div className="genre-image-preview-label">Desktop Banner</div>
-                    {renderImagePreview(getDraft(selectedImageGenre).banner_image_url, 'Desktop Banner')}
-                  </div>
-
+                  {renderImagePreview(getDraft(selectedImageGenre).banner_image_url, 'Desktop Banner')}
                   <label className="genre-upload-btn">
                     {uploadingImage === `${selectedImageGenre.id}-desktop` ? 'Uploading...' : 'Upload Desktop Banner'}
                     <input
@@ -2014,14 +2027,11 @@ export default function GenreManagementPage() {
                 </div>
 
                 <div className="genre-image-card">
-                  <div>
-                    <div className="genre-image-preview-label">Mobile Banner</div>
-                    {renderImagePreview(
-                      getDraft(selectedImageGenre).mobile_banner_image_url || getDraft(selectedImageGenre).banner_image_url,
-                      'Mobile Banner',
-                      true
-                    )}
-                  </div>
+                  {renderImagePreview(
+  getDraft(selectedImageGenre).mobile_banner_image_url,
+  'Mobile Banner',
+  true
+)}
 
                   <label className="genre-upload-btn">
                     {uploadingImage === `${selectedImageGenre.id}-mobile` ? 'Uploading...' : 'Upload Mobile Banner'}
