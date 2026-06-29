@@ -283,15 +283,16 @@ export default function AdminTaskCenterPage() {
                         <div className="task-feature-body">
                           <div className="task-section-label">Reader Task Settings</div>
 
+                          <div className="task-field full" style={{ marginBottom: 12 }}>
+                            <label>Task title</label>
+                            <input
+                              value={readingTask.title}
+                              onChange={(event) => updateReadingTask('title', event.target.value)}
+                              placeholder="Read 30 minutes"
+                            />
+                          </div>
+
                           <div className="task-control-grid">
-                            <div className="task-field">
-                              <label>Task title</label>
-                              <input
-                                value={readingTask.title}
-                                onChange={(event) => updateReadingTask('title', event.target.value)}
-                                placeholder="Read 30 minutes"
-                              />
-                            </div>
 
                             <div className="task-field">
                               <label>Reward coins</label>
