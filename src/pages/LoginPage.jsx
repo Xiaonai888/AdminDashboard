@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import TurnstileBox from '../components/TurnstileBox';
 
@@ -57,6 +57,29 @@ function maskAdminEmail(value) {
   return `${safeName}@${domainName.slice(0, 1)}***${domainExt ? `.${domainExt}` : ''}`;
 }
 
+function formatWaitTime(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const restSeconds = safeSeconds % 60;
+
+  if (minutes <= 0) return `${restSeconds}s`;
+
+  return `${minutes}m ${restSeconds}s`;
+}
+
+function getRemainingLockSeconds(lockState) {
+  if (!lockState) return 0;
+
+  if (lockState.lockedUntil) {
+    return Math.max(0, Math.ceil((new Date(lockState.lockedUntil).getTime() - Date.now()) / 1000));
+  }
+
+  const startedAt = Number(lockState.lockedAt || Date.now());
+  const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+
+  return Math.max(0, Number(lockState.retryAfterSeconds || 0) - elapsed);
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
 
@@ -75,6 +98,8 @@ export default function LoginPage() {
   const [pendingTwoFactor, setPendingTwoFactor] = useState(null);
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [pendingPasskeyPin, setPendingPasskeyPin] = useState(null);
+  const [passkeyLocked, setPasskeyLocked] = useState(null);
+  const [passkeyLockTick, setPasskeyLockTick] = useState(0);
   const [passkeyPin, setPasskeyPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
@@ -88,6 +113,24 @@ export default function LoginPage() {
     const methods = pendingTwoFactor?.methods || [];
     return methods.includes('email_code') || methods.includes('email_otp');
   }, [pendingTwoFactor]);
+
+  const passkeyLockSeconds = useMemo(() => getRemainingLockSeconds(passkeyLocked), [passkeyLocked, passkeyLockTick]);
+  const isPasskeyLocked = Boolean(passkeyLocked && passkeyLockSeconds > 0);
+
+  useEffect(() => {
+    if (!passkeyLocked) return undefined;
+
+    if (passkeyLockSeconds <= 0) {
+      setPasskeyLocked(null);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setPasskeyLockTick(Date.now());
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [passkeyLocked, passkeyLockSeconds]);
 
   if (existingToken) {
     return <Navigate to="/admin" replace />;
@@ -130,16 +173,30 @@ export default function LoginPage() {
       return false;
     }
 
+    const lockState = data.passkey_pin?.locked
+      ? {
+          lockedUntil: data.passkey_pin?.locked_until || null,
+          retryAfterSeconds: Number(data.passkey_pin?.retry_after_seconds || 0),
+          lockedAt: Date.now(),
+        }
+      : null;
+
     setPendingPasskeyPin({
       passkeyToken,
       admin: data.admin || {},
       email: cleanEmail,
       twoFactor: data.two_factor || null,
       expiresInSeconds: data.passkey_challenge?.expires_in_seconds || 300,
+      locked: Boolean(lockState),
+      lockedUntil: lockState?.lockedUntil || null,
+      retryAfterSeconds: lockState?.retryAfterSeconds || 0,
+      failedCount: Number(data.passkey_pin?.failed_count || 0),
     });
     setPendingTwoFactor(null);
     setTwoFactorCode('');
     setPasskeyPin('');
+    setPasskeyLocked(lockState);
+    setPasskeyLockTick(Date.now());
     setError('');
     setMessage('');
 
@@ -159,6 +216,7 @@ export default function LoginPage() {
   function cancelPasskeyPin() {
     setPendingPasskeyPin(null);
     setPasskeyPin('');
+    setPasskeyLocked(null);
     setPendingTwoFactor(null);
     setTwoFactorCode('');
     setPassword('');
@@ -246,6 +304,7 @@ export default function LoginPage() {
         setTwoFactorCode('');
         setPendingPasskeyPin(null);
         setPasskeyPin('');
+        setPasskeyLocked(null);
         setError('');
         setMessage('');
         return;
@@ -396,6 +455,11 @@ export default function LoginPage() {
 
     const pin = cleanPin(passkeyPin);
 
+    if (isPasskeyLocked) {
+      setError(`Passkey PIN is temporarily locked. Please wait about ${formatWaitTime(passkeyLockSeconds)} before trying again.`);
+      return;
+    }
+
     if (!pendingPasskeyPin?.passkeyToken) {
       setError('Passkey PIN challenge is missing. Please login again.');
       cancelPasskeyPin();
@@ -431,6 +495,15 @@ export default function LoginPage() {
       }
 
       if (!response.ok || !data?.ok || !data?.token) {
+        if (data?.code === 'PASSKEY_PIN_LOCKED' || response.status === 423) {
+          setPasskeyLocked({
+            lockedUntil: data.locked_until || null,
+            retryAfterSeconds: Number(data.retry_after_seconds || 0),
+            lockedAt: Date.now(),
+          });
+          setPasskeyLockTick(Date.now());
+        }
+
         setError(getFriendlyError(data?.message || 'Passkey PIN verification failed.'));
         return;
       }
@@ -443,6 +516,7 @@ export default function LoginPage() {
 
       setPendingPasskeyPin(null);
       setPasskeyPin('');
+      setPasskeyLocked(null);
       navigate('/admin', { replace: true });
     } catch {
       setError('Cannot verify Passkey PIN right now. Please try again.');
@@ -467,6 +541,12 @@ export default function LoginPage() {
                 <span>{maskAdminEmail(pendingPasskeyPin.admin?.email || pendingPasskeyPin.email)}</span>
               </div>
 
+              {isPasskeyLocked ? (
+                <div style={styles.errorBox}>
+                  Passkey PIN is temporarily locked. Please wait about {formatWaitTime(passkeyLockSeconds)} before trying again.
+                </div>
+              ) : null}
+
               <label style={styles.label}>
                 6-digit Passkey PIN
                 <input
@@ -477,6 +557,7 @@ export default function LoginPage() {
                   placeholder="••••••"
                   inputMode="numeric"
                   autoComplete="one-time-code"
+                  disabled={loading || isPasskeyLocked}
                   autoFocus
                 />
               </label>
@@ -490,14 +571,14 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={loading || passkeyPin.length !== 6}
+                disabled={loading || passkeyPin.length !== 6 || isPasskeyLocked}
                 style={{
                   ...styles.loginButton,
-                  opacity: loading || passkeyPin.length !== 6 ? 0.72 : 1,
-                  cursor: loading || passkeyPin.length !== 6 ? 'not-allowed' : 'pointer',
+                  opacity: loading || passkeyPin.length !== 6 || isPasskeyLocked ? 0.72 : 1,
+                  cursor: loading || passkeyPin.length !== 6 || isPasskeyLocked ? 'not-allowed' : 'pointer',
                 }}
               >
-                {loading ? 'Verifying...' : 'Verify PIN'}
+                {loading ? 'Verifying...' : isPasskeyLocked ? 'PIN Locked' : 'Verify PIN'}
               </button>
 
               <button
