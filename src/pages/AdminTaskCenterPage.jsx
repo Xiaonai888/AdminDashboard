@@ -16,7 +16,8 @@ const styles = `
   .message{margin-top:14px;padding:12px 14px;border-radius:14px;font-size:13px;font-weight:900;line-height:1.45}.message.success{background:#D1FAE5;color:#047857}.message.error{background:#FEE2E2;color:#B91C1C}.message.info{background:#EEF2FF;color:#4F46E5}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
   .task-list{display:grid;gap:12px}.task-card{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--border);background:#fff;border-radius:18px;padding:16px}.task-left{display:flex;align-items:center;gap:13px}.task-icon{width:42px;height:42px;border-radius:50%;background:#F8FAFC;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#0F172A}.task-title{font-size:14px;font-weight:900}.task-sub{font-size:12px;color:var(--muted);margin-top:3px}.task-reward{margin-top:7px;font-size:12px;font-weight:900;color:#D97706}.status-pill{border-radius:999px;background:#F1F5F9;color:#64748B;font-size:11px;font-weight:900;padding:7px 10px}.preview-panel{position:sticky;top:92px}.mini-cover{aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#EEF2FF;border:1px solid var(--border)}.mini-cover img{width:100%;height:100%;object-fit:cover}.mini-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;font-weight:900;text-align:center;padding:18px}
     .task-card{display:block}.task-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-field{display:flex;flex-direction:column;gap:6px}.task-field.full{grid-column:1/-1}.task-field label{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#64748B}.task-field input,.task-field textarea{width:100%;border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:12px 13px;font:inherit;font-size:13px;font-weight:800;color:#0F172A;outline:none}.task-field textarea{min-height:76px;resize:vertical}.task-field input:focus,.task-field textarea:focus{border-color:#4F46E5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.08)}.switch-btn{width:62px;height:34px;border:0;border-radius:999px;background:#CBD5E1;padding:4px;cursor:pointer;transition:.2s}.switch-btn.on{background:#10B981}.switch-knob{display:block;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 3px 8px rgba(15,23,42,.22);transition:.2s}.switch-btn.on .switch-knob{transform:translateX(28px)}.task-preview-box{margin-top:14px;border:1px solid #E2E8F0;background:#fff;border-radius:16px;padding:14px}.task-preview-title{font-size:13px;font-weight:900}.task-preview-sub{margin-top:4px;font-size:12px;color:#64748B;font-weight:700}.task-preview-meta{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}.task-preview-pill{border-radius:999px;background:#F1F5F9;color:#334155;font-size:11px;font-weight:900;padding:7px 10px}.task-note{margin-top:12px}.status-pill.active{background:#D1FAE5;color:#047857}.status-pill.inactive{background:#F1F5F9;color:#64748B}
-  @media(max-width:1100px){.shell{grid-template-columns:1fr}.preview-panel{position:static}}@media(max-width:760px){.content-body{padding:22px 16px}.header{padding:0 18px}.btn-row{grid-template-columns:1fr}}
+    .task-tabs{display:flex;gap:10px;margin-bottom:18px}.task-tab{border:1px solid var(--border);background:#fff;color:#64748B;border-radius:999px;padding:11px 18px;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer}.task-tab.active{border-color:#4F46E5;background:#EEF2FF;color:#4F46E5;box-shadow:0 10px 22px rgba(79,70,229,.10)}.task-shell-full{grid-template-columns:minmax(0,1fr)}
+  @media(max-width:1100px){.shell{grid-template-columns:1fr}.preview-panel{position:static}}@media(max-width:760px){.content-body{padding:22px 16px}.header{padding:0 18px}.btn-row{grid-template-columns:1fr}.task-tabs{display:grid;grid-template-columns:1fr 1fr}.task-tab{padding:11px 10px}}
 `
 
 const Icon = ({ d, size = 20 }) => (
@@ -69,7 +70,7 @@ export default function AdminTaskCenterPage() {
   const [readingSaving, setReadingSaving] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
   const [readingTask, setReadingTask] = useState(defaultReadingTask)
-
+  const [activeTab, setActiveTab] = useState('reading')
   const coverUrl = previewUrl || settings.cover_url || ''
 
   function updateReadingTask(field, value) {
@@ -221,12 +222,30 @@ setReadingTask({
           <section className="content-body">
             <div className="page-title-row">
               <h1>Task Center</h1>
-              <p>Manage the Task Center cover and prepare reward task controls.</p>
+              <p>Manage the Task Center cover and reading mission controls.</p>
             </div>
 
-            <div className="shell">
+            <div className="task-tabs">
+              <button
+                type="button"
+                className={`task-tab ${activeTab === 'reading' ? 'active' : ''}`}
+                onClick={() => setActiveTab('reading')}
+              >
+                Reading Mission
+              </button>
+
+              <button
+                type="button"
+                className={`task-tab ${activeTab === 'cover' ? 'active' : ''}`}
+                onClick={() => setActiveTab('cover')}
+              >
+                Cover Image
+              </button>
+            </div>
+
+            <div className={activeTab === 'reading' ? 'shell task-shell-full' : 'shell'}>
               <div>
-                <div className="panel">
+                <div className="panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
                   <div className="panel-header">
                     <div>
                       <h3>Task Cover</h3>
@@ -278,10 +297,10 @@ setReadingTask({
                   </div>
                 </div>
 
-                <div className="panel" style={{ marginTop: 24 }}>
+                <div className="panel" style={{ display: activeTab === 'reading' ? 'block' : 'none', marginTop: 0 }}>
                   <div className="panel-header">
                     <div>
-                                            <h3>Reading Mission</h3>
+                      <h3>Reading Mission</h3>
                       <p>Control the reading reward shown on the reader Task Page.</p>
                     </div>
                   </div>
@@ -414,7 +433,7 @@ setReadingTask({
                 </div>
               </div>
 
-              <aside className="preview-panel">
+                            <aside className="preview-panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
                 <div className="panel">
                   <div className="panel-header">
                     <div>
