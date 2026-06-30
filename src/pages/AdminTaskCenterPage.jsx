@@ -12,12 +12,12 @@ const styles = `
   .main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900}.content-body{padding:28px 36px 48px;max-width:1500px;margin:0 auto}.page-title-row{margin-bottom:22px}.page-title-row h1{font-size:27px;font-weight:900;letter-spacing:-.04em}.page-title-row p{font-size:13.5px;color:var(--muted);margin-top:5px}
   .shell{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:24px;align-items:start}.panel{background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:0 8px 28px rgba(15,23,42,.06);overflow:hidden}.panel-header{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;align-items:center}.panel-header h3{font-size:16px;font-weight:900}.panel-header p{font-size:12.5px;color:var(--muted);margin-top:4px}.panel-body{padding:20px 22px}
   .cover-preview{aspect-ratio:16/9;border-radius:18px;border:1px solid var(--border);background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden;display:flex;align-items:center;justify-content:center}.cover-preview img{width:100%;height:100%;object-fit:cover}.cover-empty{font-size:13px;font-weight:900;color:var(--soft);text-align:center}.upload-box{border:1.5px dashed #CBD5E1;background:#F8FAFC;border-radius:15px;padding:16px;margin-top:14px;cursor:pointer;text-align:center}.upload-box:hover{border-color:var(--primary);background:var(--light)}.upload-title{font-size:13px;font-weight:900}.upload-help{margin-top:4px;font-size:11.5px;color:var(--muted)}
-  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.btn-primary,.btn-secondary{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled{opacity:.65;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}
-  .message{margin-top:14px;padding:12px 14px;border-radius:14px;font-size:13px;font-weight:900;line-height:1.45}.message.success{background:#D1FAE5;color:#047857}.message.error{background:#FEE2E2;color:#B91C1C}.message.info{background:#EEF2FF;color:#4F46E5}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
-  .task-list{display:grid;gap:12px}.task-card{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--border);background:#fff;border-radius:18px;padding:16px}.task-left{display:flex;align-items:center;gap:13px}.task-icon{width:42px;height:42px;border-radius:50%;background:#F8FAFC;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#0F172A}.task-title{font-size:14px;font-weight:900}.task-sub{font-size:12px;color:var(--muted);margin-top:3px}.task-reward{margin-top:7px;font-size:12px;font-weight:900;color:#D97706}.status-pill{border-radius:999px;background:#F1F5F9;color:#64748B;font-size:11px;font-weight:900;padding:7px 10px}.preview-panel{position:sticky;top:92px}.mini-cover{aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#EEF2FF;border:1px solid var(--border)}.mini-cover img{width:100%;height:100%;object-fit:cover}.mini-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;font-weight:900;text-align:center;padding:18px}
-    .task-card{display:block}.task-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-field{display:flex;flex-direction:column;gap:6px}.task-field.full{grid-column:1/-1}.task-field label{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#64748B}.task-field input,.task-field textarea{width:100%;border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:12px 13px;font:inherit;font-size:13px;font-weight:800;color:#0F172A;outline:none}.task-field textarea{min-height:76px;resize:vertical}.task-field input:focus,.task-field textarea:focus{border-color:#4F46E5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.08)}.switch-btn{width:62px;height:34px;border:0;border-radius:999px;background:#CBD5E1;padding:4px;cursor:pointer;transition:.2s}.switch-btn.on{background:#10B981}.switch-knob{display:block;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 3px 8px rgba(15,23,42,.22);transition:.2s}.switch-btn.on .switch-knob{transform:translateX(28px)}.task-preview-box{margin-top:14px;border:1px solid #E2E8F0;background:#fff;border-radius:16px;padding:14px}.task-preview-title{font-size:13px;font-weight:900}.task-preview-sub{margin-top:4px;font-size:12px;color:#64748B;font-weight:700}.task-preview-meta{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}.task-preview-pill{border-radius:999px;background:#F1F5F9;color:#334155;font-size:11px;font-weight:900;padding:7px 10px}.task-note{margin-top:12px}.status-pill.active{background:#D1FAE5;color:#047857}.status-pill.inactive{background:#F1F5F9;color:#64748B}
-    .task-tabs{display:flex;gap:10px;margin-bottom:18px}.task-tab{border:1px solid var(--border);background:#fff;color:#64748B;border-radius:999px;padding:11px 18px;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer}.task-tab.active{border-color:#4F46E5;background:#EEF2FF;color:#4F46E5;box-shadow:0 10px 22px rgba(79,70,229,.10)}.task-shell-full{grid-template-columns:minmax(0,1fr)}
-  @media(max-width:1100px){.shell{grid-template-columns:1fr}.preview-panel{position:static}}@media(max-width:760px){.content-body{padding:22px 16px}.header{padding:0 18px}.btn-row{grid-template-columns:1fr}.task-tabs{display:grid;grid-template-columns:1fr 1fr}.task-tab{padding:11px 10px}}
+  .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.btn-primary,.btn-secondary,.btn-danger{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled,.btn-danger:disabled{opacity:.65;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}.btn-danger{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
+  .message{margin-bottom:14px;padding:12px 14px;border-radius:14px;font-size:13px;font-weight:900;line-height:1.45}.message.success{background:#D1FAE5;color:#047857}.message.error{background:#FEE2E2;color:#B91C1C}.message.info{background:#EEF2FF;color:#4F46E5}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
+  .task-list{display:grid;gap:14px}.task-card{display:block;border:1px solid var(--border);background:#fff;border-radius:18px;padding:16px}.task-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.task-left{display:flex;align-items:center;gap:13px;min-width:0}.task-icon{width:42px;height:42px;border-radius:50%;background:#F8FAFC;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#0F172A;flex-shrink:0}.task-title{font-size:14px;font-weight:900}.task-sub{font-size:12px;color:var(--muted);margin-top:3px}.task-reward{margin-top:7px;font-size:12px;font-weight:900;color:#D97706}.status-pill{border-radius:999px;background:#F1F5F9;color:#64748B;font-size:11px;font-weight:900;padding:7px 10px;white-space:nowrap}.status-pill.active{background:#D1FAE5;color:#047857}.status-pill.inactive{background:#F1F5F9;color:#64748B}.preview-panel{position:sticky;top:92px}.mini-cover{aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#EEF2FF;border:1px solid var(--border)}.mini-cover img{width:100%;height:100%;object-fit:cover}.mini-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;font-weight:900;text-align:center;padding:18px}
+  .task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-field{display:flex;flex-direction:column;gap:6px}.task-field.full{grid-column:1/-1}.task-field label{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#64748B}.task-field input,.task-field textarea{width:100%;border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:12px 13px;font:inherit;font-size:13px;font-weight:800;color:#0F172A;outline:none}.task-field textarea{min-height:76px;resize:vertical}.task-field input:focus,.task-field textarea:focus{border-color:#4F46E5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.08)}.switch-btn{width:62px;height:34px;border:0;border-radius:999px;background:#CBD5E1;padding:4px;cursor:pointer;transition:.2s}.switch-btn.on{background:#10B981}.switch-knob{display:block;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 3px 8px rgba(15,23,42,.22);transition:.2s}.switch-btn.on .switch-knob{transform:translateX(28px)}.task-preview-box{margin-top:14px;border:1px solid #E2E8F0;background:#fff;border-radius:16px;padding:14px}.task-preview-title{font-size:13px;font-weight:900}.task-preview-sub{margin-top:4px;font-size:12px;color:#64748B;font-weight:700}.task-preview-meta{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}.task-preview-pill{border-radius:999px;background:#F1F5F9;color:#334155;font-size:11px;font-weight:900;padding:7px 10px}.task-note{margin-top:12px}
+  .task-tabs{display:flex;gap:10px;margin-bottom:18px}.task-tab{border:1px solid var(--border);background:#fff;color:#64748B;border-radius:999px;padding:11px 18px;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer}.task-tab.active{border-color:#4F46E5;background:#EEF2FF;color:#4F46E5;box-shadow:0 10px 22px rgba(79,70,229,.10)}.task-shell-full{grid-template-columns:minmax(0,1fr)}.mission-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  @media(max-width:1100px){.shell{grid-template-columns:1fr}.preview-panel{position:static}}@media(max-width:760px){.content-body{padding:22px 16px}.header{padding:0 18px}.btn-row{grid-template-columns:1fr}.task-tabs{display:grid;grid-template-columns:1fr 1fr}.task-tab{padding:11px 10px}.task-top{align-items:flex-start}.mission-actions{justify-content:flex-start}.task-control-grid{grid-template-columns:1fr}}
 `
 
 const Icon = ({ d, size = 20 }) => (
@@ -35,15 +35,51 @@ const navItems = [
   { path: '/stories', label: 'Stories', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
 ]
 
-const defaultReadingTask = {
-  is_active: false,
-  title: 'Read 30 minutes',
-  subtitle: 'Keep reading longer to earn more coins.',
-  reward_coins: 60,
-  target_minutes: 30,
-  story_link: '',
-  button_text: 'Go',
-  icon: 'M12 6v6l4 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+const READING_MISSION_ICON = 'M12 6v6l4 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z'
+const MAX_READING_MISSIONS = 2
+
+function normalizeReadingMission(mission = {}, index = 0) {
+  return {
+    id: mission.id || `draft-${index}-${Date.now()}`,
+    is_active: Boolean(mission.is_active),
+    title: mission.title || `Read ${mission.target_minutes || 30} minutes`,
+    subtitle: mission.subtitle || 'Keep reading longer to earn more coins.',
+    reward_coins: String(mission.reward_coins ?? 60),
+    target_minutes: String(mission.target_minutes ?? 30),
+    story_link: mission.story_link || '',
+    button_text: mission.button_text || 'Go',
+    sort_order: Number(mission.sort_order ?? index),
+    created_at: mission.created_at || null,
+    updated_at: mission.updated_at || null,
+  }
+}
+
+function digitsOnly(value) {
+  return String(value ?? '').replace(/[^\d]/g, '')
+}
+
+function buildReadingMissionPayload(mission, index = 0) {
+  const rewardCoins = Number(mission.reward_coins)
+  const targetMinutes = Number(mission.target_minutes)
+
+  if (!Number.isFinite(rewardCoins) || rewardCoins < 0) {
+    throw new Error('Reward coins must be 0 or higher')
+  }
+
+  if (!Number.isFinite(targetMinutes) || targetMinutes < 1 || targetMinutes > 300) {
+    throw new Error('Target minutes must be between 1 and 300')
+  }
+
+  return {
+    is_active: Boolean(mission.is_active),
+    title: String(mission.title || '').trim() || `Read ${targetMinutes} minutes`,
+    subtitle: String(mission.subtitle || '').trim() || 'Keep reading longer to earn more coins.',
+    reward_coins: rewardCoins,
+    target_minutes: targetMinutes,
+    story_link: String(mission.story_link || '').trim(),
+    button_text: String(mission.button_text || '').trim() || 'Go',
+    sort_order: Number(mission.sort_order ?? index),
+  }
 }
 
 function getAdminToken() {
@@ -62,45 +98,63 @@ export default function AdminTaskCenterPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const inputRef = useRef(null)
+
   const [settings, setSettings] = useState({ cover_url: '' })
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [readingSaving, setReadingSaving] = useState(false)
+  const [missionSavingId, setMissionSavingId] = useState('')
+  const [creatingMission, setCreatingMission] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
-  const [readingTask, setReadingTask] = useState(defaultReadingTask)
+  const [readingMissions, setReadingMissions] = useState([])
   const [activeTab, setActiveTab] = useState('reading')
+
   const coverUrl = previewUrl || settings.cover_url || ''
 
-  function updateReadingTask(field, value) {
-    setReadingTask((current) => ({
-      ...current,
-      [field]: value,
-    }))
+  function syncReadingMissions(list = []) {
+    const safeList = Array.isArray(list) ? list : []
+
+    setReadingMissions(
+      safeList
+        .slice(0, MAX_READING_MISSIONS)
+        .map((mission, index) => normalizeReadingMission(mission, index))
+    )
+  }
+
+  function updateReadingMission(missionId, field, value) {
+    setReadingMissions((current) =>
+      current.map((mission) =>
+        mission.id === missionId
+          ? {
+              ...mission,
+              [field]: value,
+            }
+          : mission
+      )
+    )
   }
 
   async function loadSettings() {
     try {
       setLoading(true)
+
       const response = await fetch(`${API_URL}/api/task-center/admin`, {
         headers: {
           Authorization: `Bearer ${getAdminToken()}`,
         },
       })
+
       const data = await response.json()
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Failed to load task center cover')
+        throw new Error(data.message || 'Failed to load task center settings')
       }
 
       setSettings(data.settings || { cover_url: '' })
-setReadingTask({
-  ...defaultReadingTask,
-  ...(data.settings?.reading_task || {}),
-})
+      syncReadingMissions(data.settings?.reading_missions || data.reading_missions || [])
     } catch (error) {
-      setMessage({ type: 'error', text: error.message || 'Failed to load task center cover' })
+      setMessage({ type: 'error', text: error.message || 'Failed to load task center settings' })
     } finally {
       setLoading(false)
     }
@@ -127,6 +181,7 @@ setReadingTask({
 
     try {
       setSaving(true)
+
       const formData = new FormData()
       formData.append('cover', selectedFile)
 
@@ -155,37 +210,110 @@ setReadingTask({
     }
   }
 
-  async function saveReadingTask() {
-  try {
-    setReadingSaving(true)
-
-    const response = await fetch(`${API_URL}/api/task-center/admin/reading-task`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${getAdminToken()}`,
-      },
-      body: JSON.stringify(readingTask),
-    })
-
-    const data = await response.json()
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.message || 'Failed to save reading mission')
+  async function addReadingMission() {
+    if (readingMissions.length >= MAX_READING_MISSIONS) {
+      setMessage({ type: 'info', text: 'Only 2 reading missions are allowed.' })
+      return
     }
 
-    setSettings(data.settings || { cover_url: '' })
-    setReadingTask({
-      ...defaultReadingTask,
-      ...(data.settings?.reading_task || {}),
-    })
-    setMessage({ type: 'success', text: 'Reading mission saved successfully.' })
-  } catch (error) {
-    setMessage({ type: 'error', text: error.message || 'Failed to save reading mission' })
-  } finally {
-    setReadingSaving(false)
+    try {
+      setCreatingMission(true)
+
+      const draft = normalizeReadingMission(
+        {
+          is_active: false,
+          title: 'Read 2 minutes',
+          subtitle: 'Keep reading longer to earn more coins.',
+          reward_coins: 5,
+          target_minutes: 2,
+          story_link: '',
+          button_text: 'Go',
+          sort_order: 0,
+        },
+        0
+      )
+
+      const response = await fetch(`${API_URL}/api/task-center/admin/reading-missions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        body: JSON.stringify(buildReadingMissionPayload(draft, 0)),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'Failed to add reading mission')
+      }
+
+      syncReadingMissions(data.reading_missions || data.settings?.reading_missions || [])
+      setMessage({ type: 'success', text: 'Reading mission added.' })
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Failed to add reading mission' })
+    } finally {
+      setCreatingMission(false)
+    }
   }
-}
+
+  async function saveReadingMission(mission, index) {
+    try {
+      setMissionSavingId(mission.id)
+
+      const payload = buildReadingMissionPayload(mission, index)
+
+      const response = await fetch(`${API_URL}/api/task-center/admin/reading-missions/${mission.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'Failed to save reading mission')
+      }
+
+      syncReadingMissions(data.reading_missions || data.settings?.reading_missions || [])
+      setMessage({ type: 'success', text: 'Reading mission saved successfully.' })
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Failed to save reading mission' })
+    } finally {
+      setMissionSavingId('')
+    }
+  }
+
+  async function deleteReadingMission(mission) {
+    if (!window.confirm('Delete this reading mission?')) return
+
+    try {
+      setMissionSavingId(mission.id)
+
+      const response = await fetch(`${API_URL}/api/task-center/admin/reading-missions/${mission.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'Failed to delete reading mission')
+      }
+
+      syncReadingMissions(data.reading_missions || data.settings?.reading_missions || [])
+      setMessage({ type: 'success', text: 'Reading mission deleted.' })
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Failed to delete reading mission' })
+    } finally {
+      setMissionSavingId('')
+    }
+  }
 
   useEffect(() => {
     loadSettings()
@@ -194,6 +322,7 @@ setReadingTask({
   return (
     <>
       <style>{styles}</style>
+
       <div className="dashboard-wrapper">
         <aside className="sidebar">
           <div className="sidebar-logo">
@@ -202,6 +331,7 @@ setReadingTask({
           </div>
 
           <span className="nav-group-label">Overview</span>
+
           {navItems.map((item) => (
             <div
               key={item.path}
@@ -255,7 +385,11 @@ setReadingTask({
 
                   <div className="panel-body">
                     <div className="cover-preview">
-                      {coverUrl ? <img src={coverUrl} alt="Task Center Cover" /> : <div className="cover-empty">{loading ? 'Loading cover...' : 'No cover uploaded yet'}</div>}
+                      {coverUrl ? (
+                        <img src={coverUrl} alt="Task Center Cover" />
+                      ) : (
+                        <div className="cover-empty">{loading ? 'Loading cover...' : 'No cover uploaded yet'}</div>
+                      )}
                     </div>
 
                     <input
@@ -275,6 +409,7 @@ setReadingTask({
                       <button type="button" className="btn-primary" onClick={saveCover} disabled={saving || !selectedFile}>
                         {saving ? 'Saving...' : 'Save Cover'}
                       </button>
+
                       <button
                         type="button"
                         className="btn-secondary"
@@ -289,8 +424,6 @@ setReadingTask({
                       </button>
                     </div>
 
-                    {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
-
                     <div className="note-box">
                       Cover files are uploaded to Cloudflare R2 through the backend. This page only controls the main Task Center cover for now.
                     </div>
@@ -301,139 +434,181 @@ setReadingTask({
                   <div className="panel-header">
                     <div>
                       <h3>Reading Mission</h3>
-                      <p>Control the reading reward shown on the reader Task Page.</p>
+                      <p>Add up to 2 story reading missions for the reader Task Page.</p>
                     </div>
+
+                    {readingMissions.length < MAX_READING_MISSIONS ? (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={addReadingMission}
+                        disabled={creatingMission}
+                        style={{ width: 'auto', padding: '10px 16px' }}
+                      >
+                        {creatingMission ? 'Adding...' : '+ Add Mission'}
+                      </button>
+                    ) : (
+                      <span className="status-pill active">Max 2</span>
+                    )}
                   </div>
 
-                 <div className="panel-body">
+                  <div className="panel-body">
+                    {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
+
                     <div className="task-list">
-                      <div className="task-card featured">
-                        <div className="task-top">
-                          <div className="task-left">
-                            <div className="task-icon featured">
-                              <Icon d={readingTask.icon} size={18} />
-                            </div>
-                            <div>
-                              <div className="task-title">{readingTask.title}</div>
-                              <div className="task-sub">{readingTask.subtitle}</div>
-                              <div className="task-reward">+{readingTask.reward_coins || 0} Coins</div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <span className={`status-pill ${readingTask.is_active ? 'active' : 'inactive'}`}>
-                              {readingTask.is_active ? 'Active' : 'Inactive'}
-                            </span>
-
-                            <button
-                              type="button"
-                              className={`switch-btn ${readingTask.is_active ? 'on' : ''}`}
-                              onClick={() => updateReadingTask('is_active', !readingTask.is_active)}
-                              aria-label="Toggle reading mission"
-                            >
-                              <span className="switch-knob" />
-                            </button>
-                          </div>
+                      {readingMissions.length === 0 ? (
+                        <div className="note-box">
+                          No reading mission yet. Click Add Mission to create one. You can create up to 2 missions.
                         </div>
+                      ) : null}
 
-                        <div className="task-feature-body">
-                          <div className="task-section-label">Reader Task Settings</div>
+                      {readingMissions.map((mission, index) => {
+                        const savingThis = missionSavingId === mission.id
 
-                          <div className="task-field full" style={{ marginBottom: 12 }}>
-                            <label>Task title</label>
-                            <input
-                              value={readingTask.title}
-                              onChange={(event) => updateReadingTask('title', event.target.value)}
-                              placeholder="Read 30 minutes"
-                            />
+                        return (
+                          <div className="task-card featured" key={mission.id}>
+                            <div className="task-top">
+                              <div className="task-left">
+                                <div className="task-icon featured">
+                                  <Icon d={READING_MISSION_ICON} size={18} />
+                                </div>
+
+                                <div>
+                                  <div className="task-title">{mission.title || `Reading Mission ${index + 1}`}</div>
+                                  <div className="task-sub">{mission.subtitle || 'Keep reading longer to earn more coins.'}</div>
+                                  <div className="task-reward">+{mission.reward_coins || 0} Coins</div>
+                                </div>
+                              </div>
+
+                              <div className="mission-actions">
+                                <span className={`status-pill ${mission.is_active ? 'active' : 'inactive'}`}>
+                                  {mission.is_active ? 'Active' : 'Inactive'}
+                                </span>
+
+                                <button
+                                  type="button"
+                                  className={`switch-btn ${mission.is_active ? 'on' : ''}`}
+                                  onClick={() => updateReadingMission(mission.id, 'is_active', !mission.is_active)}
+                                  aria-label="Toggle reading mission"
+                                >
+                                  <span className="switch-knob" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="btn-danger"
+                                  onClick={() => deleteReadingMission(mission)}
+                                  disabled={savingThis}
+                                  style={{ padding: '8px 12px', borderRadius: 999 }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="task-feature-body">
+                              <div className="task-section-label">Mission {index + 1}</div>
+
+                              <div className="task-field full" style={{ marginBottom: 12 }}>
+                                <label>Task title</label>
+                                <input
+                                  value={mission.title}
+                                  onChange={(event) => updateReadingMission(mission.id, 'title', event.target.value)}
+                                  placeholder="Read 30 minutes"
+                                />
+                              </div>
+
+                              <div className="task-control-grid">
+                                <div className="task-field">
+                                  <label>Reward coins</label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={mission.reward_coins}
+                                    onChange={(event) => updateReadingMission(mission.id, 'reward_coins', digitsOnly(event.target.value))}
+                                    placeholder="60"
+                                  />
+                                </div>
+
+                                <div className="task-field">
+                                  <label>Target minutes</label>
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={mission.target_minutes}
+                                    onChange={(event) => updateReadingMission(mission.id, 'target_minutes', digitsOnly(event.target.value))}
+                                    placeholder="30"
+                                  />
+                                </div>
+
+                                <div className="task-field">
+                                  <label>Reader button</label>
+                                  <input
+                                    value={mission.button_text}
+                                    onChange={(event) => updateReadingMission(mission.id, 'button_text', event.target.value)}
+                                    placeholder="Go"
+                                  />
+                                </div>
+
+                                <div className="task-field full">
+                                  <label>Story link</label>
+                                  <input
+                                    value={mission.story_link}
+                                    onChange={(event) => updateReadingMission(mission.id, 'story_link', event.target.value)}
+                                    placeholder="/story/story-id"
+                                  />
+                                </div>
+
+                                <div className="task-field full">
+                                  <label>Subtitle</label>
+                                  <textarea
+                                    value={mission.subtitle}
+                                    onChange={(event) => updateReadingMission(mission.id, 'subtitle', event.target.value)}
+                                    placeholder="Keep reading longer to earn more coins."
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="task-preview-box">
+                                <div className="task-section-label">Reader Preview</div>
+                                <div className="task-preview-title">{mission.title || `Read ${mission.target_minutes || 0} minutes`}</div>
+                                <div className="task-preview-sub">{mission.subtitle || 'Keep reading longer to earn more coins.'}</div>
+                                <div className="task-preview-meta">
+                                  <span className="task-preview-pill">+{mission.reward_coins || 0} Coins</span>
+                                  <span className="task-preview-pill">{mission.target_minutes || 0} min</span>
+                                  <span className="task-preview-pill">{mission.button_text || 'Go'}</span>
+                                  <span className="task-preview-pill">{mission.is_active ? 'Shown on Task Page' : 'Hidden from readers'}</span>
+                                </div>
+                              </div>
+
+                              <div className="btn-row">
+                                <button
+                                  type="button"
+                                  className="btn-primary"
+                                  onClick={() => saveReadingMission(mission, index)}
+                                  disabled={savingThis}
+                                >
+                                  {savingThis ? 'Saving...' : 'Save Mission'}
+                                </button>
+
+                                <button type="button" className="btn-secondary" onClick={loadSettings} disabled={savingThis}>
+                                  Reset
+                                </button>
+                              </div>
+
+                              <div className="note-box task-note">
+                                Use text-style number boxes so you can delete and type numbers normally. Save after editing.
+                              </div>
+                            </div>
                           </div>
-
-                          <div className="task-control-grid">
-
-                            <div className="task-field">
-                              <label>Reward coins</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={readingTask.reward_coins}
-                                onChange={(event) => updateReadingTask('reward_coins', Number(event.target.value || 0))}
-                                placeholder="60"
-                              />
-                            </div>
-
-                            <div className="task-field">
-                              <label>Target minutes</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="300"
-                                value={readingTask.target_minutes}
-                                onChange={(event) => updateReadingTask('target_minutes', Number(event.target.value || 1))}
-                                placeholder="30"
-                              />
-                            </div>
-
-                            <div className="task-field">
-                              <label>Reader button</label>
-                              <input
-                                value={readingTask.button_text}
-                                onChange={(event) => updateReadingTask('button_text', event.target.value)}
-                                placeholder="Go"
-                              />
-                            </div>
-
-                            <div className="task-field full">
-                              <label>Story link</label>
-                              <input
-                                value={readingTask.story_link}
-                                onChange={(event) => updateReadingTask('story_link', event.target.value)}
-                                placeholder="/story/story-id"
-                              />
-                            </div>
-
-                            <div className="task-field full">
-                              <label>Subtitle</label>
-                              <textarea
-                                value={readingTask.subtitle}
-                                onChange={(event) => updateReadingTask('subtitle', event.target.value)}
-                                placeholder="Keep reading longer to earn more coins."
-                              />
-                            </div>
-                          </div>
-
-                          <div className="task-preview-box">
-                            <div className="task-section-label">Reader Preview</div>
-                            <div className="task-preview-title">{readingTask.title || 'Read 30 minutes'}</div>
-                            <div className="task-preview-sub">{readingTask.subtitle || 'Keep reading longer to earn more coins.'}</div>
-                            <div className="task-preview-meta">
-                              <span className="task-preview-pill">+{readingTask.reward_coins || 0} Coins</span>
-                              <span className="task-preview-pill">{readingTask.target_minutes || 0} min</span>
-                              <span className="task-preview-pill">{readingTask.button_text || 'Go'}</span>
-                              <span className="task-preview-pill">{readingTask.is_active ? 'Shown on Task Page' : 'Hidden from readers'}</span>
-                            </div>
-                          </div>
-
-                          <div className="btn-row">
-  <button type="button" className="btn-primary" onClick={saveReadingTask} disabled={readingSaving}>
-    {readingSaving ? 'Saving...' : 'Save Reading Mission'}
-  </button>
-
-  <button type="button" className="btn-secondary" onClick={loadSettings} disabled={readingSaving}>
-    Reset
-  </button>
-</div>
-
-<div className="note-box task-note">
-  Save this mission to show or hide it on the reader Task Page.
-</div>
-                        </div>
-                      </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </div>
               </div>
 
-                            <aside className="preview-panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
+              <aside className="preview-panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
                 <div className="panel">
                   <div className="panel-header">
                     <div>
