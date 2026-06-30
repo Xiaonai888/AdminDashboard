@@ -101,6 +101,14 @@ export default function LoginPage() {
   const [passkeyLocked, setPasskeyLocked] = useState(null);
   const [passkeyLockTick, setPasskeyLockTick] = useState(0);
   const [passkeyPin, setPasskeyPin] = useState('');
+  const [passkeyResetOpen, setPasskeyResetOpen] = useState(false);
+  const [passkeyResetChallenge, setPasskeyResetChallenge] = useState(null);
+  const [passkeyResetEmailCode, setPasskeyResetEmailCode] = useState('');
+  const [passkeyResetTwoFactorCode, setPasskeyResetTwoFactorCode] = useState('');
+  const [passkeyResetNewPin, setPasskeyResetNewPin] = useState('');
+  const [passkeyResetConfirmPin, setPasskeyResetConfirmPin] = useState('');
+  const [passkeyResetSending, setPasskeyResetSending] = useState(false);
+  const [passkeyResetSubmitting, setPasskeyResetSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
   const [error, setError] = useState('');
@@ -165,6 +173,16 @@ export default function LoginPage() {
     }
   }
 
+
+  function clearPasskeyResetState() {
+    setPasskeyResetOpen(false);
+    setPasskeyResetChallenge(null);
+    setPasskeyResetEmailCode('');
+    setPasskeyResetTwoFactorCode('');
+    setPasskeyResetNewPin('');
+    setPasskeyResetConfirmPin('');
+  }
+
   function startPasskeyPin(data, cleanEmail) {
     const passkeyToken = getPasskeyToken(data);
 
@@ -197,6 +215,7 @@ export default function LoginPage() {
     setPasskeyPin('');
     setPasskeyLocked(lockState);
     setPasskeyLockTick(Date.now());
+    clearPasskeyResetState();
     setError('');
     setMessage('');
 
@@ -217,6 +236,7 @@ export default function LoginPage() {
     setPendingPasskeyPin(null);
     setPasskeyPin('');
     setPasskeyLocked(null);
+    clearPasskeyResetState();
     setPendingTwoFactor(null);
     setTwoFactorCode('');
     setPassword('');
@@ -517,11 +537,136 @@ export default function LoginPage() {
       setPendingPasskeyPin(null);
       setPasskeyPin('');
       setPasskeyLocked(null);
+      clearPasskeyResetState();
       navigate('/admin', { replace: true });
     } catch {
       setError('Cannot verify Passkey PIN right now. Please try again.');
     } finally {
       setLoading(false);
+    }
+  }
+
+
+  async function sendPasskeyPinResetEmail() {
+    if (!pendingPasskeyPin?.passkeyToken) {
+      setError('Passkey PIN challenge is missing. Please login again.');
+      return;
+    }
+
+    setError('');
+    setMessage('');
+
+    try {
+      setPasskeyResetSending(true);
+
+      const response = await fetch(`${API_URL}/api/auth/login/passkey-pin/reset/email/send`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          passkeyToken: pendingPasskeyPin.passkeyToken,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.ok) {
+        setError(getFriendlyError(data?.message || 'Failed to send reset email code.'));
+        return;
+      }
+
+      setPasskeyResetOpen(true);
+      setPasskeyResetChallenge({
+        id: data.reset_challenge_id || '',
+        expiresAt: data.expires_at || '',
+      });
+      setPasskeyResetEmailCode('');
+      setPasskeyResetTwoFactorCode('');
+      setPasskeyResetNewPin('');
+      setPasskeyResetConfirmPin('');
+      setMessage(data.email_sent ? 'Reset code sent. Check your admin email.' : 'Reset challenge created, but email was not sent. Check email settings.');
+    } catch {
+      setError('Cannot send Passkey PIN reset code right now. Please try again.');
+    } finally {
+      setPasskeyResetSending(false);
+    }
+  }
+
+  async function handlePasskeyPinResetSubmit() {
+    setError('');
+    setMessage('');
+
+    const emailCode = cleanPin(passkeyResetEmailCode);
+    const newPin = cleanPin(passkeyResetNewPin);
+    const confirmPin = cleanPin(passkeyResetConfirmPin);
+    const twoFactorCode = passkeyResetTwoFactorCode.trim();
+
+    if (!pendingPasskeyPin?.passkeyToken) {
+      setError('Passkey PIN challenge is missing. Please login again.');
+      return;
+    }
+
+    if (!passkeyResetChallenge?.id) {
+      setError('Reset challenge is missing. Please send email code again.');
+      return;
+    }
+
+    if (emailCode.length !== 6) {
+      setError('Please enter the 6-digit email reset code.');
+      return;
+    }
+
+    if (!twoFactorCode) {
+      setError('Please enter your 2FA code or recovery code.');
+      return;
+    }
+
+    if (newPin.length !== 6) {
+      setError('New Passkey PIN must be exactly 6 digits.');
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      setError('New PIN and confirm PIN do not match.');
+      return;
+    }
+
+    try {
+      setPasskeyResetSubmitting(true);
+
+      const response = await fetch(`${API_URL}/api/auth/login/passkey-pin/reset/confirm`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          passkeyToken: pendingPasskeyPin.passkeyToken,
+          resetChallengeId: passkeyResetChallenge.id,
+          emailCode,
+          twoFactorCode,
+          newPin,
+          confirmPin,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.ok) {
+        setError(getFriendlyError(data?.message || 'Failed to reset Passkey PIN.'));
+        return;
+      }
+
+      clearPasskeyResetState();
+      setPasskeyLocked(null);
+      setPasskeyPin('');
+      setMessage('Passkey PIN reset successfully. Enter your new PIN to continue.');
+    } catch {
+      setError('Cannot reset Passkey PIN right now. Please try again.');
+    } finally {
+      setPasskeyResetSubmitting(false);
     }
   }
 
@@ -566,16 +711,105 @@ export default function LoginPage() {
                 This PIN expires soon with your login challenge. If it fails, go back and login again.
               </div>
 
+              <button
+                type="button"
+                onClick={sendPasskeyPinResetEmail}
+                style={styles.emailButton}
+                disabled={loading || passkeyResetSending || passkeyResetSubmitting}
+              >
+                {passkeyResetSending ? 'Sending reset code...' : 'Forget Passkey PIN?'}
+              </button>
+
+              {passkeyResetOpen ? (
+                <div style={styles.resetPanel}>
+                  <div style={styles.resetTitle}>Reset Passkey PIN</div>
+                  <div style={styles.resetText}>
+                    Enter the email reset code, your 2FA code, and a new 6-digit PIN.
+                  </div>
+
+                  <label style={styles.label}>
+                    Email reset code
+                    <input
+                      style={styles.input}
+                      value={passkeyResetEmailCode}
+                      onChange={(event) => setPasskeyResetEmailCode(cleanPin(event.target.value))}
+                      placeholder="123456"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                    />
+                  </label>
+
+                  <label style={styles.label}>
+                    2FA code or recovery code
+                    <input
+                      style={styles.input}
+                      value={passkeyResetTwoFactorCode}
+                      onChange={(event) => setPasskeyResetTwoFactorCode(event.target.value)}
+                      placeholder="123456 or recovery code"
+                      autoComplete="one-time-code"
+                    />
+                  </label>
+
+                  <label style={styles.label}>
+                    New 6-digit Passkey PIN
+                    <input
+                      style={styles.input}
+                      type="password"
+                      value={passkeyResetNewPin}
+                      onChange={(event) => setPasskeyResetNewPin(cleanPin(event.target.value))}
+                      placeholder="654321"
+                      inputMode="numeric"
+                      autoComplete="new-password"
+                    />
+                  </label>
+
+                  <label style={styles.label}>
+                    Confirm new PIN
+                    <input
+                      style={styles.input}
+                      type="password"
+                      value={passkeyResetConfirmPin}
+                      onChange={(event) => setPasskeyResetConfirmPin(cleanPin(event.target.value))}
+                      placeholder="654321"
+                      inputMode="numeric"
+                      autoComplete="new-password"
+                    />
+                  </label>
+
+                  {passkeyResetChallenge?.expiresAt ? (
+                    <div style={styles.hintBox}>The email reset code expires soon.</div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handlePasskeyPinResetSubmit}
+                    style={styles.loginButton}
+                    disabled={passkeyResetSubmitting}
+                  >
+                    {passkeyResetSubmitting ? 'Resetting PIN...' : 'Reset PIN'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={clearPasskeyResetState}
+                    style={styles.secondaryButton}
+                    disabled={passkeyResetSubmitting}
+                  >
+                    Cancel reset
+                  </button>
+                </div>
+              ) : null}
+
               {error ? <div style={styles.errorBox}>{error}</div> : null}
               {message ? <div style={styles.successBox}>{message}</div> : null}
 
               <button
                 type="submit"
-                disabled={loading || passkeyPin.length !== 6 || isPasskeyLocked}
+                disabled={loading || passkeyPin.length !== 6 || isPasskeyLocked || passkeyResetOpen}
                 style={{
                   ...styles.loginButton,
-                  opacity: loading || passkeyPin.length !== 6 || isPasskeyLocked ? 0.72 : 1,
-                  cursor: loading || passkeyPin.length !== 6 || isPasskeyLocked ? 'not-allowed' : 'pointer',
+                  opacity: loading || passkeyPin.length !== 6 || isPasskeyLocked || passkeyResetOpen ? 0.72 : 1,
+                  cursor: loading || passkeyPin.length !== 6 || isPasskeyLocked || passkeyResetOpen ? 'not-allowed' : 'pointer',
                 }}
               >
                 {loading ? 'Verifying...' : isPasskeyLocked ? 'PIN Locked' : 'Verify PIN'}
@@ -914,6 +1148,26 @@ const styles = {
     fontSize: 15,
     fontWeight: 900,
     boxShadow: '0 12px 26px rgba(0,0,0,0.22)',
+  },
+
+  resetPanel: {
+    display: 'grid',
+    gap: 14,
+    padding: 14,
+    borderRadius: 16,
+    background: '#F8FAFC',
+    border: '1px solid #CBD5E1',
+  },
+  resetTitle: {
+    fontSize: 15,
+    fontWeight: 900,
+    color: '#0F172A',
+  },
+  resetText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: 700,
+    lineHeight: 1.5,
   },
   emailButton: {
     border: 0,
