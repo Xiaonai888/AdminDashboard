@@ -43,6 +43,20 @@ function cleanPin(value) {
   return String(value || '').replace(/\D/g, '').slice(0, 6);
 }
 
+function maskAdminEmail(value) {
+  const email = String(value || '').trim();
+
+  if (!email || !email.includes('@')) return 'Admin account';
+
+  const [name, domain] = email.split('@');
+  const safeName = name.length <= 2 ? `${name[0] || '*'}***` : `${name.slice(0, 2)}***`;
+  const domainParts = domain.split('.');
+  const domainName = domainParts[0] || '';
+  const domainExt = domainParts.slice(1).join('.');
+
+  return `${safeName}@${domainName.slice(0, 1)}***${domainExt ? `.${domainExt}` : ''}`;
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
 
@@ -450,7 +464,7 @@ export default function LoginPage() {
             <form onSubmit={handlePasskeyPinSubmit} style={styles.form}>
               <div style={styles.infoBox}>
                 <strong>PIN required</strong>
-                <span>{pendingPasskeyPin.admin?.email || pendingPasskeyPin.email}</span>
+                <span>{maskAdminEmail(pendingPasskeyPin.admin?.email || pendingPasskeyPin.email)}</span>
               </div>
 
               <label style={styles.label}>
@@ -506,7 +520,7 @@ export default function LoginPage() {
             <form onSubmit={handleTwoFactorSubmit} style={styles.form}>
               <div style={styles.infoBox}>
                 <strong>2FA required</strong>
-                <span>{pendingTwoFactor.admin?.email || pendingTwoFactor.email}</span>
+                <span>{maskAdminEmail(pendingTwoFactor.admin?.email || pendingTwoFactor.email)}</span>
               </div>
 
               {canUseEmailCode ? (
