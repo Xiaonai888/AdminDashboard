@@ -160,6 +160,8 @@ export default function AdminTaskCenterPage() {
   const [message, setMessage] = useState({ type: 'info', text: '' })
   const [readingMissions, setReadingMissions] = useState([])
   const [activeTab, setActiveTab] = useState('reading')
+  const [selectedMissionId, setSelectedMissionId] = useState('')
+  const [readingMissionView, setReadingMissionView] = useState('home')
 
   const coverUrl = previewUrl || settings.cover_url || ''
 
@@ -303,7 +305,10 @@ export default function AdminTaskCenterPage() {
         throw new Error(data.message || 'Failed to add reading mission')
       }
 
-      syncReadingMissionsFromResponse(data, readingMissions)
+      const nextMissions = extractReadingMissionsFromResponse(data, readingMissions)
+      syncReadingMissions(nextMissions)
+      setSelectedMissionId(nextMissions[0]?.id || '')
+      setReadingMissionView('editor')
       setMessage({ type: 'success', text: 'Reading mission added.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to add reading mission' })
@@ -337,7 +342,13 @@ export default function AdminTaskCenterPage() {
         throw new Error(data.message || 'Failed to save reading mission')
       }
 
-      syncReadingMissionsFromResponse(data, readingMissions)
+      const nextMissions = extractReadingMissionsFromResponse(data, readingMissions)
+      syncReadingMissions(nextMissions)
+
+      const savedMission = data?.mission || nextMissions.find((item) => item.id === mission.id) || nextMissions[index]
+      if (savedMission?.id) setSelectedMissionId(savedMission.id)
+
+      setReadingMissionView('editor')
       setMessage({ type: 'success', text: 'Reading mission saved successfully.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to save reading mission' })
@@ -351,6 +362,8 @@ export default function AdminTaskCenterPage() {
 
     if (!isRealMissionId(mission.id)) {
       setReadingMissions((current) => current.filter((item) => item.id !== mission.id))
+      setSelectedMissionId('')
+      setReadingMissionView('overview')
       setMessage({ type: 'success', text: 'Draft mission removed.' })
       return
     }
@@ -372,6 +385,8 @@ export default function AdminTaskCenterPage() {
       }
 
       syncReadingMissionsFromResponse(data, [])
+      setSelectedMissionId('')
+      setReadingMissionView('overview')
       setMessage({ type: 'success', text: 'Reading mission deleted.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to delete reading mission' })
@@ -383,6 +398,9 @@ export default function AdminTaskCenterPage() {
   useEffect(() => {
     loadSettings()
   }, [])
+
+  const selectedMissionIndex = readingMissions.findIndex((mission) => mission.id === selectedMissionId)
+  const selectedMission = selectedMissionIndex >= 0 ? readingMissions[selectedMissionIndex] : null
 
   return (
     <>
@@ -496,181 +514,329 @@ export default function AdminTaskCenterPage() {
                 </div>
 
                 <div className="panel" style={{ display: activeTab === 'reading' ? 'block' : 'none', marginTop: 0 }}>
-                  <div className="panel-header">
-                    <div>
-                      <h3>Reading Mission</h3>
-                      <p>Add up to 2 story reading missions for the reader Task Page.</p>
-                    </div>
+  {readingMissionView === 'home' ? (
+    <>
+      <div className="panel-header">
+        <div>
+          <h3>Task Center Overview</h3>
+          <p>Open each task section to manage its missions inside.</p>
+        </div>
+      </div>
 
-                    {readingMissions.length < MAX_READING_MISSIONS ? (
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={addReadingMission}
-                        disabled={creatingMission}
-                        style={{ width: 'auto', padding: '10px 16px' }}
-                      >
-                        {creatingMission ? 'Adding...' : '+ Add Mission'}
-                      </button>
-                    ) : (
-                      <span className="status-pill active">Max 2</span>
-                    )}
-                  </div>
+      <div className="panel-body">
+        {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
 
-                  <div className="panel-body">
-                    {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
+        <div className="task-list">
+          <div
+            className="task-card featured"
+            onClick={() => {
+              setReadingMissionView('overview')
+              setSelectedMissionId('')
+            }}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="task-top">
+              <div className="task-left">
+                <div className="task-icon featured">
+                  <Icon d={READING_MISSION_ICON} size={18} />
+                </div>
 
-                    <div className="task-list">
-                      {readingMissions.length === 0 ? (
-                        <div className="note-box">
-                          No reading mission yet. Click Add Mission to create one. You can create up to 2 missions.
-                        </div>
-                      ) : null}
-
-                      {readingMissions.map((mission, index) => {
-                        const savingThis = missionSavingId === mission.id
-
-                        return (
-                          <div className="task-card featured" key={mission.id}>
-                            <div className="task-top">
-                              <div className="task-left">
-                                <div className="task-icon featured">
-                                  <Icon d={READING_MISSION_ICON} size={18} />
-                                </div>
-
-                                <div>
-                                  <div className="task-title">{mission.title || `Reading Mission ${index + 1}`}</div>
-                                  <div className="task-sub">{mission.subtitle || 'Keep reading longer to earn more coins.'}</div>
-                                  <div className="task-reward">+{mission.reward_coins || 0} Coins</div>
-                                </div>
-                              </div>
-
-                              <div className="mission-actions">
-                                <span className={`status-pill ${mission.is_active ? 'active' : 'inactive'}`}>
-                                  {mission.is_active ? 'Active' : 'Inactive'}
-                                </span>
-
-                                <button
-                                  type="button"
-                                  className={`switch-btn ${mission.is_active ? 'on' : ''}`}
-                                  onClick={() => updateReadingMission(mission.id, 'is_active', !mission.is_active)}
-                                  aria-label="Toggle reading mission"
-                                >
-                                  <span className="switch-knob" />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="btn-danger"
-                                  onClick={() => deleteReadingMission(mission)}
-                                  disabled={savingThis}
-                                  style={{ padding: '8px 12px', borderRadius: 999 }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="task-feature-body">
-                              <div className="task-section-label">Mission {index + 1}</div>
-
-                              <div className="task-field full" style={{ marginBottom: 12 }}>
-                                <label>Task title</label>
-                                <input
-                                  value={mission.title}
-                                  onChange={(event) => updateReadingMission(mission.id, 'title', event.target.value)}
-                                  placeholder="Read 30 minutes"
-                                />
-                              </div>
-
-                              <div className="task-control-grid">
-                                <div className="task-field">
-                                  <label>Reward coins</label>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={mission.reward_coins}
-                                    onChange={(event) => updateReadingMission(mission.id, 'reward_coins', digitsOnly(event.target.value))}
-                                    placeholder="60"
-                                  />
-                                </div>
-
-                                <div className="task-field">
-                                  <label>Target minutes</label>
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    value={mission.target_minutes}
-                                    onChange={(event) => updateReadingMission(mission.id, 'target_minutes', digitsOnly(event.target.value))}
-                                    placeholder="30"
-                                  />
-                                </div>
-
-                                <div className="task-field">
-                                  <label>Reader button</label>
-                                  <input
-                                    value={mission.button_text}
-                                    onChange={(event) => updateReadingMission(mission.id, 'button_text', event.target.value)}
-                                    placeholder="Go"
-                                  />
-                                </div>
-
-                                <div className="task-field full">
-                                  <label>Story link</label>
-                                  <input
-                                    value={mission.story_link}
-                                    onChange={(event) => updateReadingMission(mission.id, 'story_link', event.target.value)}
-                                    placeholder="/story/story-id"
-                                  />
-                                </div>
-
-                                <div className="task-field full">
-                                  <label>Subtitle</label>
-                                  <textarea
-                                    value={mission.subtitle}
-                                    onChange={(event) => updateReadingMission(mission.id, 'subtitle', event.target.value)}
-                                    placeholder="Keep reading longer to earn more coins."
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="task-preview-box">
-                                <div className="task-section-label">Reader Preview</div>
-                                <div className="task-preview-title">{mission.title || `Read ${mission.target_minutes || 0} minutes`}</div>
-                                <div className="task-preview-sub">{mission.subtitle || 'Keep reading longer to earn more coins.'}</div>
-                                <div className="task-preview-meta">
-                                  <span className="task-preview-pill">+{mission.reward_coins || 0} Coins</span>
-                                  <span className="task-preview-pill">{mission.target_minutes || 0} min</span>
-                                  <span className="task-preview-pill">{mission.button_text || 'Go'}</span>
-                                  <span className="task-preview-pill">{mission.is_active ? 'Shown on Task Page' : 'Hidden from readers'}</span>
-                                </div>
-                              </div>
-
-                              <div className="btn-row">
-                                <button
-                                  type="button"
-                                  className="btn-primary"
-                                  onClick={() => saveReadingMission(mission, index)}
-                                  disabled={savingThis}
-                                >
-                                  {savingThis ? 'Saving...' : 'Save Mission'}
-                                </button>
-
-                                <button type="button" className="btn-secondary" onClick={loadSettings} disabled={savingThis}>
-                                  Reset
-                                </button>
-                              </div>
-
-                              <div className="note-box task-note">
-                                Use text-style number boxes so you can delete and type numbers normally. Save after editing.
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                <div>
+                  <div className="task-title">Reading Mission</div>
+                  <div className="task-sub">Add up to 2 story reading missions for the reader Task Page.</div>
+                  <div className="task-preview-meta">
+                    <span className="task-preview-pill">{readingMissions.length}/{MAX_READING_MISSIONS} Missions</span>
+                    <span className="task-preview-pill">{readingMissions.filter((mission) => mission.is_active).length} Active</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="mission-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setReadingMissionView('overview')
+                    setSelectedMissionId('')
+                  }}
+                  style={{ padding: '8px 12px', borderRadius: 999 }}
+                >
+                  Open
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  ) : selectedMission ? (
+    <>
+      <div className="panel-header">
+        <div>
+          <h3>Edit Reading Mission</h3>
+          <p>Update the full mission fields and preview before saving.</p>
+        </div>
+
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => {
+            setSelectedMissionId('')
+            setReadingMissionView('overview')
+          }}
+          style={{ width: 'auto', padding: '10px 14px' }}
+        >
+          ← Back
+        </button>
+      </div>
+
+      <div className="panel-body">
+        {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
+
+        <div className="task-card featured">
+          <div className="task-top">
+            <div className="task-left">
+              <div className="task-icon featured">
+                <Icon d={READING_MISSION_ICON} size={18} />
+              </div>
+
+              <div>
+                <div className="task-title">{selectedMission.title || `Reading Mission ${selectedMissionIndex + 1}`}</div>
+                <div className="task-sub">{selectedMission.subtitle || 'Keep reading longer to earn more coins.'}</div>
+                <div className="task-reward">+{selectedMission.reward_coins || 0} Coins · {selectedMission.target_minutes || 0} min</div>
+              </div>
+            </div>
+
+            <div className="mission-actions">
+              <span className={`status-pill ${selectedMission.is_active ? 'active' : 'inactive'}`}>
+                {selectedMission.is_active ? 'Active' : 'Inactive'}
+              </span>
+
+              <button
+                type="button"
+                className={`switch-btn ${selectedMission.is_active ? 'on' : ''}`}
+                onClick={() => updateReadingMission(selectedMission.id, 'is_active', !selectedMission.is_active)}
+                aria-label="Toggle reading mission"
+              >
+                <span className="switch-knob" />
+              </button>
+            </div>
+          </div>
+
+          <div className="task-feature-body">
+            <div className="task-section-label">Mission {selectedMissionIndex + 1}</div>
+
+            <div className="task-field full" style={{ marginBottom: 12 }}>
+              <label>Task title</label>
+              <input
+                value={selectedMission.title}
+                onChange={(event) => updateReadingMission(selectedMission.id, 'title', event.target.value)}
+                placeholder="Read 2 minutes"
+              />
+            </div>
+
+            <div className="task-control-grid">
+              <div className="task-field">
+                <label>Reward coins</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={selectedMission.reward_coins}
+                  onChange={(event) => updateReadingMission(selectedMission.id, 'reward_coins', digitsOnly(event.target.value))}
+                  placeholder="5"
+                />
+              </div>
+
+              <div className="task-field">
+                <label>Target minutes</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={selectedMission.target_minutes}
+                  onChange={(event) => updateReadingMission(selectedMission.id, 'target_minutes', digitsOnly(event.target.value))}
+                  placeholder="2"
+                />
+              </div>
+
+              <div className="task-field">
+                <label>Reader button</label>
+                <input
+                  value={selectedMission.button_text}
+                  onChange={(event) => updateReadingMission(selectedMission.id, 'button_text', event.target.value)}
+                  placeholder="Go"
+                />
+              </div>
+
+              <div className="task-field full">
+                <label>Story link</label>
+                <input
+                  value={selectedMission.story_link}
+                  onChange={(event) => updateReadingMission(selectedMission.id, 'story_link', event.target.value)}
+                  placeholder="/story/story-id"
+                />
+              </div>
+
+              <div className="task-field full">
+                <label>Subtitle</label>
+                <textarea
+                  value={selectedMission.subtitle}
+                  onChange={(event) => updateReadingMission(selectedMission.id, 'subtitle', event.target.value)}
+                  placeholder="Keep reading longer to earn more coins."
+                />
+              </div>
+            </div>
+
+            <div className="task-preview-box">
+              <div className="task-section-label">Reader Preview</div>
+              <div className="task-preview-title">{selectedMission.title || `Read ${selectedMission.target_minutes || 0} minutes`}</div>
+              <div className="task-preview-sub">{selectedMission.subtitle || 'Keep reading longer to earn more coins.'}</div>
+              <div className="task-preview-meta">
+                <span className="task-preview-pill">+{selectedMission.reward_coins || 0} Coins</span>
+                <span className="task-preview-pill">{selectedMission.target_minutes || 0} min</span>
+                <span className="task-preview-pill">{selectedMission.button_text || 'Go'}</span>
+                <span className="task-preview-pill">{selectedMission.is_active ? 'Shown on Task Page' : 'Hidden from readers'}</span>
+              </div>
+            </div>
+
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => saveReadingMission(selectedMission, selectedMissionIndex)}
+                disabled={missionSavingId === selectedMission.id}
+              >
+                {missionSavingId === selectedMission.id ? 'Saving...' : 'Save Mission'}
+              </button>
+
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => deleteReadingMission(selectedMission)}
+                disabled={missionSavingId === selectedMission.id}
+              >
+                Delete Mission
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  ) : (
+    <>
+      <div className="panel-header">
+        <div>
+          <h3>Reading Mission Overview</h3>
+          <p>Manage reading missions as short cards. Open a mission to edit full details.</p>
+        </div>
+
+        <div className="mission-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setReadingMissionView('home')
+              setSelectedMissionId('')
+            }}
+            style={{ width: 'auto', padding: '10px 14px' }}
+          >
+            ← Back
+          </button>
+
+          {readingMissions.length < MAX_READING_MISSIONS ? (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={addReadingMission}
+              disabled={creatingMission}
+              style={{ width: 'auto', padding: '10px 16px' }}
+            >
+              {creatingMission ? 'Adding...' : '+ Add Mission'}
+            </button>
+          ) : (
+            <span className="status-pill active">Max 2</span>
+          )}
+        </div>
+      </div>
+
+      <div className="panel-body">
+        {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
+
+        <div className="task-list">
+          {readingMissions.length === 0 ? (
+            <div className="note-box">
+              No reading mission yet. Click Add Mission to create one. You can create up to 2 missions.
+            </div>
+          ) : null}
+
+          {readingMissions.map((mission, index) => {
+            const savingThis = missionSavingId === mission.id
+
+            return (
+              <div
+                className="task-card featured"
+                key={mission.id}
+                onClick={() => {
+                  setSelectedMissionId(mission.id)
+                  setReadingMissionView('editor')
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="task-top">
+                  <div className="task-left">
+                    <div className="task-icon featured">
+                      <Icon d={READING_MISSION_ICON} size={18} />
+                    </div>
+
+                    <div>
+                      <div className="task-title">{mission.title || `Reading Mission ${index + 1}`}</div>
+                      <div className="task-sub">{mission.subtitle || 'Keep reading longer to earn more coins.'}</div>
+                      <div className="task-preview-meta">
+                        <span className="task-preview-pill">+{mission.reward_coins || 0} Coins</span>
+                        <span className="task-preview-pill">{mission.target_minutes || 0} min</span>
+                        <span className={`status-pill ${mission.is_active ? 'active' : 'inactive'}`}>
+                          {mission.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mission-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setSelectedMissionId(mission.id)
+                        setReadingMissionView('editor')
+                      }}
+                      style={{ padding: '8px 12px', borderRadius: 999 }}
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        deleteReadingMission(mission)
+                      }}
+                      disabled={savingThis}
+                      style={{ padding: '8px 12px', borderRadius: 999 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )}
+</div>
               </div>
 
               <aside className="preview-panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
