@@ -58,6 +58,57 @@ function digitsOnly(value) {
   return String(value ?? '').replace(/[^\d]/g, '')
 }
 
+function isRealMissionId(value) {
+  const text = String(value || '').trim()
+
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)
+}
+
+function hasLegacyReadingTask(task) {
+  if (!task) return false
+
+  return Boolean(
+    task.is_active ||
+      task.title ||
+      task.subtitle ||
+      task.story_link ||
+      Number(task.reward_coins || 0) > 0 ||
+      Number(task.target_minutes || 0) > 0
+  )
+}
+
+function mergeMissionIntoList(mission, fallbackList = []) {
+  if (!mission) return fallbackList
+
+  const missionId = mission.id
+  const withoutSame = fallbackList.filter((item) => item.id !== missionId)
+
+  return [mission, ...withoutSame].slice(0, MAX_READING_MISSIONS)
+}
+
+function extractReadingMissionsFromResponse(data, fallbackList = []) {
+  if (Array.isArray(data?.reading_missions)) return data.reading_missions
+  if (Array.isArray(data?.missions)) return data.missions
+  if (Array.isArray(data?.settings?.reading_missions)) return data.settings.reading_missions
+
+  if (data?.mission) {
+    return mergeMissionIntoList(data.mission, fallbackList)
+  }
+
+  const legacyTask = data?.settings?.reading_task
+
+  if (hasLegacyReadingTask(legacyTask)) {
+    return [
+      {
+        ...legacyTask,
+        id: legacyTask.id || 'legacy-reading-task',
+      },
+    ]
+  }
+
+  return fallbackList
+}
+
 function buildReadingMissionPayload(mission, index = 0) {
   const rewardCoins = Number(mission.reward_coins)
   const targetMinutes = Number(mission.target_minutes)
@@ -122,6 +173,10 @@ export default function AdminTaskCenterPage() {
     )
   }
 
+  function syncReadingMissionsFromResponse(data, fallbackList = []) {
+    syncReadingMissions(extractReadingMissionsFromResponse(data, fallbackList))
+  }
+
   function updateReadingMission(missionId, field, value) {
     setReadingMissions((current) =>
       current.map((mission) =>
@@ -152,7 +207,7 @@ export default function AdminTaskCenterPage() {
       }
 
       setSettings(data.settings || { cover_url: '' })
-      syncReadingMissions(data.settings?.reading_missions || data.reading_missions || [])
+      syncReadingMissionsFromResponse(data, [])
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to load task center settings' })
     } finally {
@@ -248,7 +303,7 @@ export default function AdminTaskCenterPage() {
         throw new Error(data.message || 'Failed to add reading mission')
       }
 
-      syncReadingMissions(data.reading_missions || data.settings?.reading_missions || [])
+      syncReadingMissionsFromResponse(data, readingMissions)
       setMessage({ type: 'success', text: 'Reading mission added.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to add reading mission' })
@@ -262,9 +317,13 @@ export default function AdminTaskCenterPage() {
       setMissionSavingId(mission.id)
 
       const payload = buildReadingMissionPayload(mission, index)
+      const isUpdate = isRealMissionId(mission.id)
+      const url = isUpdate
+        ? `${API_URL}/api/task-center/admin/reading-missions/${mission.id}`
+        : `${API_URL}/api/task-center/admin/reading-missions`
 
-      const response = await fetch(`${API_URL}/api/task-center/admin/reading-missions/${mission.id}`, {
-        method: 'PUT',
+      const response = await fetch(url, {
+        method: isUpdate ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getAdminToken()}`,
@@ -278,7 +337,7 @@ export default function AdminTaskCenterPage() {
         throw new Error(data.message || 'Failed to save reading mission')
       }
 
-      syncReadingMissions(data.reading_missions || data.settings?.reading_missions || [])
+      syncReadingMissionsFromResponse(data, readingMissions)
       setMessage({ type: 'success', text: 'Reading mission saved successfully.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to save reading mission' })
@@ -289,6 +348,12 @@ export default function AdminTaskCenterPage() {
 
   async function deleteReadingMission(mission) {
     if (!window.confirm('Delete this reading mission?')) return
+
+    if (!isRealMissionId(mission.id)) {
+      setReadingMissions((current) => current.filter((item) => item.id !== mission.id))
+      setMessage({ type: 'success', text: 'Draft mission removed.' })
+      return
+    }
 
     try {
       setMissionSavingId(mission.id)
@@ -306,7 +371,7 @@ export default function AdminTaskCenterPage() {
         throw new Error(data.message || 'Failed to delete reading mission')
       }
 
-      syncReadingMissions(data.reading_missions || data.settings?.reading_missions || [])
+      syncReadingMissionsFromResponse(data, [])
       setMessage({ type: 'success', text: 'Reading mission deleted.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to delete reading mission' })
