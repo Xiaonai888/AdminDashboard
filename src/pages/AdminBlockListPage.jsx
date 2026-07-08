@@ -142,7 +142,13 @@ export default function AdminBlockListPage() {
   const [loading, setLoading] = useState(false)
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const [bulkUpdating, setBulkUpdating] = useState(false)
+  const [globalWordStats, setGlobalWordStats] = useState({
+  total: 0,
+  active: 0,
+  disabled: 0,
+})
+const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
   const [authExpired, setAuthExpired] = useState(false)
   const [search, setSearch] = useState('')
@@ -158,7 +164,10 @@ export default function AdminBlockListPage() {
 
   const activeLabel = tabs.find((tab) => tab.key === activeTab)?.label || 'Block List'
 
-  const stats = useMemo(() => {
+const allWordsDisabled =
+  globalWordStats.total > 0 && globalWordStats.active === 0
+
+const stats = useMemo(() => {
     return {
       total: pageMeta.total,
       pageCount: words.length,
@@ -214,8 +223,13 @@ export default function AdminBlockListPage() {
       const safePage = Math.min(Number(data.page || targetPage), nextTotalPages)
 
       setWords(data.words || [])
-      setPage(safePage)
-      setPageMeta({
+setGlobalWordStats({
+  total: Number(data.global_total || 0),
+  active: Number(data.global_active_total || 0),
+  disabled: Number(data.global_disabled_total || 0),
+})
+setPage(safePage)
+setPageMeta({
         total: Number(data.total || 0),
         total_pages: nextTotalPages,
         has_next: Boolean(data.has_next),
@@ -344,6 +358,41 @@ export default function AdminBlockListPage() {
       showMessage(error.message || 'Failed to update status', 'error')
     }
   }
+
+  async function toggleAllWords() {
+  const nextActive = allWordsDisabled
+  const action = nextActive ? 'Enable' : 'Disable'
+  const confirmed = window.confirm(`${action} all blocked words?`)
+
+  if (!confirmed) return
+
+  try {
+    setBulkUpdating(true)
+
+    await apiFetch('/api/admin/block-list/words/toggle-all', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        is_active: nextActive,
+      }),
+    })
+
+    showMessage(
+      `All blocked words ${nextActive ? 'enabled' : 'disabled'}.`
+    )
+
+    await Promise.all([
+      fetchWords(1),
+      fetchRecords(1),
+    ])
+  } catch (error) {
+    showMessage(
+      error.message || 'Failed to update all blocked words',
+      'error'
+    )
+  } finally {
+    setBulkUpdating(false)
+  }
+}
 
   async function deleteWord(item) {
     const confirmed = window.confirm(`Delete blocked word "${item.word}"?`)
