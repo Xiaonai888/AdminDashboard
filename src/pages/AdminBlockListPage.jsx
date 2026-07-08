@@ -490,10 +490,9 @@ setPageMeta({
         </div>
 
         <section className="block-list-card">
-          <div className="block-list-card-head">
-            <div>
-            <div>
-  <div className="block-list-title-row">
+  <div className="block-list-card-head">
+    <div>
+      <div className="block-list-title-row">
     <h2 className="block-list-card-title">{activeLabel}</h2>
 
     {activeTab === 'words' ? (
