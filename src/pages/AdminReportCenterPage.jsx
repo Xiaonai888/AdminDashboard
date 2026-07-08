@@ -87,7 +87,9 @@ function isErrorMessage(value) {
     text.includes('error') ||
     text.includes('invalid') ||
     text.includes('required') ||
-    text.includes('not found')
+    text.includes('not found') ||
+    text.includes('save or cancel') ||
+    text.includes('unsaved')
   )
 }
 
@@ -829,6 +831,164 @@ const styles = `
     box-shadow: 0 0 0 3px rgba(79, 70, 229, .1);
   }
 
+  .report-note-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .report-note-state {
+    border-radius: 999px;
+    background: #F1F5F9;
+    padding: 5px 9px;
+    color: #64748B;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .report-note-state.dirty {
+    background: #FEF3C7;
+    color: #B45309;
+  }
+
+  .report-note-state.saved {
+    background: #DCFCE7;
+    color: #15803D;
+  }
+
+  .report-note-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .report-note-btn {
+    min-height: 38px;
+    border: 1px solid var(--report-border);
+    border-radius: 11px;
+    padding: 0 14px;
+    cursor: pointer;
+    font-size: 11.5px;
+    font-weight: 900;
+  }
+
+  .report-note-btn.cancel {
+    background: #FFFFFF;
+    color: #475569;
+  }
+
+  .report-note-btn.save {
+    border-color: var(--report-primary);
+    background: var(--report-primary);
+    color: #FFFFFF;
+  }
+
+  .report-note-btn:disabled {
+    cursor: not-allowed;
+    opacity: .45;
+  }
+
+  .report-status-help {
+    margin: 6px 0 12px;
+    color: var(--report-muted);
+    font-size: 11.5px;
+    font-weight: 650;
+    line-height: 1.5;
+  }
+
+  .report-confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 380;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, .58);
+    padding: 20px;
+  }
+
+  .report-confirm-card {
+    width: min(420px, 100%);
+    border-radius: 22px;
+    background: #FFFFFF;
+    padding: 22px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .25);
+  }
+
+  .report-confirm-icon {
+    display: flex;
+    width: 48px;
+    height: 48px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+  }
+
+  .report-confirm-icon.resolve {
+    background: #DCFCE7;
+    color: #15803D;
+  }
+
+  .report-confirm-icon.dismiss {
+    background: #F1F5F9;
+    color: #475569;
+  }
+
+  .report-confirm-title {
+    margin: 16px 0 0;
+    color: var(--report-text);
+    font-size: 18px;
+    font-weight: 950;
+  }
+
+  .report-confirm-text {
+    margin: 8px 0 0;
+    color: var(--report-muted);
+    font-size: 12.5px;
+    font-weight: 650;
+    line-height: 1.65;
+  }
+
+  .report-confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 20px;
+  }
+
+  .report-confirm-btn {
+    min-height: 42px;
+    border: 1px solid var(--report-border);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .report-confirm-btn.cancel {
+    background: #FFFFFF;
+    color: #475569;
+  }
+
+  .report-confirm-btn.resolve {
+    border-color: #16A34A;
+    background: #16A34A;
+    color: #FFFFFF;
+  }
+
+  .report-confirm-btn.dismiss {
+    border-color: #475569;
+    background: #475569;
+    color: #FFFFFF;
+  }
+
+  .report-confirm-btn:disabled {
+    cursor: not-allowed;
+    opacity: .55;
+  }
+
   .report-detail-footer {
     border-top: 1px solid var(--report-border);
     background: #FFFFFF;
@@ -975,7 +1135,13 @@ export default function AdminReportCenterPage() {
   const [loading, setLoading] = useState(true)
   const [statsLoading, setStatsLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [confirmStatus, setConfirmStatus] = useState('')
   const [message, setMessage] = useState('')
+
+  const noteDirty =
+    Boolean(selectedReport) &&
+    adminNote !== String(selectedReport?.admin_note || '')
 
   const navItems = {
     overview: [
@@ -1188,7 +1354,7 @@ export default function AdminReportCenterPage() {
     return () => window.clearTimeout(timer)
   }, [searchInput])
 
-  useEffect(() => {
+   useEffect(() => {
     if (!selectedReport) {
       document.body.style.overflow = ''
       return undefined
@@ -1198,9 +1364,19 @@ export default function AdminReportCenterPage() {
     document.body.style.overflow = 'hidden'
 
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setSelectedReport(null)
+      if (event.key !== 'Escape') return
+
+      if (confirmStatus) {
+        setConfirmStatus('')
+        return
       }
+
+      if (noteDirty) {
+        setMessage('Save or cancel Admin Note changes before closing.')
+        return
+      }
+
+      setSelectedReport(null)
     }
 
     window.addEventListener('keydown', handleKeyDown)
@@ -1209,58 +1385,145 @@ export default function AdminReportCenterPage() {
       document.body.style.overflow = previousOverflow
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [selectedReport])
+  }, [confirmStatus, noteDirty, selectedReport])
 
   const openReport = (report) => {
     setSelectedReport(report)
     setAdminNote(report?.admin_note || '')
+    setConfirmStatus('')
     setMessage('')
   }
 
-  const updateReport = async (nextStatus) => {
-    if (!selectedReport?.id || updating) return
+  const syncUpdatedReport = (nextReport) => {
+    if (!nextReport?.id) return
+
+    setSelectedReport(nextReport)
+    setAdminNote(nextReport.admin_note || '')
+
+    setReports((current) =>
+      current.map((report) =>
+        report.id === nextReport.id ? nextReport : report
+      )
+    )
+  }
+
+  const patchReport = async (payload) => {
+    const response = await fetch(
+      `${API_URL}/api/admin/reports/${selectedReport.id}`,
+      {
+        method: 'PATCH',
+        headers: requestHeaders,
+        body: JSON.stringify(payload),
+      }
+    )
+
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data.ok === false) {
+      throw new Error(data.message || 'Failed to update report')
+    }
+
+    return data
+  }
+
+  const saveAdminNote = async () => {
+    if (!selectedReport?.id || !noteDirty || noteSaving || updating) return
+
+    setNoteSaving(true)
+    setMessage('')
+
+    try {
+      const data = await patchReport({
+        admin_note: adminNote.trim(),
+      })
+
+      syncUpdatedReport(
+        data.report || {
+          ...selectedReport,
+          admin_note: adminNote.trim(),
+        }
+      )
+
+      setMessage(data.message || 'Admin note saved successfully')
+    } catch (error) {
+      setMessage(error.message || 'Failed to save admin note')
+    } finally {
+      setNoteSaving(false)
+    }
+  }
+
+  const cancelAdminNoteChanges = () => {
+    setAdminNote(selectedReport?.admin_note || '')
+    setMessage('')
+  }
+
+  const applyStatus = async (nextStatus) => {
+    if (!selectedReport?.id || updating || noteSaving) return
+
+    if (noteDirty) {
+      setMessage('Save or cancel Admin Note changes before changing status.')
+      return
+    }
+
+    if (selectedReport.status === nextStatus) {
+      setConfirmStatus('')
+      setMessage(`Report is already ${getStatusLabel(nextStatus)}.`)
+      return
+    }
 
     setUpdating(true)
     setMessage('')
 
     try {
-      const response = await fetch(`${API_URL}/api/admin/reports/${selectedReport.id}`, {
-        method: 'PATCH',
-        headers: requestHeaders,
-        body: JSON.stringify({
-          status: nextStatus,
-          admin_note: adminNote.trim(),
-        }),
-      })
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to update report')
-      }
-
-      setSelectedReport(data.report || {
-        ...selectedReport,
+      const data = await patchReport({
         status: nextStatus,
-        admin_note: adminNote.trim(),
       })
-      setReports((current) =>
-        current.map((report) =>
-          report.id === selectedReport.id
-            ? data.report || {
-                ...report,
-                status: nextStatus,
-                admin_note: adminNote.trim(),
-              }
-            : report
-        )
+
+      syncUpdatedReport(
+        data.report || {
+          ...selectedReport,
+          status: nextStatus,
+        }
       )
-      setMessage(data.message || 'Report updated successfully')
-      await loadStats()
+
+      setConfirmStatus('')
+
+      await Promise.all([loadStats(), loadReports()])
+
+      setMessage(data.message || 'Report status updated successfully')
     } catch (error) {
-      setMessage(error.message || 'Failed to update report')
+      setMessage(error.message || 'Failed to update report status')
     } finally {
       setUpdating(false)
     }
+  }
+
+  const requestStatusChange = (nextStatus) => {
+    if (noteDirty) {
+      setMessage('Save or cancel Admin Note changes before changing status.')
+      return
+    }
+
+    if (nextStatus === 'resolved' || nextStatus === 'dismissed') {
+      setConfirmStatus(nextStatus)
+      return
+    }
+
+    applyStatus(nextStatus)
+  }
+
+  const closeReportDetails = () => {
+    if (
+      noteDirty &&
+      !window.confirm('Discard unsaved Admin Note changes?')
+    ) {
+      return
+    }
+
+    setConfirmStatus('')
+    setSelectedReport(null)
+    setAdminNote('')
+    setMessage('')
   }
 
   const refreshAll = async () => {
@@ -1537,7 +1800,7 @@ export default function AdminReportCenterPage() {
             type="button"
             className="report-detail-close-layer"
             aria-label="Close report details"
-            onClick={() => setSelectedReport(null)}
+            onClick={closeReportDetails}
           />
 
           <aside className="report-detail">
@@ -1554,7 +1817,7 @@ export default function AdminReportCenterPage() {
               <button
                 type="button"
                 className="report-detail-close"
-                onClick={() => setSelectedReport(null)}
+                onClick={closeReportDetails}
                 aria-label="Close report details"
               >
                 <Icon d="M18 6L6 18 M6 6l12 12" size={16} />
@@ -1650,15 +1913,38 @@ export default function AdminReportCenterPage() {
                 ) : null}
               </div>
 
-              <div className="report-detail-section">
-                <div className="report-detail-label">Admin Note</div>
+                           <div className="report-detail-section">
+                <div className="report-note-title-row">
+                  <div className="report-detail-label">Admin Note</div>
+
+                  <span
+                    className={`report-note-state ${
+                      noteDirty
+                        ? 'dirty'
+                        : selectedReport.admin_note
+                          ? 'saved'
+                          : ''
+                    }`}
+                  >
+                    {noteDirty
+                      ? 'Unsaved changes'
+                      : selectedReport.admin_note
+                        ? 'Saved'
+                        : 'No note saved'}
+                  </span>
+                </div>
+
                 <textarea
                   className="report-note"
                   value={adminNote}
                   maxLength={2000}
-                  onChange={(event) => setAdminNote(event.target.value)}
+                  onChange={(event) => {
+                    setAdminNote(event.target.value)
+                    setMessage('')
+                  }}
                   placeholder="Write what you reviewed or what action was taken..."
                 />
+
                 <div
                   style={{
                     marginTop: 6,
@@ -1671,26 +1957,65 @@ export default function AdminReportCenterPage() {
                   {adminNote.length}/2000
                 </div>
 
+                <div className="report-note-actions">
+                  <button
+                    type="button"
+                    className="report-note-btn cancel"
+                    disabled={!noteDirty || noteSaving || updating}
+                    onClick={cancelAdminNoteChanges}
+                  >
+                    Cancel Changes
+                  </button>
+
+                  <button
+                    type="button"
+                    className="report-note-btn save"
+                    disabled={!noteDirty || noteSaving || updating}
+                    onClick={saveAdminNote}
+                  >
+                    {noteSaving ? 'Saving...' : 'Save Note'}
+                  </button>
+                </div>
+
                 {selectedReport.reviewed_by ? (
-                  <div className="report-detail-value" style={{ color: '#64748B' }}>
-                    Reviewed by {selectedReport.reviewed_by}
+                  <div
+                    className="report-detail-value"
+                    style={{ color: '#64748B' }}
+                  >
+                    Last updated by {selectedReport.reviewed_by}
                     {selectedReport.reviewed_at
                       ? ` · ${formatDate(selectedReport.reviewed_at)}`
                       : ''}
                   </div>
                 ) : null}
               </div>
+
+              {message ? (
+                <div
+                  className={`report-message ${
+                    isErrorMessage(message) ? 'error' : 'success'
+                  }`}
+                >
+                  {message}
+                </div>
+              ) : null}
             </div>
 
             <div className="report-detail-footer">
+              <div className="report-detail-label">Report Status</div>
+
+              <p className="report-status-help">
+                Save or cancel Admin Note changes before changing the status.
+              </p>
+
               <div className="report-action-grid">
                 <button
                   type="button"
                   className={`report-action-btn ${
                     selectedReport.status === 'pending' ? 'active' : ''
                   }`}
-                  disabled={updating}
-                  onClick={() => updateReport('pending')}
+                  disabled={updating || noteSaving}
+                  onClick={() => requestStatusChange('pending')}
                 >
                   Pending
                 </button>
@@ -1700,8 +2025,8 @@ export default function AdminReportCenterPage() {
                   className={`report-action-btn ${
                     selectedReport.status === 'under_review' ? 'active' : ''
                   }`}
-                  disabled={updating}
-                  onClick={() => updateReport('under_review')}
+                  disabled={updating || noteSaving}
+                  onClick={() => requestStatusChange('under_review')}
                 >
                   Under Review
                 </button>
@@ -1709,23 +2034,82 @@ export default function AdminReportCenterPage() {
                 <button
                   type="button"
                   className="report-action-btn resolve"
-                  disabled={updating}
-                  onClick={() => updateReport('resolved')}
+                  disabled={updating || noteSaving}
+                  onClick={() => requestStatusChange('resolved')}
                 >
-                  {updating ? 'Saving...' : 'Resolve'}
+                  Resolve
                 </button>
 
                 <button
                   type="button"
                   className="report-action-btn dismiss"
-                  disabled={updating}
-                  onClick={() => updateReport('dismissed')}
+                  disabled={updating || noteSaving}
+                  onClick={() => requestStatusChange('dismissed')}
                 >
                   Dismiss
                 </button>
               </div>
             </div>
           </aside>
+
+          {confirmStatus ? (
+            <div className="report-confirm-backdrop">
+              <div className="report-confirm-card">
+                <div
+                  className={`report-confirm-icon ${
+                    confirmStatus === 'resolved' ? 'resolve' : 'dismiss'
+                  }`}
+                >
+                  <Icon
+                    d={
+                      confirmStatus === 'resolved'
+                        ? 'M20 6L9 17l-5-5'
+                        : 'M18 6L6 18 M6 6l12 12'
+                    }
+                    size={20}
+                  />
+                </div>
+
+                <h3 className="report-confirm-title">
+                  {confirmStatus === 'resolved'
+                    ? 'Resolve this report?'
+                    : 'Dismiss this report?'}
+                </h3>
+
+                <p className="report-confirm-text">
+                  {confirmStatus === 'resolved'
+                    ? 'Confirm that you reviewed the reported content and completed any necessary action.'
+                    : 'This report will be marked as not requiring further action.'}
+                </p>
+
+                <div className="report-confirm-actions">
+                  <button
+                    type="button"
+                    className="report-confirm-btn cancel"
+                    disabled={updating}
+                    onClick={() => setConfirmStatus('')}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`report-confirm-btn ${
+                      confirmStatus === 'resolved' ? 'resolve' : 'dismiss'
+                    }`}
+                    disabled={updating}
+                    onClick={() => applyStatus(confirmStatus)}
+                  >
+                    {updating
+                      ? 'Saving...'
+                      : confirmStatus === 'resolved'
+                        ? 'Resolve Report'
+                        : 'Dismiss Report'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
