@@ -50,7 +50,17 @@ const styles = `
   .block-list-card-desc { margin-top: 5px; color: #64748B; font-size: 12px; font-weight: 700; line-height: 1.5; }
   .block-list-add-btn, .block-list-refresh { height: 40px; border: 1px solid #E2E8F0; border-radius: 13px; background: #FFFFFF; color: #334155; padding: 0 16px; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; }
   .block-list-add-btn { border: 0; background: #4F46E5; color: #FFFFFF; }
-  .block-list-toolbar { padding: 14px 20px; border-bottom: 1px solid #E2E8F0; display: grid; grid-template-columns: minmax(220px, 1fr) 170px 150px 120px; gap: 10px; align-items: center; }
+.block-list-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.block-list-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.block-list-system-status { display: inline-flex; align-items: center; height: 27px; padding: 0 11px; border-radius: 999px; font-size: 10px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.4px; }
+.block-list-system-status.active { background: #D1FAE5; color: #047857; }
+.block-list-system-status.disabled { background: #FEE2E2; color: #B91C1C; }
+.block-list-bulk-btn { height: 40px; border-radius: 13px; padding: 0 16px; font: inherit; font-size: 13px; font-weight: 950; cursor: pointer; transition: 0.18s ease; }
+.block-list-bulk-btn.disable { border: 1px solid #FDBA74; background: #FFF7ED; color: #C2410C; }
+.block-list-bulk-btn.enable { border: 1px solid #86EFAC; background: #ECFDF5; color: #047857; }
+.block-list-bulk-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.block-list-bulk-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.block-list-toolbar { padding: 14px 20px; border-bottom: 1px solid #E2E8F0; display: grid; grid-template-columns: minmax(220px, 1fr) 170px 150px 120px; gap: 10px; align-items: center; }
   .block-list-input, .block-list-select { height: 40px; border: 1px solid #E2E8F0; border-radius: 13px; background: #F8FAFC; padding: 0 12px; font: inherit; font-size: 13px; font-weight: 700; color: #0F172A; outline: none; }
   .block-list-input:focus, .block-list-select:focus { background: #FFFFFF; border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
   .block-list-message { margin: 14px 20px 0; border-radius: 14px; padding: 12px 14px; font-size: 13px; font-weight: 800; line-height: 1.55; }
@@ -462,7 +472,13 @@ setPageMeta({
       <div className="block-list-page">
         <div className="block-list-head">
           <h1 className="block-list-title">Block List</h1>
-          <div className="block-list-subtitle">Block Words is active now. Other block sections are prepared as empty tabs for later.</div>
+          <div className="block-list-subtitle">
+  {globalWordStats.total === 0
+    ? 'No blocked words configured yet.'
+    : allWordsDisabled
+      ? 'Block Words protection is disabled.'
+      : `Block Words protection is active with ${globalWordStats.active} active words.`}
+</div>
         </div>
 
         <div className="block-list-tabs">
@@ -476,13 +492,49 @@ setPageMeta({
         <section className="block-list-card">
           <div className="block-list-card-head">
             <div>
-              <h2 className="block-list-card-title">{activeLabel}</h2>
-              <div className="block-list-card-desc">
-                {activeTab === 'words' ? `Total ${stats.total} · Showing ${stats.pageCount} · Page ${page} of ${pageMeta.total_pages}` : 'This tab is ready. We will build it later.'}
-              </div>
-            </div>
+            <div>
+  <div className="block-list-title-row">
+    <h2 className="block-list-card-title">{activeLabel}</h2>
 
-            {activeTab === 'words' ? <button type="button" className="block-list-add-btn" onClick={openCreateModal}>Add Block Word</button> : null}
+    {activeTab === 'words' ? (
+      <span className={`block-list-system-status ${allWordsDisabled ? 'disabled' : 'active'}`}>
+        {allWordsDisabled ? 'Protection Disabled' : 'Protection Active'}
+      </span>
+    ) : null}
+  </div>
+
+  <div className="block-list-card-desc">
+    {activeTab === 'words'
+      ? `Total ${stats.total} · Showing ${stats.pageCount} · Page ${page} of ${pageMeta.total_pages}`
+      : 'This tab is ready. We will build it later.'}
+  </div>
+</div>
+
+{activeTab === 'words' ? (
+  <div className="block-list-head-actions">
+    <button
+      type="button"
+      className={`block-list-bulk-btn ${allWordsDisabled ? 'enable' : 'disable'}`}
+      onClick={toggleAllWords}
+      disabled={bulkUpdating || loading || globalWordStats.total === 0}
+    >
+      {bulkUpdating
+        ? 'Updating...'
+        : allWordsDisabled
+          ? 'Enable All'
+          : 'Disable All'}
+    </button>
+
+    <button
+      type="button"
+      className="block-list-add-btn"
+      onClick={openCreateModal}
+      disabled={bulkUpdating}
+    >
+      Add Block Word
+    </button>
+  </div>
+) : null}
           </div>
 
           {activeTab === 'words' ? (
