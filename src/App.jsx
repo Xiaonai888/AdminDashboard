@@ -33,6 +33,7 @@ import AdminIncomePage from './pages/AdminIncomePage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
+import AdminReportCenterPage from './pages/AdminReportCenterPage';
 
 function ComingSoon({ title }) {
   return (
@@ -101,6 +102,7 @@ export default function App() {
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
         <Route path="/genres" element={<ProtectedPage><GenreManagementPage /></ProtectedPage>} />
         <Route path="/comments" element={<ProtectedPage><CommentModerationPage /></ProtectedPage>} />
+        <Route path="/reports" element={<ProtectedPage><AdminReportCenterPage /></ProtectedPage>} />
         <Route path="/shadow-mall/orders" element={<ProtectedPage><ShadowMallOrdersPage /></ProtectedPage>} />
         <Route path="/author-store/review" element={<ProtectedPage><AuthorStoreReviewPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
