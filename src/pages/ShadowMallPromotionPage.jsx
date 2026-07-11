@@ -2,7 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
-const STORAGE_KEY = 'shadow_mall_promotion_draft'
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
+}
 
 const defaultForm = {
   sponsor: 'Shadow Mall',
@@ -18,22 +22,62 @@ export default function ShadowMallPromotionPage() {
   const navigate = useNavigate()
   const imageInputRef = useRef(null)
   const [form, setForm] = useState(defaultForm)
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [removeImage, setRemoveImage] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
+    let alive = true
 
-    if (!saved) return
+    async function loadPromotion() {
+      try {
+        setLoading(true)
+        setMessage('')
 
-    try {
-      setForm({
-        ...defaultForm,
-        ...JSON.parse(saved),
-      })
-    } catch {
-      localStorage.removeItem(STORAGE_KEY)
+        const token = getAdminToken()
+        const response = await fetch(`${API_URL}/api/shadow-mall/admin/promotion`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
+        const data = await response.json().catch(() => ({}))
+
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || 'Failed to load promotion')
+        }
+
+        if (alive && data.promotion) {
+          setForm({
+            ...defaultForm,
+            ...data.promotion,
+          })
+        }
+      } catch (error) {
+        if (alive) {
+          setMessage(error.message || 'Failed to load promotion')
+        }
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    loadPromotion()
+
+    return () => {
+      alive = false
     }
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
 
   function updateField(field, value) {
     setForm((current) => ({
@@ -53,29 +97,80 @@ export default function ShadowMallPromotionPage() {
       return
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setMessage('For this UI draft, use an image smaller than 2 MB.')
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('Image must be 5 MB or smaller.')
       return
     }
 
-    const reader = new FileReader()
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setRemoveImage(false)
+    setMessage('')
+  }
 
-    reader.onload = () => {
-      updateField('image_url', String(reader.result || ''))
+  async function savePromotion() {
+    if (!form.title.trim()) {
+      setMessage('Promotion title is required.')
+      return
     }
 
-    reader.readAsDataURL(file)
+    try {
+      setSaving(true)
+      setMessage('')
+
+      const token = getAdminToken()
+      const formData = new FormData()
+
+      formData.append('sponsor', form.sponsor.trim())
+      formData.append('title', form.title.trim())
+      formData.append('description', form.description.trim())
+      formData.append('button_text', form.button_text.trim())
+      formData.append('link_url', form.link_url.trim())
+      formData.append('is_active', String(form.is_active))
+      formData.append('remove_image', String(removeImage))
+
+      if (imageFile) {
+        formData.append('promotion_image', imageFile)
+      }
+
+      const response = await fetch(`${API_URL}/api/shadow-mall/admin/promotion`, {
+        method: 'PUT',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to save promotion')
+      }
+
+      setForm({
+        ...defaultForm,
+        ...(data.promotion || {}),
+      })
+      setImageFile(null)
+      setImagePreview('')
+      setRemoveImage(false)
+      setMessage('Promotion saved successfully.')
+
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
+    } catch (error) {
+      setMessage(error.message || 'Failed to save promotion')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function saveDraft() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(form))
-    setMessage('Promotion draft saved in this browser. Backend connection comes next.')
-  }
-
-  function resetDraft() {
-    localStorage.removeItem(STORAGE_KEY)
+  function resetForm() {
     setForm(defaultForm)
-    setMessage('Promotion draft reset.')
+    setImageFile(null)
+    setImagePreview('')
+    setRemoveImage(true)
+    setMessage('Form reset. Click Save Promotion to apply it.')
 
     if (imageInputRef.current) {
       imageInputRef.current.value = ''
@@ -222,7 +317,7 @@ export default function ShadowMallPromotionPage() {
             <form
               onSubmit={(event) => {
                 event.preventDefault()
-                saveDraft()
+                savePromotion()
               }}
               style={{
                 background: '#FFFFFF',
@@ -252,7 +347,7 @@ export default function ShadowMallPromotionPage() {
                   lineHeight: 1.5,
                 }}
               >
-                This stage saves a browser draft only. Reader Website data will be connected through Backend next.
+                Upload a square image and save the real promotion to the Backend.
               </p>
 
               {[
@@ -383,10 +478,13 @@ export default function ShadowMallPromotionPage() {
                   Choose square promotion image
                 </button>
 
-                {form.image_url ? (
+                {(imagePreview || form.image_url) ? (
                   <button
                     type="button"
                     onClick={() => {
+                      setImageFile(null)
+                      setImagePreview('')
+                      setRemoveImage(true)
                       updateField('image_url', '')
 
                       if (imageInputRef.current) {
@@ -449,6 +547,7 @@ export default function ShadowMallPromotionPage() {
               >
                 <button
                   type="submit"
+                  disabled={saving || loading}
                   style={{
                     height: 46,
                     border: 0,
@@ -457,15 +556,16 @@ export default function ShadowMallPromotionPage() {
                     color: '#FFFFFF',
                     fontSize: 13,
                     fontWeight: 900,
-                    cursor: 'pointer',
+                    cursor: saving || loading ? 'not-allowed' : 'pointer',
+                    opacity: saving || loading ? 0.65 : 1,
                   }}
                 >
-                  Save UI Draft
+                  {saving ? 'Saving...' : 'Save Promotion'}
                 </button>
 
                 <button
                   type="button"
-                  onClick={resetDraft}
+                  onClick={resetForm}
                   style={{
                     height: 46,
                     border: '1px solid #E2E8F0',
@@ -588,7 +688,7 @@ export default function ShadowMallPromotionPage() {
                   >
                     {form.image_url ? (
                       <img
-                        src={form.image_url}
+                        src={imagePreview || form.image_url}
                         alt={form.title || 'Promotion'}
                         style={{
                           width: '100%',
