@@ -1382,41 +1382,59 @@ const searchMatch = !keyword || title.includes(keyword);
     Review Orders
   </button>
 
-  <button
-    type="button"
-    onClick={() => navigate('/author-store/review')}
-    style={{
-      height: 40,
-      border: '1px solid #E2E8F0',
-      borderRadius: 14,
-      padding: '0 16px',
-      background: '#FFFFFF',
-      color: '#0F172A',
-      fontSize: 12,
-      fontWeight: 900,
-      cursor: 'pointer',
-    }}
-  >
-    Author Orders
-  </button>
+ <button
+  type="button"
+  onClick={() => navigate('/author-store/review')}
+  style={{
+    height: 40,
+    border: '1px solid #E2E8F0',
+    borderRadius: 14,
+    padding: '0 16px',
+    background: '#FFFFFF',
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: 'pointer',
+  }}
+>
+  Author Orders
+</button>
 
-  <button
-    type="button"
-    onClick={() => navigate('/shadow-mall/publishers')}
-    style={{
-      height: 40,
-      border: '1px solid #E2E8F0',
-      borderRadius: 14,
-      padding: '0 16px',
-      background: '#FFFFFF',
-      color: '#0F172A',
-      fontSize: 12,
-      fontWeight: 900,
-      cursor: 'pointer',
-    }}
-  >
-    Publishers
-  </button>
+<button
+  type="button"
+  onClick={() => navigate('/shadow-mall/promotion')}
+  style={{
+    height: 40,
+    border: '1px solid #E2E8F0',
+    borderRadius: 14,
+    padding: '0 16px',
+    background: '#FFFFFF',
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: 'pointer',
+  }}
+>
+  Promotion
+</button>
+
+<button
+  type="button"
+  onClick={() => navigate('/shadow-mall/publishers')}
+  style={{
+    height: 40,
+    border: '1px solid #E2E8F0',
+    borderRadius: 14,
+    padding: '0 16px',
+    background: '#FFFFFF',
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: 'pointer',
+  }}
+>
+  Publishers
+</button>
 </div>
             <div className="shadow-media-grid">
               <section className="shadow-card">
