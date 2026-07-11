@@ -34,6 +34,7 @@ import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 import AdminReportCenterPage from './pages/AdminReportCenterPage';
+import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
 
 function ComingSoon({ title }) {
   return (
@@ -123,10 +124,16 @@ export default function App() {
   path="/admin-login-guard"
   element={<ProtectedPage><AdminLoginGuardPage /></ProtectedPage>}
 />
-        
+        <Route
+  path="/shadow-mall/promotion"
+  element={<ProtectedPage><ShadowMallPromotionPage /></ProtectedPage>}
+/>
+
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </Router>
   );
 }
+
+
