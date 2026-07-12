@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import Cropper from 'react-easy-crop'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -14,17 +15,304 @@ const defaultForm = {
   description: 'Discover signed novels, limited merch, and reader gifts from official publishers.',
   button_text: 'Shop now',
   link_url: '/shop',
+  profile_image_url: '',
   image_url: '',
   is_active: true,
+}
+
+
+function createImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.addEventListener('load', () => resolve(image))
+    image.addEventListener('error', reject)
+    image.setAttribute('crossOrigin', 'anonymous')
+    image.src = url
+  })
+}
+
+async function createCroppedImageFile(
+  imageSrc,
+  pixelCrop,
+  outputSize = 1200,
+  filePrefix = 'shadow-mall-promotion'
+) {
+  const image = await createImage(imageSrc)
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+
+  if (!context) {
+    throw new Error('Image crop is not supported in this browser.')
+  }
+
+  canvas.width = outputSize
+  canvas.height = outputSize
+
+  context.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    outputSize,
+    outputSize
+  )
+
+  const blob = await new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (result) => {
+        if (result) {
+          resolve(result)
+        } else {
+          reject(new Error('Failed to create cropped image.'))
+        }
+      },
+      'image/jpeg',
+      0.92
+    )
+  })
+
+  return new File(
+    [blob],
+    `${filePrefix}-${Date.now()}.jpg`,
+    { type: 'image/jpeg' }
+  )
+}
+
+function PromotionCropModal({
+  open,
+  image,
+  crop,
+  zoom,
+  croppedAreaPixels,
+  title,
+  helper,
+  cropShape = 'rect',
+  onCropChange,
+  onZoomChange,
+  onCropComplete,
+  onClose,
+  onSave,
+}) {
+  if (!open) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflowY: 'auto',
+        background: 'rgba(15, 23, 42, 0.72)',
+        padding: 18,
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 560,
+          borderRadius: 24,
+          background: '#FFFFFF',
+          padding: 18,
+          boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)',
+        }}
+      >
+        <div
+          style={{
+            marginBottom: 14,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 14,
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                margin: 0,
+                color: '#0F172A',
+                fontSize: 18,
+                fontWeight: 900,
+              }}
+            >
+              {title}
+            </h2>
+            <p
+              style={{
+                margin: '5px 0 0',
+                color: '#64748B',
+                fontSize: 12,
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+              {helper}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: 38,
+              height: 38,
+              flexShrink: 0,
+              border: 0,
+              borderRadius: '50%',
+              background: '#F1F5F9',
+              color: '#0F172A',
+              fontSize: 18,
+              fontWeight: 900,
+              cursor: 'pointer',
+            }}
+            aria-label="Close crop editor"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            aspectRatio: '1 / 1',
+            overflow: 'hidden',
+            borderRadius: 18,
+            background: '#111827',
+          }}
+        >
+          <Cropper
+            image={image}
+            crop={crop}
+            zoom={zoom}
+            aspect={1}
+            cropShape={cropShape}
+            showGrid={cropShape !== 'round'}
+            restrictPosition={false}
+            objectFit="contain"
+            onCropChange={onCropChange}
+            onZoomChange={onZoomChange}
+            onCropComplete={onCropComplete}
+          />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <div
+            style={{
+              marginBottom: 8,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              color: '#475569',
+              fontSize: 12,
+              fontWeight: 800,
+            }}
+          >
+            <span>Zoom</span>
+            <span>{zoom.toFixed(1)}x</span>
+          </div>
+
+          <input
+            type="range"
+            min="1"
+            max="3"
+            step="0.1"
+            value={zoom}
+            onChange={(event) => onZoomChange(Number(event.target.value))}
+            style={{
+              width: '100%',
+              accentColor: '#4F46E5',
+              cursor: 'pointer',
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            marginTop: 14,
+            borderRadius: 14,
+            background: '#F8FAFC',
+            padding: '11px 13px',
+            color: '#64748B',
+            fontSize: 11,
+            fontWeight: 700,
+            lineHeight: 1.55,
+          }}
+        >
+          Drag inside the image to move it. The saved result is always a 1:1 square.
+        </div>
+
+        <div
+          style={{
+            marginTop: 16,
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 10,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              height: 46,
+              border: '1px solid #E2E8F0',
+              borderRadius: 14,
+              background: '#FFFFFF',
+              color: '#0F172A',
+              fontSize: 13,
+              fontWeight: 900,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            disabled={!croppedAreaPixels}
+            onClick={onSave}
+            style={{
+              height: 46,
+              border: 0,
+              borderRadius: 14,
+              background: '#4F46E5',
+              color: '#FFFFFF',
+              fontSize: 13,
+              fontWeight: 900,
+              cursor: croppedAreaPixels ? 'pointer' : 'not-allowed',
+              opacity: croppedAreaPixels ? 1 : 0.6,
+            }}
+          >
+            Use Cropped Image
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function ShadowMallPromotionPage() {
   const navigate = useNavigate()
   const imageInputRef = useRef(null)
+  const profileInputRef = useRef(null)
   const [form, setForm] = useState(defaultForm)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
+  const [profileFile, setProfileFile] = useState(null)
+  const [profilePreview, setProfilePreview] = useState('')
+  const [rawImage, setRawImage] = useState('')
+  const [cropTarget, setCropTarget] = useState('promotion')
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [removeImage, setRemoveImage] = useState(false)
+  const [removeProfileImage, setRemoveProfileImage] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -76,8 +364,79 @@ export default function ShadowMallPromotionPage() {
       if (imagePreview.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreview)
       }
+
+      if (profilePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(profilePreview)
+      }
     }
-  }, [imagePreview])
+  }, [imagePreview, profilePreview])
+
+  const handleCropComplete = useCallback((_, croppedPixels) => {
+    setCroppedAreaPixels(croppedPixels)
+  }, [])
+
+  function closeCropModal() {
+    setCropModalOpen(false)
+    setRawImage('')
+    setCroppedAreaPixels(null)
+
+    const inputRef =
+      cropTarget === 'profile' ? profileInputRef : imageInputRef
+
+    if (inputRef.current) {
+      inputRef.current.value = ''
+    }
+  }
+
+  async function saveCroppedImage() {
+    if (!rawImage || !croppedAreaPixels) {
+      setMessage('Please adjust the image first.')
+      return
+    }
+
+    try {
+      const isProfile = cropTarget === 'profile'
+      const croppedFile = await createCroppedImageFile(
+        rawImage,
+        croppedAreaPixels,
+        isProfile ? 600 : 1200,
+        isProfile
+          ? 'shadow-mall-profile'
+          : 'shadow-mall-promotion'
+      )
+      const nextPreview = URL.createObjectURL(croppedFile)
+
+      if (isProfile) {
+        setProfilePreview((current) => {
+          if (current.startsWith('blob:')) {
+            URL.revokeObjectURL(current)
+          }
+
+          return nextPreview
+        })
+        setProfileFile(croppedFile)
+        setRemoveProfileImage(false)
+        setMessage('Profile image is ready to save.')
+      } else {
+        setImagePreview((current) => {
+          if (current.startsWith('blob:')) {
+            URL.revokeObjectURL(current)
+          }
+
+          return nextPreview
+        })
+        setImageFile(croppedFile)
+        setRemoveImage(false)
+        setMessage('Promotion image is ready to save.')
+      }
+
+      setCropModalOpen(false)
+      setRawImage('')
+      setCroppedAreaPixels(null)
+    } catch (error) {
+      setMessage(error.message || 'Failed to crop image.')
+    }
+  }
 
   function updateField(field, value) {
     setForm((current) => ({
@@ -87,7 +446,7 @@ export default function ShadowMallPromotionPage() {
     setMessage('')
   }
 
-  function handleImageUpload(event) {
+  function openCropForFile(event, target) {
     const file = event.target.files?.[0]
 
     if (!file) return
@@ -102,10 +461,31 @@ export default function ShadowMallPromotionPage() {
       return
     }
 
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
-    setRemoveImage(false)
-    setMessage('')
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      setRawImage(String(reader.result || ''))
+      setCropTarget(target)
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+      setCroppedAreaPixels(null)
+      setCropModalOpen(true)
+      setMessage('')
+    }
+
+    reader.onerror = () => {
+      setMessage('Failed to read the selected image.')
+    }
+
+    reader.readAsDataURL(file)
+  }
+
+  function handleImageUpload(event) {
+    openCropForFile(event, 'promotion')
+  }
+
+  function handleProfileUpload(event) {
+    openCropForFile(event, 'profile')
   }
 
   async function savePromotion() {
@@ -128,9 +508,17 @@ export default function ShadowMallPromotionPage() {
       formData.append('link_url', form.link_url.trim())
       formData.append('is_active', String(form.is_active))
       formData.append('remove_image', String(removeImage))
+      formData.append(
+        'remove_profile_image',
+        String(removeProfileImage)
+      )
 
       if (imageFile) {
         formData.append('promotion_image', imageFile)
+      }
+
+      if (profileFile) {
+        formData.append('profile_image', profileFile)
       }
 
       const response = await fetch(`${API_URL}/api/shadow-mall/admin/promotion`, {
@@ -152,11 +540,21 @@ export default function ShadowMallPromotionPage() {
       })
       setImageFile(null)
       setImagePreview('')
+      setProfileFile(null)
+      setProfilePreview('')
+      setRawImage('')
+      setCropModalOpen(false)
+      setCroppedAreaPixels(null)
       setRemoveImage(false)
+      setRemoveProfileImage(false)
       setMessage('Promotion saved successfully.')
 
       if (imageInputRef.current) {
         imageInputRef.current.value = ''
+      }
+
+      if (profileInputRef.current) {
+        profileInputRef.current.value = ''
       }
     } catch (error) {
       setMessage(error.message || 'Failed to save promotion')
@@ -169,11 +567,21 @@ export default function ShadowMallPromotionPage() {
     setForm(defaultForm)
     setImageFile(null)
     setImagePreview('')
+    setProfileFile(null)
+    setProfilePreview('')
+    setRawImage('')
+    setCropModalOpen(false)
+    setCroppedAreaPixels(null)
     setRemoveImage(true)
+    setRemoveProfileImage(true)
     setMessage('Form reset. Click Save Promotion to apply it.')
 
     if (imageInputRef.current) {
       imageInputRef.current.value = ''
+    }
+
+    if (profileInputRef.current) {
+      profileInputRef.current.value = ''
     }
   }
 
@@ -190,6 +598,29 @@ export default function ShadowMallPromotionPage() {
       title="Shadow Mall Promotion"
       subtitle="Prepare the sponsored square card shown inside Discover."
     >
+      <PromotionCropModal
+        open={cropModalOpen}
+        image={rawImage}
+        crop={crop}
+        zoom={zoom}
+        croppedAreaPixels={croppedAreaPixels}
+        title={
+          cropTarget === 'profile'
+            ? 'Crop Profile Image'
+            : 'Crop Promotion Image'
+        }
+        helper={
+          cropTarget === 'profile'
+            ? 'Drag and zoom to fit the circular profile preview.'
+            : 'Drag and zoom to fit the square promotion preview.'
+        }
+        cropShape={cropTarget === 'profile' ? 'round' : 'rect'}
+        onCropChange={setCrop}
+        onZoomChange={setZoom}
+        onCropComplete={handleCropComplete}
+        onClose={closeCropModal}
+        onSave={saveCroppedImage}
+      />
       <div
         style={{
           minHeight: '100vh',
@@ -449,6 +880,145 @@ export default function ShadowMallPromotionPage() {
                     fontWeight: 900,
                   }}
                 >
+                  Profile image
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 16,
+                    background: '#F8FAFC',
+                    padding: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      width: 54,
+                      height: 54,
+                      flexShrink: 0,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      borderRadius: '50%',
+                      background: '#111827',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    {profilePreview || form.profile_image_url ? (
+                      <img
+                        src={
+                          profilePreview ||
+                          form.profile_image_url
+                        }
+                        alt={form.sponsor || 'Shadow Mall'}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 900,
+                        }}
+                      >
+                        S
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <input
+                      ref={profileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfileUpload}
+                      style={{ display: 'none' }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        profileInputRef.current?.click()
+                      }
+                      style={{
+                        width: '100%',
+                        height: 40,
+                        border: '1px solid #C7D2FE',
+                        borderRadius: 12,
+                        background: '#EEF2FF',
+                        color: '#4F46E5',
+                        fontSize: 12,
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Choose profile image
+                    </button>
+
+                    {profilePreview ||
+                    form.profile_image_url ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileFile(null)
+                          setProfilePreview('')
+                          setRemoveProfileImage(true)
+                          updateField(
+                            'profile_image_url',
+                            ''
+                          )
+
+                          if (profileInputRef.current) {
+                            profileInputRef.current.value =
+                              ''
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          height: 36,
+                          marginTop: 7,
+                          border: '1px solid #FCA5A5',
+                          borderRadius: 12,
+                          background: '#FFFFFF',
+                          color: '#B91C1C',
+                          fontSize: 11,
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Remove profile image
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginBottom: 14,
+                }}
+              >
+                <div
+                  style={{
+                    marginBottom: 7,
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 900,
+                  }}
+                >
                   Square image
                 </div>
 
@@ -484,6 +1054,9 @@ export default function ShadowMallPromotionPage() {
                     onClick={() => {
                       setImageFile(null)
                       setImagePreview('')
+                      setRawImage('')
+                      setCropModalOpen(false)
+                      setCroppedAreaPixels(null)
                       setRemoveImage(true)
                       updateField('image_url', '')
 
@@ -642,27 +1215,85 @@ export default function ShadowMallPromotionPage() {
                       padding: '12px 14px',
                     }}
                   >
-                    <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        minWidth: 0,
+                      }}
+                    >
                       <div
                         style={{
-                          color: '#F0A800',
-                          fontSize: 9,
-                          fontWeight: 900,
-                          letterSpacing: '.16em',
+                          display: 'flex',
+                          width: 40,
+                          height: 40,
+                          flexShrink: 0,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'hidden',
+                          borderRadius: '50%',
+                          background: '#111827',
+                          color: '#FFFFFF',
                         }}
                       >
-                        SPONSORED
+                        {profilePreview ||
+                        form.profile_image_url ? (
+                          <img
+                            src={
+                              profilePreview ||
+                              form.profile_image_url
+                            }
+                            alt={
+                              form.sponsor || 'Shadow Mall'
+                            }
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block',
+                            }}
+                          />
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 900,
+                            }}
+                          >
+                            S
+                          </span>
+                        )}
                       </div>
 
                       <div
                         style={{
-                          marginTop: 4,
-                          color: '#111827',
-                          fontSize: 14,
-                          fontWeight: 800,
+                          minWidth: 0,
                         }}
                       >
-                        {form.sponsor || 'Shadow Mall'}
+                        <div
+                          style={{
+                            overflow: 'hidden',
+                            color: '#111827',
+                            fontSize: 14,
+                            fontWeight: 800,
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {form.sponsor || 'Shadow Mall'}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 2,
+                            color: '#94A3B8',
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Ad · 🌐
+                        </div>
                       </div>
                     </div>
 
@@ -686,7 +1317,7 @@ export default function ShadowMallPromotionPage() {
                       background: 'linear-gradient(135deg, #111827 0%, #4C1D95 55%, #F59E0B 100%)',
                     }}
                   >
-                    {form.image_url ? (
+                    {imagePreview || form.image_url ? (
                       <img
                         src={imagePreview || form.image_url}
                         alt={form.title || 'Promotion'}
