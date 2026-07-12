@@ -55,6 +55,13 @@ const navItems = {
   ],
 }
 
+const defaultSettings = {
+  splash: { title: 'Splash Logo Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 2, closeAfterSeconds: 0, frequency: 'once_per_session' },
+  opening: { title: 'Opening Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'once_per_session' },
+  freeUnlock: { title: 'Free Unlock & Read Ad', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 5, closeAfterSeconds: 3, frequency: 'every_unlock' },
+  me: { title: 'Me Ads', enabled: false, imageUrl: '', linkUrl: '', durationSeconds: 8, closeAfterSeconds: 3, frequency: 'once_per_session' },
+}
+
 const tabInfo = {
   splash: { label: 'Splash Logo Ad', help: 'Shows after the native app splash. Use a clear brand image on black background.', previewClass: 'splash' },
   opening: { label: 'Opening Ad', help: 'Shows after the splash logo ad when users open the website or app.', previewClass: '' },
