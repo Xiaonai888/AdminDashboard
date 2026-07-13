@@ -378,25 +378,35 @@ export default function ShadowMallPromotionPage() {
   }
 
   function editPromotion(promotion) {
-    if (!promotion?.id) return
+  if (!promotion?.id) return
 
-    clearEditor('')
-    setEditingId(promotion.id)
-    setForm({
-      ...defaultForm,
-      ...promotion,
-    })
-    setRemoveImage(false)
-    setRemoveProfileImage(false)
-    setMessage(
-      `Editing Ad #${promotion.display_order || promotion.id}`
-    )
-
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    })
+  if (imagePreview.startsWith('blob:')) {
+    URL.revokeObjectURL(imagePreview)
   }
+
+  if (profilePreview.startsWith('blob:')) {
+    URL.revokeObjectURL(profilePreview)
+  }
+
+  setEditingId(promotion.id)
+  setForm({
+    ...defaultForm,
+    ...promotion,
+  })
+  setImageFile(null)
+  setProfileFile(null)
+  setImagePreview(promotion.image_url || '')
+  setProfilePreview(promotion.profile_image_url || '')
+  setRawImage('')
+  setCropModalOpen(false)
+  setCroppedAreaPixels(null)
+  setRemoveImage(false)
+  setRemoveProfileImage(false)
+  setMessage(
+    `Editing Ad #${promotion.display_order || promotion.id}`
+  )
+  moveToEditor()
+}
 
   async function deletePromotion(promotion) {
     if (!promotion?.id) return
