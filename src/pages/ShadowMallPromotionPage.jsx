@@ -11,8 +11,8 @@ function getAdminToken() {
 
 const defaultForm = {
   sponsor: 'Shadow Mall',
-  title: 'Special book bundle',
-  description: 'Discover signed novels, limited merch, and reader gifts from official publishers.',
+  title: '',
+  description: '',
   button_text: 'Shop now',
   link_url: '/shop',
   profile_image_url: '',
@@ -39,50 +39,56 @@ export default function ShadowMallPromotionPage() {
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [removeImage, setRemoveImage] = useState(false)
   const [removeProfileImage, setRemoveProfileImage] = useState(false)
+  const [promotions, setPromotions] = useState([])
+  const [editingId, setEditingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
+  const [reordering, setReordering] = useState(false)
   const [message, setMessage] = useState('')
 
-  useEffect(() => {
-    let alive = true
-
-    async function loadPromotion() {
-      try {
+  async function loadPromotions({ silent = false } = {}) {
+    try {
+      if (!silent) {
         setLoading(true)
         setMessage('')
-
-        const token = getAdminToken()
-        const response = await fetch(`${API_URL}/api/shadow-mall/admin/promotion`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        })
-        const data = await response.json().catch(() => ({}))
-
-        if (!response.ok || data.ok === false) {
-          throw new Error(data.message || 'Failed to load promotion')
-        }
-
-        if (alive && data.promotion) {
-          setForm({
-            ...defaultForm,
-            ...data.promotion,
-          })
-        }
-      } catch (error) {
-        if (alive) {
-          setMessage(error.message || 'Failed to load promotion')
-        }
-      } finally {
-        if (alive) setLoading(false)
       }
-    }
 
-    loadPromotion()
+      const token = getAdminToken()
+      const response = await fetch(
+        `${API_URL}/api/shadow-mall/admin/promotions`,
+        {
+          headers: {
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+          },
+        }
+      )
+      const data = await response.json().catch(() => ({}))
 
-    return () => {
-      alive = false
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.message || 'Failed to load promotions'
+        )
+      }
+
+      setPromotions(
+        Array.isArray(data.promotions)
+          ? data.promotions
+          : []
+      )
+    } catch (error) {
+      setMessage(
+        error.message || 'Failed to load promotions'
+      )
+    } finally {
+      if (!silent) setLoading(false)
     }
+  }
+
+  useEffect(() => {
+    loadPromotions()
   }, [])
 
   useEffect(() => {
@@ -214,6 +220,37 @@ export default function ShadowMallPromotionPage() {
     openCropForFile(event, 'profile')
   }
 
+  function clearEditor(nextMessage = '') {
+    if (imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
+    }
+
+    if (profilePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(profilePreview)
+    }
+
+    setEditingId(null)
+    setForm(defaultForm)
+    setImageFile(null)
+    setImagePreview('')
+    setProfileFile(null)
+    setProfilePreview('')
+    setRawImage('')
+    setCropModalOpen(false)
+    setCroppedAreaPixels(null)
+    setRemoveImage(false)
+    setRemoveProfileImage(false)
+    setMessage(nextMessage)
+
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+
+    if (profileInputRef.current) {
+      profileInputRef.current.value = ''
+    }
+  }
+
   async function savePromotion() {
     if (!form.title.trim()) {
       setMessage('Promotion title is required.')
@@ -229,85 +266,239 @@ export default function ShadowMallPromotionPage() {
 
       formData.append('sponsor', form.sponsor.trim())
       formData.append('title', form.title.trim())
-      formData.append('description', form.description.trim())
-      formData.append('button_text', form.button_text.trim())
-      formData.append('link_url', form.link_url.trim())
-      formData.append('is_active', String(form.is_active))
-      formData.append('remove_image', String(removeImage))
+      formData.append(
+        'description',
+        form.description.trim()
+      )
+      formData.append(
+        'button_text',
+        form.button_text.trim()
+      )
+      formData.append(
+        'link_url',
+        form.link_url.trim()
+      )
+      formData.append(
+        'is_active',
+        String(form.is_active)
+      )
+      formData.append(
+        'remove_image',
+        String(removeImage)
+      )
       formData.append(
         'remove_profile_image',
         String(removeProfileImage)
       )
 
       if (imageFile) {
-        formData.append('promotion_image', imageFile)
+        formData.append(
+          'promotion_image',
+          imageFile
+        )
       }
 
       if (profileFile) {
-        formData.append('profile_image', profileFile)
+        formData.append(
+          'profile_image',
+          profileFile
+        )
       }
 
-      const response = await fetch(`${API_URL}/api/shadow-mall/admin/promotion`, {
-        method: 'PUT',
+      const isEditing = Boolean(editingId)
+      const endpoint = isEditing
+        ? `${API_URL}/api/shadow-mall/admin/promotions/${editingId}`
+        : `${API_URL}/api/shadow-mall/admin/promotions`
+
+      const response = await fetch(endpoint, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(token
+            ? { Authorization: `Bearer ${token}` }
+            : {}),
         },
         body: formData,
       })
-      const data = await response.json().catch(() => ({}))
+      const data = await response
+        .json()
+        .catch(() => ({}))
 
       if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to save promotion')
+        throw new Error(
+          data.message || 'Failed to save promotion'
+        )
       }
 
-      setForm({
-        ...defaultForm,
-        ...(data.promotion || {}),
-      })
-      setImageFile(null)
-      setImagePreview('')
-      setProfileFile(null)
-      setProfilePreview('')
-      setRawImage('')
-      setCropModalOpen(false)
-      setCroppedAreaPixels(null)
-      setRemoveImage(false)
-      setRemoveProfileImage(false)
-      setMessage('Promotion saved successfully.')
+      await loadPromotions({ silent: true })
 
-      if (imageInputRef.current) {
-        imageInputRef.current.value = ''
-      }
-
-      if (profileInputRef.current) {
-        profileInputRef.current.value = ''
-      }
+      clearEditor(
+        isEditing
+          ? 'Ad updated successfully.'
+          : 'Ad created successfully. The form is ready for a new ad.'
+      )
     } catch (error) {
-      setMessage(error.message || 'Failed to save promotion')
+      setMessage(
+        error.message || 'Failed to save promotion'
+      )
     } finally {
       setSaving(false)
     }
   }
 
   function resetForm() {
-    setForm(defaultForm)
-    setImageFile(null)
-    setImagePreview('')
-    setProfileFile(null)
-    setProfilePreview('')
-    setRawImage('')
-    setCropModalOpen(false)
-    setCroppedAreaPixels(null)
-    setRemoveImage(true)
-    setRemoveProfileImage(true)
-    setMessage('Form reset. Click Save Promotion to apply it.')
+    clearEditor(
+      editingId
+        ? 'Edit cancelled.'
+        : 'Form cleared.'
+    )
+  }
 
-    if (imageInputRef.current) {
-      imageInputRef.current.value = ''
+  function editPromotion(promotion) {
+    if (!promotion?.id) return
+
+    clearEditor('')
+    setEditingId(promotion.id)
+    setForm({
+      ...defaultForm,
+      ...promotion,
+    })
+    setRemoveImage(false)
+    setRemoveProfileImage(false)
+    setMessage(
+      `Editing Ad #${promotion.display_order || promotion.id}`
+    )
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
+  async function deletePromotion(promotion) {
+    if (!promotion?.id) return
+
+    const confirmed = window.confirm(
+      `Delete "${promotion.title || 'this ad'}"? This also removes its images from Cloudflare R2.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setDeletingId(promotion.id)
+      setMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(
+        `${API_URL}/api/shadow-mall/admin/promotions/${promotion.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+          },
+        }
+      )
+      const data = await response
+        .json()
+        .catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.message || 'Failed to delete promotion'
+        )
+      }
+
+      setPromotions((current) =>
+        current.filter(
+          (item) => item.id !== promotion.id
+        )
+      )
+
+      if (editingId === promotion.id) {
+        clearEditor('')
+      }
+
+      setMessage('Ad deleted successfully.')
+    } catch (error) {
+      setMessage(
+        error.message || 'Failed to delete promotion'
+      )
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  async function movePromotion(promotionId, direction) {
+    const currentIndex = promotions.findIndex(
+      (item) => item.id === promotionId
+    )
+    const nextIndex =
+      direction === 'up'
+        ? currentIndex - 1
+        : currentIndex + 1
+
+    if (
+      currentIndex < 0 ||
+      nextIndex < 0 ||
+      nextIndex >= promotions.length
+    ) {
+      return
     }
 
-    if (profileInputRef.current) {
-      profileInputRef.current.value = ''
+    const nextPromotions = [...promotions]
+    const [moved] = nextPromotions.splice(
+      currentIndex,
+      1
+    )
+    nextPromotions.splice(nextIndex, 0, moved)
+
+    try {
+      setReordering(true)
+      setPromotions(nextPromotions)
+      setMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(
+        `${API_URL}/api/shadow-mall/admin/promotions/reorder`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+          },
+          body: JSON.stringify({
+            ordered_ids: nextPromotions.map(
+              (item) => item.id
+            ),
+          }),
+        }
+      )
+      const data = await response
+        .json()
+        .catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.message || 'Failed to reorder promotions'
+        )
+      }
+
+      setPromotions(
+        Array.isArray(data.promotions)
+          ? data.promotions
+          : nextPromotions
+      )
+      setMessage('Display order updated.')
+    } catch (error) {
+      await loadPromotions({ silent: true })
+      setMessage(
+        error.message || 'Failed to reorder promotions'
+      )
+    } finally {
+      setReordering(false)
     }
   }
 
@@ -491,7 +682,7 @@ export default function ShadowMallPromotionPage() {
                   fontWeight: 900,
                 }}
               >
-                Promotion Details
+                {editingId ? 'Edit Promotion' : 'Create New Ad'}
               </h2>
 
               <p
@@ -504,7 +695,9 @@ export default function ShadowMallPromotionPage() {
                   lineHeight: 1.5,
                 }}
               >
-                Upload a square image and save the real promotion to the Backend.
+                {editingId
+                  ? 'Update the selected ad. The record remains in its current display order.'
+                  : 'Create a new sponsored ad. After saving, this form clears automatically.'}
               </p>
 
               {[
@@ -859,7 +1052,11 @@ export default function ShadowMallPromotionPage() {
                     opacity: saving || loading ? 0.65 : 1,
                   }}
                 >
-                  {saving ? 'Saving...' : 'Save Promotion'}
+                  {saving
+                    ? 'Saving...'
+                    : editingId
+                      ? 'Update Ad'
+                      : 'Create Ad'}
                 </button>
 
                 <button
@@ -877,7 +1074,7 @@ export default function ShadowMallPromotionPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  Reset
+                  {editingId ? 'Cancel Edit' : 'Clear'}
                 </button>
               </div>
             </form>
@@ -1173,6 +1370,477 @@ export default function ShadowMallPromotionPage() {
                 </article>
               </div>
             </section>
+          </section>
+
+          <section
+            style={{
+              marginTop: 20,
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: 24,
+              boxShadow:
+                '0 12px 30px rgba(15, 23, 42, 0.04)',
+              padding: 22,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 16,
+                marginBottom: 18,
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 18,
+                    fontWeight: 900,
+                  }}
+                >
+                  Ads Records
+                </h2>
+
+                <p
+                  style={{
+                    marginTop: 5,
+                    marginBottom: 0,
+                    color: '#64748B',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Records appear in Discover from the first order to the last order.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  clearEditor(
+                    'Ready to create a new ad.'
+                  )
+                }
+                style={{
+                  height: 40,
+                  flexShrink: 0,
+                  border: 0,
+                  borderRadius: 12,
+                  background: '#4F46E5',
+                  color: '#FFFFFF',
+                  padding: '0 15px',
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                }}
+              >
+                + New Ad
+              </button>
+            </div>
+
+            {loading ? (
+              <div
+                style={{
+                  borderRadius: 16,
+                  background: '#F8FAFC',
+                  padding: 24,
+                  color: '#64748B',
+                  textAlign: 'center',
+                  fontSize: 12,
+                  fontWeight: 800,
+                }}
+              >
+                Loading ads records...
+              </div>
+            ) : promotions.length ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    'repeat(auto-fill, minmax(300px, 1fr))',
+                  gap: 14,
+                }}
+              >
+                {promotions.map(
+                  (promotion, index) => {
+                    const isEditing =
+                      editingId === promotion.id
+                    const isDeleting =
+                      deletingId === promotion.id
+
+                    return (
+                      <article
+                        key={promotion.id}
+                        style={{
+                          overflow: 'hidden',
+                          border: isEditing
+                            ? '2px solid #4F46E5'
+                            : '1px solid #E2E8F0',
+                          borderRadius: 18,
+                          background: '#FFFFFF',
+                          boxShadow: isEditing
+                            ? '0 10px 28px rgba(79,70,229,.14)'
+                            : 'none',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns:
+                              '108px minmax(0, 1fr)',
+                            gap: 13,
+                            padding: 13,
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: 'relative',
+                              aspectRatio: '1 / 1',
+                              overflow: 'hidden',
+                              borderRadius: 12,
+                              background:
+                                'linear-gradient(135deg, #111827, #4C1D95, #F59E0B)',
+                            }}
+                          >
+                            {promotion.image_url ? (
+                              <img
+                                src={promotion.image_url}
+                                alt={
+                                  promotion.title ||
+                                  'Promotion'
+                                }
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                  display: 'block',
+                                }}
+                              />
+                            ) : null}
+
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: 7,
+                                top: 7,
+                                minWidth: 27,
+                                height: 27,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: 8,
+                                background:
+                                  'rgba(255,255,255,.92)',
+                                color: '#0F172A',
+                                padding: '0 7px',
+                                fontSize: 11,
+                                fontWeight: 900,
+                              }}
+                            >
+                              #{index + 1}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              minWidth: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 9,
+                                marginBottom: 9,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 34,
+                                  height: 34,
+                                  flexShrink: 0,
+                                  overflow: 'hidden',
+                                  borderRadius: '50%',
+                                  background: '#111827',
+                                  color: '#FFFFFF',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: 11,
+                                  fontWeight: 900,
+                                }}
+                              >
+                                {promotion.profile_image_url ? (
+                                  <img
+                                    src={
+                                      promotion.profile_image_url
+                                    }
+                                    alt={
+                                      promotion.sponsor ||
+                                      'Shadow Mall'
+                                    }
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover',
+                                    }}
+                                  />
+                                ) : (
+                                  'S'
+                                )}
+                              </div>
+
+                              <div
+                                style={{
+                                  minWidth: 0,
+                                  flex: 1,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    overflow: 'hidden',
+                                    color: '#0F172A',
+                                    fontSize: 13,
+                                    fontWeight: 900,
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {promotion.sponsor ||
+                                    'Shadow Mall'}
+                                </div>
+
+                                <div
+                                  style={{
+                                    marginTop: 2,
+                                    color:
+                                      promotion.is_active
+                                        ? '#15803D'
+                                        : '#94A3B8',
+                                    fontSize: 10,
+                                    fontWeight: 900,
+                                  }}
+                                >
+                                  {promotion.is_active
+                                    ? 'Active'
+                                    : 'Hidden'}
+                                  {' · '}
+                                  Order{' '}
+                                  {promotion.display_order ||
+                                    index + 1}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                display: '-webkit-box',
+                                overflow: 'hidden',
+                                color: '#0F172A',
+                                fontSize: 13,
+                                fontWeight: 900,
+                                lineHeight: 1.4,
+                                WebkitBoxOrient: 'vertical',
+                                WebkitLineClamp: 2,
+                              }}
+                            >
+                              {promotion.title ||
+                                'Untitled Ad'}
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: 7,
+                                overflow: 'hidden',
+                                color: '#64748B',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={promotion.link_url}
+                            >
+                              {promotion.link_url || '/shop'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns:
+                              '42px 42px 1fr 1fr',
+                            gap: 8,
+                            borderTop:
+                              '1px solid #E2E8F0',
+                            background: '#F8FAFC',
+                            padding: 10,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            disabled={
+                              index === 0 || reordering
+                            }
+                            onClick={() =>
+                              movePromotion(
+                                promotion.id,
+                                'up'
+                              )
+                            }
+                            style={{
+                              height: 36,
+                              border:
+                                '1px solid #E2E8F0',
+                              borderRadius: 10,
+                              background: '#FFFFFF',
+                              color: '#334155',
+                              fontSize: 15,
+                              fontWeight: 900,
+                              cursor:
+                                index === 0 ||
+                                reordering
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                              opacity:
+                                index === 0 ||
+                                reordering
+                                  ? 0.45
+                                  : 1,
+                            }}
+                            aria-label="Move ad up"
+                          >
+                            ↑
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              index ===
+                                promotions.length - 1 ||
+                              reordering
+                            }
+                            onClick={() =>
+                              movePromotion(
+                                promotion.id,
+                                'down'
+                              )
+                            }
+                            style={{
+                              height: 36,
+                              border:
+                                '1px solid #E2E8F0',
+                              borderRadius: 10,
+                              background: '#FFFFFF',
+                              color: '#334155',
+                              fontSize: 15,
+                              fontWeight: 900,
+                              cursor:
+                                index ===
+                                  promotions.length - 1 ||
+                                reordering
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                              opacity:
+                                index ===
+                                  promotions.length - 1 ||
+                                reordering
+                                  ? 0.45
+                                  : 1,
+                            }}
+                            aria-label="Move ad down"
+                          >
+                            ↓
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              editPromotion(promotion)
+                            }
+                            style={{
+                              height: 36,
+                              border:
+                                '1px solid #C7D2FE',
+                              borderRadius: 10,
+                              background: '#EEF2FF',
+                              color: '#4F46E5',
+                              fontSize: 11,
+                              fontWeight: 900,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isDeleting}
+                            onClick={() =>
+                              deletePromotion(promotion)
+                            }
+                            style={{
+                              height: 36,
+                              border:
+                                '1px solid #FCA5A5',
+                              borderRadius: 10,
+                              background: '#FFFFFF',
+                              color: '#B91C1C',
+                              fontSize: 11,
+                              fontWeight: 900,
+                              cursor: isDeleting
+                                ? 'not-allowed'
+                                : 'pointer',
+                              opacity: isDeleting
+                                ? 0.6
+                                : 1,
+                            }}
+                          >
+                            {isDeleting
+                              ? 'Deleting...'
+                              : 'Delete'}
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  }
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  border: '1px dashed #CBD5E1',
+                  borderRadius: 18,
+                  background: '#F8FAFC',
+                  padding: 30,
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    color: '#0F172A',
+                    fontSize: 14,
+                    fontWeight: 900,
+                  }}
+                >
+                  No ads records yet
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 6,
+                    color: '#64748B',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  Complete the form above and click Create Ad.
+                </div>
+              </div>
+            )}
           </section>
         </main>
       </div>
