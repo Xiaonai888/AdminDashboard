@@ -26,6 +26,8 @@ export default function ShadowMallPromotionPage() {
   const navigate = useNavigate()
   const imageInputRef = useRef(null)
   const profileInputRef = useRef(null)
+  const formRef = useRef(null)
+  const titleInputRef = useRef(null)
   const [form, setForm] = useState(defaultForm)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
@@ -230,7 +232,7 @@ export default function ShadowMallPromotionPage() {
     }
 
     setEditingId(null)
-    setForm(defaultForm)
+    setForm({ ...defaultForm })
     setImageFile(null)
     setImagePreview('')
     setProfileFile(null)
@@ -251,9 +253,30 @@ export default function ShadowMallPromotionPage() {
     }
   }
 
+  function moveToEditor({ focusTitle = false } = {}) {
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+
+      if (focusTitle) {
+        window.setTimeout(() => {
+          titleInputRef.current?.focus()
+        }, 350)
+      }
+    })
+  }
+
+  function startNewAd() {
+    clearEditor('Ready to create a new ad.')
+    moveToEditor({ focusTitle: true })
+  }
+
   async function savePromotion() {
     if (!form.title.trim()) {
-      setMessage('Promotion title is required.')
+      setMessage('Promotion title is required before creating the ad.')
+      moveToEditor({ focusTitle: true })
       return
     }
 
@@ -340,6 +363,7 @@ export default function ShadowMallPromotionPage() {
       setMessage(
         error.message || 'Failed to save promotion'
       )
+      moveToEditor()
     } finally {
       setSaving(false)
     }
@@ -663,6 +687,7 @@ export default function ShadowMallPromotionPage() {
             }}
           >
             <form
+              ref={formRef}
               onSubmit={(event) => {
                 event.preventDefault()
                 savePromotion()
@@ -726,6 +751,11 @@ export default function ShadowMallPromotionPage() {
                   </span>
 
                   <input
+                    ref={
+                      field === 'title'
+                        ? titleInputRef
+                        : null
+                    }
                     value={form[field]}
                     onChange={(event) => updateField(field, event.target.value)}
                     style={{
@@ -1029,6 +1059,24 @@ export default function ShadowMallPromotionPage() {
                 />
                 Active promotion
               </label>
+
+              {message ? (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    border: '1px solid #C7D2FE',
+                    borderRadius: 12,
+                    background: '#EEF2FF',
+                    padding: '10px 12px',
+                    color: '#3730A3',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {message}
+                </div>
+              ) : null}
 
               <div
                 style={{
@@ -1419,11 +1467,7 @@ export default function ShadowMallPromotionPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  clearEditor(
-                    'Ready to create a new ad.'
-                  )
-                }
+                onClick={startNewAd}
                 style={{
                   height: 40,
                   flexShrink: 0,
