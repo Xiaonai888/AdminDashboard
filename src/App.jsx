@@ -35,6 +35,7 @@ import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 import AdminReportCenterPage from './pages/AdminReportCenterPage';
 import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
+import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 
 function ComingSoon({ title }) {
   return (
@@ -112,6 +113,8 @@ export default function App() {
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
+        <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
+
         
         
 
