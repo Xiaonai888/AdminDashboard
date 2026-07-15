@@ -336,6 +336,7 @@ const navGroups = [
         label: 'Spam Guard',
         icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-5',
       },
+      { path: '/help-center', label: 'Help Center', icon: 'M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z M9 9a3 3 0 116 0c0 2-3 2-3 4 M12 17h.01' },
       { path: '/comments', label: 'Comments', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
     ],
   },
