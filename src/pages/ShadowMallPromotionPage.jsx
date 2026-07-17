@@ -1792,7 +1792,7 @@ export default function ShadowMallPromotionPage() {
                           style={{
                             display: 'grid',
                             gridTemplateColumns:
-                              '42px 42px minmax(82px, 1fr) 1fr 1fr',
+                              '42px 42px minmax(108px, 1.2fr) 1fr 1fr',
                             gap: 8,
                             borderTop:
                               '1px solid #E2E8F0',
@@ -1878,6 +1878,15 @@ export default function ShadowMallPromotionPage() {
 
                           <button
                             type="button"
+                            role="switch"
+                            aria-checked={Boolean(
+                              promotion.is_active
+                            )}
+                            aria-label={`${
+                              promotion.is_active
+                                ? 'Deactivate'
+                                : 'Activate'
+                            } ad`}
                             disabled={
                               isToggling ||
                               isDeleting ||
@@ -1890,16 +1899,20 @@ export default function ShadowMallPromotionPage() {
                             }
                             style={{
                               height: 36,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent:
+                                'space-between',
+                              gap: 8,
                               border: promotion.is_active
-                                ? '1px solid #FDBA74'
-                                : '1px solid #86EFAC',
+                                ? '1px solid #86EFAC'
+                                : '1px solid #CBD5E1',
                               borderRadius: 10,
-                              background: promotion.is_active
-                                ? '#FFF7ED'
-                                : '#ECFDF5',
+                              background: '#FFFFFF',
                               color: promotion.is_active
-                                ? '#C2410C'
-                                : '#15803D',
+                                ? '#15803D'
+                                : '#64748B',
+                              padding: '0 8px 0 10px',
                               fontSize: 10,
                               fontWeight: 900,
                               cursor:
@@ -1916,11 +1929,48 @@ export default function ShadowMallPromotionPage() {
                                   : 1,
                             }}
                           >
-                            {isToggling
-                              ? 'Saving...'
-                              : promotion.is_active
-                                ? 'Deactivate'
-                                : 'Activate'}
+                            <span>
+                              {isToggling
+                                ? 'Saving'
+                                : promotion.is_active
+                                  ? 'Active'
+                                  : 'Inactive'}
+                            </span>
+
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                position: 'relative',
+                                width: 34,
+                                height: 19,
+                                flexShrink: 0,
+                                borderRadius: 999,
+                                background:
+                                  promotion.is_active
+                                    ? '#22C55E'
+                                    : '#CBD5E1',
+                                transition:
+                                  'background 160ms ease',
+                              }}
+                            >
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  top: 2,
+                                  left: promotion.is_active
+                                    ? 17
+                                    : 2,
+                                  width: 15,
+                                  height: 15,
+                                  borderRadius: '50%',
+                                  background: '#FFFFFF',
+                                  boxShadow:
+                                    '0 1px 3px rgba(15,23,42,.28)',
+                                  transition:
+                                    'left 160ms ease',
+                                }}
+                              />
+                            </span>
                           </button>
 
                           <button
