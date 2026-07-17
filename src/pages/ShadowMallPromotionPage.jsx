@@ -46,6 +46,7 @@ export default function ShadowMallPromotionPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
+  const [togglingId, setTogglingId] = useState(null)
   const [reordering, setReordering] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -378,35 +379,25 @@ export default function ShadowMallPromotionPage() {
   }
 
   function editPromotion(promotion) {
-  if (!promotion?.id) return
+    if (!promotion?.id) return
 
-  if (imagePreview.startsWith('blob:')) {
-    URL.revokeObjectURL(imagePreview)
+    clearEditor('')
+    setEditingId(promotion.id)
+    setForm({
+      ...defaultForm,
+      ...promotion,
+    })
+    setRemoveImage(false)
+    setRemoveProfileImage(false)
+    setMessage(
+      `Editing Ad #${promotion.display_order || promotion.id}`
+    )
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
   }
-
-  if (profilePreview.startsWith('blob:')) {
-    URL.revokeObjectURL(profilePreview)
-  }
-
-  setEditingId(promotion.id)
-  setForm({
-    ...defaultForm,
-    ...promotion,
-  })
-  setImageFile(null)
-  setProfileFile(null)
-  setImagePreview(promotion.image_url || '')
-  setProfilePreview(promotion.profile_image_url || '')
-  setRawImage('')
-  setCropModalOpen(false)
-  setCroppedAreaPixels(null)
-  setRemoveImage(false)
-  setRemoveProfileImage(false)
-  setMessage(
-    `Editing Ad #${promotion.display_order || promotion.id}`
-  )
-  moveToEditor()
-}
 
   async function deletePromotion(promotion) {
     if (!promotion?.id) return
@@ -460,6 +451,79 @@ export default function ShadowMallPromotionPage() {
       )
     } finally {
       setDeletingId(null)
+    }
+  }
+
+
+  async function togglePromotionStatus(promotion) {
+    if (!promotion?.id || togglingId) return
+
+    const nextActive = !Boolean(promotion.is_active)
+
+    try {
+      setTogglingId(promotion.id)
+      setMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(
+        `${API_URL}/api/shadow-mall/admin/promotions/${promotion.id}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+          },
+          body: JSON.stringify({
+            is_active: nextActive,
+          }),
+        }
+      )
+      const data = await response
+        .json()
+        .catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.message || 'Failed to update ad status'
+        )
+      }
+
+      const updatedPromotion =
+        data.promotion || {
+          ...promotion,
+          is_active: nextActive,
+        }
+
+      setPromotions((current) =>
+        current.map((item) =>
+          item.id === promotion.id
+            ? updatedPromotion
+            : item
+        )
+      )
+
+      if (editingId === promotion.id) {
+        setForm((current) => ({
+          ...current,
+          is_active: Boolean(
+            updatedPromotion.is_active
+          ),
+        }))
+      }
+
+      setMessage(
+        nextActive
+          ? 'Ad activated. Readers who hid the older version can see it again.'
+          : 'Ad deactivated and removed from Discover.'
+      )
+    } catch (error) {
+      setMessage(
+        error.message || 'Failed to update ad status'
+      )
+    } finally {
+      setTogglingId(null)
     }
   }
 
@@ -1524,6 +1588,8 @@ export default function ShadowMallPromotionPage() {
                       editingId === promotion.id
                     const isDeleting =
                       deletingId === promotion.id
+                    const isToggling =
+                      togglingId === promotion.id
 
                     return (
                       <article
@@ -1680,7 +1746,7 @@ export default function ShadowMallPromotionPage() {
                                 >
                                   {promotion.is_active
                                     ? 'Active'
-                                    : 'Hidden'}
+                                    : 'Inactive'}
                                   {' · '}
                                   Order{' '}
                                   {promotion.display_order ||
@@ -1726,7 +1792,7 @@ export default function ShadowMallPromotionPage() {
                           style={{
                             display: 'grid',
                             gridTemplateColumns:
-                              '42px 42px 1fr 1fr',
+                              '42px 42px minmax(82px, 1fr) 1fr 1fr',
                             gap: 8,
                             borderTop:
                               '1px solid #E2E8F0',
@@ -1808,6 +1874,53 @@ export default function ShadowMallPromotionPage() {
                             aria-label="Move ad down"
                           >
                             ↓
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={
+                              isToggling ||
+                              isDeleting ||
+                              reordering
+                            }
+                            onClick={() =>
+                              togglePromotionStatus(
+                                promotion
+                              )
+                            }
+                            style={{
+                              height: 36,
+                              border: promotion.is_active
+                                ? '1px solid #FDBA74'
+                                : '1px solid #86EFAC',
+                              borderRadius: 10,
+                              background: promotion.is_active
+                                ? '#FFF7ED'
+                                : '#ECFDF5',
+                              color: promotion.is_active
+                                ? '#C2410C'
+                                : '#15803D',
+                              fontSize: 10,
+                              fontWeight: 900,
+                              cursor:
+                                isToggling ||
+                                isDeleting ||
+                                reordering
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                              opacity:
+                                isToggling ||
+                                isDeleting ||
+                                reordering
+                                  ? 0.6
+                                  : 1,
+                            }}
+                          >
+                            {isToggling
+                              ? 'Saving...'
+                              : promotion.is_active
+                                ? 'Deactivate'
+                                : 'Activate'}
                           </button>
 
                           <button
