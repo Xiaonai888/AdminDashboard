@@ -47,6 +47,8 @@ export default function ShadowMallPromotionPage() {
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [togglingId, setTogglingId] = useState(null)
+  const [pinningId, setPinningId] = useState(null)
+  const [openMenuId, setOpenMenuId] = useState(null)
   const [reordering, setReordering] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -93,6 +95,30 @@ export default function ShadowMallPromotionPage() {
   useEffect(() => {
     loadPromotions()
   }, [])
+
+  useEffect(() => {
+    if (!openMenuId) return undefined
+
+    function closeMenu(event) {
+      if (!event.target.closest('[data-promotion-menu]')) {
+        setOpenMenuId(null)
+      }
+    }
+
+    function closeMenuWithEscape(event) {
+      if (event.key === 'Escape') {
+        setOpenMenuId(null)
+      }
+    }
+
+    document.addEventListener('mousedown', closeMenu)
+    document.addEventListener('keydown', closeMenuWithEscape)
+
+    return () => {
+      document.removeEventListener('mousedown', closeMenu)
+      document.removeEventListener('keydown', closeMenuWithEscape)
+    }
+  }, [openMenuId])
 
   useEffect(() => {
     return () => {
@@ -270,6 +296,7 @@ export default function ShadowMallPromotionPage() {
   }
 
   function startNewAd() {
+    setOpenMenuId(null)
     clearEditor('Ready to create a new ad.')
     moveToEditor({ focusTitle: true })
   }
@@ -381,6 +408,7 @@ export default function ShadowMallPromotionPage() {
   function editPromotion(promotion) {
     if (!promotion?.id) return
 
+    setOpenMenuId(null)
     clearEditor('')
     setEditingId(promotion.id)
     setForm({
@@ -401,6 +429,8 @@ export default function ShadowMallPromotionPage() {
 
   async function deletePromotion(promotion) {
     if (!promotion?.id) return
+
+    setOpenMenuId(null)
 
     const confirmed = window.confirm(
       `Delete "${promotion.title || 'this ad'}"? This also removes its images from Cloudflare R2.`
@@ -496,13 +526,7 @@ export default function ShadowMallPromotionPage() {
           is_active: nextActive,
         }
 
-      setPromotions((current) =>
-        current.map((item) =>
-          item.id === promotion.id
-            ? updatedPromotion
-            : item
-        )
-      )
+      await loadPromotions({ silent: true })
 
       if (editingId === promotion.id) {
         setForm((current) => ({
@@ -527,8 +551,97 @@ export default function ShadowMallPromotionPage() {
     }
   }
 
+  async function togglePromotionPin(promotion) {
+    if (
+      !promotion?.id ||
+      pinningId ||
+      togglingId ||
+      deletingId ||
+      reordering
+    ) {
+      return
+    }
+
+    const nextPinned = !Boolean(promotion.is_pinned)
+    const pinnedCount = promotions.filter(
+      (item) => Boolean(item.is_pinned)
+    ).length
+
+    if (nextPinned && !promotion.is_active) {
+      setMessage('Activate the ad before pinning it.')
+      setOpenMenuId(null)
+      return
+    }
+
+    if (nextPinned && pinnedCount >= 3) {
+      setMessage('Maximum 3 pinned ads.')
+      setOpenMenuId(null)
+      return
+    }
+
+    try {
+      setPinningId(promotion.id)
+      setMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(
+        `${API_URL}/api/shadow-mall/admin/promotions/${promotion.id}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+          },
+          body: JSON.stringify({
+            is_active: Boolean(promotion.is_active),
+            is_pinned: nextPinned,
+          }),
+        }
+      )
+      const data = await response
+        .json()
+        .catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.message || 'Failed to update ad pin'
+        )
+      }
+
+      await loadPromotions({ silent: true })
+      setOpenMenuId(null)
+      setMessage(
+        nextPinned
+          ? 'Ad pinned to the top of Admin and Discover.'
+          : 'Ad unpinned successfully.'
+      )
+    } catch (error) {
+      setMessage(
+        error.message || 'Failed to update ad pin'
+      )
+    } finally {
+      setPinningId(null)
+    }
+  }
+
   async function movePromotion(promotionId, direction) {
-    const currentIndex = promotions.findIndex(
+    const promotion = promotions.find(
+      (item) => item.id === promotionId
+    )
+
+    if (!promotion || promotion.is_pinned) {
+      return
+    }
+
+    const pinnedPromotions = promotions.filter(
+      (item) => Boolean(item.is_pinned)
+    )
+    const regularPromotions = promotions.filter(
+      (item) => !Boolean(item.is_pinned)
+    )
+    const currentIndex = regularPromotions.findIndex(
       (item) => item.id === promotionId
     )
     const nextIndex =
@@ -539,17 +652,22 @@ export default function ShadowMallPromotionPage() {
     if (
       currentIndex < 0 ||
       nextIndex < 0 ||
-      nextIndex >= promotions.length
+      nextIndex >= regularPromotions.length
     ) {
       return
     }
 
-    const nextPromotions = [...promotions]
-    const [moved] = nextPromotions.splice(
+    const nextRegularPromotions = [...regularPromotions]
+    const [moved] = nextRegularPromotions.splice(
       currentIndex,
       1
     )
-    nextPromotions.splice(nextIndex, 0, moved)
+    nextRegularPromotions.splice(nextIndex, 0, moved)
+
+    const nextPromotions = [
+      ...pinnedPromotions,
+      ...nextRegularPromotions,
+    ]
 
     try {
       setReordering(true)
@@ -599,6 +717,11 @@ export default function ShadowMallPromotionPage() {
       setReordering(false)
     }
   }
+
+
+  const pinnedCount = promotions.filter(
+    (item) => Boolean(item.is_pinned)
+  ).length
 
   const tabs = [
     { label: 'Products', path: '/shadow-mall' },
@@ -1535,7 +1658,7 @@ export default function ShadowMallPromotionPage() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Records appear in Discover from the first order to the last order.
+                  Pinned ads appear first. Regular ads follow their display order.
                 </p>
               </div>
 
@@ -1590,12 +1713,47 @@ export default function ShadowMallPromotionPage() {
                       deletingId === promotion.id
                     const isToggling =
                       togglingId === promotion.id
+                    const isPinning =
+                      pinningId === promotion.id
+                    const pinnedPosition =
+                      promotion.is_pinned
+                        ? promotions
+                            .filter((item) =>
+                              Boolean(item.is_pinned)
+                            )
+                            .findIndex(
+                              (item) =>
+                                item.id === promotion.id
+                            ) + 1
+                        : 0
+                    const regularPromotions =
+                      promotions.filter(
+                        (item) =>
+                          !Boolean(item.is_pinned)
+                      )
+                    const regularIndex =
+                      promotion.is_pinned
+                        ? -1
+                        : regularPromotions.findIndex(
+                            (item) =>
+                              item.id === promotion.id
+                          )
+                    const moveUpDisabled =
+                      promotion.is_pinned ||
+                      regularIndex <= 0 ||
+                      reordering
+                    const moveDownDisabled =
+                      promotion.is_pinned ||
+                      regularIndex < 0 ||
+                      regularIndex ===
+                        regularPromotions.length - 1 ||
+                      reordering
 
                     return (
                       <article
                         key={promotion.id}
                         style={{
-                          overflow: 'hidden',
+                          overflow: 'visible',
                           border: isEditing
                             ? '2px solid #4F46E5'
                             : '1px solid #E2E8F0',
@@ -1662,6 +1820,30 @@ export default function ShadowMallPromotionPage() {
                             >
                               #{index + 1}
                             </div>
+
+                            {promotion.is_pinned ? (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  right: 7,
+                                  top: 7,
+                                  height: 27,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: 8,
+                                  background: '#4F46E5',
+                                  color: '#FFFFFF',
+                                  padding: '0 8px',
+                                  fontSize: 10,
+                                  fontWeight: 900,
+                                  boxShadow:
+                                    '0 4px 12px rgba(79,70,229,.3)',
+                                }}
+                              >
+                                📌 {pinnedPosition}/3
+                              </div>
+                            ) : null}
                           </div>
 
                           <div
@@ -1751,6 +1933,9 @@ export default function ShadowMallPromotionPage() {
                                   Order{' '}
                                   {promotion.display_order ||
                                     index + 1}
+                                  {promotion.is_pinned
+                                    ? ` · Pinned ${pinnedPosition}/3`
+                                    : ''}
                                 </div>
                               </div>
                             </div>
@@ -1792,19 +1977,18 @@ export default function ShadowMallPromotionPage() {
                           style={{
                             display: 'grid',
                             gridTemplateColumns:
-                              '42px 42px minmax(108px, 1.2fr) 1fr 1fr',
+                              '42px 42px minmax(108px, 1.2fr) 42px',
                             gap: 8,
                             borderTop:
                               '1px solid #E2E8F0',
                             background: '#F8FAFC',
+                            borderRadius: '0 0 18px 18px',
                             padding: 10,
                           }}
                         >
                           <button
                             type="button"
-                            disabled={
-                              index === 0 || reordering
-                            }
+                            disabled={moveUpDisabled}
                             onClick={() =>
                               movePromotion(
                                 promotion.id,
@@ -1820,16 +2004,12 @@ export default function ShadowMallPromotionPage() {
                               color: '#334155',
                               fontSize: 15,
                               fontWeight: 900,
-                              cursor:
-                                index === 0 ||
-                                reordering
-                                  ? 'not-allowed'
-                                  : 'pointer',
-                              opacity:
-                                index === 0 ||
-                                reordering
-                                  ? 0.45
-                                  : 1,
+                              cursor: moveUpDisabled
+                                ? 'not-allowed'
+                                : 'pointer',
+                              opacity: moveUpDisabled
+                                ? 0.45
+                                : 1,
                             }}
                             aria-label="Move ad up"
                           >
@@ -1838,11 +2018,7 @@ export default function ShadowMallPromotionPage() {
 
                           <button
                             type="button"
-                            disabled={
-                              index ===
-                                promotions.length - 1 ||
-                              reordering
-                            }
+                            disabled={moveDownDisabled}
                             onClick={() =>
                               movePromotion(
                                 promotion.id,
@@ -1858,18 +2034,12 @@ export default function ShadowMallPromotionPage() {
                               color: '#334155',
                               fontSize: 15,
                               fontWeight: 900,
-                              cursor:
-                                index ===
-                                  promotions.length - 1 ||
-                                reordering
-                                  ? 'not-allowed'
-                                  : 'pointer',
-                              opacity:
-                                index ===
-                                  promotions.length - 1 ||
-                                reordering
-                                  ? 0.45
-                                  : 1,
+                              cursor: moveDownDisabled
+                                ? 'not-allowed'
+                                : 'pointer',
+                              opacity: moveDownDisabled
+                                ? 0.45
+                                : 1,
                             }}
                             aria-label="Move ad down"
                           >
@@ -1973,53 +2143,165 @@ export default function ShadowMallPromotionPage() {
                             </span>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              editPromotion(promotion)
-                            }
+                          <div
+                            data-promotion-menu
                             style={{
-                              height: 36,
-                              border:
-                                '1px solid #C7D2FE',
-                              borderRadius: 10,
-                              background: '#EEF2FF',
-                              color: '#4F46E5',
-                              fontSize: 11,
-                              fontWeight: 900,
-                              cursor: 'pointer',
+                              position: 'relative',
                             }}
                           >
-                            Edit
-                          </button>
+                            <button
+                              type="button"
+                              aria-label="Open ad actions"
+                              aria-haspopup="menu"
+                              aria-expanded={
+                                openMenuId === promotion.id
+                              }
+                              disabled={
+                                isDeleting ||
+                                isToggling ||
+                                isPinning ||
+                                reordering
+                              }
+                              onClick={() =>
+                                setOpenMenuId((current) =>
+                                  current === promotion.id
+                                    ? null
+                                    : promotion.id
+                                )
+                              }
+                              style={{
+                                width: 42,
+                                height: 36,
+                                border:
+                                  '1px solid #E2E8F0',
+                                borderRadius: 10,
+                                background: '#FFFFFF',
+                                color: '#334155',
+                                fontSize: 20,
+                                fontWeight: 900,
+                                lineHeight: 1,
+                                cursor:
+                                  isDeleting ||
+                                  isToggling ||
+                                  isPinning ||
+                                  reordering
+                                    ? 'not-allowed'
+                                    : 'pointer',
+                                opacity:
+                                  isDeleting ||
+                                  isToggling ||
+                                  isPinning ||
+                                  reordering
+                                    ? 0.55
+                                    : 1,
+                              }}
+                            >
+                              ⋮
+                            </button>
 
-                          <button
-                            type="button"
-                            disabled={isDeleting}
-                            onClick={() =>
-                              deletePromotion(promotion)
-                            }
-                            style={{
-                              height: 36,
-                              border:
-                                '1px solid #FCA5A5',
-                              borderRadius: 10,
-                              background: '#FFFFFF',
-                              color: '#B91C1C',
-                              fontSize: 11,
-                              fontWeight: 900,
-                              cursor: isDeleting
-                                ? 'not-allowed'
-                                : 'pointer',
-                              opacity: isDeleting
-                                ? 0.6
-                                : 1,
-                            }}
-                          >
-                            {isDeleting
-                              ? 'Deleting...'
-                              : 'Delete'}
-                          </button>
+                            {openMenuId ===
+                            promotion.id ? (
+                              <div
+                                role="menu"
+                                style={{
+                                  position: 'absolute',
+                                  right: 0,
+                                  bottom: 44,
+                                  zIndex: 30,
+                                  width: 190,
+                                  overflow: 'hidden',
+                                  border:
+                                    '1px solid #E2E8F0',
+                                  borderRadius: 12,
+                                  background: '#FFFFFF',
+                                  boxShadow:
+                                    '0 14px 32px rgba(15,23,42,.18)',
+                                  padding: 6,
+                                }}
+                              >
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() =>
+                                    togglePromotionPin(
+                                      promotion
+                                    )
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    height: 40,
+                                    border: 0,
+                                    borderRadius: 8,
+                                    background: '#FFFFFF',
+                                    color: '#0F172A',
+                                    padding: '0 10px',
+                                    textAlign: 'left',
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  {isPinning
+                                    ? 'Saving...'
+                                    : promotion.is_pinned
+                                      ? '📌 Unpin Ad'
+                                      : !promotion.is_active
+                                        ? '📌 Activate before pinning'
+                                        : pinnedCount >= 3
+                                          ? '📌 Pin limit reached (3/3)'
+                                          : '📌 Pin Ad'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() =>
+                                    editPromotion(promotion)
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    height: 40,
+                                    border: 0,
+                                    borderRadius: 8,
+                                    background: '#FFFFFF',
+                                    color: '#0F172A',
+                                    padding: '0 10px',
+                                    textAlign: 'left',
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  ✏️ Edit
+                                </button>
+
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() =>
+                                    deletePromotion(
+                                      promotion
+                                    )
+                                  }
+                                  style={{
+                                    width: '100%',
+                                    height: 40,
+                                    border: 0,
+                                    borderRadius: 8,
+                                    background: '#FFFFFF',
+                                    color: '#B91C1C',
+                                    padding: '0 10px',
+                                    textAlign: 'left',
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                  }}
+                                >
+                                  🗑 Delete
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </article>
                     )
