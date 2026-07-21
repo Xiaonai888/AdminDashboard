@@ -6,6 +6,7 @@ const SLOTS = [1, 2, 3, 4, 5, 6, 7];
 const RECORDS_PER_PAGE = 20;
 const SECTIONS = [
   { key: 'home_top_slider', label: 'Home Slide', title: 'Home Slide', text: 'Manage homepage hero slides, featured visuals, and promotional links.' },
+  { key: 'manga_top_slider', label: 'Manga Slide', title: 'Manga Slide', text: 'Manage Manga page hero slides, featured visuals, and promotional links.' },
   { key: 'event_top_slider', label: 'Event Slide', title: 'Event Slide', text: 'Manage Event page slides, author visuals, and promotional links.' },
   { key: 'mall_top_slider', label: 'Mall Slide', title: 'Mall Slide', text: 'Manage Shadow Mall slides, book visuals, and promotional links.' },
 ];
