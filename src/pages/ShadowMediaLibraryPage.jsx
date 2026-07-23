@@ -1,5 +1,49 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
+}
+
+async function apiRequest(path, options = {}) {
+  const token = getAdminToken()
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.message || 'Request failed')
+  return data
+}
+
+function folderFromApi(folder) {
+  return {
+    id: folder.id,
+    name: folder.name,
+    icon: folder.icon || '📁',
+    description: folder.description || '',
+    sortOrder: folder.sort_order || 0,
+    active: folder.is_active !== false,
+  }
+}
+
+function imageFromApi(image) {
+  return {
+    id: image.id,
+    title: image.title,
+    folderId: image.folder_id,
+    sortOrder: image.sort_order || 0,
+    active: image.is_active !== false,
+    imageUrl: image.image_url,
+    storageKey: image.storage_key || '',
+  }
+}
 
 const starterFolders = [
   { id: 'characters', name: 'Characters', icon: '👤', description: 'People, poses and expressions', sortOrder: 1, active: true },
@@ -206,14 +250,33 @@ function MediaCard({ image, folders, onMove, onToggle, onDelete }) {
 }
 
 export default function ShadowMediaLibraryPage() {
-  const [folders, setFolders] = useState(starterFolders)
+  const [folders, setFolders] = useState([])
   const [images, setImages] = useState([])
-  const [selectedFolderId, setSelectedFolderId] = useState(starterFolders[0].id)
+  const [selectedFolderId, setSelectedFolderId] = useState('')
   const [search, setSearch] = useState('')
   const [folderModalOpen, setFolderModalOpen] = useState(false)
   const [editingFolder, setEditingFolder] = useState(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploads, setUploads] = useState([])
+
+  const loadLibrary = async () => {
+    try {
+      const data = await apiRequest('/api/admin/media-library')
+      const nextFolders = (data.folders || []).map(folderFromApi)
+      const nextImages = (data.images || []).map(imageFromApi)
+      setFolders(nextFolders)
+      setImages(nextImages)
+      setSelectedFolderId((current) =>
+        nextFolders.some((folder) => folder.id === current) ? current : nextFolders[0]?.id || ''
+      )
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }
+
+  useEffect(() => {
+    loadLibrary()
+  }, [])
 
   const sortedFolders = useMemo(
     () => [...folders].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -231,28 +294,67 @@ export default function ShadowMediaLibraryPage() {
       .sort((a, b) => a.sortOrder - b.sortOrder)
   }, [images, search, selectedFolderId])
 
-  const saveFolder = (folder) => {
-    setFolders((current) => {
-      const exists = current.some((item) => item.id === folder.id)
-      return exists
-        ? current.map((item) => (item.id === folder.id ? folder : item))
-        : [...current, folder]
-    })
+  const saveFolder = async (folder) => {
+    try {
+      const existing = folders.some((item) => item.id === folder.id)
+      const path = existing
+        ? `/api/admin/media-library/folders/${folder.id}`
+        : '/api/admin/media-library/folders'
 
-    if (!selectedFolderId) setSelectedFolderId(folder.id)
-    setFolderModalOpen(false)
-    setEditingFolder(null)
+      const data = await apiRequest(path, {
+        method: existing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: folder.name,
+          icon: folder.icon,
+          description: folder.description,
+          sort_order: folder.sortOrder,
+          is_active: folder.active,
+        }),
+      })
+
+      const saved = folderFromApi(data.folder)
+      setFolders((current) =>
+        existing
+          ? current.map((item) => (item.id === saved.id ? saved : item))
+          : [...current, saved]
+      )
+      if (!selectedFolderId) setSelectedFolderId(saved.id)
+      setFolderModalOpen(false)
+      setEditingFolder(null)
+    } catch (error) {
+      window.alert(error.message)
+    }
   }
 
-  const deleteFolder = (folderId) => {
+  const deleteFolder = async (folderId) => {
     const folder = folders.find((item) => item.id === folderId)
     const confirmed = window.confirm(`Delete folder "${folder?.name || ''}"? Images inside it will also be removed.`)
     if (!confirmed) return
 
-    const remaining = folders.filter((item) => item.id !== folderId)
-    setFolders(remaining)
-    setImages((current) => current.filter((image) => image.folderId !== folderId))
-    setSelectedFolderId(remaining[0]?.id || '')
+    try {
+      await apiRequest(`/api/admin/media-library/folders/${folderId}`, { method: 'DELETE' })
+      const remaining = folders.filter((item) => item.id !== folderId)
+      setFolders(remaining)
+      setImages((current) => current.filter((image) => image.folderId !== folderId))
+      setSelectedFolderId(remaining[0]?.id || '')
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }
+
+  const toggleFolder = async (folder) => {
+    try {
+      const data = await apiRequest(`/api/admin/media-library/folders/${folder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !folder.active }),
+      })
+      const saved = folderFromApi(data.folder)
+      setFolders((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+    } catch (error) {
+      window.alert(error.message)
+    }
   }
 
   const addFiles = (files) => {
@@ -281,19 +383,94 @@ export default function ShadowMediaLibraryPage() {
     setUploadOpen(false)
   }
 
-  const saveUploads = () => {
-    const newImages = uploads.map((item) => ({
-      id: item.id,
-      title: item.title.trim() || 'Untitled Image',
-      folderId: item.folderId || selectedFolderId,
-      sortOrder: item.sortOrder,
-      active: true,
-      imageUrl: item.previewUrl,
-    }))
+  const saveUploads = async () => {
+    try {
+      const formData = new FormData()
+      uploads.forEach((item) => formData.append('images', item.file))
 
-    setImages((current) => [...current, ...newImages])
-    setUploads([])
-    setUploadOpen(false)
+      const uploaded = await apiRequest('/api/admin/media-library/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const uploadedImages = uploaded.images || []
+      if (uploadedImages.length !== uploads.length) {
+        throw new Error('Some images were not uploaded.')
+      }
+
+      const created = []
+
+      for (let index = 0; index < uploads.length; index += 1) {
+        const item = uploads[index]
+        const file = uploadedImages[index]
+
+        const data = await apiRequest('/api/admin/media-library/images', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folder_id: item.folderId || selectedFolderId,
+            title: item.title.trim() || 'Untitled Image',
+            alt_text: item.title.trim() || 'Untitled Image',
+            image_url: file.image_url,
+            storage_key: file.storage_key,
+            sort_order: item.sortOrder,
+            is_active: true,
+          }),
+        })
+
+        created.push(imageFromApi(data.image))
+      }
+
+      uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+      setImages((current) => [...current, ...created])
+      setUploads([])
+      setUploadOpen(false)
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }
+
+  const moveImage = async (imageId, folderId) => {
+    try {
+      const data = await apiRequest(`/api/admin/media-library/images/${imageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_id: folderId }),
+      })
+      const saved = imageFromApi(data.image)
+      setImages((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }
+
+  const toggleImage = async (imageId) => {
+    const image = images.find((item) => item.id === imageId)
+    if (!image) return
+
+    try {
+      const data = await apiRequest(`/api/admin/media-library/images/${imageId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !image.active }),
+      })
+      const saved = imageFromApi(data.image)
+      setImages((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+    } catch (error) {
+      window.alert(error.message)
+    }
+  }
+
+  const deleteImage = async (imageId) => {
+    const image = images.find((item) => item.id === imageId)
+    if (!window.confirm(`Delete "${image?.title || 'this image'}"?`)) return
+
+    try {
+      await apiRequest(`/api/admin/media-library/images/${imageId}`, { method: 'DELETE' })
+      setImages((current) => current.filter((item) => item.id !== imageId))
+    } catch (error) {
+      window.alert(error.message)
+    }
   }
 
   return (
@@ -970,13 +1147,7 @@ export default function ShadowMediaLibraryPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      setFolders((current) =>
-                        current.map((item) =>
-                          item.id === folder.id ? { ...item, active: !item.active } : item
-                        )
-                      )
-                    }
+                    onClick={() => toggleFolder(folder)}
                   >
                     {folder.active ? 'Hide' : 'Show'}
                   </button>
@@ -1022,21 +1193,9 @@ export default function ShadowMediaLibraryPage() {
                   key={image.id}
                   image={image}
                   folders={sortedFolders}
-                  onMove={(imageId, folderId) =>
-                    setImages((current) =>
-                      current.map((item) => (item.id === imageId ? { ...item, folderId } : item))
-                    )
-                  }
-                  onToggle={(imageId) =>
-                    setImages((current) =>
-                      current.map((item) =>
-                        item.id === imageId ? { ...item, active: !item.active } : item
-                      )
-                    )
-                  }
-                  onDelete={(imageId) =>
-                    setImages((current) => current.filter((item) => item.id !== imageId))
-                  }
+                  onMove={moveImage}
+                  onToggle={toggleImage}
+                  onDelete={deleteImage}
                 />
               ))}
             </div>
