@@ -312,7 +312,7 @@ const navGroups = [
       { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
       { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
       { path: '/genres', label: 'Genre', icon: 'M4 6h16M4 12h16M4 18h16' },
-      { path: '/chat-story-gallery', label: 'Chat Story Gallery', icon: 'M4 4h16v16H4z M8 8h8M8 12h5M8 16h8' },
+      { path: '/media-library', label: 'Media Library', icon: 'M4 4h16v16H4z M8 8h8M8 12h5M8 16h8' },
       { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
       { path: '/reader-mails', label: 'Reader Mail', icon: 'M4 4h16v16H4z M4 7l8 6 8-6' },
       { path: '/notifications', label: 'Notifications', icon: 'M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M13.73 21a2 2 0 01-3.46 0' },
