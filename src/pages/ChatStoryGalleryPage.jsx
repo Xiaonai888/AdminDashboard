@@ -1,11 +1,24 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const categories = ['All', 'Female', 'Male', 'Couple', 'Fantasy', 'Other']
+
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
+}
+
+function authHeaders(extra = {}) {
+  const token = getAdminToken()
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  }
+}
 
 function makePreview(file) {
   return {
-    id: `${file.name}-${file.size}-${file.lastModified}`,
+    id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
     file,
     name: file.name.replace(/\.[^.]+$/, ''),
     category: 'Other',
@@ -14,28 +27,59 @@ function makePreview(file) {
   }
 }
 
-function AddImagesModal({ open, items, onAddFiles, onUpdate, onRemove, onClose, onContinue }) {
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: authHeaders(options.headers || {}),
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed')
+  }
+
+  return data
+}
+
+function AddImagesModal({
+  open,
+  items,
+  loading,
+  onAddFiles,
+  onUpdate,
+  onRemove,
+  onClose,
+  onSave,
+}) {
   const inputRef = useRef(null)
 
   if (!open) return null
 
   return (
-    <div className="gallery-modal-layer" onMouseDown={onClose}>
+    <div className="gallery-modal-layer" onMouseDown={loading ? undefined : onClose}>
       <div className="gallery-modal" onMouseDown={(event) => event.stopPropagation()}>
         <div className="gallery-modal-head">
           <div>
             <div className="gallery-kicker">Shadow Gallery</div>
             <h2>Add Images</h2>
-            <p>Upload several character images and prepare their details before saving.</p>
+            <p>Upload several character images and save them to Shadow Gallery.</p>
           </div>
 
-          <button type="button" className="gallery-icon-button" onClick={onClose}>×</button>
+          <button
+            type="button"
+            className="gallery-icon-button"
+            disabled={loading}
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
 
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           multiple
           hidden
           onChange={(event) => {
@@ -44,10 +88,15 @@ function AddImagesModal({ open, items, onAddFiles, onUpdate, onRemove, onClose, 
           }}
         />
 
-        <button type="button" className="gallery-dropzone" onClick={() => inputRef.current?.click()}>
+        <button
+          type="button"
+          className="gallery-dropzone"
+          disabled={loading}
+          onClick={() => inputRef.current?.click()}
+        >
           <span className="gallery-dropzone-icon">＋</span>
           <strong>Choose images from device</strong>
-          <small>JPG, PNG or WEBP · Multiple files supported</small>
+          <small>JPG, PNG or WEBP · Up to 20 images · 5MB each</small>
         </button>
 
         {items.length ? (
@@ -59,12 +108,14 @@ function AddImagesModal({ open, items, onAddFiles, onUpdate, onRemove, onClose, 
                 <div className="gallery-upload-fields">
                   <input
                     value={item.name}
+                    disabled={loading}
                     onChange={(event) => onUpdate(item.id, { name: event.target.value })}
                     placeholder="Image title"
                   />
 
                   <select
                     value={item.category}
+                    disabled={loading}
                     onChange={(event) => onUpdate(item.id, { category: event.target.value })}
                   >
                     {categories.slice(1).map((category) => (
@@ -73,7 +124,12 @@ function AddImagesModal({ open, items, onAddFiles, onUpdate, onRemove, onClose, 
                   </select>
                 </div>
 
-                <button type="button" className="gallery-remove-button" onClick={() => onRemove(item.id)}>
+                <button
+                  type="button"
+                  className="gallery-remove-button"
+                  disabled={loading}
+                  onClick={() => onRemove(item.id)}
+                >
                   Remove
                 </button>
               </div>
@@ -82,14 +138,22 @@ function AddImagesModal({ open, items, onAddFiles, onUpdate, onRemove, onClose, 
         ) : null}
 
         <div className="gallery-modal-actions">
-          <button type="button" className="gallery-button light" onClick={onClose}>Cancel</button>
+          <button
+            type="button"
+            className="gallery-button light"
+            disabled={loading}
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+
           <button
             type="button"
             className="gallery-button primary"
-            disabled={!items.length}
-            onClick={onContinue}
+            disabled={!items.length || loading}
+            onClick={onSave}
           >
-            Continue
+            {loading ? 'Uploading...' : `Save ${items.length || ''} Image${items.length === 1 ? '' : 's'}`}
           </button>
         </div>
       </div>
@@ -97,13 +161,14 @@ function AddImagesModal({ open, items, onAddFiles, onUpdate, onRemove, onClose, 
   )
 }
 
-function ImageCard({ image }) {
+function ImageCard({ image, busy, onToggle, onDelete }) {
   return (
     <article className="gallery-card">
       <div className="gallery-card-image">
-        <img src={image.imageUrl} alt={image.altText || image.title} />
-        <span className={`gallery-status ${image.active ? 'active' : 'hidden'}`}>
-          {image.active ? 'Active' : 'Hidden'}
+        <img src={image.image_url} alt={image.alt_text || image.title} />
+
+        <span className={`gallery-status ${image.is_active ? 'active' : 'hidden'}`}>
+          {image.is_active ? 'Active' : 'Hidden'}
         </span>
       </div>
 
@@ -111,20 +176,58 @@ function ImageCard({ image }) {
         <div className="gallery-card-title">{image.title}</div>
         <div className="gallery-card-category">{image.category}</div>
 
-        <button type="button" className="gallery-card-menu">•••</button>
+        <div className="gallery-card-actions">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onToggle(image)}
+          >
+            {image.is_active ? 'Hide' : 'Show'}
+          </button>
+
+          <button
+            type="button"
+            className="danger"
+            disabled={busy}
+            onClick={() => onDelete(image)}
+          >
+            Delete
+          </button>
+        </div>
       </div>
     </article>
   )
 }
 
 export default function ChatStoryGalleryPage() {
+  const [images, setImages] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [uploads, setUploads] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [busyId, setBusyId] = useState('')
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
-  const images = []
+  const loadImages = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await apiRequest('/api/admin/chat-story-gallery')
+      setImages(Array.isArray(data.images) ? data.images : [])
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadImages()
+  }, [])
 
   const filteredImages = useMemo(() => {
     const cleanSearch = search.trim().toLowerCase()
@@ -132,17 +235,21 @@ export default function ChatStoryGalleryPage() {
     return images.filter((image) => {
       const categoryMatch =
         selectedCategory === 'All' || image.category === selectedCategory
+
       const searchMatch =
         !cleanSearch ||
-        image.title.toLowerCase().includes(cleanSearch) ||
-        image.category.toLowerCase().includes(cleanSearch)
+        String(image.title || '').toLowerCase().includes(cleanSearch) ||
+        String(image.category || '').toLowerCase().includes(cleanSearch)
 
       return categoryMatch && searchMatch
     })
   }, [images, search, selectedCategory])
 
   const addFiles = (files) => {
-    const validFiles = files.filter((file) => file.type.startsWith('image/'))
+    const validFiles = files
+      .filter((file) => file.type.startsWith('image/'))
+      .slice(0, Math.max(0, 20 - uploads.length))
+
     setUploads((current) => [...current, ...validFiles.map(makePreview)])
   }
 
@@ -160,10 +267,127 @@ export default function ChatStoryGalleryPage() {
     })
   }
 
-  const closeModal = () => {
+  const clearUploads = () => {
     uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
     setUploads([])
+  }
+
+  const closeModal = () => {
+    if (saving) return
+    clearUploads()
     setModalOpen(false)
+  }
+
+  const saveUploads = async () => {
+    if (!uploads.length || saving) return
+
+    const invalidTitle = uploads.find((item) => !item.name.trim())
+
+    if (invalidTitle) {
+      setError('Every image needs a title.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const formData = new FormData()
+      uploads.forEach((item) => formData.append('images', item.file))
+
+      const uploadData = await apiRequest('/api/admin/chat-story-gallery/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const uploadedImages = Array.isArray(uploadData.images) ? uploadData.images : []
+
+      if (uploadedImages.length !== uploads.length) {
+        throw new Error('Some images were not uploaded. Please try again.')
+      }
+
+      const created = []
+
+      for (let index = 0; index < uploads.length; index += 1) {
+        const item = uploads[index]
+        const uploaded = uploadedImages[index]
+
+        const data = await apiRequest('/api/admin/chat-story-gallery', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: item.name.trim(),
+            alt_text: item.name.trim(),
+            image_url: uploaded.image_url,
+            category: item.category,
+            is_active: item.active,
+            sort_order: images.length + index,
+          }),
+        })
+
+        if (data.image) created.push(data.image)
+      }
+
+      setImages((current) => [...created, ...current])
+      setMessage(`${created.length} image${created.length === 1 ? '' : 's'} added successfully.`)
+      clearUploads()
+      setModalOpen(false)
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const toggleImage = async (image) => {
+    setBusyId(image.id)
+    setError('')
+    setMessage('')
+
+    try {
+      const data = await apiRequest(`/api/admin/chat-story-gallery/${image.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_active: !image.is_active,
+        }),
+      })
+
+      setImages((current) =>
+        current.map((item) => (item.id === image.id ? data.image : item))
+      )
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  const deleteImage = async (image) => {
+    const confirmed = window.confirm(`Delete "${image.title}" from Shadow Gallery?`)
+    if (!confirmed) return
+
+    setBusyId(image.id)
+    setError('')
+    setMessage('')
+
+    try {
+      await apiRequest(`/api/admin/chat-story-gallery/${image.id}`, {
+        method: 'DELETE',
+      })
+
+      setImages((current) => current.filter((item) => item.id !== image.id))
+      setMessage('Image deleted successfully.')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setBusyId('')
+    }
   }
 
   return (
@@ -286,13 +510,24 @@ export default function ChatStoryGalleryPage() {
           color: #FFFFFF;
         }
 
-        .gallery-message {
+        .gallery-alert {
+          border: 0;
           border-radius: 14px;
-          background: #ECFDF5;
           padding: 12px 14px;
-          color: #047857;
+          font: inherit;
           font-size: 12px;
           font-weight: 800;
+          text-align: left;
+        }
+
+        .gallery-alert.success {
+          background: #ECFDF5;
+          color: #047857;
+        }
+
+        .gallery-alert.error {
+          background: #FEF2F2;
+          color: #B91C1C;
         }
 
         .gallery-grid {
@@ -343,8 +578,7 @@ export default function ChatStoryGalleryPage() {
         }
 
         .gallery-card-body {
-          position: relative;
-          padding: 13px 42px 14px 14px;
+          padding: 13px 14px 14px;
         }
 
         .gallery-card-title {
@@ -363,17 +597,34 @@ export default function ChatStoryGalleryPage() {
           font-weight: 750;
         }
 
-        .gallery-card-menu {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          width: 30px;
-          height: 30px;
-          border: 0;
-          border-radius: 9px;
+        .gallery-card-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .gallery-card-actions button {
+          min-height: 32px;
+          flex: 1;
+          border: 1px solid #E2E8F0;
+          border-radius: 10px;
           background: #F8FAFC;
-          color: #64748B;
+          color: #475569;
+          font: inherit;
+          font-size: 10px;
+          font-weight: 900;
           cursor: pointer;
+        }
+
+        .gallery-card-actions button.danger {
+          border-color: #FECACA;
+          background: #FEF2F2;
+          color: #DC2626;
+        }
+
+        .gallery-card-actions button:disabled {
+          cursor: wait;
+          opacity: 0.5;
         }
 
         .gallery-empty {
@@ -420,6 +671,16 @@ export default function ChatStoryGalleryPage() {
 
         .gallery-empty .gallery-button {
           margin-top: 18px;
+        }
+
+        .gallery-loading {
+          display: flex;
+          min-height: 320px;
+          align-items: center;
+          justify-content: center;
+          color: #64748B;
+          font-size: 13px;
+          font-weight: 800;
         }
 
         .gallery-modal-layer {
@@ -633,15 +894,37 @@ export default function ChatStoryGalleryPage() {
       `}</style>
 
       <div className="gallery-page">
-        {message ? <button type="button" className="gallery-message" onClick={() => setMessage('')}>{message}</button> : null}
+        {message ? (
+          <button
+            type="button"
+            className="gallery-alert success"
+            onClick={() => setMessage('')}
+          >
+            {message}
+          </button>
+        ) : null}
+
+        {error ? (
+          <button
+            type="button"
+            className="gallery-alert error"
+            onClick={() => setError('')}
+          >
+            {error}
+          </button>
+        ) : null}
 
         <section className="gallery-toolbar">
           <div className="gallery-toolbar-copy">
             <h2>Reusable Character Images</h2>
-            <p>Upload and organize images that authors can select from Shadow Gallery.</p>
+            <p>{images.length} images saved in Shadow Gallery.</p>
           </div>
 
-          <button type="button" className="gallery-button primary" onClick={() => setModalOpen(true)}>
+          <button
+            type="button"
+            className="gallery-button primary"
+            onClick={() => setModalOpen(true)}
+          >
             ＋ Add Images
           </button>
         </section>
@@ -668,21 +951,39 @@ export default function ChatStoryGalleryPage() {
           </div>
         </section>
 
-        {filteredImages.length ? (
+        {loading ? (
+          <section className="gallery-loading">Loading gallery images...</section>
+        ) : filteredImages.length ? (
           <section className="gallery-grid">
-            {filteredImages.map((image) => <ImageCard key={image.id} image={image} />)}
+            {filteredImages.map((image) => (
+              <ImageCard
+                key={image.id}
+                image={image}
+                busy={busyId === image.id}
+                onToggle={toggleImage}
+                onDelete={deleteImage}
+              />
+            ))}
           </section>
         ) : (
           <section className="gallery-empty">
             <div className="gallery-empty-icon">▧</div>
-            <h3>No gallery images yet</h3>
+            <h3>{images.length ? 'No matching images' : 'No gallery images yet'}</h3>
             <p>
-              Add character images here. After the backend connection is completed,
-              these images will appear inside the author’s Shadow Gallery.
+              {images.length
+                ? 'Try another search word or category.'
+                : 'Add character images here so authors can select them from Shadow Gallery.'}
             </p>
-            <button type="button" className="gallery-button primary" onClick={() => setModalOpen(true)}>
-              Add First Images
-            </button>
+
+            {!images.length ? (
+              <button
+                type="button"
+                className="gallery-button primary"
+                onClick={() => setModalOpen(true)}
+              >
+                Add First Images
+              </button>
+            ) : null}
           </section>
         )}
       </div>
@@ -690,14 +991,12 @@ export default function ChatStoryGalleryPage() {
       <AddImagesModal
         open={modalOpen}
         items={uploads}
+        loading={saving}
         onAddFiles={addFiles}
         onUpdate={updateUpload}
         onRemove={removeUpload}
         onClose={closeModal}
-        onContinue={() => {
-          setMessage('UI is ready. Backend upload and database save are the next stage.')
-          closeModal()
-        }}
+        onSave={saveUploads}
       />
     </AdminLayout>
   )
