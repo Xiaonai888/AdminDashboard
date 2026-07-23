@@ -37,6 +37,7 @@ import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 import AdminReportCenterPage from './pages/AdminReportCenterPage';
 import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
+import ChatStoryGalleryPage from './pages/ChatStoryGalleryPage';
 
 function ComingSoon({ title }) {
   return (
@@ -111,6 +112,7 @@ export default function App() {
         <Route path="/author-store/review" element={<ProtectedPage><AuthorStoreReviewPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
         <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
+        <Route path="/chat-story-gallery" element={<ProtectedPage><ChatStoryGalleryPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
