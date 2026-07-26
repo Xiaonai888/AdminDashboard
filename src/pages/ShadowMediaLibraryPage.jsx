@@ -28,6 +28,9 @@ function folderFromApi(folder) {
     name: folder.name,
     icon: folder.icon || '📁',
     description: folder.description || '',
+    coverUrl: folder.cover_image_url || '',
+    coverPreview: folder.cover_image_url || '',
+    coverFile: null,
     sortOrder: folder.sort_order || 0,
     active: folder.is_active !== false,
   }
@@ -69,6 +72,8 @@ function FolderModal({ open, folder, onClose, onSave }) {
   const [name, setName] = useState(folder?.name || '')
   const [icon, setIcon] = useState(folder?.icon || '📁')
   const [description, setDescription] = useState(folder?.description || '')
+  const [coverPreview, setCoverPreview] = useState(folder?.coverPreview || folder?.coverUrl || '')
+  const [coverFile, setCoverFile] = useState(null)
   const [sortOrder, setSortOrder] = useState(folder?.sortOrder || 1)
   const [active, setActive] = useState(folder?.active ?? true)
 
@@ -84,6 +89,66 @@ function FolderModal({ open, folder, onClose, onSave }) {
           </div>
           <button type="button" className="media-icon-button" onClick={onClose}>×</button>
         </div>
+
+        <label className="media-field wide">
+  <span>Folder Cover / Profile</span>
+
+  <div className="media-folder-cover-editor">
+    <label className="media-folder-cover-picker">
+      {coverPreview ? (
+        <img src={coverPreview} alt="Folder cover preview" />
+      ) : (
+        <div className="media-folder-cover-empty">
+          <i className="fa-regular fa-image" />
+          <small>Add square cover</small>
+        </div>
+      )}
+
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+
+          if (!file) return
+
+          if (coverPreview && coverPreview.startsWith('blob:')) {
+            URL.revokeObjectURL(coverPreview)
+          }
+
+          setCoverFile(file)
+          setCoverPreview(URL.createObjectURL(file))
+        }}
+      />
+    </label>
+
+    <div className="media-folder-cover-help">
+      <strong>Square profile image</strong>
+      <p>
+        Upload one image containing your four combined previews. It will appear
+        as the folder cover for authors.
+      </p>
+
+      {coverPreview ? (
+        <button
+          type="button"
+          onClick={() => {
+            if (coverPreview.startsWith('blob:')) {
+              URL.revokeObjectURL(coverPreview)
+            }
+
+            setCoverPreview('')
+            setCoverFile(null)
+          }}
+        >
+          Remove Cover
+        </button>
+      ) : null}
+    </div>
+  </div>
+</label>
 
         <div className="media-form-grid">
           <label className="media-field wide">
@@ -119,13 +184,16 @@ function FolderModal({ open, folder, onClose, onSave }) {
             className="media-button primary"
             disabled={!name.trim()}
             onClick={() => onSave({
-              id: folder?.id || `${Date.now()}`,
-              name: name.trim(),
-              icon: icon.trim() || '📁',
-              description: description.trim(),
-              sortOrder,
-              active,
-            })}
+  id: folder?.id || `${Date.now()}`,
+  name: name.trim(),
+  icon: icon.trim() || '📁',
+  description: description.trim(),
+  coverUrl: folder?.coverUrl || '',
+  coverPreview,
+  coverFile,
+  sortOrder,
+  active,
+})}
           >
             Save Folder
           </button>
@@ -546,6 +614,140 @@ export default function ShadowMediaLibraryPage() {
         .media-folder.active {
           background: #EEF2FF;
         }
+
+        .media-folder-card-layout {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.media-folder-cover {
+  width: 82px;
+  height: 82px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #F1F5F9;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.media-folder-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-folder-cover span {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.media-folder-card-copy {
+  min-width: 0;
+}
+
+.media-folder-description {
+  margin: 6px 0 0;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #64748B;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.media-folder-count {
+  margin-top: 7px;
+  color: #4F46E5;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.media-folder-actions {
+  margin: 9px 0 0 94px;
+}
+
+.media-folder-cover-editor {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  background: #F8FAFC;
+  padding: 14px;
+}
+
+.media-folder-cover-picker {
+  width: 126px;
+  height: 126px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1.5px dashed #A5B4FC;
+  border-radius: 22px;
+  background: #FFFFFF;
+  cursor: pointer;
+}
+
+.media-folder-cover-picker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-folder-cover-empty {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #4F46E5;
+}
+
+.media-folder-cover-empty i {
+  font-size: 25px;
+}
+
+.media-folder-cover-empty small {
+  color: #64748B;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.media-folder-cover-help strong {
+  color: #0F172A;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.media-folder-cover-help p {
+  max-width: 270px;
+  margin: 6px 0 0;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.media-folder-cover-help button {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #FEF2F2;
+  padding: 8px 12px;
+  color: #DC2626;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  cursor: pointer;
+}
 
         .media-folder-top {
           display: flex;
@@ -1066,6 +1268,16 @@ export default function ShadowMediaLibraryPage() {
             flex-direction: column;
           }
 
+          .media-folder-cover-editor {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.media-folder-cover-picker {
+  width: 112px;
+  height: 112px;
+}
+
           .media-content-head .media-button {
             width: 100%;
           }
@@ -1127,12 +1339,33 @@ export default function ShadowMediaLibraryPage() {
                   className={`media-folder ${selectedFolderId === folder.id ? 'active' : ''}`}
                   onClick={() => setSelectedFolderId(folder.id)}
                 >
-                  <div className="media-folder-top">
-                    <span className="media-folder-icon">{folder.icon}</span>
-                    <span className="media-folder-name">{folder.name}</span>
-                    <span className="media-folder-order">#{folder.sortOrder}</span>
-                  </div>
-                  <div className="media-folder-description">{folder.description || 'No description'}</div>
+                  <div className="media-folder-card-layout">
+  <div className="media-folder-cover">
+    {folder.coverPreview || folder.coverUrl ? (
+      <img
+        src={folder.coverPreview || folder.coverUrl}
+        alt={folder.name}
+      />
+    ) : (
+      <span>{folder.icon}</span>
+    )}
+  </div>
+
+  <div className="media-folder-card-copy">
+    <div className="media-folder-top">
+      <span className="media-folder-name">{folder.name}</span>
+      <span className="media-folder-order">#{folder.sortOrder}</span>
+    </div>
+
+    <div className="media-folder-description">
+      {folder.description || 'No description'}
+    </div>
+
+    <div className="media-folder-count">
+      {images.filter((image) => image.folderId === folder.id).length} images
+    </div>
+  </div>
+</div>
                 </button>
 
                 <div className="media-folder-actions">
