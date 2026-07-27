@@ -268,7 +268,19 @@ function FolderModal({ open, folder, onClose, onSave }) {
   )
 }
 
-function UploadModal({ open, folders, selectedFolderId, items, onAddFiles, onUpdate, onRemove, onClose, onSave }) {
+function UploadModal({
+  open,
+  folders,
+  selectedFolderId,
+  items,
+  error,
+  uploading,
+  onAddFiles,
+  onUpdate,
+  onRemove,
+  onClose,
+  onSave,
+}) {
   const inputRef = useRef(null)
 
   if (!open) return null
@@ -305,8 +317,14 @@ function UploadModal({ open, folders, selectedFolderId, items, onAddFiles, onUpd
           </button>
         </ImageDropZone>
 
+        {error ? <div className="media-upload-error">{error}</div> : null}
+
         {items.length ? (
-          <div className="media-upload-list">
+          <>
+            <div className="media-upload-summary">
+              {items.length} of 20 images ready
+            </div>
+            <div className="media-upload-list">
             {items.map((item) => (
               <div key={item.id} className="media-upload-row">
                 <img src={item.previewUrl} alt="" />
@@ -341,13 +359,23 @@ function UploadModal({ open, folders, selectedFolderId, items, onAddFiles, onUpd
                 </button>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         ) : null}
 
         <div className="media-modal-actions">
           <button type="button" className="media-button light" onClick={onClose}>Cancel</button>
-          <button type="button" className="media-button primary" disabled={!items.length} onClick={onSave}>
-            Add to Library
+          <button
+            type="button"
+            className="media-button primary"
+            disabled={uploading || !items.length || !selectedFolderId}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onSave()
+            }}
+          >
+            {uploading ? 'Uploading...' : 'Add to Library'}
           </button>
         </div>
       </div>
@@ -393,6 +421,8 @@ export default function ShadowMediaLibraryPage() {
   const [editingFolder, setEditingFolder] = useState(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploads, setUploads] = useState([])
+  const [uploadError, setUploadError] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   const loadLibrary = async () => {
     try {
@@ -528,21 +558,67 @@ export default function ShadowMediaLibraryPage() {
   }
 
   const addFiles = (files) => {
+    if (!selectedFolderId) {
+      setUploadError('Please select a folder before adding images.')
+      return
+    }
+
+    const allowedTypes = new Set([
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+      'image/avif',
+    ])
+    const maxSize = 20 * 1024 * 1024
+    const selected = Array.from(files || [])
+    const invalidTypeCount = selected.filter((file) => !allowedTypes.has(file.type)).length
+    const oversizedCount = selected.filter((file) => allowedTypes.has(file.type) && file.size > maxSize).length
+
     setUploads((current) => {
       const remainingSlots = Math.max(0, 20 - current.length)
-      const validFiles = files
-        .filter((file) => file.type.startsWith('image/'))
-        .filter((file) => file.size <= 5 * 1024 * 1024)
+      const accepted = selected
+        .filter((file) => allowedTypes.has(file.type))
+        .filter((file) => file.size <= maxSize)
         .slice(0, remainingSlots)
+
+      if (!accepted.length) {
+        if (oversizedCount) {
+          setUploadError('Each image must be 20 MB or smaller.')
+        } else if (invalidTypeCount) {
+          setUploadError('Only JPEG, PNG, WEBP, GIF or AVIF images are allowed.')
+        } else if (!remainingSlots) {
+          setUploadError('You can add a maximum of 20 images at one time.')
+        } else {
+          setUploadError('No valid image was selected.')
+        }
+
+        return current
+      }
+
+      if (selected.length > accepted.length) {
+        if (!remainingSlots) {
+          setUploadError('You can add a maximum of 20 images at one time.')
+        } else if (oversizedCount) {
+          setUploadError('Some images were skipped because they are larger than 20 MB.')
+        } else if (invalidTypeCount) {
+          setUploadError('Some files were skipped because their image type is not supported.')
+        } else {
+          setUploadError('Only the first 20 images were added.')
+        }
+      } else {
+        setUploadError('')
+      }
 
       return [
         ...current,
-        ...validFiles.map((file) => makePreview(file, selectedFolderId)),
+        ...accepted.map((file) => makePreview(file, selectedFolderId)),
       ]
     })
   }
 
   const updateUpload = (id, patch) => {
+    setUploadError('')
     setUploads((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)))
   }
 
@@ -555,12 +631,35 @@ export default function ShadowMediaLibraryPage() {
   }
 
   const closeUpload = () => {
+    if (uploading) return
     uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
     setUploads([])
+    setUploadError('')
     setUploadOpen(false)
   }
 
   const saveUploads = async () => {
+    if (uploading) return
+
+    if (!selectedFolderId) {
+      setUploadError('Please select a folder before adding images.')
+      return
+    }
+
+    if (!uploads.length) {
+      setUploadError('Choose at least one valid image first.')
+      return
+    }
+
+    const invalidFolder = uploads.some((item) => !(item.folderId || selectedFolderId))
+    if (invalidFolder) {
+      setUploadError('Every image must have a folder.')
+      return
+    }
+
+    setUploadError('')
+    setUploading(true)
+
     try {
       const formData = new FormData()
       uploads.forEach((item) => formData.append('images', item.file))
@@ -601,9 +700,12 @@ export default function ShadowMediaLibraryPage() {
       uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
       setImages((current) => [...current, ...created])
       setUploads([])
+      setUploadError('')
       setUploadOpen(false)
     } catch (error) {
-      window.alert(error.message)
+      setUploadError(error.message || 'Failed to add images to the library.')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -1354,11 +1456,29 @@ export default function ShadowMediaLibraryPage() {
           font-weight: 700;
         }
 
+        .media-upload-error {
+          margin-top: 14px;
+          border: 1px solid #FECACA;
+          border-radius: 12px;
+          background: #FEF2F2;
+          padding: 10px 12px;
+          color: #DC2626;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .media-upload-summary {
+          margin-top: 14px;
+          color: #4F46E5;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
         .media-upload-list {
           display: flex;
           flex-direction: column;
           gap: 10px;
-          margin-top: 18px;
+          margin-top: 10px;
         }
 
         .media-upload-row {
@@ -1637,6 +1757,8 @@ export default function ShadowMediaLibraryPage() {
         folders={sortedFolders}
         selectedFolderId={selectedFolderId}
         items={uploads}
+        error={uploadError}
+        uploading={uploading}
         onAddFiles={addFiles}
         onUpdate={updateUpload}
         onRemove={removeUpload}
