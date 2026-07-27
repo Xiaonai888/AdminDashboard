@@ -79,6 +79,62 @@ function FolderModal({ open, folder, onClose, onSave }) {
   const [removeCover, setRemoveCover] = useState(false)
   const [sortOrder, setSortOrder] = useState(folder?.sortOrder || 1)
   const [active, setActive] = useState(folder?.active ?? true)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const chooseCover = (file) => {
+    if (!file) return
+
+    if (!String(file.type || '').startsWith('image/')) {
+      setError('Please choose an image file.')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Folder cover must be 5 MB or smaller.')
+      return
+    }
+
+    if (coverPreview && coverPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(coverPreview)
+    }
+
+    setCoverFile(file)
+    setCoverPreview(URL.createObjectURL(file))
+    setRemoveCover(false)
+    setError('')
+  }
+
+  const handleSave = async () => {
+    const cleanName = name.trim()
+
+    if (!cleanName) {
+      setError('Folder name is required.')
+      return
+    }
+
+    if (saving) return
+
+    setError('')
+    setSaving(true)
+
+    try {
+      await onSave({
+        id: folder?.id || `${Date.now()}`,
+        name: cleanName,
+        icon: icon.trim() || '📁',
+        description: description.trim(),
+        coverUrl: folder?.coverUrl || '',
+        coverPreview,
+        coverFile,
+        removeCover,
+        sortOrder,
+        active,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (!open) return null
 
@@ -93,7 +149,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
           <button type="button" className="media-icon-button" onClick={onClose}>×</button>
         </div>
 
-        <label className="media-field wide">
+        <div className="media-field wide">
   <span>Folder Cover / Profile</span>
 
   <div className="media-folder-cover-editor">
@@ -103,13 +159,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
         const file = files[0]
         if (!file) return
 
-        if (coverPreview && coverPreview.startsWith('blob:')) {
-          URL.revokeObjectURL(coverPreview)
-        }
-
-        setCoverFile(file)
-        setCoverPreview(URL.createObjectURL(file))
-        setRemoveCover(false)
+        chooseCover(file)
       }}
     >
       <label className="media-folder-cover-picker">
@@ -130,15 +180,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
             const file = event.target.files?.[0]
             event.target.value = ''
 
-            if (!file) return
-
-            if (coverPreview && coverPreview.startsWith('blob:')) {
-              URL.revokeObjectURL(coverPreview)
-            }
-
-            setCoverFile(file)
-            setCoverPreview(URL.createObjectURL(file))
-            setRemoveCover(false)
+            chooseCover(file)
           }}
         />
       </label>
@@ -162,6 +204,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
             setCoverPreview('')
             setCoverFile(null)
             setRemoveCover(Boolean(folder?.coverUrl))
+            setError('')
           }}
         >
           Remove Cover
@@ -169,12 +212,23 @@ function FolderModal({ open, folder, onClose, onSave }) {
       ) : null}
     </div>
   </div>
-</label>
+</div>
 
         <div className="media-form-grid">
           <label className="media-field wide">
             <span>Folder Name</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Example: School Locations" />
+            <input
+              autoFocus
+              value={name}
+              className={error && !name.trim() ? 'error' : ''}
+              aria-invalid={Boolean(error && !name.trim())}
+              onChange={(event) => {
+                setName(event.target.value)
+                if (error) setError('')
+              }}
+              placeholder="Example: School Locations"
+            />
+            {error ? <small className="media-field-error">{error}</small> : null}
           </label>
 
           <label className="media-field">
@@ -203,21 +257,10 @@ function FolderModal({ open, folder, onClose, onSave }) {
           <button
             type="button"
             className="media-button primary"
-            disabled={!name.trim()}
-            onClick={() => onSave({
-  id: folder?.id || `${Date.now()}`,
-  name: name.trim(),
-  icon: icon.trim() || '📁',
-  description: description.trim(),
-  coverUrl: folder?.coverUrl || '',
-  coverPreview,
-  coverFile,
-  removeCover,
-  sortOrder,
-  active,
-})}
+            disabled={saving}
+            onClick={handleSave}
           >
-            Save Folder
+            {saving ? 'Saving...' : 'Save Folder'}
           </button>
         </div>
       </div>
@@ -775,8 +818,10 @@ export default function ShadowMediaLibraryPage() {
   display: flex;
   gap: 16px;
   align-items: center;
+  overflow: hidden;
+  box-sizing: border-box;
   border: 1px solid #E2E8F0;
-  border-radius: 18px;
+  border-radius: 20px;
   background: #F8FAFC;
   padding: 14px;
 }
@@ -959,6 +1004,11 @@ export default function ShadowMediaLibraryPage() {
           border: 1px solid #E2E8F0;
           background: #FFFFFF;
           color: #475569;
+        }
+
+        .media-button:disabled {
+          cursor: wait;
+          opacity: 0.65;
         }
 
         .media-toolbar {
@@ -1145,10 +1195,20 @@ export default function ShadowMediaLibraryPage() {
           width: min(620px, 100%);
           max-height: 90vh;
           overflow-y: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          box-sizing: border-box;
+          border: 1px solid #E2E8F0;
           border-radius: 24px;
           background: #FFFFFF;
           padding: 24px;
           box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+        }
+
+        .media-modal::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
         }
 
         .media-modal.large {
@@ -1231,6 +1291,17 @@ export default function ShadowMediaLibraryPage() {
           font-size: 12px;
           font-weight: 700;
           outline: none;
+        }
+
+        .media-field input.error {
+          border-color: #EF4444;
+          background: #FEF2F2;
+        }
+
+        .media-field-error {
+          color: #DC2626;
+          font-size: 10px;
+          font-weight: 850;
         }
 
         .media-switch-row {
