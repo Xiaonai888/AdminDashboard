@@ -31,6 +31,7 @@ function folderFromApi(folder) {
     description: folder.description || '',
     coverUrl: folder.cover_image_url || '',
     coverPreview: folder.cover_image_url || '',
+    coverStorageKey: folder.cover_storage_key || '',
     coverFile: null,
     sortOrder: folder.sort_order || 0,
     active: folder.is_active !== false,
@@ -75,6 +76,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
   const [description, setDescription] = useState(folder?.description || '')
   const [coverPreview, setCoverPreview] = useState(folder?.coverPreview || folder?.coverUrl || '')
   const [coverFile, setCoverFile] = useState(null)
+  const [removeCover, setRemoveCover] = useState(false)
   const [sortOrder, setSortOrder] = useState(folder?.sortOrder || 1)
   const [active, setActive] = useState(folder?.active ?? true)
 
@@ -107,6 +109,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
 
         setCoverFile(file)
         setCoverPreview(URL.createObjectURL(file))
+        setRemoveCover(false)
       }}
     >
       <label className="media-folder-cover-picker">
@@ -121,7 +124,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
 
         <input
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
           hidden
           onChange={(event) => {
             const file = event.target.files?.[0]
@@ -135,6 +138,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
 
             setCoverFile(file)
             setCoverPreview(URL.createObjectURL(file))
+            setRemoveCover(false)
           }}
         />
       </label>
@@ -157,6 +161,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
 
             setCoverPreview('')
             setCoverFile(null)
+            setRemoveCover(Boolean(folder?.coverUrl))
           }}
         >
           Remove Cover
@@ -207,6 +212,7 @@ function FolderModal({ open, folder, onClose, onSave }) {
   coverUrl: folder?.coverUrl || '',
   coverPreview,
   coverFile,
+  removeCover,
   sortOrder,
   active,
 })}
@@ -239,7 +245,7 @@ function UploadModal({ open, folders, selectedFolderId, items, onAddFiles, onUpd
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
           multiple
           hidden
           onChange={(event) => {
@@ -399,13 +405,44 @@ export default function ShadowMediaLibraryPage() {
         }),
       })
 
-      const saved = folderFromApi(data.folder)
+      let saved = folderFromApi(data.folder)
+
+      if (folder.coverFile) {
+        const formData = new FormData()
+        formData.append('cover', folder.coverFile)
+
+        const coverData = await apiRequest(
+          `/api/admin/media-library/folders/${saved.id}/cover`,
+          {
+            method: 'POST',
+            body: formData,
+          }
+        )
+
+        saved = folderFromApi(coverData.folder)
+
+        if (coverData.cleanup_warning) {
+          window.alert(`Folder saved. Old R2 cover cleanup warning: ${coverData.cleanup_warning}`)
+        }
+      } else if (folder.removeCover && saved.coverUrl) {
+        const coverData = await apiRequest(
+          `/api/admin/media-library/folders/${saved.id}/cover`,
+          { method: 'DELETE' }
+        )
+
+        saved = folderFromApi(coverData.folder)
+
+        if (coverData.cleanup_warning) {
+          window.alert(`Folder saved. R2 cover cleanup warning: ${coverData.cleanup_warning}`)
+        }
+      }
+
       setFolders((current) =>
         existing
           ? current.map((item) => (item.id === saved.id ? saved : item))
           : [...current, saved]
       )
-      if (!selectedFolderId) setSelectedFolderId(saved.id)
+      setSelectedFolderId(saved.id)
       setFolderModalOpen(false)
       setEditingFolder(null)
     } catch (error) {
@@ -419,11 +456,15 @@ export default function ShadowMediaLibraryPage() {
     if (!confirmed) return
 
     try {
-      await apiRequest(`/api/admin/media-library/folders/${folderId}`, { method: 'DELETE' })
+      const data = await apiRequest(`/api/admin/media-library/folders/${folderId}`, { method: 'DELETE' })
       const remaining = folders.filter((item) => item.id !== folderId)
       setFolders(remaining)
       setImages((current) => current.filter((image) => image.folderId !== folderId))
       setSelectedFolderId(remaining[0]?.id || '')
+
+      if (data.cleanup_warning) {
+        window.alert(`Folder deleted. R2 cleanup warning: ${data.cleanup_warning}`)
+      }
     } catch (error) {
       window.alert(error.message)
     }
@@ -444,11 +485,18 @@ export default function ShadowMediaLibraryPage() {
   }
 
   const addFiles = (files) => {
-    const validFiles = files.filter((file) => file.type.startsWith('image/')).slice(0, 20)
-    setUploads((current) => [
-      ...current,
-      ...validFiles.map((file) => makePreview(file, selectedFolderId)),
-    ])
+    setUploads((current) => {
+      const remainingSlots = Math.max(0, 20 - current.length)
+      const validFiles = files
+        .filter((file) => file.type.startsWith('image/'))
+        .filter((file) => file.size <= 5 * 1024 * 1024)
+        .slice(0, remainingSlots)
+
+      return [
+        ...current,
+        ...validFiles.map((file) => makePreview(file, selectedFolderId)),
+      ]
+    })
   }
 
   const updateUpload = (id, patch) => {
@@ -552,8 +600,12 @@ export default function ShadowMediaLibraryPage() {
     if (!window.confirm(`Delete "${image?.title || 'this image'}"?`)) return
 
     try {
-      await apiRequest(`/api/admin/media-library/images/${imageId}`, { method: 'DELETE' })
+      const data = await apiRequest(`/api/admin/media-library/images/${imageId}`, { method: 'DELETE' })
       setImages((current) => current.filter((item) => item.id !== imageId))
+
+      if (data.cleanup_warning) {
+        window.alert(`Image deleted. R2 cleanup warning: ${data.cleanup_warning}`)
+      }
     } catch (error) {
       window.alert(error.message)
     }
@@ -1499,7 +1551,7 @@ export default function ShadowMediaLibraryPage() {
       </div>
 
       <FolderModal
-        key={editingFolder?.id || 'new-folder'}
+        key={`${editingFolder?.id || 'new-folder'}-${folderModalOpen}`}
         open={folderModalOpen}
         folder={editingFolder}
         onClose={() => {
