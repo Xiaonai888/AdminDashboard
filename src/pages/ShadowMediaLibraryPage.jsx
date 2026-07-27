@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import ImageDropZone from '../components/common/ImageDropZone'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -94,35 +95,50 @@ function FolderModal({ open, folder, onClose, onSave }) {
   <span>Folder Cover / Profile</span>
 
   <div className="media-folder-cover-editor">
-    <label className="media-folder-cover-picker">
-      {coverPreview ? (
-        <img src={coverPreview} alt="Folder cover preview" />
-      ) : (
-        <div className="media-folder-cover-empty">
-          <i className="fa-regular fa-image" />
-          <small>Add square cover</small>
-        </div>
-      )}
+    <ImageDropZone
+      label="Drop folder cover here"
+      onFiles={(files) => {
+        const file = files[0]
+        if (!file) return
 
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        hidden
-        onChange={(event) => {
-          const file = event.target.files?.[0]
-          event.target.value = ''
+        if (coverPreview && coverPreview.startsWith('blob:')) {
+          URL.revokeObjectURL(coverPreview)
+        }
 
-          if (!file) return
+        setCoverFile(file)
+        setCoverPreview(URL.createObjectURL(file))
+      }}
+    >
+      <label className="media-folder-cover-picker">
+        {coverPreview ? (
+          <img src={coverPreview} alt="Folder cover preview" />
+        ) : (
+          <div className="media-folder-cover-empty">
+            <i className="fa-regular fa-image" />
+            <small>Add square cover</small>
+          </div>
+        )}
 
-          if (coverPreview && coverPreview.startsWith('blob:')) {
-            URL.revokeObjectURL(coverPreview)
-          }
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
 
-          setCoverFile(file)
-          setCoverPreview(URL.createObjectURL(file))
-        }}
-      />
-    </label>
+            if (!file) return
+
+            if (coverPreview && coverPreview.startsWith('blob:')) {
+              URL.revokeObjectURL(coverPreview)
+            }
+
+            setCoverFile(file)
+            setCoverPreview(URL.createObjectURL(file))
+          }}
+        />
+      </label>
+    </ImageDropZone>
 
     <div className="media-folder-cover-help">
       <strong>Square profile image</strong>
@@ -232,11 +248,13 @@ function UploadModal({ open, folders, selectedFolderId, items, onAddFiles, onUpd
           }}
         />
 
-        <button type="button" className="media-dropzone" onClick={() => inputRef.current?.click()}>
-          <span className="media-dropzone-icon">＋</span>
-          <strong>Choose images from device</strong>
-          <small>People, places, objects, backgrounds, effects or anything else</small>
-        </button>
+        <ImageDropZone multiple label="Drop images here" onFiles={onAddFiles}>
+          <button type="button" className="media-dropzone" onClick={() => inputRef.current?.click()}>
+            <span className="media-dropzone-icon">＋</span>
+            <strong>Choose or drop images</strong>
+            <small>People, places, objects, backgrounds, effects or anything else</small>
+          </button>
+        </ImageDropZone>
 
         {items.length ? (
           <div className="media-upload-list">
@@ -547,6 +565,34 @@ export default function ShadowMediaLibraryPage() {
       subtitle="Organize people, locations, objects, backgrounds and any reusable images."
     >
       <style>{`
+        .image-drop-zone {
+          position: relative;
+          border-radius: inherit;
+        }
+
+        .image-drop-zone.dragging {
+          outline: 2px solid #4F46E5;
+          outline-offset: 3px;
+        }
+
+        .image-drop-zone-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 50;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: inherit;
+          background: rgba(15, 23, 42, 0.82);
+          padding: 16px;
+          color: #FFFFFF;
+          font-size: 13px;
+          font-weight: 900;
+          text-align: center;
+          backdrop-filter: blur(4px);
+          pointer-events: none;
+        }
+
         .media-library {
           display: grid;
           grid-template-columns: 280px minmax(0, 1fr);
