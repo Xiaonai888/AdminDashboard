@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
+import AdminSidebar from '../components/AdminSidebar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SLOTS = [1, 2, 3, 4, 5, 6, 7];
@@ -13,10 +14,9 @@ const SECTIONS = [
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-  :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--success:#10B981;--successBg:#D1FAE5;--danger:#EF4444;--dangerBg:#FEE2E2;--side:80px;--sideOpen:260px}
-  *{box-sizing:border-box;margin:0;padding:0} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
-  .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}.sidebar{width:var(--side);background:#fff;border-right:1px solid var(--border);padding:20px 14px;overflow:auto;overflow-x:hidden;transition:.25s;flex-shrink:0}.sidebar:hover{width:var(--sideOpen);box-shadow:10px 0 30px rgba(15,23,42,.05)}
-  .sidebar-logo{height:40px;display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-left:10px}.logo-text{opacity:0;white-space:nowrap;color:var(--primary);font-weight:900;font-size:18px}.sidebar:hover .logo-text,.sidebar:hover .nav-text,.sidebar:hover .nav-group-label{opacity:1}.nav-group-label{opacity:0;display:block;margin:18px 0 8px 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;color:var(--soft);white-space:nowrap}.nav-item{height:44px;display:flex;align-items:center;border-radius:12px;padding:0 12px;color:var(--muted);cursor:pointer;margin-bottom:2px;font-weight:700;white-space:nowrap}.nav-item:hover,.nav-item.active{background:var(--light);color:var(--primary)}.nav-text{opacity:0;margin-left:14px;transition:.2s}
+  :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--success:#10B981;--successBg:#D1FAE5;--danger:#EF4444;--dangerBg:#FEE2E2}
+  *{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+  .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}
   .main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900}.content-body{padding:28px 36px 48px;max-width:1600px;margin:0 auto}.page-title-row{margin-bottom:22px}.page-title-row h1{font-size:27px;font-weight:900;letter-spacing:-.04em}.page-title-row p{font-size:13.5px;color:var(--muted);margin-top:5px}
   .section-tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}.section-tab{height:42px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#475569;padding:0 18px;font-weight:900;cursor:pointer}.section-tab.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 10px 20px rgba(79,70,229,.18)}
   .manager-shell{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,.7fr);gap:24px;align-items:start}.panel{background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:0 8px 28px rgba(15,23,42,.06);overflow:hidden}.panel-header{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;align-items:center}.panel-header h3{font-size:16px;font-weight:900}.panel-header p{font-size:12.5px;color:var(--muted);margin-top:4px}.count-pill{font-size:12px;font-weight:800;color:var(--primary);background:var(--light);border:1px solid #E0E7FF;padding:7px 11px;border-radius:999px}
@@ -28,61 +28,8 @@ const styles = `
   .btn-row{display:grid;gap:10px;margin-top:16px}.btn-primary,.btn-secondary,.btn-danger{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled,.btn-danger:disabled{opacity:.55;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}.btn-danger{background:#fff;color:#B91C1C;border:1px solid #FCA5A5}.btn-danger:hover{background:var(--dangerBg)}
   .message{padding:12px 14px;border-radius:13px;margin-bottom:14px;font-size:13px;font-weight:800;line-height:1.45}.message.success{background:var(--successBg);color:#047857}.message.error{background:var(--dangerBg);color:#B91C1C}.message.info{background:var(--light);color:var(--primary)}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
   .records-panel{margin-top:24px}.records-list{padding:18px}.record-empty{padding:18px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:13px}.record-item{display:grid;grid-template-columns:120px 1fr 150px;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid #F1F5F9}.record-action{display:inline-flex;align-items:center;justify-content:center;width:max-content;min-width:86px;padding:6px 10px;border-radius:999px;font-weight:900;font-size:11px;letter-spacing:.35px;text-transform:uppercase}.record-action.update{background:#EEF2FF;color:#4F46E5}.record-action.create{background:#D1FAE5;color:#047857}.record-action.visibility{background:#FEF3C7;color:#B45309}.record-action.delete{background:#FEE2E2;color:#DC2626}.record-action.default{background:#F1F5F9;color:#475569}.record-detail{font-size:13px;color:#334155;line-height:1.45}.record-time{text-align:right;font-size:12px;color:var(--muted)}.records-footer{padding:0 18px 18px;display:flex;justify-content:flex-end;align-items:center;gap:10px}.page-btn{border:1px solid var(--border);background:#fff;border-radius:12px;padding:10px 14px;font-weight:900;cursor:pointer}.page-btn:disabled{opacity:.45;cursor:not-allowed}.page-info{font-size:12px;font-weight:900;color:#475569}
-  @media(max-width:1200px){.manager-shell{grid-template-columns:1fr}.editor-panel{position:static}}@media(max-width:900px){.content-body{padding:22px 16px}.header{padding:0 18px}.slots-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.record-item{grid-template-columns:1fr}.record-time{text-align:left}}@media(max-width:520px){.slots-grid{grid-template-columns:1fr}}
+  @media(max-width:1200px){.manager-shell{grid-template-columns:1fr}.editor-panel{position:static}}@media(max-width:900px){.content-body{padding:22px 16px}.header{padding:0 18px}.slots-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.record-item{grid-template-columns:1fr}.record-time{text-align:left}}@media(max-width:520px){.slots-grid{grid-template-columns:1fr}}
 `;
-
-const Icon = ({ d, size = 20, color }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || 'currentColor'} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ minWidth: `${size}px`, flexShrink: 0 }}>
-    <path d={d} />
-  </svg>
-);
-
-const navItems = {
-  overview: [
-    { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-    { path: '/shadow-mall', label: 'Shadow Mall', icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6' },
-    { path: '/shadow-exclusive', label: 'Shadow Exclusive', icon: 'M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z M9 12l2 2 4-5' },
-    { path: '/novels', label: 'Novels Content', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
-    { path: '/authors', label: 'Community', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' }
-  ],
-  visualMedia: [
-    { path: '/slides', label: 'Slide Section', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
-    { path: '/banners', label: 'Banner System', icon: 'M3 3h18v18H3z M3 9h18 M9 3v18' },
-    { path: '/genres', label: 'Genre', icon: 'M4 6h16M4 12h16M4 18h16' },
-    { path: '/comments', label: 'Comments', icon: 'M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z' },
-    { path: '/advertisement', label: 'Advertisement', icon: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z' },
-    { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-  ],
-  systemAdmin: [
-    { path: '/category', label: 'Category', icon: 'M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z' },
-    { path: '/rule', label: 'Rule', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
-    { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
-    { path: '/block-list', label: 'Block List', icon: 'M18.36 6.64L5.64 19.36m0-12.72l12.72 12.72M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z' },
-  ],
-};
-
-function Sidebar() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const renderGroup = (items) => items.map((item) => (
-    <div key={item.path} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-      <Icon d={item.icon} size={20} />
-      <span className="nav-text">{item.label}</span>
-    </div>
-  ));
-
-  return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
-        <span className="logo-text">Shadow Exclusive</span>
-      </div>
-      <span className="nav-group-label">Overview</span>{renderGroup(navItems.overview)}
-      <span className="nav-group-label">Visual Media</span>{renderGroup(navItems.visualMedia)}
-      <span className="nav-group-label">System Admin</span>{renderGroup(navItems.systemAdmin)}
-    </aside>
-  );
-}
 
 function getLatestSlide(slides, slotNumber) {
   return slides
@@ -101,31 +48,23 @@ function getAdminToken() {
 
 function getRecordActionClass(action) {
   const value = String(action || '').toLowerCase();
-
   if (value === 'create') return 'create';
   if (value === 'delete') return 'delete';
   if (value === 'visibility') return 'visibility';
   if (value === 'update') return 'update';
-
   return 'default';
 }
 
 function parseBadgeTitle(value = '') {
-  const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i)
-
-  if (!match) {
-    return { badge: '', title: value || '' }
-  }
-
-  return { badge: match[1].toUpperCase(), title: match[2] || '' }
+  const match = String(value).match(/^\[(NEW|HOT|TOP)\]\s*(.*)$/i);
+  if (!match) return { badge: '', title: value || '' };
+  return { badge: match[1].toUpperCase(), title: match[2] || '' };
 }
 
 function buildBadgeTitle(badge, title) {
-  const cleanTitle = String(title || '').replace(/^\[(NEW|HOT|TOP)\]\s*/i, '').trim()
-
-  if (!badge) return cleanTitle
-
-  return `[${badge}] ${cleanTitle}`
+  const cleanTitle = String(title || '').replace(/^\[(NEW|HOT|TOP)\]\s*/i, '').trim();
+  if (!badge) return cleanTitle;
+  return `[${badge}] ${cleanTitle}`;
 }
 
 export default function SlideSection() {
@@ -150,20 +89,20 @@ export default function SlideSection() {
   const [authExpired, setAuthExpired] = useState(false);
 
   const currentSection = SECTIONS.find((item) => item.key === sectionKey) || SECTIONS[0];
-  const slotMap = useMemo(() => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}), [slides]);
+  const slotMap = useMemo(
+    () => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}),
+    [slides],
+  );
   const selectedSlide = slotMap[selectedSlot];
 
   const apiFetch = async (url, options = {}) => {
     const token = getAdminToken();
-
     const headers = {
       ...(options.headers || {}),
       'X-Admin-Name': 'Admin',
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(url, {
       ...options,
@@ -203,7 +142,7 @@ export default function SlideSection() {
       setRecords(data.records || []);
       setRecordPage(data.page || page);
       setRecordTotalPages(data.total_pages || 1);
-    } catch (error) {
+    } catch {
       setRecords([]);
     } finally {
       setRecordsLoading(false);
@@ -221,13 +160,13 @@ export default function SlideSection() {
     fetchRecords(1, sectionKey);
   }, [sectionKey]);
 
-useEffect(() => {
-  const slide = slotMap[selectedSlot];
-  const parsedTitle = parseBadgeTitle(slide?.title || '');
-  setBadge(parsedTitle.badge);
-  setTitle(parsedTitle.title);
-  setGenreLabel(slide?.genre_label || '');
-  setSubtitle(slide?.subtitle || '');
+  useEffect(() => {
+    const slide = slotMap[selectedSlot];
+    const parsedTitle = parseBadgeTitle(slide?.title || '');
+    setBadge(parsedTitle.badge);
+    setTitle(parsedTitle.title);
+    setGenreLabel(slide?.genre_label || '');
+    setSubtitle(slide?.subtitle || '');
     setLinkUrl(slide?.link_url || '/story/1');
     setIsActive(slide?.is_active ?? true);
     setSelectedFile(null);
@@ -260,10 +199,7 @@ useEffect(() => {
       const formData = new FormData();
       if (selectedFile) formData.append('image', selectedFile);
       formData.append('section_key', sectionKey);
-      formData.append(
-  'title',
-  buildBadgeTitle(badge, title || `${currentSection.label} ${selectedSlot}`)
-);
+      formData.append('title', buildBadgeTitle(badge, title || `${currentSection.label} ${selectedSlot}`));
       formData.append('subtitle', subtitle);
       formData.append('genre_label', genreLabel);
       formData.append('link_url', linkUrl || '/');
@@ -272,7 +208,6 @@ useEffect(() => {
 
       const url = selectedSlide ? `${API_URL}/api/slides/${selectedSlide.id}` : `${API_URL}/api/slides`;
       const method = selectedSlide ? 'PUT' : 'POST';
-
       await apiFetch(url, { method, body: formData });
 
       setMessage({
@@ -341,23 +276,22 @@ useEffect(() => {
 
   const currentPreview = localPreviewUrl || selectedSlide?.image_url || '';
 
-  if (authExpired) {
-    return <Navigate to="/login" replace />;
-  }
+  if (authExpired) return <Navigate to="/login" replace />;
 
   return (
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
-        <Sidebar />
+        <AdminSidebar />
         <div className="main-content">
           <header className="header">
             <h2>Slide Management</h2>
           </header>
+
           <main className="content-body">
             <div className="page-title-row">
               <h1>Slide Section</h1>
-              <p>Manage Home Slide, Event Slide, and Mall Slide from one place.</p>
+              <p>Manage Home Slide, Manga Slide, Event Slide, and Mall Slide from one place.</p>
             </div>
 
             <div className="section-tabs">
@@ -381,21 +315,41 @@ useEffect(() => {
             <div className="manager-shell">
               <section className="panel">
                 <div className="panel-header">
-                  <div><h3>Slide Slots</h3><p>Seven fixed slots. Select a card to manage its content.</p></div>
+                  <div>
+                    <h3>Slide Slots</h3>
+                    <p>Seven fixed slots. Select a card to manage its content.</p>
+                  </div>
                   <span className="count-pill">{slides.length} records</span>
                 </div>
+
                 <div className="slots-grid">
                   {SLOTS.map((slot) => {
                     const slide = slotMap[slot];
                     const statusClass = !slide ? 'empty' : slide.is_active === false ? 'inactive' : 'active';
+
                     return (
-                      <button type="button" key={slot} className={`slot-card ${selectedSlot === slot ? 'selected' : ''}`} onClick={() => setSelectedSlot(slot)}>
+                      <button
+                        type="button"
+                        key={slot}
+                        className={`slot-card ${selectedSlot === slot ? 'selected' : ''}`}
+                        onClick={() => setSelectedSlot(slot)}
+                      >
                         <div className="slot-preview">
                           <span className="slot-number">Slide {slot}</span>
-                          <span className={`slot-status ${statusClass}`}>{!slide ? 'EMPTY' : slide.is_active === false ? 'INACTIVE' : 'ACTIVE'}</span>
-                          {slide?.image_url ? <img src={slide.image_url} alt={slide.title || `Slide ${slot}`} /> : <div className="empty-preview">No image assigned</div>}
+                          <span className={`slot-status ${statusClass}`}>
+                            {!slide ? 'EMPTY' : slide.is_active === false ? 'INACTIVE' : 'ACTIVE'}
+                          </span>
+                          {slide?.image_url ? (
+                            <img src={slide.image_url} alt={slide.title || `Slide ${slot}`} />
+                          ) : (
+                            <div className="empty-preview">No image assigned</div>
+                          )}
                         </div>
-                        <div className="slot-meta"><div className="slot-title">{slide?.title || `Slide ${slot}`}</div><div className="slot-link">{slide?.link_url || 'No link set'}</div></div>
+
+                        <div className="slot-meta">
+                          <div className="slot-title">{slide?.title || `Slide ${slot}`}</div>
+                          <div className="slot-link">{slide?.link_url || 'No link set'}</div>
+                        </div>
                       </button>
                     );
                   })}
@@ -403,52 +357,111 @@ useEffect(() => {
               </section>
 
               <section className="panel editor-panel">
-                <div className="panel-header"><div><h3>Edit Slide {selectedSlot}</h3><p>Update the selected {currentSection.label} slot.</p></div></div>
+                <div className="panel-header">
+                  <div>
+                    <h3>Edit Slide {selectedSlot}</h3>
+                    <p>Update the selected {currentSection.label} slot.</p>
+                  </div>
+                </div>
+
                 <div className="editor-body">
                   {message && <div className={`message ${message.type}`}>{message.text}</div>}
 
                   <div className="selected-preview">
-                    {currentPreview ? <img src={currentPreview} alt={`Slide ${selectedSlot} preview`} /> : <div className="selected-preview-empty">No image selected</div>}
+                    {currentPreview ? (
+                      <img src={currentPreview} alt={`Slide ${selectedSlot} preview`} />
+                    ) : (
+                      <div className="selected-preview-empty">No image selected</div>
+                    )}
                   </div>
 
                   <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
                     <div className="upload-title">Choose or replace image</div>
                     <div className="upload-help">Recommended: 1920×1080, JPG, PNG, or WEBP.</div>
-                    <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleFileChange}
+                    />
                   </div>
 
-                  
                   <label className="field-label">Badge</label>
-<select className="input" value={badge} onChange={(e) => setBadge(e.target.value)}>
-  <option value="">None</option>
-  <option value="NEW">NEW</option>
-  <option value="HOT">HOT</option>
-  <option value="TOP">TOP</option>
-</select>
+                  <select className="input" value={badge} onChange={(event) => setBadge(event.target.value)}>
+                    <option value="">None</option>
+                    <option value="NEW">NEW</option>
+                    <option value="HOT">HOT</option>
+                    <option value="TOP">TOP</option>
+                  </select>
 
-<label className="field-label">Genre</label>
-<input className="input" value={genreLabel} onChange={(e) => setGenreLabel(e.target.value)} placeholder="Fantasy / Romance / Horror" />
+                  <label className="field-label">Genre</label>
+                  <input
+                    className="input"
+                    value={genreLabel}
+                    onChange={(event) => setGenreLabel(event.target.value)}
+                    placeholder="Fantasy / Romance / Horror"
+                  />
 
-<label className="field-label">Title</label>
-<input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Slide ${selectedSlot} title`} />
+                  <label className="field-label">Title</label>
+                  <input
+                    className="input"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder={`Slide ${selectedSlot} title`}
+                  />
+
                   <label className="field-label">Subtitle</label>
-                  <textarea className="textarea" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Short slide subtitle or note" />
+                  <textarea
+                    className="textarea"
+                    value={subtitle}
+                    onChange={(event) => setSubtitle(event.target.value)}
+                    placeholder="Short slide subtitle or note"
+                  />
 
                   <label className="field-label">Link</label>
-                  <input className="input" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Redirect link e.g. /story/1" />
+                  <input
+                    className="input"
+                    value={linkUrl}
+                    onChange={(event) => setLinkUrl(event.target.value)}
+                    placeholder="Redirect link e.g. /story/1"
+                  />
 
                   <div className="toggle-row">
                     <div>
                       <div className="toggle-title">Slide visibility</div>
-                      <div className="toggle-help">{isActive ? `Visible on ${currentSection.label}` : 'Hidden from frontend, still kept in AdminDashboard'}</div>
+                      <div className="toggle-help">
+                        {isActive
+                          ? `Visible on ${currentSection.label}`
+                          : 'Hidden from frontend, still kept in AdminDashboard'}
+                      </div>
                     </div>
-                    <button type="button" className={`switch ${isActive ? 'on' : ''}`} onClick={() => setIsActive((value) => !value)} aria-label="Toggle slide visibility"><span className="switch-thumb" /></button>
+
+                    <button
+                      type="button"
+                      className={`switch ${isActive ? 'on' : ''}`}
+                      onClick={() => setIsActive((value) => !value)}
+                      aria-label="Toggle slide visibility"
+                    >
+                      <span className="switch-thumb" />
+                    </button>
                   </div>
 
                   <div className="btn-row">
-                    <button className="btn-primary" onClick={handleSaveSlide} disabled={loading}>{loading ? 'Saving...' : `Save Slide ${selectedSlot}`}</button>
-                    <button className="btn-secondary" type="button" onClick={handleResetForm} disabled={loading}>Reset Form</button>
-                    <button className="btn-danger" type="button" onClick={handleDeleteSlide} disabled={loading || !selectedSlide}>Delete Slide</button>
+                    <button className="btn-primary" onClick={handleSaveSlide} disabled={loading}>
+                      {loading ? 'Saving...' : `Save Slide ${selectedSlot}`}
+                    </button>
+                    <button className="btn-secondary" type="button" onClick={handleResetForm} disabled={loading}>
+                      Reset Form
+                    </button>
+                    <button
+                      className="btn-danger"
+                      type="button"
+                      onClick={handleDeleteSlide}
+                      disabled={loading || !selectedSlide}
+                    >
+                      Delete Slide
+                    </button>
                   </div>
 
                   <div className="note-box">
@@ -462,10 +475,21 @@ useEffect(() => {
               <div className="panel-header">
                 <div>
                   <h3>Slide Records</h3>
-                  <p>Recent slide actions for {currentSection.label}. Records are shown 20 per page and old records are cleaned after 30 days by the backend.</p>
+                  <p>
+                    Recent slide actions for {currentSection.label}. Records are shown 20 per page and old records are cleaned after 30 days by the backend.
+                  </p>
                 </div>
-                <button className="page-btn" type="button" onClick={() => fetchRecords(recordPage, sectionKey)} disabled={recordsLoading}>{recordsLoading ? 'Loading...' : 'Refresh'}</button>
+
+                <button
+                  className="page-btn"
+                  type="button"
+                  onClick={() => fetchRecords(recordPage, sectionKey)}
+                  disabled={recordsLoading}
+                >
+                  {recordsLoading ? 'Loading...' : 'Refresh'}
+                </button>
               </div>
+
               <div className="records-list">
                 {records.length === 0 ? (
                   <div className="record-empty">No records yet, or backend record logging is not installed yet.</div>
@@ -483,10 +507,25 @@ useEffect(() => {
                   ))
                 )}
               </div>
+
               <div className="records-footer">
-                <button className="page-btn" type="button" disabled={recordPage <= 1 || recordsLoading} onClick={() => fetchRecords(recordPage - 1, sectionKey)}>Previous</button>
+                <button
+                  className="page-btn"
+                  type="button"
+                  disabled={recordPage <= 1 || recordsLoading}
+                  onClick={() => fetchRecords(recordPage - 1, sectionKey)}
+                >
+                  Previous
+                </button>
                 <span className="page-info">Page {recordPage} / {recordTotalPages}</span>
-                <button className="page-btn" type="button" disabled={recordPage >= recordTotalPages || recordsLoading} onClick={() => fetchRecords(recordPage + 1, sectionKey)}>Next</button>
+                <button
+                  className="page-btn"
+                  type="button"
+                  disabled={recordPage >= recordTotalPages || recordsLoading}
+                  onClick={() => fetchRecords(recordPage + 1, sectionKey)}
+                >
+                  Next
+                </button>
               </div>
             </section>
           </main>
