@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AdminSecurityBell from '../components/AdminSecurityBell';
+import AdminSidebar from '../components/AdminSidebar';
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 
 
@@ -914,46 +915,7 @@ const currentUserRole = adminProfile.role || 'Loading...';
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
-        {/* SIDEBAR */}
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" color="#4F46E5" />
-            <span className="logo-text">Shadow Exclusive</span>
-          </div>
-
-          <span className="nav-group-label">Overview</span>
-          {navItems.overview.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-
-          <span className="nav-group-label">Visual Media</span>
-          {navItems.visualMedia.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-
-          <span className="nav-group-label">System Admin</span>
-          {navItems.systemAdmin.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-
-          <span className="nav-group-label">Finance & Growth</span>
-          {navItems.finance.map(item => (
-            <div key={item.label} className={`nav-item ${location.pathname === item.path ? 'active' : ''}`} onClick={() => navigate(item.path)}>
-              <Icon d={item.icon} size={20} />
-              <span className="nav-text">{item.label}</span>
-            </div>
-          ))}
-        </aside>
-
+        <AdminSidebar />
         {/* MAIN CONTENT */}
         <div className="main-content">
           {/* HEADER */}
