@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import ImageDropZone from '../components/common/ImageDropZone'
+import { uploadMediaLibraryWithProgress } from '../utils/uploadMediaLibraryWithProgress'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -661,13 +662,11 @@ export default function ShadowMediaLibraryPage() {
     setUploading(true)
 
     try {
-      const formData = new FormData()
-      uploads.forEach((item) => formData.append('images', item.file))
-
-      const uploaded = await apiRequest('/api/admin/media-library/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const uploaded = await uploadMediaLibraryWithProgress({
+  apiUrl: API_URL,
+  token: getAdminToken(),
+  files: uploads.map((item) => item.file),
+})
 
       const uploadedImages = uploaded.images || []
       if (uploadedImages.length !== uploads.length) {
