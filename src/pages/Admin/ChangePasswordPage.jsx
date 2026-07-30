@@ -1,8 +1,38 @@
 import React, { useState } from 'react'
+import AdminLayout from '../../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
+  .password-page {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .password-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 22px;
+    padding: 24px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .password-card-title {
+    margin: 0;
+    color: #0F172A;
+    font-size: 22px;
+    font-weight: 950;
+    letter-spacing: -0.03em;
+  }
+
+  .password-card-subtitle {
+    margin: 7px 0 20px;
+    color: #64748B;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.6;
+  }
+
   .password-form {
     max-width: 520px;
     display: flex;
@@ -120,6 +150,13 @@ const styles = `
     border: 1px solid #A7F3D0;
     color: #047857;
   }
+
+  @media (max-width: 640px) {
+    .password-card {
+      padding: 18px;
+      border-radius: 18px;
+    }
+  }
 `
 
 function EyeIcon({ hidden = false }) {
@@ -223,25 +260,37 @@ export default function ChangePasswordSection() {
   }
 
   return (
-    <>
+    <AdminLayout
+      title="Change Password"
+      subtitle="Update the password used to access Shadow Admin."
+    >
       <style>{styles}</style>
 
-      <form onSubmit={handleSubmit} className="password-form">
-        <PasswordInput label="Current Password" name="currentPassword" value={form.currentPassword} visible={showPassword.currentPassword} placeholder="Enter current password" autoComplete="current-password" onChange={handleChange} onToggle={togglePassword} />
-        <PasswordInput label="New Password" name="newPassword" value={form.newPassword} visible={showPassword.newPassword} placeholder="Enter new password" autoComplete="new-password" onChange={handleChange} onToggle={togglePassword} />
-        <PasswordInput label="Confirm New Password" name="confirmPassword" value={form.confirmPassword} visible={showPassword.confirmPassword} placeholder="Confirm new password" autoComplete="new-password" onChange={handleChange} onToggle={togglePassword} />
+      <div className="password-page">
+        <section className="password-card">
+          <h1 className="password-card-title">Change Password</h1>
+          <p className="password-card-subtitle">
+            Enter the current password and choose a new secure password for the admin account.
+          </p>
 
-        {error ? <div className="password-message error">{error}</div> : null}
-        {message ? <div className="password-message success">{message}</div> : null}
+          <form onSubmit={handleSubmit} className="password-form">
+            <PasswordInput label="Current Password" name="currentPassword" value={form.currentPassword} visible={showPassword.currentPassword} placeholder="Enter current password" autoComplete="current-password" onChange={handleChange} onToggle={togglePassword} />
+            <PasswordInput label="New Password" name="newPassword" value={form.newPassword} visible={showPassword.newPassword} placeholder="Enter new password" autoComplete="new-password" onChange={handleChange} onToggle={togglePassword} />
+            <PasswordInput label="Confirm New Password" name="confirmPassword" value={form.confirmPassword} visible={showPassword.confirmPassword} placeholder="Confirm new password" autoComplete="new-password" onChange={handleChange} onToggle={togglePassword} />
 
-        <button type="submit" className="change-password-button" disabled={loading}>
-          {loading ? 'Changing...' : 'Change Password'}
-        </button>
+            {error ? <div className="password-message error">{error}</div> : null}
+            {message ? <div className="password-message success">{message}</div> : null}
 
-        <button type="button" className="logout-other-button" disabled>
-          Logout Other Devices
-        </button>
-      </form>
-    </>
+            <button type="submit" className="change-password-button" disabled={loading}>
+              {loading ? 'Changing...' : 'Change Password'}
+            </button>
+
+            <button type="button" className="logout-other-button" disabled>
+              Logout Other Devices
+            </button>
+          </form>
+        </section>
+      </div>
+    </AdminLayout>
   )
 }
