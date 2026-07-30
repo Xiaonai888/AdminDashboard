@@ -560,12 +560,14 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             {tabs.map((tab) => (
               <button key={tab.key} type="button" className={activeTab === tab.key ? 'active' : ''} onClick={() => { setActiveTab(tab.key); setPage(1) }}>
                 {tab.label}
-                <span>{formatNumber(tab.count || 0)}</span>
+                {tab.count === null ? null : <span>{formatNumber(tab.count || 0)}</span>}
               </button>
             ))}
-          </div>
+                    </div>
 
-          <div className="story-admin-toolbar">
+          {activeTab === 'updates' ? <StoryUpdateActivityPanel /> : null}
+
+          <div className="story-admin-toolbar" hidden={activeTab === 'updates'}>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, genre, language, or exact Story ID..." />
             <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}>
               <option value="all">All Status</option>
@@ -586,7 +588,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Refresh</button>
           </div>
 
-          <div className="story-admin-table-wrap">
+          <div className="story-admin-table-wrap" hidden={activeTab === 'updates'}>
             {loading ? <LoadingState /> : stories.length ? (
               <table className="story-admin-table">
                 <thead>
@@ -669,7 +671,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             ) : <EmptyState />}
           </div>
 
-          <div className="story-admin-pagination">
+          <div className="story-admin-pagination" hidden={activeTab === 'updates'}>
             <div>Page {pagination.page} of {pagination.total_pages} · {formatNumber(pagination.total)} records</div>
             <div>
               <button type="button" disabled={!pagination.has_prev || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
