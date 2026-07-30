@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
+const USE_LEGACY_SIDEBAR = false;
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -1321,7 +1322,11 @@ const searchMatch = !keyword || title.includes(keyword);
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
-        <AdminSidebar />
+        {USE_LEGACY_SIDEBAR ? (
+          <Sidebar />
+        ) : (
+          <AdminSidebar />
+        )}
 
         <div className="main-content">
           <header className="header">
