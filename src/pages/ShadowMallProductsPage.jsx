@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import AdminSidebar from '../components/AdminSidebar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 
@@ -1320,7 +1321,7 @@ const searchMatch = !keyword || title.includes(keyword);
     <>
       <style>{styles}</style>
       <div className="dashboard-wrapper">
-        <Sidebar />
+        <AdminSidebar />
 
         <div className="main-content">
           <header className="header">
