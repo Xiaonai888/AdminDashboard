@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const sidebarStyles = `
@@ -283,6 +283,7 @@ export default function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const activeItemRef = useRef(null);
   const allItems = navSections.flatMap(section => section.items);
   const activeItem = [...allItems]
     .sort((a, b) => b.path.length - a.path.length)
@@ -317,6 +318,19 @@ export default function AdminSidebar() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      activeItemRef.current?.scrollIntoView({
+        block: 'center',
+        behavior: 'smooth',
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [mobileOpen, activeItem?.path]);
 
   const goToPage = (path) => {
     setMobileOpen(false);
@@ -363,6 +377,7 @@ export default function AdminSidebar() {
               <button
                 key={item.path}
                 type="button"
+                ref={activeItem?.path === item.path ? activeItemRef : null}
                 className={`admin-main-sidebar-item ${activeItem?.path === item.path ? 'active' : ''}`}
                 onClick={() => goToPage(item.path)}
               >
