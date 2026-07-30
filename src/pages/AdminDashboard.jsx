@@ -554,11 +554,103 @@ const styles = `
   }
 
   @media (max-width: 768px) {
-    .bento-grid { grid-template-columns: 1fr; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .content-body { padding: 20px 16px; }
-    .header { padding: 0 16px; }
-    .search-input { width: 200px; }
+    .header {
+      height: auto;
+      min-height: 70px;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-top: 12px !important;
+      padding-right: 12px !important;
+      padding-bottom: 12px !important;
+    }
+
+    .header-left {
+      min-width: 0;
+    }
+
+    .header-left h2 {
+      font-size: 15px;
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      width: 100%;
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto auto auto;
+      align-items: center;
+      gap: 8px !important;
+    }
+
+    .search-wrap {
+      min-width: 0;
+    }
+
+    .search-input,
+    .search-input:focus {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .search-dropdown {
+      width: min(340px, calc(100vw - 94px));
+    }
+
+    .profile-btn {
+      gap: 0;
+      padding: 4px;
+    }
+
+    .profile-btn > svg {
+      display: none;
+    }
+
+    .profile-menu {
+      width: min(220px, calc(100vw - 32px));
+    }
+
+    .bento-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .content-body {
+      padding: 20px 16px 36px;
+    }
+
+    .stat-card,
+    .card-panel {
+      padding: 18px;
+    }
+
+    .panel-header {
+      gap: 10px;
+    }
+
+    .chart-wrap {
+      gap: 5px;
+    }
+
+    .exclusive-table {
+      min-width: 680px;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .welcome-row h1 {
+      font-size: 20px;
+    }
+
+    .panel-header {
+      align-items: flex-start;
+    }
   }
 `;
 
@@ -802,7 +894,7 @@ const AdminDashboard = () => {
               <h2>Dashboard Overview</h2>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               {/* Search */}
               <div className="search-wrap">
                 <svg className="search-icon" width={16} height={16} fill="none" stroke="#94A3B8" strokeWidth={2.5}>
