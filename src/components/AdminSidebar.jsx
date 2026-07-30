@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const sidebarStyles = `
@@ -17,7 +17,7 @@ const sidebarStyles = `
     background: #FFFFFF;
     border-right: 1px solid #E2E8F0;
     font-family: Inter, sans-serif;
-    transition: width 0.25s ease, box-shadow 0.25s ease;
+    transition: width 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
   }
 
   .admin-main-sidebar:hover {
@@ -98,14 +98,86 @@ const sidebarStyles = `
     transition: opacity 0.2s ease;
   }
 
+  .admin-main-sidebar-mobile-button,
+  .admin-main-sidebar-backdrop {
+    display: none;
+  }
+
   @media (max-width: 760px) {
+    .admin-main-sidebar-mobile-button {
+      width: 42px;
+      height: 42px;
+      position: fixed;
+      top: 13px;
+      left: 13px;
+      z-index: 1202;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #E2E8F0;
+      border-radius: 13px;
+      background: #FFFFFF;
+      color: #0F172A;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+      cursor: pointer;
+    }
+
+    .admin-main-sidebar-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1198;
+      display: block;
+      border: 0;
+      background: rgba(15, 23, 42, 0.44);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.22s ease, visibility 0.22s ease;
+    }
+
+    .admin-main-sidebar-backdrop.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
     .admin-main-sidebar {
-      width: 68px;
-      padding: 16px 8px;
+      width: min(84vw, 280px);
+      height: 100dvh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1200;
+      padding: 16px 12px 24px;
+      transform: translateX(-100%);
+      box-shadow: 14px 0 36px rgba(15, 23, 42, 0.16);
+    }
+
+    .admin-main-sidebar.open {
+      transform: translateX(0);
     }
 
     .admin-main-sidebar:hover {
-      width: 240px;
+      width: min(84vw, 280px);
+    }
+
+    .admin-main-sidebar-logo {
+      padding-left: 52px;
+      margin-bottom: 18px;
+    }
+
+    .admin-main-sidebar-logo-text,
+    .admin-main-sidebar-label,
+    .admin-main-sidebar-text,
+    .admin-main-sidebar:hover .admin-main-sidebar-logo-text,
+    .admin-main-sidebar:hover .admin-main-sidebar-label,
+    .admin-main-sidebar:hover .admin-main-sidebar-text {
+      opacity: 1;
+    }
+
+    .admin-main-sidebar-item {
+      min-height: 46px;
+      padding: 0 13px;
     }
   }
 `;
@@ -204,15 +276,75 @@ const Icon = ({ path, size = 20 }) => (
 export default function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const allItems = navSections.flatMap(section => section.items);
   const activeItem = [...allItems]
     .sort((a, b) => b.path.length - a.path.length)
     .find(item => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`));
 
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 760) setMobileOpen(false);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const goToPage = (path) => {
+    setMobileOpen(false);
+    navigate(path);
+  };
+
   return (
     <>
       <style>{sidebarStyles}</style>
-      <aside className="admin-main-sidebar">
+
+      <button
+        type="button"
+        className="admin-main-sidebar-mobile-button"
+        aria-label={mobileOpen ? 'Close admin menu' : 'Open admin menu'}
+        aria-expanded={mobileOpen}
+        onClick={() => setMobileOpen(current => !current)}
+      >
+        <Icon
+          path={mobileOpen ? 'M6 6l12 12 M18 6L6 18' : 'M4 6h16 M4 12h16 M4 18h16'}
+          size={21}
+        />
+      </button>
+
+      <button
+        type="button"
+        className={`admin-main-sidebar-backdrop ${mobileOpen ? 'open' : ''}`}
+        aria-label="Close admin menu"
+        onClick={() => setMobileOpen(false)}
+      />
+
+      <aside
+        className={`admin-main-sidebar ${mobileOpen ? 'open' : ''}`}
+        aria-hidden={!mobileOpen && typeof window !== 'undefined' && window.innerWidth <= 760}
+      >
         <div className="admin-main-sidebar-logo">
           <Icon path="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5" size={22} />
           <span className="admin-main-sidebar-logo-text">Shadow Admin</span>
@@ -226,7 +358,7 @@ export default function AdminSidebar() {
                 key={item.path}
                 type="button"
                 className={`admin-main-sidebar-item ${activeItem?.path === item.path ? 'active' : ''}`}
-                onClick={() => navigate(item.path)}
+                onClick={() => goToPage(item.path)}
               >
                 <Icon path={item.icon} />
                 <span className="admin-main-sidebar-text">{item.label}</span>
