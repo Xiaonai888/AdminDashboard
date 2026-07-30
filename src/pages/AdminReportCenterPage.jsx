@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import AdminSidebar from '../components/AdminSidebar'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -1577,6 +1578,9 @@ export default function AdminReportCenterPage() {
     <div className="report-shell">
       <style>{styles}</style>
 
+      <AdminSidebar />
+
+      {false && (
       <aside className="report-sidebar">
         <div className="report-logo">
           <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
@@ -1595,6 +1599,7 @@ export default function AdminReportCenterPage() {
         <span className="report-nav-label">Finance & Growth</span>
         {renderNavGroup(navItems.finance)}
       </aside>
+      )}
 
       <main className="report-main">
         <header className="report-header">
