@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import AdminSidebar from './AdminSidebar'
 
 const styles = `
   :root {
@@ -402,48 +403,7 @@ export default function AdminLayout({
       <style>{styles}</style>
 
       <div className="shadow-admin-shell">
-        <aside className="shadow-admin-sidebar">
-          <div className="shadow-admin-logo">
-            <div className="shadow-admin-logo-icon">S</div>
-            <div className="shadow-admin-logo-text">Shadow Admin</div>
-          </div>
-
-          {navGroups.map((group) => (
-            <div key={group.label}>
-              <span className="shadow-admin-group-label">{group.label}</span>
-
-              {group.items.map((item) => (
-                <div key={item.path}>
-                  <button
-                    type="button"
-                    className={`shadow-admin-nav-item ${isActivePath(location.pathname, item.path) ? 'active' : ''}`}
-                    onClick={() => navigate(item.path)}
-                    title={item.label}
-                  >
-                    <Icon d={item.icon} />
-                    <span className="shadow-admin-nav-text">{item.label}</span>
-                  </button>
-
-                  {item.children?.length ? (
-                    <div className="shadow-admin-subnav">
-                      {item.children.map((child) => (
-                        <button
-                          key={child.path}
-                          type="button"
-                          className={`shadow-admin-subnav-item ${isActivePath(location.pathname, child.path) ? 'active' : ''}`}
-                          onClick={() => navigate(child.path)}
-                          title={child.label}
-                        >
-                          {child.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ))}
-        </aside>
+        <AdminSidebar />
 
         <div className="shadow-admin-main">
           <header className="shadow-admin-topbar">
