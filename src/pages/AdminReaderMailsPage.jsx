@@ -581,8 +581,164 @@ const styles = `
     }
 
     .reader-mail-head {
-      align-items: flex-start;
+      align-items: stretch;
       flex-direction: column;
+      gap: 14px;
+    }
+
+    .reader-mail-refresh {
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .reader-mail-page {
+      min-width: 0;
+    }
+
+    .reader-mail-head {
+      margin-bottom: 18px;
+    }
+
+    .reader-mail-title {
+      font-size: 24px;
+    }
+
+    .reader-mail-card {
+      border-radius: 20px;
+    }
+
+    .reader-mail-card-head {
+      padding: 17px 16px;
+    }
+
+    .reader-mail-form {
+      padding: 17px 16px 20px;
+    }
+
+    .reader-mail-row {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .reader-mail-targets {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .reader-mail-upload-row {
+      grid-template-columns: 1fr;
+    }
+
+    .reader-mail-upload-button {
+      min-height: 44px;
+      width: 100%;
+    }
+
+    .reader-mail-message {
+      overflow-wrap: anywhere;
+    }
+
+    .reader-mail-record-item {
+      grid-template-columns: 58px minmax(0, 1fr);
+      gap: 12px;
+      padding: 16px;
+      align-items: start;
+    }
+
+    .reader-mail-record-image {
+      width: 54px;
+      height: 40px;
+    }
+
+    .reader-mail-record-sub,
+    .reader-mail-record-title {
+      overflow-wrap: anywhere;
+    }
+
+    .reader-mail-record-actions {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+    }
+
+    .reader-mail-record-actions .reader-mail-edit-button,
+    .reader-mail-record-actions .reader-mail-delete-button {
+      width: 100%;
+      min-height: 38px;
+    }
+
+    .reader-mail-activity-item {
+      grid-template-columns: 72px minmax(0, 1fr);
+      gap: 12px;
+      padding: 16px;
+      align-items: start;
+    }
+
+    .reader-mail-activity-date {
+      grid-column: 1 / -1;
+      text-align: left;
+      white-space: normal;
+    }
+
+    .reader-mail-activity-title,
+    .reader-mail-activity-sub,
+    .reader-mail-activity-meta {
+      overflow-wrap: anywhere;
+    }
+
+    .reader-mail-empty {
+      padding: 36px 18px;
+    }
+
+    .reader-mail-table {
+      min-width: 760px;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .reader-mail-title {
+      font-size: 22px;
+    }
+
+    .reader-mail-targets {
+      grid-template-columns: 1fr;
+    }
+
+    .reader-mail-target {
+      width: 100%;
+    }
+
+    .reader-mail-record-item {
+      grid-template-columns: 1fr;
+    }
+
+    .reader-mail-record-image {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 16 / 9;
+    }
+
+    .reader-mail-record-actions {
+      grid-column: auto;
+      grid-template-columns: 1fr;
+    }
+
+    .reader-mail-activity-item {
+      grid-template-columns: 1fr;
+    }
+
+    .reader-mail-activity-badge {
+      width: max-content;
+    }
+
+    .reader-mail-activity-date {
+      grid-column: auto;
+    }
+
+    .reader-mail-image-preview {
+      border-radius: 14px;
     }
   }
 `
