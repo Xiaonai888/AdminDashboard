@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import AdminSidebar from '../components/AdminSidebar'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const USE_LEGACY_SIDEBAR = false
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
@@ -408,28 +409,28 @@ export default function AdminTaskCenterPage() {
       <style>{styles}</style>
 
       <div className="dashboard-wrapper">
-        <AdminSidebar />
-
-        {false && (
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <div className="logo-mark">S</div>
-            <span className="logo-text">Shadow Exclusive</span>
-          </div>
-
-          <span className="nav-group-label">Overview</span>
-
-          {navItems.map((item) => (
-            <div
-              key={item.path}
-              className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => navigate(item.path)}
-            >
-              <Icon d={item.icon} size={18} />
-              <span className="nav-text">{item.label}</span>
+        {USE_LEGACY_SIDEBAR ? (
+          <aside className="sidebar">
+            <div className="sidebar-logo">
+              <div className="logo-mark">S</div>
+              <span className="logo-text">Shadow Exclusive</span>
             </div>
-          ))}
-        </aside>
+
+            <span className="nav-group-label">Overview</span>
+
+            {navItems.map((item) => (
+              <div
+                key={item.path}
+                className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                <Icon d={item.icon} size={18} />
+                <span className="nav-text">{item.label}</span>
+              </div>
+            ))}
+          </aside>
+        ) : (
+          <AdminSidebar />
         )}
 
         <main className="main-content">
