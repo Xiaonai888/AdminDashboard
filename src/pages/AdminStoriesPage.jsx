@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import StoryUpdateActivityPanel from '../components/StoryUpdateActivityPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -396,7 +397,12 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     let alive = true
 
     async function loadStories() {
-      try {
+  if (activeTab === 'updates') {
+    setLoading(false)
+    return
+  }
+
+  try {
         setLoading(true)
         setError('')
         const token = getAdminToken()
@@ -475,6 +481,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     { key: 'deleted', label: 'Deleted by Authors', count: summary.deleted_by_authors },
     { key: 'warnings', label: 'Warnings', count: summary.warned_stories },
     { key: 'all', label: 'All Stories', count: summary.total_stories },
+    { key: 'updates', label: 'Story Updates', count: null },
   ]
 
   const genreOptions = useMemo(() => {
