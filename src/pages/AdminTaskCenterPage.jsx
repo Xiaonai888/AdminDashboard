@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import AdminSidebar from '../components/AdminSidebar'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -407,6 +408,9 @@ export default function AdminTaskCenterPage() {
       <style>{styles}</style>
 
       <div className="dashboard-wrapper">
+        <AdminSidebar />
+
+        {false && (
         <aside className="sidebar">
           <div className="sidebar-logo">
             <div className="logo-mark">S</div>
@@ -426,6 +430,7 @@ export default function AdminTaskCenterPage() {
             </div>
           ))}
         </aside>
+        )}
 
         <main className="main-content">
           <header className="header">
