@@ -10,6 +10,7 @@ import AuthorsCommunity from './pages/AuthorsCommunity';
 import AdminSpamGuardPage from './pages/AdminSpamGuardPage';
 import LoginPage from './pages/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminLayout from './components/AdminLayout';
 import AdminActivityLogsPage from "./pages/Admin/AdminActivityLogsPage";
 import ChangePasswordPage from "./pages/Admin/ChangePasswordPage";
 import AdminSettingsPage from "./pages/Admin/AdminSettingsPage";
@@ -41,32 +42,38 @@ import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
 
 function ComingSoon({ title }) {
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#F8FAFC',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'Inter, sans-serif',
-      color: '#0F172A',
-      padding: 24,
-    }}>
+    <AdminLayout
+      title={title}
+      subtitle="This admin section is ready and can be developed when needed."
+    >
       <div style={{
-        width: 'min(520px, 100%)',
-        background: '#fff',
-        border: '1px solid #E2E8F0',
-        borderRadius: 18,
-        padding: 28,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        textAlign: 'center',
+        minHeight: 'calc(100vh - 190px)',
+        background: '#F8FAFC',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'Inter, sans-serif',
+        color: '#0F172A',
+        padding: 24,
+        borderRadius: 22,
       }}>
-        <div style={{ fontSize: 28, marginBottom: 10 }}>🛠️</div>
-        <h1 style={{ fontSize: 22, marginBottom: 8 }}>{title}</h1>
-        <p style={{ color: '#64748B', lineHeight: 1.6 }}>
-          This page route is ready. We can build this section after the realtime system works.
-        </p>
+        <div style={{
+          width: 'min(520px, 100%)',
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: 18,
+          padding: 28,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 28, marginBottom: 10 }}>🛠️</div>
+          <h1 style={{ fontSize: 22, marginBottom: 8 }}>{title}</h1>
+          <p style={{ color: '#64748B', lineHeight: 1.6 }}>
+            This page route is ready. We can build this section after the realtime system works.
+          </p>
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
 
@@ -119,22 +126,22 @@ export default function App() {
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
         <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
 
-        
-        
 
- <Route
-  path="/spam-guard"
-  element={<ProtectedPage><AdminSpamGuardPage /></ProtectedPage>}
-/>
 
         <Route
-  path="/admin-login-guard"
-  element={<ProtectedPage><AdminLoginGuardPage /></ProtectedPage>}
-/>
+          path="/spam-guard"
+          element={<ProtectedPage><AdminSpamGuardPage /></ProtectedPage>}
+        />
+
         <Route
-  path="/shadow-mall/promotion"
-  element={<ProtectedPage><ShadowMallPromotionPage /></ProtectedPage>}
-/>
+          path="/admin-login-guard"
+          element={<ProtectedPage><AdminLoginGuardPage /></ProtectedPage>}
+        />
+
+        <Route
+          path="/shadow-mall/promotion"
+          element={<ProtectedPage><ShadowMallPromotionPage /></ProtectedPage>}
+        />
 
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
@@ -142,5 +149,3 @@ export default function App() {
     </Router>
   );
 }
-
-
