@@ -7,6 +7,7 @@ const API_URL =
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:5000'
     : 'https://shadow-backend-kucw.onrender.com')
+const USE_LEGACY_SIDEBAR = false
 
 const TYPE_FILTERS = [
   { value: 'all', label: 'All Reports' },
@@ -1578,27 +1579,27 @@ export default function AdminReportCenterPage() {
     <div className="report-shell">
       <style>{styles}</style>
 
-      <AdminSidebar />
+      {USE_LEGACY_SIDEBAR ? (
+        <aside className="report-sidebar">
+          <div className="report-logo">
+            <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            <span className="report-logo-text">Shadow Exclusive</span>
+          </div>
 
-      {false && (
-      <aside className="report-sidebar">
-        <div className="report-logo">
-          <Icon d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          <span className="report-logo-text">Shadow Exclusive</span>
-        </div>
+          <span className="report-nav-label">Overview</span>
+          {renderNavGroup(navItems.overview)}
 
-        <span className="report-nav-label">Overview</span>
-        {renderNavGroup(navItems.overview)}
+          <span className="report-nav-label">Visual Media</span>
+          {renderNavGroup(navItems.visualMedia)}
 
-        <span className="report-nav-label">Visual Media</span>
-        {renderNavGroup(navItems.visualMedia)}
+          <span className="report-nav-label">System Admin</span>
+          {renderNavGroup(navItems.systemAdmin)}
 
-        <span className="report-nav-label">System Admin</span>
-        {renderNavGroup(navItems.systemAdmin)}
-
-        <span className="report-nav-label">Finance & Growth</span>
-        {renderNavGroup(navItems.finance)}
-      </aside>
+          <span className="report-nav-label">Finance & Growth</span>
+          {renderNavGroup(navItems.finance)}
+        </aside>
+      ) : (
+        <AdminSidebar />
       )}
 
       <main className="report-main">
