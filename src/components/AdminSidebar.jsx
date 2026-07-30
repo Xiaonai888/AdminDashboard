@@ -104,6 +104,12 @@ const sidebarStyles = `
   }
 
   @media (max-width: 760px) {
+    .dashboard-wrapper > .main-content > header,
+    .report-shell > .report-main > header,
+    .shadow-admin-shell > .shadow-admin-main > header {
+      padding-left: 70px !important;
+    }
+
     .admin-main-sidebar-mobile-button {
       width: 42px;
       height: 42px;
