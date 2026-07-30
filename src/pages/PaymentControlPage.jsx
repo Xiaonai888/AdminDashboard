@@ -4,6 +4,7 @@ import AdminSidebar from '../components/AdminSidebar'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
+const USE_LEGACY_SIDEBAR = false
 
 const tabs = [
   { key: 'waiting_payment', label: 'Verifying' },
@@ -245,7 +246,7 @@ export default function PaymentControlPage() {
   return (
     <div className="dashboard-wrapper">
       <style>{styles}</style>
-      <AdminSidebar />
+      {USE_LEGACY_SIDEBAR ? <Sidebar /> : <AdminSidebar />}
       <main className="main-content">
         <header className="header"><h2>Shadow Admin</h2><button type="button" onClick={() => navigate('/admin')}>Back to Dashboard</button></header>
         <div className="content-body">
