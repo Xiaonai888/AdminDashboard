@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import ImageDropZone from '../components/common/ImageDropZone'
+import SortableMediaFolderList from '../components/SortableMediaFolderList'
 import { uploadMediaLibraryWithProgress } from '../utils/uploadMediaLibraryWithProgress'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -1619,67 +1620,16 @@ export default function ShadowMediaLibraryPage() {
             </button>
           </div>
 
-          <div className="media-folder-list">
-            {sortedFolders.map((folder) => (
-              <div key={folder.id}>
-                <button
-                  type="button"
-                  className={`media-folder ${selectedFolderId === folder.id ? 'active' : ''}`}
-                  onClick={() => setSelectedFolderId(folder.id)}
-                >
-                  <div className="media-folder-card-layout">
-  <div className="media-folder-cover">
-    {folder.coverPreview || folder.coverUrl ? (
-      <img
-        src={folder.coverPreview || folder.coverUrl}
-        alt={folder.name}
-      />
-    ) : (
-      <span>{folder.icon}</span>
-    )}
-  </div>
-
-  <div className="media-folder-card-copy">
-    <div className="media-folder-top">
-      <span className="media-folder-name">{folder.name}</span>
-      <span className="media-folder-order">#{folder.sortOrder}</span>
-    </div>
-
-    <div className="media-folder-description">
-      {folder.description || 'No description'}
-    </div>
-
-    <div className="media-folder-count">
-      {images.filter((image) => image.folderId === folder.id).length} images
-    </div>
-  </div>
-</div>
-                </button>
-
-                <div className="media-folder-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingFolder(folder)
-                      setFolderModalOpen(true)
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleFolder(folder)}
-                  >
-                    {folder.active ? 'Hide' : 'Show'}
-                  </button>
-                  <button type="button" className="danger" onClick={() => deleteFolder(folder.id)}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+          <SortableMediaFolderList
+  folders={folders}
+  images={images}
+  selectedFolderId={selectedFolderId}
+  onSelect={setSelectedFolderId}
+  onEdit={(folder) => { setEditingFolder(folder); setFolderModalOpen(true) }}
+  onToggle={toggleFolder}
+  onDelete={deleteFolder}
+  onReordered={setFolders}
+/>
 
         <section className="media-content-panel">
           <div className="media-content-head">
