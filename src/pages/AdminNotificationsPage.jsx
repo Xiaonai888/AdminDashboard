@@ -642,9 +642,12 @@ const styles = `
   }
 
   @media (max-width: 980px) {
-    .notification-admin-grid,
-    .notification-admin-stats {
+    .notification-admin-grid {
       grid-template-columns: 1fr;
+    }
+
+    .notification-admin-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .notification-admin-item-grid {
@@ -652,13 +655,161 @@ const styles = `
     }
 
     .notification-admin-tabs {
-      display: grid;
-      grid-template-columns: 1fr;
       width: 100%;
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 7px;
+      scrollbar-width: none;
+    }
+
+    .notification-admin-tabs::-webkit-scrollbar {
+      display: none;
     }
 
     .notification-admin-tab {
+      flex: 0 0 auto;
+      min-width: 140px;
+    }
+
+    .notification-admin-table {
+      min-width: 760px;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .notification-admin-page {
+      min-width: 0;
+    }
+
+    .notification-admin-head {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .notification-admin-title {
+      font-size: 24px;
+    }
+
+    .notification-admin-refresh {
       width: 100%;
+    }
+
+    .notification-admin-stats {
+      gap: 12px;
+    }
+
+    .notification-admin-stat {
+      padding: 16px;
+    }
+
+    .notification-admin-stat-value {
+      font-size: 24px;
+    }
+
+    .notification-admin-card {
+      border-radius: 20px;
+    }
+
+    .notification-admin-card-head {
+      align-items: stretch;
+      flex-direction: column;
+      padding: 17px 16px;
+    }
+
+    .notification-admin-form {
+      padding: 17px 16px 20px;
+    }
+
+    .notification-admin-list {
+      padding: 16px;
+    }
+
+    .notification-admin-item {
+      padding: 14px;
+    }
+
+    .notification-admin-meta {
+      flex-direction: column;
+      gap: 5px;
+      overflow-wrap: anywhere;
+    }
+
+    .notification-admin-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .notification-admin-actions .notification-admin-secondary,
+    .notification-admin-actions .notification-admin-danger {
+      width: 100%;
+    }
+
+    .notification-admin-pagination {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      padding: 14px 16px;
+    }
+
+    .notification-admin-pagination .notification-admin-secondary {
+      width: 100%;
+      padding: 0 10px;
+    }
+
+    .notification-admin-pagination > span {
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .notification-admin-message {
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .notification-admin-title {
+      font-size: 22px;
+    }
+
+    .notification-admin-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .notification-admin-tab {
+      min-width: 124px;
+      padding: 11px 14px;
+      font-size: 12px;
+    }
+
+    .notification-admin-label {
+      align-items: flex-start;
+    }
+
+    .notification-admin-limit {
+      flex-shrink: 0;
+    }
+
+    .notification-admin-target-title {
+      align-items: flex-start;
+    }
+
+    .notification-admin-preview {
+      padding: 10px;
+    }
+
+    .notification-admin-empty {
+      padding: 40px 18px;
+    }
+
+    .notification-admin-pagination {
+      grid-template-columns: 1fr;
+    }
+
+    .notification-admin-pagination > span {
+      order: -1;
+      white-space: normal;
     }
   }
 `
