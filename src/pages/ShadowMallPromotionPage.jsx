@@ -759,7 +759,199 @@ export default function ShadowMallPromotionPage() {
         onClose={closeCropModal}
         onSave={saveCroppedImage}
       />
+      <style>{`
+        .promotion-page {
+          min-width: 0;
+        }
+
+        @media (max-width: 1080px) {
+          .promotion-editor-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .promotion-preview-card {
+            width: 100%;
+            max-width: 560px;
+            margin: 0 auto;
+          }
+
+          .promotion-records-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .promotion-main {
+            min-width: 0;
+            padding: 20px 16px 40px !important;
+          }
+
+          .promotion-hero,
+          .promotion-form,
+          .promotion-preview-card,
+          .promotion-records {
+            border-radius: 20px !important;
+          }
+
+          .promotion-hero {
+            padding: 18px 16px !important;
+          }
+
+          .promotion-hero h1 {
+            font-size: 24px !important;
+            overflow-wrap: anywhere;
+          }
+
+          .promotion-hero p,
+          .promotion-message,
+          .promotion-form p,
+          .promotion-records p {
+            overflow-wrap: anywhere;
+          }
+
+          .promotion-tabs {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            margin-right: -16px;
+            padding-right: 16px;
+            padding-bottom: 5px;
+            scrollbar-width: none;
+          }
+
+          .promotion-tabs::-webkit-scrollbar {
+            display: none;
+          }
+
+          .promotion-tabs button {
+            flex: 0 0 auto;
+            white-space: nowrap;
+          }
+
+          .promotion-editor-grid {
+            gap: 16px !important;
+          }
+
+          .promotion-form {
+            min-width: 0;
+            padding: 18px 16px !important;
+          }
+
+          .promotion-profile-row {
+            align-items: flex-start !important;
+          }
+
+          .promotion-form-actions {
+            grid-template-columns: 1fr 1fr !important;
+          }
+
+          .promotion-form-actions button {
+            width: 100%;
+            min-width: 0;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+
+          .promotion-preview-card {
+            min-width: 0;
+          }
+
+          .promotion-records {
+            min-width: 0;
+            padding: 18px 16px !important;
+          }
+
+          .promotion-records-head {
+            align-items: stretch !important;
+            flex-direction: column !important;
+          }
+
+          .promotion-records-head button {
+            width: 100%;
+          }
+
+          .promotion-record-card {
+            min-width: 0;
+          }
+
+          .promotion-record-main {
+            grid-template-columns: 92px minmax(0, 1fr) !important;
+            gap: 11px !important;
+            padding: 11px !important;
+          }
+
+          .promotion-record-actions {
+            grid-template-columns: 42px 42px minmax(0, 1fr) 42px !important;
+            gap: 7px !important;
+            padding: 9px !important;
+          }
+
+          .promotion-record-menu-popover {
+            width: min(190px, calc(100vw - 40px)) !important;
+            max-width: calc(100vw - 40px);
+          }
+        }
+
+        @media (max-width: 560px) {
+          .promotion-main {
+            padding: 18px 13px 34px !important;
+          }
+
+          .promotion-hero {
+            padding: 16px 14px !important;
+          }
+
+          .promotion-tabs {
+            margin-right: -14px;
+            padding-right: 14px;
+          }
+
+          .promotion-profile-row {
+            flex-direction: column !important;
+          }
+
+          .promotion-profile-row > div:last-of-type {
+            width: 100%;
+          }
+
+          .promotion-form-actions {
+            grid-template-columns: 1fr !important;
+          }
+
+          .promotion-records {
+            padding: 16px 14px !important;
+          }
+
+          .promotion-records-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .promotion-record-main {
+            grid-template-columns: 82px minmax(0, 1fr) !important;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .promotion-record-main {
+            grid-template-columns: 72px minmax(0, 1fr) !important;
+          }
+
+          .promotion-record-actions {
+            grid-template-columns: 38px 38px minmax(0, 1fr) 38px !important;
+            gap: 5px !important;
+            padding: 7px !important;
+          }
+
+          .promotion-record-actions > button,
+          .promotion-record-actions > div > button {
+            min-width: 0;
+          }
+        }
+      `}</style>
+
       <div
+        className="promotion-page"
         style={{
           minHeight: '100vh',
           background: '#F8FAFC',
@@ -768,6 +960,7 @@ export default function ShadowMallPromotionPage() {
         }}
       >
         <main
+          className="promotion-main"
           style={{
             padding: 26,
             maxWidth: 1380,
@@ -775,6 +968,7 @@ export default function ShadowMallPromotionPage() {
           }}
         >
           <section
+            className="promotion-hero"
             style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
@@ -826,6 +1020,7 @@ export default function ShadowMallPromotionPage() {
             </p>
 
             <div
+              className="promotion-tabs"
               style={{
                 display: 'flex',
                 gap: 10,
@@ -860,6 +1055,7 @@ export default function ShadowMallPromotionPage() {
 
           {message ? (
             <div
+              className="promotion-message"
               style={{
                 marginBottom: 16,
                 border: '1px solid #E2E8F0',
@@ -876,6 +1072,7 @@ export default function ShadowMallPromotionPage() {
           ) : null}
 
           <section
+            className="promotion-editor-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(360px, 1fr) minmax(320px, 460px)',
@@ -884,6 +1081,7 @@ export default function ShadowMallPromotionPage() {
             }}
           >
             <form
+              className="promotion-form"
               ref={formRef}
               onSubmit={(event) => {
                 event.preventDefault()
@@ -1030,6 +1228,7 @@ export default function ShadowMallPromotionPage() {
                 </div>
 
                 <div
+                  className="promotion-profile-row"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1276,6 +1475,7 @@ export default function ShadowMallPromotionPage() {
               ) : null}
 
               <div
+                className="promotion-form-actions"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1fr auto',
@@ -1325,6 +1525,7 @@ export default function ShadowMallPromotionPage() {
             </form>
 
             <section
+              className="promotion-preview-card"
               style={{
                 background: '#FFFFFF',
                 border: '1px solid #E2E8F0',
@@ -1618,6 +1819,7 @@ export default function ShadowMallPromotionPage() {
           </section>
 
           <section
+            className="promotion-records"
             style={{
               marginTop: 20,
               background: '#FFFFFF',
@@ -1629,6 +1831,7 @@ export default function ShadowMallPromotionPage() {
             }}
           >
             <div
+              className="promotion-records-head"
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -1698,6 +1901,7 @@ export default function ShadowMallPromotionPage() {
               </div>
             ) : promotions.length ? (
               <div
+                className="promotion-records-grid"
                 style={{
                   display: 'grid',
                   gridTemplateColumns:
@@ -1752,6 +1956,7 @@ export default function ShadowMallPromotionPage() {
                     return (
                       <article
                         key={promotion.id}
+                        className="promotion-record-card"
                         style={{
                           overflow: 'visible',
                           border: isEditing
@@ -1765,6 +1970,7 @@ export default function ShadowMallPromotionPage() {
                         }}
                       >
                         <div
+                          className="promotion-record-main"
                           style={{
                             display: 'grid',
                             gridTemplateColumns:
@@ -1974,6 +2180,7 @@ export default function ShadowMallPromotionPage() {
                         </div>
 
                         <div
+                          className="promotion-record-actions"
                           style={{
                             display: 'grid',
                             gridTemplateColumns:
@@ -2144,6 +2351,7 @@ export default function ShadowMallPromotionPage() {
                           </button>
 
                           <div
+                            className="promotion-record-menu"
                             data-promotion-menu
                             style={{
                               position: 'relative',
@@ -2202,6 +2410,7 @@ export default function ShadowMallPromotionPage() {
                             {openMenuId ===
                             promotion.id ? (
                               <div
+                                className="promotion-record-menu-popover"
                                 role="menu"
                                 style={{
                                   position: 'absolute',
