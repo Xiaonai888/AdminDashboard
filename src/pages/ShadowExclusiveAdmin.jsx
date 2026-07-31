@@ -604,25 +604,240 @@ const styles = `
   }
 
   @media (max-width:900px) {
-    .se-page { padding:18px; }
-    .se-top { flex-direction:column; }
-    .se-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .se-row { grid-template-columns:64px minmax(0,1fr); }
+    .se-page {
+      min-width:0;
+      padding:20px 18px 44px;
+    }
+
+    .se-top {
+      align-items:stretch;
+      flex-direction:column;
+      margin-bottom:18px;
+    }
+
+    .se-refresh {
+      width:100%;
+    }
+
+    .se-mode-tabs {
+      flex-wrap:nowrap;
+      overflow-x:auto;
+      padding-bottom:6px;
+      scrollbar-width:none;
+    }
+
+    .se-mode-tabs::-webkit-scrollbar {
+      display:none;
+    }
+
+    .se-mode-tab {
+      flex:0 0 min(320px,86vw);
+      min-width:0;
+    }
+
+    .se-stats {
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+    }
+
+    .se-stat {
+      min-width:0;
+      padding:14px;
+    }
+
+    .se-card-head {
+      align-items:flex-start;
+      flex-direction:column;
+      padding:17px 16px;
+    }
+
+    .se-tabs {
+      width:100%;
+      flex-wrap:nowrap;
+      overflow-x:auto;
+      padding-bottom:5px;
+      scrollbar-width:none;
+    }
+
+    .se-tabs::-webkit-scrollbar {
+      display:none;
+    }
+
+    .se-tab {
+      flex:0 0 auto;
+      white-space:nowrap;
+    }
+
+    .se-toolbar {
+      padding:14px 16px;
+    }
+
+    .se-message {
+      margin:14px 16px 0;
+      overflow-wrap:anywhere;
+    }
+
+    .se-list {
+      padding:10px;
+    }
+
+    .se-row {
+      grid-template-columns:64px minmax(0,1fr);
+      gap:12px;
+      align-items:start;
+      padding:12px 10px;
+    }
+
+    .se-cover {
+      width:64px;
+    }
+
+    .se-row > div:nth-child(2) {
+      min-width:0;
+    }
+
+    .se-story-title {
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+
+    .se-meta {
+      overflow-wrap:anywhere;
+    }
+
     .se-actions {
       grid-column:1 / -1;
-      justify-content:flex-start;
-      padding-left:78px;
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      width:100%;
+      padding-left:76px;
+    }
+
+    .se-action-btn {
+      width:100%;
+      min-height:38px;
+      height:auto;
+      padding:8px 11px;
+      white-space:normal;
+      line-height:1.3;
+    }
+
+    .se-modal-backdrop {
+      align-items:flex-end;
+      padding:10px;
+    }
+
+    .se-modal {
+      max-height:calc(100dvh - 20px);
+      overflow-y:auto;
+      border-radius:20px;
+    }
+
+    .se-modal-head,
+    .se-modal-body {
+      padding:17px 16px;
+    }
+
+    .se-modal-desc {
+      overflow-wrap:anywhere;
+    }
+
+    .se-modal-foot {
+      position:sticky;
+      bottom:0;
+      z-index:2;
+      padding:14px 16px;
+      background:#fff;
     }
   }
 
   @media (max-width:560px) {
-    .se-stats { grid-template-columns:1fr; }
-    .se-toolbar {
-      flex-direction:column;
-      align-items:stretch;
+    .se-page {
+      padding:18px 14px 38px;
     }
-    .se-check-grid { grid-template-columns:1fr; }
-    .se-mode-tab { min-width:100%; }
+
+    .se-title {
+      font-size:25px;
+    }
+
+    .se-kicker {
+      max-width:100%;
+      height:auto;
+      min-height:30px;
+      padding:7px 11px;
+      text-align:center;
+    }
+
+    .se-mode-tab {
+      flex-basis:88vw;
+      padding:13px 14px;
+    }
+
+    .se-stats {
+      grid-template-columns:1fr;
+    }
+
+    .se-card {
+      border-radius:19px;
+    }
+
+    .se-toolbar {
+      align-items:stretch;
+      flex-direction:column;
+    }
+
+    .se-search,
+    .se-search-btn {
+      width:100%;
+    }
+
+    .se-row {
+      grid-template-columns:56px minmax(0,1fr);
+      gap:10px;
+    }
+
+    .se-cover {
+      width:56px;
+      border-radius:11px;
+    }
+
+    .se-actions {
+      grid-template-columns:1fr;
+      padding-left:66px;
+    }
+
+    .se-check-grid {
+      grid-template-columns:1fr;
+    }
+
+    .se-modal-foot {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+    }
+
+    .se-cancel,
+    .se-confirm {
+      width:100%;
+    }
+  }
+
+  @media (max-width:420px) {
+    .se-row {
+      grid-template-columns:1fr;
+    }
+
+    .se-cover {
+      width:76px;
+    }
+
+    .se-actions {
+      grid-column:auto;
+      padding-left:0;
+    }
+
+    .se-modal-foot {
+      grid-template-columns:1fr;
+    }
   }
 `;
 
