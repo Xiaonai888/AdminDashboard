@@ -33,7 +33,114 @@ const sectionStyles = `
   .two-factor-event { display: grid; grid-template-columns: 150px minmax(0, 1fr) 80px; gap: 10px; border-top: 1px solid #E2E8F0; padding-top: 9px; color: #0F172A; font-size: 12px; font-weight: 800; }
   .two-factor-event span { color: #64748B; }
   .two-factor-empty { border: 1px dashed #CBD5E1; border-radius: 18px; padding: 24px; text-align: center; color: #64748B; font-size: 13px; font-weight: 800; }
-  @media (max-width: 860px) { .two-factor-top, .two-factor-setup, .two-factor-recovery-grid { grid-template-columns: 1fr; } .two-factor-event { grid-template-columns: 1fr; } }
+  @media (max-width: 860px) {
+    .two-factor-wrap,
+    .two-factor-top,
+    .two-factor-card,
+    .two-factor-setup,
+    .two-factor-setup > div,
+    .two-factor-field,
+    .two-factor-events,
+    .two-factor-event {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .two-factor-top {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .two-factor-setup,
+    .two-factor-recovery-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .two-factor-event {
+      grid-template-columns: 1fr;
+    }
+
+    .two-factor-input,
+    .two-factor-button {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .two-factor-qr {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      aspect-ratio: 1;
+    }
+
+    .two-factor-card h3,
+    .two-factor-card p,
+    .two-factor-stat span,
+    .two-factor-stat strong,
+    .two-factor-message,
+    .two-factor-empty,
+    .two-factor-event,
+    .two-factor-recovery-code {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .two-factor-wrap {
+      gap: 14px;
+    }
+
+    .two-factor-top {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .two-factor-stat,
+    .two-factor-card {
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .two-factor-stat strong {
+      font-size: 19px;
+    }
+
+    .two-factor-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .two-factor-button {
+      width: 100%;
+      min-height: 44px;
+      height: auto;
+      padding: 10px 12px;
+      line-height: 1.3;
+    }
+
+    .two-factor-input {
+      font-size: 16px;
+    }
+
+    .two-factor-setup {
+      gap: 14px;
+    }
+
+    .two-factor-qr {
+      width: min(180px, 100%);
+      margin: 0 auto;
+    }
+
+    .two-factor-code-box {
+      overflow-wrap: anywhere;
+    }
+
+    .two-factor-recovery-code {
+      text-align: left;
+    }
+  }
 `
 
 function getToken() {
