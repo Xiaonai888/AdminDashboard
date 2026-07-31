@@ -29,7 +29,84 @@ const styles = `
   .passkey-pin-event { display: grid; grid-template-columns: 150px minmax(0, 1fr) 80px; gap: 10px; border-top: 1px solid #E2E8F0; padding-top: 9px; color: #0F172A; font-size: 12px; font-weight: 800; }
   .passkey-pin-event span { color: #64748B; }
   .passkey-pin-empty { border: 1px dashed #CBD5E1; border-radius: 18px; padding: 24px; text-align: center; color: #64748B; font-size: 13px; font-weight: 800; }
-  @media (max-width: 860px) { .passkey-pin-top, .passkey-pin-grid, .passkey-pin-event { grid-template-columns: 1fr; } }
+  @media (max-width: 860px) {
+    .passkey-pin-wrap,
+    .passkey-pin-top,
+    .passkey-pin-card,
+    .passkey-pin-grid,
+    .passkey-pin-field,
+    .passkey-pin-events,
+    .passkey-pin-event {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .passkey-pin-top {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .passkey-pin-grid,
+    .passkey-pin-event {
+      grid-template-columns: 1fr;
+    }
+
+    .passkey-pin-input,
+    .passkey-pin-button {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .passkey-pin-card h3,
+    .passkey-pin-card p,
+    .passkey-pin-stat span,
+    .passkey-pin-stat strong,
+    .passkey-pin-message,
+    .passkey-pin-empty,
+    .passkey-pin-event {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .passkey-pin-wrap {
+      gap: 14px;
+    }
+
+    .passkey-pin-top {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .passkey-pin-stat,
+    .passkey-pin-card {
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .passkey-pin-stat strong {
+      font-size: 19px;
+    }
+
+    .passkey-pin-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .passkey-pin-button {
+      width: 100%;
+      min-height: 44px;
+      height: auto;
+      padding: 10px 12px;
+      line-height: 1.3;
+    }
+
+    .passkey-pin-input {
+      font-size: 16px;
+    }
+  }
 `
 
 function getToken() {
