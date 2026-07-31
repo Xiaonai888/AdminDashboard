@@ -264,17 +264,102 @@ const sectionStyles = `
   }
 
   @media (max-width: 860px) {
+    .login-devices-wrap,
+    .login-devices-actions,
     .login-devices-summary,
-    .login-devices-grid {
-      grid-template-columns: 1fr;
+    .login-devices-grid,
+    .login-device-card,
+    .login-device-head,
+    .login-device-head > div,
+    .login-device-info,
+    .login-device-row,
+    .login-devices-events,
+    .login-device-event {
+      min-width: 0;
+      max-width: 100%;
     }
 
+    .login-devices-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .login-devices-summary {
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .login-devices-grid,
     .login-device-event {
       grid-template-columns: 1fr;
     }
 
+    .login-devices-button-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .login-devices-button {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
     .login-device-event-result {
       text-align: left;
+    }
+
+    .login-device-name,
+    .login-device-subtitle,
+    .login-device-row strong,
+    .login-device-event-time,
+    .login-device-event-main,
+    .login-device-event-result,
+    .login-devices-message,
+    .login-devices-empty,
+    .login-devices-stat span,
+    .login-devices-stat strong {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .login-devices-wrap {
+      gap: 14px;
+    }
+
+    .login-devices-summary {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .login-devices-stat,
+    .login-device-card,
+    .login-devices-events {
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .login-devices-stat strong {
+      font-size: 21px;
+    }
+
+    .login-device-head {
+      flex-direction: column;
+    }
+
+    .login-device-badges {
+      justify-content: flex-start;
+    }
+
+    .login-device-card > .login-devices-button {
+      width: 100%;
+      min-height: 44px;
+      height: auto;
+      padding: 10px 12px;
+      line-height: 1.3;
     }
   }
 
@@ -282,6 +367,18 @@ const sectionStyles = `
     .login-device-row {
       grid-template-columns: 1fr;
       gap: 3px;
+    }
+
+    .login-devices-button-row {
+      grid-template-columns: 1fr;
+    }
+
+    .login-devices-button-row .login-devices-button {
+      width: 100%;
+      min-height: 44px;
+      height: auto;
+      padding: 10px 12px;
+      line-height: 1.3;
     }
   }
 `
