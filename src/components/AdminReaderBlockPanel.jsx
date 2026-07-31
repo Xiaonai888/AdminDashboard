@@ -415,7 +415,7 @@ export default function AdminReaderBlockPanel() {
           </div>
 
           <div
-            className="block-list-toolbar"
+            className="block-list-toolbar block-list-reader-search-toolbar"
             style={{
               gridTemplateColumns:
                 'minmax(220px,1fr) 130px',
@@ -494,6 +494,7 @@ export default function AdminReaderBlockPanel() {
 
           {selectedReader ? (
             <div
+              className="block-list-reader-selected"
               style={{
                 padding: 20,
                 borderTop:
@@ -511,7 +512,7 @@ export default function AdminReaderBlockPanel() {
               </div>
 
               <div
-                className="block-list-toolbar"
+                className="block-list-toolbar block-list-reader-selected-toolbar"
                 style={{
                   paddingLeft: 0,
                   paddingRight: 0,
@@ -852,7 +853,7 @@ export default function AdminReaderBlockPanel() {
   }
 
   return (
-    <div>
+    <div className="block-list-reader-panel">
       <section className="block-list-card">
         <div className="block-list-card-head">
           <div>
@@ -905,7 +906,7 @@ export default function AdminReaderBlockPanel() {
       </section>
 
       <div
-        className="block-list-tabs"
+        className="block-list-tabs block-list-reader-tabs"
         style={{
           marginTop: 18,
           marginBottom: 0,
