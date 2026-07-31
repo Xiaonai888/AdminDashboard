@@ -28,6 +28,32 @@ const styles = `
     line-height: 1.6;
     max-width: 420px;
   }
+
+  @media (max-width: 640px) {
+    .coming-soon-panel {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+      border-radius: 16px;
+      padding: 24px 16px;
+    }
+
+    .coming-soon-icon {
+      font-size: 30px;
+    }
+
+    .coming-soon-title {
+      font-size: 19px;
+      overflow-wrap: anywhere;
+    }
+
+    .coming-soon-text {
+      max-width: 100%;
+      font-size: 13px;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+  }
 `
 
 export default function ComingSoonSection() {
