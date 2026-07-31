@@ -288,6 +288,14 @@ const styles = `
   }
 
   @media (max-width: 980px) {
+    .settings-page,
+    .settings-container,
+    .settings-layout,
+    .settings-sidebar,
+    .settings-content {
+      min-width: 0;
+    }
+
     .settings-layout {
       grid-template-columns: 1fr;
     }
@@ -295,17 +303,155 @@ const styles = `
     .settings-sidebar {
       position: static;
     }
+
+    .settings-tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .settings-tab,
+    .settings-tab:hover,
+    .settings-tab.active {
+      min-width: 0;
+      transform: none;
+    }
   }
 
-  @media (max-width: 640px) {
+  @media (max-width: 760px) {
+    .settings-top {
+      margin-bottom: 16px;
+    }
+
+    .settings-top h1 {
+      font-size: 25px;
+      overflow-wrap: anywhere;
+    }
+
+    .settings-top p,
+    .settings-sidebar-subtitle,
+    .settings-tab-title,
+    .settings-tab-desc,
+    .settings-content-title,
+    .settings-content-subtitle {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .settings-layout {
+      gap: 14px;
+    }
+
     .settings-sidebar,
     .settings-content {
       border-radius: 18px;
-      padding: 18px;
+    }
+
+    .settings-sidebar {
+      padding: 14px;
+    }
+
+    .settings-sidebar-head {
+      padding: 4px 6px 13px;
+    }
+
+    .settings-sidebar-title {
+      font-size: 22px;
+    }
+
+    .settings-tabs {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding: 2px 1px 5px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .settings-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .settings-tab {
+      flex: 0 0 min(270px, 82vw);
+      padding: 11px;
+    }
+
+    .settings-tab.active::before {
+      top: auto;
+      right: 12px;
+      bottom: 0;
+      left: 12px;
+      width: auto;
+      height: 4px;
+    }
+
+    .settings-tab-title {
+      white-space: normal;
+    }
+
+    .settings-tab-desc {
+      white-space: normal;
+    }
+
+    .settings-content {
+      min-height: 0;
+      padding: 18px 16px;
     }
 
     .settings-content-head {
       align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 17px;
+    }
+
+    .settings-content-head > div:last-child {
+      min-width: 0;
+    }
+
+    .settings-content-icon {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      border-radius: 14px;
+      font-size: 21px;
+    }
+
+    .settings-content-title {
+      font-size: 22px;
+    }
+
+    .settings-section-body,
+    .settings-section-body > * {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .settings-section-body input,
+    .settings-section-body select,
+    .settings-section-body textarea,
+    .settings-section-body button {
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .settings-sidebar,
+    .settings-content {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .settings-tab {
+      flex-basis: 86vw;
+    }
+
+    .settings-content-head {
+      flex-direction: column;
     }
   }
 `
