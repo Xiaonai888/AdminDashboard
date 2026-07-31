@@ -295,11 +295,173 @@ const styles = `
 
   @media (max-width: 1100px) {
     .order-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .actions {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .orders-toolbar {
+      grid-template-columns: minmax(0, 1fr) 180px 120px;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .orders-page {
+      min-width: 0;
+    }
+
+    .orders-body {
+      min-width: 0;
+      padding: 20px 16px 40px;
+    }
+
+    .orders-top,
+    .orders-card {
+      border-radius: 20px;
+    }
+
+    .orders-top {
+      padding: 18px 16px;
+    }
+
+    .orders-heading {
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+
+    .orders-note,
+    .message,
+    .small,
+    .strong,
+    .order-id {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .orders-nav {
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .orders-nav button,
+    .orders-nav-button {
+      width: 100%;
+      min-width: 0;
+      padding: 0 10px !important;
+    }
+
+    .orders-nav-button {
+      margin-bottom: 18px;
     }
 
     .orders-toolbar {
       grid-template-columns: 1fr;
+      margin-top: 0;
+    }
+
+    .input,
+    .select,
+    .refresh-button {
+      width: 100%;
+      min-height: 42px;
+    }
+
+    .orders-card-head {
+      align-items: flex-start;
+      flex-direction: column;
+      padding: 16px;
+    }
+
+    .count-pill {
+      width: 100%;
+      text-align: center;
+    }
+
+    .message {
+      margin: 14px 16px 0;
+    }
+
+    .order-row {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .order-row > div {
+      min-width: 0;
+    }
+
+    .order-row > div + div {
+      padding-top: 13px;
+      border-top: 1px solid #EEF2F7;
+    }
+
+    .book-item {
+      align-items: flex-start;
+    }
+
+    .book-item > div:last-child {
+      min-width: 0;
+    }
+
+    .actions {
+      grid-column: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .action-button {
+      width: 100%;
+      min-height: 40px;
+      height: auto;
+      padding: 9px 8px;
+      line-height: 1.25;
+    }
+
+    .pager {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      padding: 14px 16px;
+    }
+
+    .page-button {
+      width: 100%;
+      padding: 0 8px;
+    }
+
+    .empty {
+      padding: 42px 16px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .orders-body {
+      padding: 18px 13px 34px;
+    }
+
+    .orders-top {
+      padding: 16px 14px;
+    }
+
+    .orders-nav {
+      grid-template-columns: 1fr;
+    }
+
+    .actions {
+      grid-template-columns: 1fr;
+    }
+
+    .pager {
+      grid-template-columns: 1fr;
+    }
+
+    .pager .page-button:nth-child(2) {
+      order: -1;
     }
   }
 `
@@ -460,7 +622,7 @@ export default function ShadowMallOrdersPage() {
             Shows only paid or reviewed book orders. Waiting payment and expired orders are hidden from this report.
           </p>
 
-          <div style={{
+          <div className="orders-nav" style={{
             display: 'flex',
             gap: 10,
             marginTop: 18,
@@ -523,6 +685,7 @@ export default function ShadowMallOrdersPage() {
 
 <button
   type="button"
+  className="orders-nav-button"
   onClick={() => navigate('/author-store/review')}
   style={{
     height: 40,
@@ -538,7 +701,7 @@ export default function ShadowMallOrdersPage() {
 >
   Review Author
 </button>
-          
+
           <div className="orders-toolbar">
             <input
               className="input"
