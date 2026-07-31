@@ -334,6 +334,11 @@ const styles = `
   }
 
   @media (max-width: 980px) {
+    .logs-page,
+    .logs-shell {
+      min-width: 0;
+    }
+
     .logs-page {
       padding: 18px;
     }
@@ -350,9 +355,62 @@ const styles = `
       flex-direction: column;
     }
 
+    .top-row > div,
+    .logs-card-header > div {
+      min-width: 0;
+    }
+
+    .page-title h1 {
+      overflow-wrap: anywhere;
+    }
+
+    .page-title p,
+    .logs-card-header p,
+    .activity-main strong,
+    .activity-main span,
+    .time,
+    .empty-state,
+    .page-info {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
     .black-btn,
     .back-btn {
       width: 100%;
+      min-width: 0;
+    }
+
+    .search-box {
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .filter-row {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+
+    .filter-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-btn {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .logs-card {
+      min-width: 0;
+    }
+
+    .count-pill {
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     .table-head {
@@ -364,8 +422,76 @@ const styles = `
       gap: 10px;
     }
 
+    .log-row > div {
+      min-width: 0;
+    }
+
+    .actor-name {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
     .time {
       text-align: left;
+    }
+
+    .footer-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      justify-content: stretch;
+    }
+
+    .page-btn {
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+    }
+
+    .page-info {
+      align-self: center;
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .logs-page {
+      padding: 14px;
+      border-radius: 20px;
+    }
+
+    .page-title h1 {
+      font-size: 24px;
+    }
+
+    .tools-card,
+    .logs-card {
+      border-radius: 18px;
+    }
+
+    .tools-card {
+      padding: 14px;
+    }
+
+    .logs-card-header,
+    .log-row {
+      padding-left: 15px;
+      padding-right: 15px;
+    }
+
+    .action-pill {
+      max-width: 100%;
+      min-width: 0;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .footer-row {
+      grid-template-columns: 1fr;
+      padding: 14px 15px;
+    }
+
+    .page-info {
+      order: -1;
     }
   }
 `
