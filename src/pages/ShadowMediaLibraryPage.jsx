@@ -1542,37 +1542,193 @@ export default function ShadowMediaLibraryPage() {
 
         @media (max-width: 850px) {
           .media-library {
+            min-width: 0;
             grid-template-columns: 1fr;
+            gap: 16px;
+          }
+
+          .media-sidebar,
+          .media-content-panel {
+            min-width: 0;
           }
 
           .media-folder-list {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+          }
+
+          .media-folder {
+            min-width: 0;
+          }
+
+          .media-folder-card-layout {
+            grid-template-columns: 70px minmax(0, 1fr);
+          }
+
+          .media-folder-cover {
+            width: 70px;
+            height: 70px;
+          }
+
+          .media-folder-actions {
+            margin-left: 82px;
           }
         }
 
         @media (max-width: 640px) {
+          .media-library {
+            gap: 14px;
+          }
+
+          .media-sidebar,
+          .media-content-panel {
+            border-radius: 18px;
+          }
+
+          .media-sidebar-head,
           .media-content-head {
-            align-items: flex-start;
+            padding: 15px;
+          }
+
+          .media-content-head {
+            align-items: stretch;
             flex-direction: column;
           }
 
-          .media-folder-cover-editor {
-  align-items: flex-start;
-  flex-direction: column;
-}
+          .media-content-copy {
+            min-width: 0;
+          }
 
-.media-folder-cover-picker {
-  width: 112px;
-  height: 112px;
-}
+          .media-content-copy h2,
+          .media-content-copy p {
+            overflow-wrap: anywhere;
+          }
 
           .media-content-head .media-button {
             width: 100%;
           }
 
+          .media-toolbar {
+            padding: 13px 15px;
+          }
+
+          .media-folder-list {
+            grid-template-columns: 1fr;
+            padding: 10px;
+          }
+
+          .media-folder-card-layout {
+            grid-template-columns: 68px minmax(0, 1fr);
+          }
+
+          .media-folder-cover {
+            width: 68px;
+            height: 68px;
+            border-radius: 15px;
+          }
+
+          .media-folder-description {
+            margin-left: 0;
+          }
+
+          .media-folder-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin: 9px 0 0;
+          }
+
+          .media-folder-actions button {
+            width: 100%;
+            min-height: 32px;
+          }
+
           .media-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            padding: 14px;
+          }
+
+          .media-card {
+            min-width: 0;
+            border-radius: 15px;
+          }
+
+          .media-card-body {
+            padding: 10px;
+          }
+
+          .media-card-title {
+            white-space: normal;
+            overflow-wrap: anywhere;
+          }
+
+          .media-card-actions {
+            flex-direction: column;
+          }
+
+          .media-card-actions button {
+            width: 100%;
+            min-height: 34px;
+          }
+
+          .media-empty {
+            min-height: 320px;
+            padding: 24px 16px;
+          }
+
+          .media-empty .media-button {
+            width: 100%;
+          }
+
+          .media-modal-layer {
+            align-items: flex-end;
+            padding: 8px;
+          }
+
+          .media-modal,
+          .media-modal.large {
+            width: 100%;
+            max-height: calc(100dvh - 16px);
+            border-radius: 20px;
+            padding: 18px 16px 20px;
+          }
+
+          .media-modal-head {
+            gap: 14px;
+          }
+
+          .media-modal-head > div {
+            min-width: 0;
+          }
+
+          .media-modal-head h2,
+          .media-modal-head p {
+            overflow-wrap: anywhere;
+          }
+
+          .media-folder-cover-editor {
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 12px;
+          }
+
+          .media-folder-cover-picker {
+            width: 112px;
+            height: 112px;
+          }
+
+          .media-folder-cover-help {
+            width: 100%;
+          }
+
+          .media-folder-cover-help p {
+            max-width: none;
+          }
+
+          .media-folder-cover-help button {
+            width: 100%;
+            min-height: 38px;
           }
 
           .media-form-grid {
@@ -1584,13 +1740,25 @@ export default function ShadowMediaLibraryPage() {
             grid-column: auto;
           }
 
+          .media-dropzone {
+            min-height: 132px;
+            padding: 16px 12px;
+            text-align: center;
+          }
+
+          .media-dropzone small {
+            overflow-wrap: anywhere;
+          }
+
           .media-upload-row {
-            grid-template-columns: 54px minmax(0, 1fr);
+            grid-template-columns: 56px minmax(0, 1fr);
+            align-items: start;
+            gap: 10px;
           }
 
           .media-upload-row img {
-            width: 54px;
-            height: 54px;
+            width: 56px;
+            height: 56px;
           }
 
           .media-upload-fields {
@@ -1599,7 +1767,64 @@ export default function ShadowMediaLibraryPage() {
 
           .media-remove-button {
             grid-column: 2;
-            justify-self: start;
+            justify-self: stretch;
+            min-height: 34px;
+            border-radius: 10px;
+            background: #FEF2F2;
+          }
+
+          .media-upload-error,
+          .media-upload-summary {
+            overflow-wrap: anywhere;
+          }
+
+          .media-modal-actions {
+            position: sticky;
+            bottom: -20px;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin: 20px -16px -20px;
+            padding: 14px 16px;
+            border-top: 1px solid #E2E8F0;
+            background: #FFFFFF;
+          }
+
+          .media-modal-actions .media-button {
+            width: 100%;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .media-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .media-folder-card-layout {
+            grid-template-columns: 62px minmax(0, 1fr);
+          }
+
+          .media-folder-cover {
+            width: 62px;
+            height: 62px;
+          }
+
+          .media-upload-row {
+            grid-template-columns: 1fr;
+          }
+
+          .media-upload-row img {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+          }
+
+          .media-remove-button {
+            grid-column: auto;
+          }
+
+          .media-modal-actions {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
@@ -1630,6 +1855,7 @@ export default function ShadowMediaLibraryPage() {
   onDelete={deleteFolder}
   onReordered={setFolders}
 />
+        </aside>
 
         <section className="media-content-panel">
           <div className="media-content-head">
