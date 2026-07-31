@@ -627,12 +627,266 @@ const styles = `
   }
 
   @media (max-width: 980px) {
-    .ranking-toolbar {
-      grid-template-columns: 1fr;
+    .ranking-page {
+      min-width: 0;
     }
 
     .ranking-hero {
       flex-direction: column;
+    }
+
+    .ranking-hero > div {
+      min-width: 0;
+    }
+
+    .ranking-toolbar {
+      grid-template-columns: 1fr;
+    }
+
+    .ranking-toolbar input,
+    .ranking-toolbar select,
+    .ranking-btn {
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .ranking-table-wrap {
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .ranking-page {
+      gap: 14px;
+    }
+
+    .ranking-hero {
+      border-radius: 20px;
+      padding: 18px 16px;
+    }
+
+    .ranking-hero h2 {
+      font-size: 22px;
+      overflow-wrap: anywhere;
+    }
+
+    .ranking-hero p,
+    .ranking-alert,
+    .ranking-panel-subtitle,
+    .ranking-empty-text,
+    .ranking-setting-card span,
+    .ranking-modal-top h3,
+    .ranking-muted {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .ranking-hero-badge {
+      align-self: flex-start;
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      text-align: center;
+    }
+
+    .ranking-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      border-radius: 16px;
+    }
+
+    .ranking-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .ranking-tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .ranking-toolbar {
+      padding: 12px;
+      border-radius: 16px;
+    }
+
+    .ranking-panel {
+      min-width: 0;
+      border-radius: 18px;
+    }
+
+    .ranking-panel-top {
+      align-items: flex-start;
+      padding: 15px;
+    }
+
+    .ranking-panel-top > div {
+      min-width: 0;
+    }
+
+    .ranking-pill {
+      flex-shrink: 0;
+      max-width: 46%;
+      white-space: normal;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .ranking-table {
+      min-width: 980px;
+    }
+
+    .ranking-table th,
+    .ranking-table td {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .ranking-title {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .ranking-story-cell {
+      min-width: 220px;
+    }
+
+    .ranking-actions {
+      flex-wrap: wrap;
+      min-width: 190px;
+    }
+
+    .ranking-actions button {
+      min-height: 36px;
+      height: auto;
+      padding-top: 7px;
+      padding-bottom: 7px;
+      line-height: 1.25;
+    }
+
+    .ranking-empty,
+    .ranking-loading {
+      min-height: 230px;
+      padding: 24px 16px;
+    }
+
+    .ranking-pagination {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      justify-content: stretch;
+      padding: 14px 15px;
+    }
+
+    .ranking-pagination span {
+      grid-column: 1 / -1;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .ranking-pagination button {
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+    }
+
+    .ranking-settings-grid {
+      grid-template-columns: 1fr;
+      padding: 14px;
+    }
+
+    .ranking-setting-card {
+      min-width: 0;
+    }
+
+    .ranking-modal-layer {
+      align-items: flex-end;
+      padding: 0;
+    }
+
+    .ranking-modal {
+      width: 100%;
+      max-height: 94dvh;
+      overflow-y: auto;
+      border-radius: 22px 22px 0 0;
+      padding: 17px 16px 20px;
+    }
+
+    .ranking-modal-top > div {
+      min-width: 0;
+    }
+
+    .ranking-modal-close {
+      flex-shrink: 0;
+    }
+
+    .ranking-modal-story {
+      min-width: 0;
+    }
+
+    .ranking-modal-story > div:last-child {
+      min-width: 0;
+    }
+
+    .ranking-modal-field textarea {
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .ranking-modal-actions {
+      position: sticky;
+      bottom: -20px;
+      z-index: 2;
+      background: white;
+      margin-left: -16px;
+      margin-right: -16px;
+      margin-bottom: -20px;
+      padding: 14px 16px 20px;
+      border-top: 1px solid #E2E8F0;
+    }
+
+    .ranking-modal-actions button {
+      flex: 1;
+      min-width: 0;
+      height: auto;
+      min-height: 40px;
+      padding: 8px 10px;
+      line-height: 1.3;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .ranking-hero {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .ranking-panel-top {
+      flex-direction: column;
+    }
+
+    .ranking-pill {
+      max-width: 100%;
+    }
+
+    .ranking-pagination {
+      grid-template-columns: 1fr;
+    }
+
+    .ranking-pagination span {
+      grid-column: auto;
+      order: -1;
+    }
+
+    .ranking-modal-actions {
+      flex-direction: column;
+    }
+
+    .ranking-modal-actions button {
+      width: 100%;
     }
   }
 `
