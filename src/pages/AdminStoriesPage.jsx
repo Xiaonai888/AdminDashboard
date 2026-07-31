@@ -773,6 +773,227 @@ const styles = `
   .story-admin-btn.primary { background: #4F46E5; color: white; }
   .story-admin-btn:disabled { opacity: 0.55; cursor: not-allowed; }
   @keyframes storyAdminSpin { to { transform: rotate(360deg); } }
-  @media (max-width: 1180px) { .story-admin-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .story-admin-toolbar { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 720px) { .story-admin-summary, .story-admin-detail-grid, .story-admin-action-grid, .story-admin-toolbar { grid-template-columns: 1fr; } .story-admin-pagination { align-items: flex-start; flex-direction: column; gap: 10px; } }
+  @media (max-width: 1180px) {
+    .story-admin-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .story-admin-toolbar {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .story-admin-page {
+      min-width: 0;
+      gap: 14px;
+    }
+
+    .story-admin-alert {
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .story-admin-card {
+      min-width: 0;
+      padding: 15px;
+    }
+
+    .story-admin-card-value {
+      font-size: 23px;
+    }
+
+    .story-admin-card-text {
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-panel {
+      border-radius: 18px;
+    }
+
+    .story-admin-tabs {
+      flex-wrap: nowrap;
+      padding: 12px;
+      scrollbar-width: none;
+    }
+
+    .story-admin-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .story-admin-tabs button {
+      flex: 0 0 auto;
+      padding: 10px 13px;
+      font-size: 12px;
+    }
+
+    .story-admin-toolbar {
+      grid-template-columns: 1fr;
+      padding: 12px;
+    }
+
+    .story-admin-toolbar input,
+    .story-admin-toolbar select,
+    .story-admin-toolbar button {
+      width: 100%;
+      min-height: 42px;
+    }
+
+    .story-admin-table-wrap {
+      min-height: 360px;
+      overscroll-behavior-x: contain;
+    }
+
+    .story-admin-table {
+      min-width: 1180px;
+    }
+
+    .story-admin-pagination {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .story-admin-pagination > div:first-child {
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-pagination div:last-child {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .story-admin-pagination button {
+      width: 100%;
+    }
+
+    .story-admin-drawer {
+      width: 100%;
+      padding: 18px 16px 28px;
+    }
+
+    .story-admin-drawer-top h3,
+    .story-admin-modal-top h3 {
+      font-size: 18px;
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-drawer-profile {
+      align-items: flex-start;
+    }
+
+    .story-admin-drawer-profile > div:last-child,
+    .story-admin-modal-story > div:last-child {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-detail-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .story-admin-action-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .story-admin-action-grid button {
+      min-height: 42px;
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-mini-row,
+    .story-admin-log-item {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .story-admin-mini-right {
+      width: 100%;
+      align-items: flex-start;
+    }
+
+    .story-admin-mini-right .story-admin-btn {
+      width: 100%;
+    }
+
+    .story-admin-media-row {
+      gap: 12px;
+    }
+
+    .story-admin-media-row span {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .story-admin-modal {
+      width: calc(100% - 20px);
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
+      padding: 17px;
+      border-radius: 18px;
+    }
+
+    .story-admin-modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .story-admin-modal-actions .story-admin-btn {
+      width: 100%;
+    }
+
+    .story-admin-field textarea {
+      width: 100%;
+    }
+
+    .story-admin-empty,
+    .story-admin-loading {
+      min-height: 280px;
+      padding: 24px 16px;
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .story-admin-summary {
+      grid-template-columns: 1fr;
+    }
+
+    .story-admin-card {
+      padding: 14px;
+    }
+
+    .story-admin-action-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .story-admin-drawer-profile,
+    .story-admin-modal-story {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .story-admin-cover.large {
+      width: 72px;
+      height: 98px;
+    }
+
+    .story-admin-modal-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .story-admin-pagination div:last-child {
+      grid-template-columns: 1fr;
+    }
+
+    .story-admin-table {
+      min-width: 1080px;
+    }
+  }
 `
