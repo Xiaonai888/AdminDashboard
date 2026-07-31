@@ -622,22 +622,180 @@ const styles = `
   }
 
   @media (max-width: 1180px) {
+    .spam-page {
+      min-width: 0;
+    }
+
     .spam-summary-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .spam-table-wrap {
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
     }
   }
 
   @media (max-width: 820px) {
     .spam-page-head {
+      align-items: stretch;
       flex-direction: column;
+    }
+
+    .spam-page-head > div {
+      min-width: 0;
+    }
+
+    .spam-page-title {
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+
+    .spam-page-description,
+    .spam-message,
+    .spam-summary-note,
+    .spam-pagination-info,
+    .spam-reason-box p,
+    .spam-action-note {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .spam-refresh-btn {
+      width: 100%;
+      min-width: 0;
     }
 
     .spam-summary-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .spam-summary-card {
+      min-width: 0;
+      min-height: 108px;
+      padding: 15px;
+    }
+
+    .spam-panel {
+      min-width: 0;
+      border-radius: 20px;
+    }
+
+    .spam-panel-tabs {
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding-left: 14px;
+      padding-right: 14px;
+      scrollbar-width: none;
+    }
+
+    .spam-panel-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .spam-tab-btn {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
 
     .spam-toolbar {
       grid-template-columns: 1fr;
+      padding: 14px;
+    }
+
+    .spam-input,
+    .spam-select,
+    .spam-textarea {
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .spam-toolbar > div:empty {
+      display: none;
+    }
+
+    .spam-message {
+      margin: 13px 14px 0;
+    }
+
+    .spam-table {
+      min-width: 900px;
+    }
+
+    .spam-table th,
+    .spam-table td {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .spam-identity-main,
+    .spam-identity-sub {
+      max-width: 220px;
+    }
+
+    .spam-pagination {
+      align-items: stretch;
+      flex-direction: column;
+      padding: 14px;
+    }
+
+    .spam-pagination-info {
+      text-align: center;
+    }
+
+    .spam-pagination-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+    }
+
+    .spam-page-btn {
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+    }
+
+    .spam-drawer {
+      width: 100%;
+    }
+
+    .spam-drawer-head {
+      padding: 17px 16px;
+    }
+
+    .spam-drawer-head > div {
+      min-width: 0;
+    }
+
+    .spam-drawer-title {
+      overflow-wrap: anywhere;
+    }
+
+    .spam-close-btn {
+      flex-shrink: 0;
+    }
+
+    .spam-drawer-body {
+      padding: 16px 16px 30px;
+    }
+
+    .spam-action-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .spam-drawer-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .spam-action-btn {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+      height: auto;
+      padding: 9px 10px;
+      line-height: 1.3;
     }
   }
 
@@ -646,14 +804,48 @@ const styles = `
       grid-template-columns: 1fr;
     }
 
-    .spam-detail-grid,
-    .spam-action-grid {
+    .spam-summary-card {
+      min-height: 96px;
+    }
+
+    .spam-detail-grid {
       grid-template-columns: 1fr;
     }
 
-    .spam-pagination {
+    .spam-drawer-badges {
       align-items: flex-start;
-      flex-direction: column;
+    }
+
+    .spam-reason-box,
+    .spam-action-card {
+      min-width: 0;
+    }
+
+    .spam-drawer-actions,
+    .spam-pagination-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .spam-empty,
+    .spam-loading {
+      padding: 42px 16px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .spam-summary-value {
+      font-size: 24px;
+    }
+
+    .spam-drawer-head {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .spam-drawer-body {
+      padding-left: 14px;
+      padding-right: 14px;
     }
   }
 `
