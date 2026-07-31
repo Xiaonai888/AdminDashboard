@@ -311,6 +311,11 @@ const styles = `
   }
 
   @media (max-width: 1180px) {
+    .income-page,
+    .income-wrap {
+      min-width: 0;
+    }
+
     .income-hero-top {
       display: grid;
     }
@@ -331,20 +336,157 @@ const styles = `
   }
 
   @media (max-width: 760px) {
+    .income-wrap {
+      gap: 14px;
+    }
+
+    .income-hero {
+      min-width: 0;
+      border-radius: 22px;
+      padding: 18px 16px;
+    }
+
+    .income-hero-top > div {
+      min-width: 0;
+    }
+
+    .income-title {
+      font-size: 26px;
+      overflow-wrap: anywhere;
+    }
+
+    .income-subtitle,
+    .income-rule-value,
+    .income-card-label,
+    .income-card-sub,
+    .income-message,
+    .income-small,
+    .income-panel-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .income-filter,
     .income-main-grid,
     .income-mini-grid,
     .income-rule-strip,
-    .income-withdraw-grid,
-    .income-filter {
+    .income-withdraw-grid {
       grid-template-columns: 1fr;
     }
 
-    .income-table {
-      min-width: 760px;
+    .income-filter {
+      width: 100%;
+    }
+
+    .income-input,
+    .income-button,
+    .income-withdraw-action {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .income-main-card,
+    .income-mini-card {
+      min-width: 0;
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .income-card-value {
+      font-size: 28px;
+      overflow-wrap: anywhere;
+    }
+
+    .income-mini-value {
+      font-size: 21px;
+      overflow-wrap: anywhere;
     }
 
     .income-panel {
+      min-width: 0;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .income-panel-head {
+      align-items: flex-start;
+      padding: 15px;
+    }
+
+    .income-panel-head > div {
+      min-width: 0;
+    }
+
+    .income-pill {
+      flex-shrink: 0;
+      max-width: 48%;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .income-panel > .income-table {
+      display: block;
+      width: 100%;
+      min-width: 0;
       overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .income-panel > .income-table thead,
+    .income-panel > .income-table tbody {
+      display: table;
+      width: 760px;
+      table-layout: fixed;
+    }
+
+    .income-table th,
+    .income-table td {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .income-source-name,
+    .income-money {
+      overflow-wrap: anywhere;
+    }
+
+    .income-withdraw-grid {
+      padding: 14px;
+    }
+
+    .income-withdraw-item {
+      min-width: 0;
+    }
+
+    .income-empty {
+      padding: 40px 16px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .income-hero {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .income-kicker {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .income-panel-head {
+      flex-direction: column;
+    }
+
+    .income-pill {
+      max-width: 100%;
+    }
+
+    .income-card-value {
+      font-size: 25px;
     }
   }
 `
