@@ -121,6 +121,52 @@ const sectionStyles = `
     border: 1px solid #A7F3D0;
     color: #047857;
   }
+
+  @media (max-width: 640px) {
+    .password-form,
+    .field-label,
+    .password-wrap {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .password-input,
+    .primary-button,
+    .logout-other-button {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .password-input {
+      font-size: 16px;
+    }
+
+    .field-label,
+    .message-box {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .eye-button {
+      touch-action: manipulation;
+    }
+
+    .primary-button,
+    .logout-other-button {
+      min-height: 46px;
+      height: auto;
+      padding: 11px 12px;
+      line-height: 1.3;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .password-input {
+      padding-left: 12px;
+      padding-right: 48px;
+    }
+  }
 `
 
 function EyeIcon({ hidden = false }) {
