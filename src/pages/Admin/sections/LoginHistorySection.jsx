@@ -268,27 +268,101 @@ const sectionStyles = `
   }
 
   @media (max-width: 980px) {
+    .login-history-wrap,
+    .login-history-top,
+    .login-history-summary,
+    .login-history-card,
+    .login-history-details,
+    .login-history-detail-row {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .login-history-top {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
     .login-history-summary {
+      width: 100%;
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .login-history-button {
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      box-sizing: border-box;
+    }
+
+    .login-history-filters {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .login-history-filters::-webkit-scrollbar {
+      display: none;
+    }
+
+    .login-history-filter {
+      flex: 0 0 auto;
+      white-space: nowrap;
     }
 
     .login-history-card {
       overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
     }
 
     .login-history-table {
       min-width: 850px;
     }
+
+    .login-history-message,
+    .login-history-empty,
+    .login-history-stat span,
+    .login-history-stat strong,
+    .login-history-event,
+    .login-history-reason,
+    .login-history-detail-row strong,
+    .login-history-detail-row pre {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
   }
 
   @media (max-width: 560px) {
+    .login-history-wrap {
+      gap: 14px;
+    }
+
     .login-history-summary {
       grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .login-history-stat {
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .login-history-stat strong {
+      font-size: 20px;
     }
 
     .login-history-detail-row {
       grid-template-columns: 1fr;
       gap: 3px;
+    }
+
+    .login-history-details-button {
+      min-height: 38px;
+      padding: 8px 12px;
     }
   }
 `
