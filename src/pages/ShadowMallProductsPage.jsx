@@ -828,29 +828,245 @@ const styles = `
     .records-toolbar-panel {
       grid-template-columns: 1fr 1fr;
     }
-  }
 
-  @media (max-width: 640px) {
-    .records-toolbar-panel {
+    .shadow-media-grid {
       grid-template-columns: 1fr;
+    }
+
+    .gallery-slots {
+      grid-template-columns: repeat(5, 96px);
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      padding-bottom: 7px;
+      scrollbar-width: thin;
     }
   }
 
-  @media (max-width: 980px) {
-    .shadow-media-grid { grid-template-columns: 1fr; }
-    .gallery-slots { grid-template-columns: repeat(5, 96px); overflow-x: auto; padding-bottom: 6px; }
+  @media (max-width: 760px) {
+    .dashboard-wrapper {
+      min-width: 0;
+    }
+
+    .main-content {
+      min-width: 0;
+    }
+
+    .content-body {
+      min-width: 0;
+      padding: 22px 16px 42px;
+    }
+
+    .header {
+      padding-right: 16px;
+    }
+
+    .shadow-page-head {
+      align-items: stretch;
+      flex-direction: column;
+      margin-bottom: 18px;
+    }
+
+    .shadow-title {
+      font-size: 26px;
+      overflow-wrap: anywhere;
+    }
+
+    .shadow-subtitle,
+    .shadow-card-note,
+    .shadow-message,
+    .help {
+      overflow-wrap: anywhere;
+    }
+
+    .shadow-page-head .shadow-refresh {
+      width: 100%;
+    }
+
+    .shadow-media-grid {
+      gap: 16px;
+    }
+
+    .shadow-card {
+      min-width: 0;
+      border-radius: 20px;
+    }
+
+    .product-card,
+    .records-card {
+      margin-top: 16px;
+    }
+
+    .shadow-card-head {
+      align-items: flex-start;
+      flex-direction: column;
+      padding: 17px 16px;
+    }
+
+    .shadow-card-head > div {
+      min-width: 0;
+    }
+
+    .shadow-form-body,
+    .media-card {
+      padding: 17px 16px 20px;
+    }
+
+    .field-grid,
+    .field-grid.three {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .checks {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .main-cover-frame {
+      width: min(230px, 100%);
+    }
+
+    .gallery-slots {
+      margin-right: -16px;
+      padding-right: 16px;
+    }
+
+    .record-toolbar {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .record-count-pill {
+      grid-column: 1 / -1;
+      min-height: 34px;
+      text-align: center;
+    }
+
+    .record-sort-button,
+    .record-toolbar .shadow-refresh {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .records-toolbar-panel {
+      grid-template-columns: 1fr;
+      padding: 14px 16px;
+    }
+
+    .filter-select {
+      width: 100%;
+    }
+
+    .record-row {
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 15px 16px;
+    }
+
+    .record-cover {
+      width: 64px;
+      height: 88px;
+      border-radius: 13px;
+    }
+
+    .record-title,
+    .record-author,
+    .record-id {
+      overflow-wrap: anywhere;
+    }
+
+    .record-actions {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+      justify-content: stretch;
+      padding-left: 76px;
+    }
+
+    .record-action {
+      width: 100%;
+      min-height: 40px;
+    }
+
+    .empty {
+      padding: 42px 16px;
+      overflow-wrap: anywhere;
+    }
   }
 
-  @media (max-width: 740px) {
-    .content-body { padding: 22px 16px 40px; }
-    .header { padding: 0 18px; }
-    .shadow-page-head { align-items: flex-start; flex-direction: column; }
-    .field-grid,
-    .field-grid.three,
-    .checks { grid-template-columns: 1fr; }
-    .record-row { grid-template-columns: 64px 1fr; }
-    .record-cover { width: 64px; height: 88px; }
-    .record-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  @media (max-width: 520px) {
+    .content-body {
+      padding: 18px 13px 36px;
+    }
+
+    .shadow-title {
+      font-size: 24px;
+    }
+
+    .shadow-kicker {
+      max-width: 100%;
+      white-space: normal;
+      text-align: center;
+    }
+
+    .shadow-card-head,
+    .shadow-form-body,
+    .media-card {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .checks {
+      grid-template-columns: 1fr;
+    }
+
+    .gallery-slots {
+      grid-template-columns: repeat(5, 88px);
+      margin-right: -14px;
+      padding-right: 14px;
+    }
+
+    .record-toolbar {
+      grid-template-columns: 1fr;
+    }
+
+    .record-count-pill {
+      grid-column: auto;
+    }
+
+    .record-row {
+      grid-template-columns: 56px minmax(0, 1fr);
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .record-cover {
+      width: 56px;
+      height: 78px;
+    }
+
+    .record-actions {
+      grid-template-columns: 1fr;
+      padding-left: 66px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .record-row {
+      grid-template-columns: 1fr;
+    }
+
+    .record-cover {
+      width: 72px;
+      height: 98px;
+    }
+
+    .record-actions {
+      grid-column: auto;
+      padding-left: 0;
+    }
   }
 `;
 
