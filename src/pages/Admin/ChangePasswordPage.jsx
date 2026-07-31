@@ -152,9 +152,66 @@ const styles = `
   }
 
   @media (max-width: 640px) {
+    .password-page,
+    .password-card,
+    .password-form,
+    .password-field,
+    .password-wrap {
+      min-width: 0;
+      max-width: 100%;
+    }
+
     .password-card {
       padding: 18px;
       border-radius: 18px;
+    }
+
+    .password-card-title {
+      font-size: 21px;
+      overflow-wrap: anywhere;
+    }
+
+    .password-card-subtitle,
+    .password-field,
+    .password-message {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .password-input,
+    .change-password-button,
+    .logout-other-button {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .password-input {
+      font-size: 16px;
+    }
+
+    .eye-button {
+      flex-shrink: 0;
+      touch-action: manipulation;
+    }
+
+    .change-password-button,
+    .logout-other-button {
+      min-height: 46px;
+      height: auto;
+      padding: 11px 12px;
+      line-height: 1.3;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .password-card {
+      padding: 16px 14px;
+    }
+
+    .password-input {
+      padding-left: 12px;
+      padding-right: 48px;
     }
   }
 `
