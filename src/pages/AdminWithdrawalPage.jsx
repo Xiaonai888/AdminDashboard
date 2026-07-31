@@ -249,12 +249,171 @@ const styles = `
   }
 
   @media (max-width: 1100px) {
+    .withdraw-page,
+    .withdraw-body {
+      min-width: 0;
+    }
+
     .withdraw-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .withdraw-toolbar {
+      grid-template-columns: 1fr 190px 120px;
+    }
+
+    .withdraw-row > div {
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .withdraw-body {
+      padding: 18px 14px 40px;
+    }
+
+    .withdraw-top {
+      min-width: 0;
+      border-radius: 20px;
+      padding: 17px 15px;
+    }
+
+    .withdraw-heading {
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+
+    .withdraw-note,
+    .message,
+    .empty,
+    .small,
+    .strong,
+    .withdraw-card-title {
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .withdraw-toolbar {
       grid-template-columns: 1fr;
+    }
+
+    .input,
+    .select,
+    .refresh-button {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .refresh-button {
+      min-height: 42px;
+    }
+
+    .withdraw-card {
+      min-width: 0;
+      border-radius: 20px;
+    }
+
+    .withdraw-card-head {
+      align-items: flex-start;
+      padding: 15px;
+    }
+
+    .withdraw-card-head > div {
+      min-width: 0;
+    }
+
+    .count-pill {
+      flex-shrink: 0;
+      max-width: 48%;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    .message {
+      margin: 13px 14px 0;
+    }
+
+    .withdraw-row {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 16px 15px;
+    }
+
+    .withdraw-row > div {
+      border-bottom: 1px solid #F1F5F9;
+      padding-bottom: 13px;
+    }
+
+    .withdraw-row > div:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .amount {
+      font-size: 21px;
+      overflow-wrap: anywhere;
+    }
+
+    .status-pill {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+
+    .action-stack {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .action-button {
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+      height: auto;
+      padding: 8px 7px;
+      line-height: 1.3;
+    }
+
+    .pagination {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      justify-content: stretch;
+      padding: 14px 15px;
+    }
+
+    .page-button {
+      width: 100%;
+      min-width: 0;
+      min-height: 40px;
+    }
+
+    .pagination .small {
+      margin: 0;
+      align-self: center;
+      text-align: center;
+    }
+
+    .empty {
+      padding: 42px 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .withdraw-card-head {
+      flex-direction: column;
+    }
+
+    .count-pill {
+      max-width: 100%;
+    }
+
+    .action-stack,
+    .pagination {
+      grid-template-columns: 1fr;
+    }
+
+    .pagination .small {
+      order: -1;
     }
   }
 `
