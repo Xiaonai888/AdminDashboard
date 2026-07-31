@@ -318,10 +318,180 @@ const styles = `
 
   @media (max-width: 1100px) {
     .order-row {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .actions {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .orders-toolbar {
+      grid-template-columns: minmax(0, 1fr) 180px 120px;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .orders-page {
+      min-width: 0;
+    }
+
+    .orders-body {
+      min-width: 0;
+      padding: 20px 16px 40px;
+    }
+
+    .orders-top,
+    .orders-card {
+      border-radius: 20px;
+    }
+
+    .orders-top {
+      padding: 18px 16px;
+    }
+
+    .orders-heading {
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+
+    .orders-note,
+    .message,
+    .small,
+    .strong,
+    .order-id {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .tab-row {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      margin-right: -16px;
+      padding-right: 16px;
+      padding-bottom: 5px;
+      scrollbar-width: none;
+    }
+
+    .tab-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-button {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .inner-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+    }
+
+    .inner-tab {
+      width: 100%;
+      min-width: 0;
+      padding: 0 10px;
+    }
+
+    .orders-toolbar {
+      grid-template-columns: 1fr;
+    }
+
+    .input,
+    .select,
+    .refresh-button {
+      width: 100%;
+      min-width: 0;
+      min-height: 42px;
+    }
+
+    .orders-card-head {
+      align-items: stretch;
+      flex-direction: column;
+      padding: 16px;
+    }
+
+    .count-pill {
+      width: 100%;
+      text-align: center;
+    }
+
+    .message {
+      margin: 14px 16px 0;
+    }
+
+    .order-row {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .order-row > div {
+      min-width: 0;
+    }
+
+    .order-row > div + div {
+      padding-top: 13px;
+      border-top: 1px solid #EEF2F7;
+    }
+
+    .book-item {
+      align-items: flex-start;
+    }
+
+    .book-item > div:last-child {
+      min-width: 0;
+    }
+
+    .actions {
+      grid-column: auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+    }
+
+    .action-button {
+      width: 100%;
+      min-height: 40px;
+      height: auto;
+      padding: 9px 8px;
+      line-height: 1.25;
+    }
+
+    .pager {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 14px 16px;
+    }
+
+    .page-button {
+      width: 100%;
+      min-height: 40px;
+    }
+
+    .empty {
+      padding: 42px 16px;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .orders-body {
+      padding: 18px 13px 34px;
+    }
+
+    .orders-top {
+      padding: 16px 14px;
+    }
+
+    .tab-row {
+      margin-right: -14px;
+      padding-right: 14px;
+    }
+
+    .actions,
+    .pager {
       grid-template-columns: 1fr;
     }
   }
