@@ -74,6 +74,7 @@ function PublisherImage({ publisher, size = 56 }) {
 function ProductMiniRow({ product, actionLabel, onAction, danger = false }) {
   return (
     <div
+      className="publisher-product-row"
       style={{
         display: 'grid',
         gridTemplateColumns: '54px minmax(0, 1fr) auto',
@@ -86,6 +87,7 @@ function ProductMiniRow({ product, actionLabel, onAction, danger = false }) {
       }}
     >
       <div
+        className="publisher-product-cover"
         style={{
           width: 54,
           height: 74,
@@ -114,7 +116,7 @@ function ProductMiniRow({ product, actionLabel, onAction, danger = false }) {
         )}
       </div>
 
-      <div style={{ minWidth: 0 }}>
+      <div className="publisher-product-copy" style={{ minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 900, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {product.title || 'Untitled book'}
         </div>
@@ -137,6 +139,7 @@ function ProductMiniRow({ product, actionLabel, onAction, danger = false }) {
 
       <button
         type="button"
+        className="publisher-product-action"
         onClick={onAction}
         style={{
           border: 0,
@@ -563,7 +566,7 @@ async function loadPublisherLogs(nextPage = 1) {
     title="Publishers"
     subtitle="Create publishers, upload logos, match books automatically, and manually assign books when names do not match."
   >
-    <div style={{
+    <div className="publisher-page" style={{
       color: '#0F172A',
       fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
@@ -614,9 +617,276 @@ async function loadPublisherLogs(nextPage = 1) {
           font-weight: 900;
           cursor: pointer;
         }
+
+        .publisher-page {
+          min-width: 0;
+        }
+
+        @media (max-width: 1180px) {
+          .publisher-main-grid {
+            grid-template-columns: 360px minmax(0, 1fr) !important;
+          }
+
+          .publisher-list-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+
+          .publisher-assignment-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 820px) {
+          .publisher-page-header {
+            align-items: stretch !important;
+            flex-direction: column !important;
+          }
+
+          .publisher-header-actions {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+          }
+
+          .publisher-header-actions button,
+          .publisher-nav button {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .publisher-nav {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+
+          .publisher-message {
+            overflow-wrap: anywhere;
+          }
+
+          .publisher-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .publisher-form-card,
+          .publisher-list-card,
+          .publisher-assignment-card,
+          .publisher-records-card {
+            min-width: 0;
+            border-radius: 20px !important;
+          }
+
+          .publisher-form {
+            padding: 18px !important;
+          }
+
+          .publisher-card-head,
+          .publisher-records-head {
+            padding: 18px !important;
+          }
+
+          .publisher-stats {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+
+          .publisher-list-grid {
+            padding: 16px !important;
+          }
+
+          .publisher-product-row {
+            min-width: 0;
+          }
+
+          .publisher-product-copy {
+            min-width: 0;
+          }
+
+          .publisher-records-head {
+            align-items: stretch !important;
+            flex-direction: column !important;
+          }
+
+          .publisher-records-head button {
+            width: 100%;
+          }
+
+          .publisher-records-search {
+            grid-template-columns: 1fr !important;
+          }
+
+          .publisher-record-row {
+            grid-template-columns: 80px minmax(0, 1fr) !important;
+            align-items: start !important;
+          }
+
+          .publisher-record-row > div:last-child {
+            grid-column: 2;
+            text-align: left !important;
+            overflow-wrap: anywhere;
+          }
+
+          .publisher-records-pager {
+            display: grid !important;
+            grid-template-columns: 1fr auto 1fr;
+            justify-content: stretch !important;
+          }
+
+          .publisher-records-pager button {
+            width: 100%;
+            padding: 0 8px !important;
+          }
+        }
+
+        @media (max-width: 620px) {
+          .publisher-page-header h1 {
+            font-size: 25px !important;
+          }
+
+          .publisher-page-header p,
+          .publisher-section-head p,
+          .publisher-card-head p {
+            overflow-wrap: anywhere;
+          }
+
+          .publisher-header-actions,
+          .publisher-nav {
+            grid-template-columns: 1fr;
+          }
+
+          .publisher-logo-editor {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+          }
+
+          .publisher-logo-actions {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+          }
+
+          .publisher-logo-actions .publisher-button {
+            width: 100%;
+            padding: 0 8px;
+          }
+
+          .publisher-form-small-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .publisher-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+
+          .publisher-stats > div:last-child {
+            grid-column: 1 / -1;
+          }
+
+          .publisher-list-grid {
+            grid-template-columns: 1fr !important;
+            padding: 14px !important;
+          }
+
+          .publisher-list-item {
+            min-width: 0;
+          }
+
+          .publisher-select-button {
+            min-width: 0;
+          }
+
+          .publisher-card-actions button {
+            min-height: 38px !important;
+          }
+
+          .publisher-section-head {
+            align-items: stretch !important;
+            flex-direction: column !important;
+            padding: 16px !important;
+          }
+
+          .publisher-section-head button {
+            width: 100%;
+          }
+
+          .publisher-product-list {
+            padding: 12px !important;
+          }
+
+          .publisher-product-row {
+            grid-template-columns: 52px minmax(0, 1fr) !important;
+            align-items: start !important;
+            gap: 10px !important;
+          }
+
+          .publisher-product-cover {
+            width: 52px !important;
+            height: 72px !important;
+          }
+
+          .publisher-product-action {
+            grid-column: 2;
+            width: 100%;
+            min-height: 38px;
+          }
+
+          .publisher-records-search {
+            padding: 14px !important;
+          }
+
+          .publisher-record-row {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+            padding: 14px !important;
+          }
+
+          .publisher-record-row > div:last-child {
+            grid-column: auto;
+          }
+
+          .publisher-record-row > div:nth-child(2) > div {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+          }
+
+          .publisher-records-pager {
+            grid-template-columns: 1fr !important;
+            padding: 14px !important;
+          }
+
+          .publisher-records-pager button:nth-child(2) {
+            order: -1;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .publisher-logo-actions {
+            grid-template-columns: 1fr;
+          }
+
+          .publisher-stats {
+            grid-template-columns: 1fr !important;
+          }
+
+          .publisher-stats > div:last-child {
+            grid-column: auto;
+          }
+
+          .publisher-product-row {
+            grid-template-columns: 1fr !important;
+          }
+
+          .publisher-product-cover {
+            width: 72px !important;
+            height: 98px !important;
+          }
+
+          .publisher-product-action {
+            grid-column: auto;
+          }
+        }
       `}</style>
 
-      <header style={{
+      <header className="publisher-page-header" style={{
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'space-between',
@@ -646,7 +916,7 @@ async function loadPublisherLogs(nextPage = 1) {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="publisher-header-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => navigate('/shadow-mall')}
@@ -684,7 +954,7 @@ async function loadPublisherLogs(nextPage = 1) {
         </div>
       </header>
 
-      <div style={{
+      <div className="publisher-nav" style={{
         display: 'flex',
         gap: 10,
         marginBottom: 18,
@@ -745,7 +1015,7 @@ async function loadPublisherLogs(nextPage = 1) {
       </div>
 
       {message ? (
-        <div style={{
+        <div className="publisher-message" style={{
           marginBottom: 16,
           borderRadius: 16,
           border: '1px solid #E2E8F0',
@@ -760,20 +1030,20 @@ async function loadPublisherLogs(nextPage = 1) {
         </div>
       ) : null}
 
-      <section style={{
+      <section className="publisher-main-grid" style={{
         display: 'grid',
         gridTemplateColumns: '420px minmax(0, 1fr)',
         gap: 20,
         alignItems: 'start',
       }}>
-        <div style={{
+        <div className="publisher-form-card" style={{
           background: '#FFFFFF',
           border: '1px solid #E2E8F0',
           borderRadius: 24,
           overflow: 'hidden',
           boxShadow: '0 12px 30px rgba(15, 23, 42, 0.04)',
         }}>
-          <div style={{ padding: '20px 22px', borderBottom: '1px solid #E2E8F0' }}>
+          <div className="publisher-card-head" style={{ padding: '20px 22px', borderBottom: '1px solid #E2E8F0' }}>
             <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>
               {editingId ? 'Edit Publisher' : 'Create Publisher'}
             </h2>
@@ -782,7 +1052,7 @@ async function loadPublisherLogs(nextPage = 1) {
             </p>
           </div>
 
-          <form onSubmit={savePublisher} style={{ padding: 22 }}>
+          <form className="publisher-form" onSubmit={savePublisher} style={{ padding: 22 }}>
             <label style={{ display: 'block', marginBottom: 13 }}>
               <span className="publisher-label">Publisher Name</span>
               <input
@@ -795,7 +1065,7 @@ async function loadPublisherLogs(nextPage = 1) {
 
             <div style={{ marginBottom: 13 }}>
               <span className="publisher-label">Publisher Logo</span>
-              <div style={{
+              <div className="publisher-logo-editor" style={{
                 border: '1px dashed #CBD5E1',
                 borderRadius: 22,
                 background: '#F8FAFC',
@@ -814,7 +1084,7 @@ async function loadPublisherLogs(nextPage = 1) {
                     Square logo looks best in Reader search.
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <div className="publisher-logo-actions" style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       onClick={() => logoInputRef.current?.click()}
@@ -854,7 +1124,7 @@ async function loadPublisherLogs(nextPage = 1) {
               />
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="publisher-form-small-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <label style={{ display: 'block', marginBottom: 13 }}>
                 <span className="publisher-label">Sort Order</span>
                 <input
@@ -930,8 +1200,8 @@ async function loadPublisherLogs(nextPage = 1) {
           </form>
         </div>
 
-        <div>
-          <div style={{
+        <div className="publisher-content">
+          <div className="publisher-stats" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
             gap: 12,
@@ -953,7 +1223,7 @@ async function loadPublisherLogs(nextPage = 1) {
             </div>
           </div>
 
-          <section style={{
+          <section className="publisher-list-card" style={{
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: 24,
@@ -967,7 +1237,7 @@ async function loadPublisherLogs(nextPage = 1) {
               </p>
             </div>
 
-            <div style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+            <div className="publisher-list-grid" style={{ padding: 20, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
               {loading ? (
                 <div style={{ gridColumn: '1 / -1', padding: 30, textAlign: 'center', color: '#94A3B8', fontWeight: 900 }}>
                   Loading publishers...
@@ -976,6 +1246,7 @@ async function loadPublisherLogs(nextPage = 1) {
                 publishers.map((publisher) => (
                   <div
                     key={publisher.id}
+                    className="publisher-list-item"
                     style={{
                       border: selectedPublisher?.id === publisher.id ? '2px solid #4F46E5' : '1px solid #E2E8F0',
                       borderRadius: 20,
@@ -985,6 +1256,7 @@ async function loadPublisherLogs(nextPage = 1) {
                   >
                     <button
                       type="button"
+                      className="publisher-select-button"
                       onClick={() => selectPublisher(publisher)}
                       style={{
                         width: '100%',
@@ -1011,7 +1283,7 @@ async function loadPublisherLogs(nextPage = 1) {
                       </div>
                     </button>
 
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <div className="publisher-card-actions" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                       <button
                         type="button"
                         onClick={() => startEditPublisher(publisher)}
@@ -1038,14 +1310,14 @@ async function loadPublisherLogs(nextPage = 1) {
           </section>
 
           {selectedPublisher ? (
-            <section style={{
+            <section className="publisher-assignment-grid" style={{
               marginTop: 20,
               display: 'grid',
               gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
               gap: 20,
             }}>
-              <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden' }}>
-                <div style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div className="publisher-assignment-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden' }}>
+                <div className="publisher-section-head" style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div>
                     <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Assigned Products</h3>
                     <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600 }}>
@@ -1061,7 +1333,7 @@ async function loadPublisherLogs(nextPage = 1) {
                   </button>
                 </div>
 
-                <div style={{ padding: 14, display: 'grid', gap: 10, maxHeight: 520, overflowY: 'auto' }}>
+                <div className="publisher-product-list" style={{ padding: 14, display: 'grid', gap: 10, maxHeight: 520, overflowY: 'auto' }}>
                   {assignedProducts.length ? (
                     assignedProducts.map((product) => (
                       <ProductMiniRow
@@ -1080,9 +1352,9 @@ async function loadPublisherLogs(nextPage = 1) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gap: 20 }}>
-                <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden' }}>
-                  <div style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div className="publisher-assignment-side" style={{ display: 'grid', gap: 20 }}>
+                <div className="publisher-assignment-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden' }}>
+                  <div className="publisher-section-head" style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div>
                       <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Auto Match</h3>
                       <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600 }}>
@@ -1136,8 +1408,8 @@ async function loadPublisherLogs(nextPage = 1) {
                   </div>
                 </div>
 
-                <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden' }}>
-                  <div style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0' }}>
+                <div className="publisher-assignment-card" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 24, overflow: 'hidden' }}>
+                  <div className="publisher-section-head" style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0' }}>
                     <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Manual Assign</h3>
                     <p style={{ marginTop: 4, color: '#64748B', fontSize: 12, fontWeight: 600 }}>
                       Search title or author, then assign by hand.
@@ -1174,7 +1446,7 @@ async function loadPublisherLogs(nextPage = 1) {
             </section>
           ) : null}
 
-          <section style={{
+          <section className="publisher-records-card" style={{
   marginTop: 20,
   background: '#FFFFFF',
   border: '1px solid #E2E8F0',
@@ -1182,7 +1454,7 @@ async function loadPublisherLogs(nextPage = 1) {
   overflow: 'hidden',
   boxShadow: '0 12px 30px rgba(15, 23, 42, 0.04)',
 }}>
-  <div style={{
+  <div className="publisher-records-head" style={{
     padding: '20px 22px',
     borderBottom: '1px solid #E2E8F0',
     display: 'flex',
@@ -1216,7 +1488,7 @@ async function loadPublisherLogs(nextPage = 1) {
     </button>
   </div>
 
-  <div style={{
+  <div className="publisher-records-search" style={{
     padding: 16,
     borderBottom: '1px solid #F1F5F9',
     display: 'grid',
@@ -1272,7 +1544,7 @@ async function loadPublisherLogs(nextPage = 1) {
     </button>
   </div>
 
-  <div style={{ minHeight: 260 }}>
+  <div className="publisher-records-list" style={{ minHeight: 260 }}>
     {publisherLogLoading ? (
       <div style={{ padding: 54, textAlign: 'center', color: '#94A3B8', fontSize: 13, fontWeight: 900 }}>
         Loading records...
@@ -1281,6 +1553,7 @@ async function loadPublisherLogs(nextPage = 1) {
       publisherLogs.map((log) => (
         <div
           key={log.id}
+          className="publisher-record-row"
           style={{
             display: 'grid',
             gridTemplateColumns: '90px minmax(0, 1fr) 220px',
@@ -1346,7 +1619,7 @@ async function loadPublisherLogs(nextPage = 1) {
     )}
   </div>
 
-  <div style={{
+  <div className="publisher-records-pager" style={{
     padding: '14px 20px',
     borderTop: '1px solid #F1F5F9',
     display: 'flex',
