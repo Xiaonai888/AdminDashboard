@@ -34,6 +34,8 @@ export default function ShadowMallPromotionPage() {
   const profileInputRef = useRef(null)
   const formRef = useRef(null)
   const titleInputRef = useRef(null)
+  const storyPickerRef = useRef(null)
+  const storySearchRequestRef = useRef(0)
   const [form, setForm] = useState(defaultForm)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
@@ -49,7 +51,12 @@ export default function ShadowMallPromotionPage() {
   const [removeProfileImage, setRemoveProfileImage] = useState(false)
   const [promotions, setPromotions] = useState([])
   const [stories, setStories] = useState([])
-  const [storiesLoading, setStoriesLoading] = useState(true)
+  const [storiesLoading, setStoriesLoading] = useState(false)
+  const [storySearch, setStorySearch] = useState('')
+  const [storyPickerOpen, setStoryPickerOpen] = useState(false)
+  const [storyPage, setStoryPage] = useState(1)
+  const [storyHasNext, setStoryHasNext] = useState(false)
+  const [selectedStory, setSelectedStory] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -100,57 +107,190 @@ export default function ShadowMallPromotionPage() {
     }
   }
 
-    async function loadStories() {
+  async function loadStories({
+    query = '',
+    page = 1,
+    append = false,
+    selectId = '',
+  } = {}) {
+    const requestId =
+      ++storySearchRequestRef.current
+
     try {
       setStoriesLoading(true)
 
       const token = getAdminToken()
       const params = new URLSearchParams({
-  tab: 'active',
-  page: '1',
-  limit: '100',
-  status: 'published',
-  visibility: 'active',
-  genre: 'all',
-  q: '',
-})
+        q: String(query || '').trim(),
+        page: String(page),
+        limit: '20',
+      })
 
       const response = await fetch(
-        `${API_URL}/api/admin/stories?${params.toString()}`,
+        `${API_URL}/api/admin/stories/picker?${params.toString()}`,
         {
           headers: {
             ...(token
-              ? { Authorization: `Bearer ${token}` }
+              ? {
+                  Authorization:
+                    `Bearer ${token}`,
+                }
               : {}),
           },
         }
       )
-      const data = await response.json().catch(() => ({}))
+
+      const data = await response
+        .json()
+        .catch(() => ({}))
 
       if (!response.ok || data.ok === false) {
         throw new Error(
-          data.message || 'Failed to load stories'
+          data.message ||
+            'Failed to search stories'
         )
       }
 
-      setStories(
+      if (
+        requestId !==
+        storySearchRequestRef.current
+      ) {
+        return
+      }
+
+      const nextStories =
         Array.isArray(data.stories)
           ? data.stories
           : []
+
+      setStories((current) => {
+        if (!append) return nextStories
+
+        const storyMap = new Map(
+          [...current, ...nextStories].map(
+            (story) => [
+              String(story.id),
+              story,
+            ]
+          )
+        )
+
+        return [...storyMap.values()]
+      })
+
+      setStoryPage(
+        Number(data.page || page)
       )
+      setStoryHasNext(
+        Boolean(data.has_next)
+      )
+
+      if (selectId) {
+        const exactStory =
+          nextStories.find(
+            (story) =>
+              String(story.id) ===
+              String(selectId)
+          ) || null
+
+        setSelectedStory(exactStory)
+
+        if (!exactStory) {
+          setForm((current) => ({
+            ...current,
+            story_id: '',
+          }))
+        }
+      }
     } catch (error) {
-      setMessage(
-        error.message || 'Failed to load stories'
-      )
+      if (
+        requestId ===
+        storySearchRequestRef.current
+      ) {
+        setMessage(
+          error.message ||
+            'Failed to search stories'
+        )
+      }
     } finally {
-      setStoriesLoading(false)
+      if (
+        requestId ===
+        storySearchRequestRef.current
+      ) {
+        setStoriesLoading(false)
+      }
     }
   }
 
   useEffect(() => {
     loadPromotions()
-    loadStories()
   }, [])
+
+  useEffect(() => {
+    if (
+      !storyPickerOpen ||
+      form.promotion_type !== 'story_sale'
+    ) {
+      return undefined
+    }
+
+    const timer = window.setTimeout(() => {
+      loadStories({
+        query: storySearch,
+        page: 1,
+        append: false,
+      })
+    }, 300)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [
+    storySearch,
+    storyPickerOpen,
+    form.promotion_type,
+  ])
+
+  useEffect(() => {
+    if (!storyPickerOpen) return undefined
+
+    function closeStoryPicker(event) {
+      if (
+        storyPickerRef.current &&
+        !storyPickerRef.current.contains(
+          event.target
+        )
+      ) {
+        setStoryPickerOpen(false)
+      }
+    }
+
+    function closeStoryPickerWithEscape(event) {
+      if (event.key === 'Escape') {
+        setStoryPickerOpen(false)
+      }
+    }
+
+    document.addEventListener(
+      'mousedown',
+      closeStoryPicker
+    )
+    document.addEventListener(
+      'keydown',
+      closeStoryPickerWithEscape
+    )
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        closeStoryPicker
+      )
+      document.removeEventListener(
+        'keydown',
+        closeStoryPickerWithEscape
+      )
+    }
+  }, [storyPickerOpen])
 
   useEffect(() => {
     if (!openMenuId) return undefined
@@ -263,6 +403,54 @@ export default function ShadowMallPromotionPage() {
     setMessage('')
   }
 
+  function selectStory(story) {
+    if (!story?.id) return
+
+    setForm((current) => ({
+      ...current,
+      story_id: story.id,
+    }))
+    setSelectedStory(story)
+    setStorySearch('')
+    setStoryPickerOpen(false)
+    setStories([])
+    setStoryPage(1)
+    setStoryHasNext(false)
+    setMessage('')
+  }
+
+  function clearSelectedStory() {
+    setForm((current) => ({
+      ...current,
+      story_id: '',
+    }))
+    setSelectedStory(null)
+    setStorySearch('')
+    setStories([])
+    setStoryPage(1)
+    setStoryHasNext(false)
+    setStoryPickerOpen(true)
+    setMessage('')
+  }
+
+  function changePromotionType(value) {
+    updateField('promotion_type', value)
+
+    if (value !== 'story_sale') {
+      setForm((current) => ({
+        ...current,
+        promotion_type: value,
+        story_id: '',
+      }))
+      setSelectedStory(null)
+      setStorySearch('')
+      setStories([])
+      setStoryPage(1)
+      setStoryHasNext(false)
+      setStoryPickerOpen(false)
+    }
+  }
+
   function openCropForFile(event, target) {
     const file = event.target.files?.[0]
 
@@ -325,6 +513,12 @@ export default function ShadowMallPromotionPage() {
     setCroppedAreaPixels(null)
     setRemoveImage(false)
     setRemoveProfileImage(false)
+    setStorySearch('')
+    setStoryPickerOpen(false)
+    setStoryPage(1)
+    setStoryHasNext(false)
+    setSelectedStory(null)
+    setStories([])
     setMessage(nextMessage)
 
     if (imageInputRef.current) {
@@ -540,6 +734,19 @@ export default function ShadowMallPromotionPage() {
     setMessage(
       `Editing Ad #${promotion.display_order || promotion.id}`
     )
+
+    if (
+      promotion.promotion_type ===
+        'story_sale' &&
+      promotion.story_id
+    ) {
+      loadStories({
+        query: promotion.story_id,
+        page: 1,
+        append: false,
+        selectId: promotion.story_id,
+      })
+    }
 
     window.scrollTo({
       top: 0,
@@ -842,13 +1049,6 @@ export default function ShadowMallPromotionPage() {
   const pinnedCount = promotions.filter(
     (item) => Boolean(item.is_pinned)
   ).length
-
-  const selectedStory =
-    stories.find(
-      (story) =>
-        String(story.id) ===
-        String(form.story_id)
-    ) || null
 
   const originalDiamondPrice = Number(
     form.original_price_diamonds || 0
@@ -1335,8 +1535,7 @@ export default function ShadowMallPromotionPage() {
                 <select
                   value={form.promotion_type}
                   onChange={(event) =>
-                    updateField(
-                      'promotion_type',
+                    changePromotionType(
                       event.target.value
                     )
                   }
@@ -1462,9 +1661,10 @@ export default function ShadowMallPromotionPage() {
                     padding: 14,
                   }}
                 >
-                  <label
+                  <div
+                    ref={storyPickerRef}
                     style={{
-                      display: 'block',
+                      position: 'relative',
                       marginBottom: 14,
                     }}
                   >
@@ -1480,49 +1680,620 @@ export default function ShadowMallPromotionPage() {
                       Story to sell
                     </span>
 
-                    <select
-                      value={form.story_id}
-                      disabled={storiesLoading}
-                      onChange={(event) =>
-                        updateField(
-                          'story_id',
-                          event.target.value
-                        )
-                      }
-                      style={{
-                        width: '100%',
-                        height: 44,
-                        border: '1px solid #E2E8F0',
-                        borderRadius: 14,
-                        padding: '0 12px',
-                        outline: 'none',
-                        color: '#0F172A',
-                        background: '#FFFFFF',
-                        font: 'inherit',
-                        fontSize: 13,
-                        fontWeight: 700,
-                        boxSizing: 'border-box',
-                      }}
-                    >
-                      <option value="">
-                        {storiesLoading
-                          ? 'Loading stories...'
-                          : 'Choose a published story'}
-                      </option>
-
-                      {stories.map((story) => (
-                        <option
-                          key={story.id}
-                          value={story.id}
+                    {selectedStory ? (
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns:
+                            '58px minmax(0, 1fr) auto',
+                          gap: 11,
+                          alignItems: 'center',
+                          border:
+                            '1px solid #C7D2FE',
+                          borderRadius: 14,
+                          background: '#FFFFFF',
+                          padding: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 58,
+                            height: 76,
+                            overflow: 'hidden',
+                            borderRadius: 9,
+                            background: '#E2E8F0',
+                          }}
                         >
-                          {story.title}
-                          {story.author_page?.page_name
-                            ? ` · ${story.author_page.page_name}`
-                            : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                          {selectedStory.cover_url ? (
+                            <img
+                              src={
+                                selectedStory.cover_url
+                              }
+                              alt={
+                                selectedStory.title ||
+                                'Story cover'
+                              }
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                display: 'block',
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent:
+                                  'center',
+                                color: '#64748B',
+                                fontSize: 18,
+                                fontWeight: 900,
+                              }}
+                            >
+                              📖
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            minWidth: 0,
+                          }}
+                        >
+                          <div
+                            style={{
+                              overflow: 'hidden',
+                              color: '#0F172A',
+                              fontSize: 13,
+                              fontWeight: 900,
+                              textOverflow:
+                                'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={
+                              selectedStory.title
+                            }
+                          >
+                            {selectedStory.title ||
+                              'Untitled story'}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 4,
+                              overflow: 'hidden',
+                              color: '#475569',
+                              fontSize: 11,
+                              fontWeight: 800,
+                              textOverflow:
+                                'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {selectedStory
+                              .author_page
+                              ?.page_name ||
+                              'Unknown author'}
+                            {selectedStory
+                              .author_page
+                              ?.page_username
+                              ? ` · @${selectedStory.author_page.page_username}`
+                              : ''}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 5,
+                              color: '#64748B',
+                              fontSize: 10,
+                              fontWeight: 800,
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {selectedStory.story_type ||
+                              'novel'}
+                            {' · '}
+                            {selectedStory
+                              .story_language ||
+                              'Unknown language'}
+                            {' · '}
+                            {Number(
+                              selectedStory
+                                .total_episodes || 0
+                            )}{' '}
+                            episodes
+                          </div>
+
+                          <div
+                            title={selectedStory.id}
+                            style={{
+                              marginTop: 3,
+                              color: '#94A3B8',
+                              fontSize: 9,
+                              fontWeight: 800,
+                            }}
+                          >
+                            ID:{' '}
+                            {String(
+                              selectedStory.id || ''
+                            ).slice(0, 8)}
+                            …
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: 'grid',
+                            gap: 7,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStoryPickerOpen(
+                                true
+                              )
+                              setStorySearch('')
+                            }}
+                            style={{
+                              height: 34,
+                              border:
+                                '1px solid #C7D2FE',
+                              borderRadius: 10,
+                              background: '#EEF2FF',
+                              color: '#4F46E5',
+                              padding: '0 10px',
+                              font: 'inherit',
+                              fontSize: 10,
+                              fontWeight: 900,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Change
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={
+                              clearSelectedStory
+                            }
+                            style={{
+                              height: 34,
+                              border:
+                                '1px solid #FECACA',
+                              borderRadius: 10,
+                              background: '#FFFFFF',
+                              color: '#B91C1C',
+                              padding: '0 10px',
+                              font: 'inherit',
+                              fontSize: 10,
+                              fontWeight: 900,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {!selectedStory ||
+                    storyPickerOpen ? (
+                      <div
+                        style={{
+                          marginTop: selectedStory
+                            ? 10
+                            : 0,
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: 'relative',
+                          }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              position:
+                                'absolute',
+                              left: 13,
+                              top: '50%',
+                              transform:
+                                'translateY(-50%)',
+                              color: '#64748B',
+                              fontSize: 14,
+                            }}
+                          >
+                            🔍
+                          </span>
+
+                          <input
+                            value={storySearch}
+                            onFocus={() =>
+                              setStoryPickerOpen(
+                                true
+                              )
+                            }
+                            onChange={(event) => {
+                              setStorySearch(
+                                event.target.value
+                              )
+                              setStoryPickerOpen(
+                                true
+                              )
+                            }}
+                            placeholder="Search title, author, @username, Story ID, or paste story link"
+                            autoComplete="off"
+                            style={{
+                              width: '100%',
+                              height: 46,
+                              border:
+                                '1px solid #C7D2FE',
+                              borderRadius: 14,
+                              padding:
+                                '0 42px 0 38px',
+                              outline: 'none',
+                              color: '#0F172A',
+                              background: '#FFFFFF',
+                              font: 'inherit',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              boxSizing:
+                                'border-box',
+                            }}
+                          />
+
+                          {storySearch ? (
+                            <button
+                              type="button"
+                              aria-label="Clear story search"
+                              onClick={() =>
+                                setStorySearch('')
+                              }
+                              style={{
+                                position:
+                                  'absolute',
+                                right: 7,
+                                top: 7,
+                                width: 32,
+                                height: 32,
+                                border: 0,
+                                borderRadius: 9,
+                                background:
+                                  '#F1F5F9',
+                                color: '#475569',
+                                fontSize: 15,
+                                fontWeight: 900,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              ×
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 6,
+                            color: '#64748B',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          Paste links such as
+                          {' '}
+                          /story/STORY_ID or an
+                          episode/manage link.
+                        </div>
+
+                        {storyPickerOpen ? (
+                          <div
+                            style={{
+                              position:
+                                'absolute',
+                              zIndex: 40,
+                              left: 0,
+                              right: 0,
+                              top: selectedStory
+                                ? '100%'
+                                : 75,
+                              marginTop: 7,
+                              overflow: 'hidden',
+                              border:
+                                '1px solid #CBD5E1',
+                              borderRadius: 14,
+                              background: '#FFFFFF',
+                              boxShadow:
+                                '0 16px 38px rgba(15,23,42,.16)',
+                            }}
+                          >
+                            <div
+                              style={{
+                                maxHeight: 360,
+                                overflowY: 'auto',
+                              }}
+                            >
+                              {storiesLoading &&
+                              !stories.length ? (
+                                <div
+                                  style={{
+                                    padding: 18,
+                                    color:
+                                      '#64748B',
+                                    textAlign:
+                                      'center',
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  Searching
+                                  published
+                                  stories...
+                                </div>
+                              ) : stories.length ? (
+                                stories.map(
+                                  (story) => (
+                                    <button
+                                      key={story.id}
+                                      type="button"
+                                      onClick={() =>
+                                        selectStory(
+                                          story
+                                        )
+                                      }
+                                      style={{
+                                        width:
+                                          '100%',
+                                        display:
+                                          'grid',
+                                        gridTemplateColumns:
+                                          '46px minmax(0, 1fr)',
+                                        gap: 10,
+                                        alignItems:
+                                          'center',
+                                        border: 0,
+                                        borderBottom:
+                                          '1px solid #F1F5F9',
+                                        background:
+                                          '#FFFFFF',
+                                        padding:
+                                          '10px 12px',
+                                        textAlign:
+                                          'left',
+                                        font:
+                                          'inherit',
+                                        cursor:
+                                          'pointer',
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          width: 46,
+                                          height: 60,
+                                          overflow:
+                                            'hidden',
+                                          borderRadius: 8,
+                                          background:
+                                            '#E2E8F0',
+                                        }}
+                                      >
+                                        {story.cover_url ? (
+                                          <img
+                                            src={
+                                              story.cover_url
+                                            }
+                                            alt={
+                                              story.title ||
+                                              'Story cover'
+                                            }
+                                            style={{
+                                              width:
+                                                '100%',
+                                              height:
+                                                '100%',
+                                              objectFit:
+                                                'cover',
+                                              display:
+                                                'block',
+                                            }}
+                                          />
+                                        ) : (
+                                          <div
+                                            style={{
+                                              width:
+                                                '100%',
+                                              height:
+                                                '100%',
+                                              display:
+                                                'flex',
+                                              alignItems:
+                                                'center',
+                                              justifyContent:
+                                                'center',
+                                              fontSize:
+                                                16,
+                                            }}
+                                          >
+                                            📖
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <div
+                                        style={{
+                                          minWidth:
+                                            0,
+                                        }}
+                                      >
+                                        <div
+                                          style={{
+                                            overflow:
+                                              'hidden',
+                                            color:
+                                              '#0F172A',
+                                            fontSize:
+                                              12,
+                                            fontWeight:
+                                              900,
+                                            textOverflow:
+                                              'ellipsis',
+                                            whiteSpace:
+                                              'nowrap',
+                                          }}
+                                          title={
+                                            story.title
+                                          }
+                                        >
+                                          {story.title ||
+                                            'Untitled story'}
+                                        </div>
+
+                                        <div
+                                          style={{
+                                            marginTop:
+                                              3,
+                                            overflow:
+                                              'hidden',
+                                            color:
+                                              '#475569',
+                                            fontSize:
+                                              10,
+                                            fontWeight:
+                                              800,
+                                            textOverflow:
+                                              'ellipsis',
+                                            whiteSpace:
+                                              'nowrap',
+                                          }}
+                                        >
+                                          {story
+                                            .author_page
+                                            ?.page_name ||
+                                            'Unknown author'}
+                                          {story
+                                            .author_page
+                                            ?.page_username
+                                            ? ` · @${story.author_page.page_username}`
+                                            : ''}
+                                        </div>
+
+                                        <div
+                                          style={{
+                                            marginTop:
+                                              4,
+                                            color:
+                                              '#64748B',
+                                            fontSize:
+                                              9,
+                                            fontWeight:
+                                              800,
+                                            lineHeight:
+                                              1.45,
+                                          }}
+                                        >
+                                          {story.story_type ||
+                                            'novel'}
+                                          {' · '}
+                                          {story.story_language ||
+                                            'Unknown language'}
+                                          {' · '}
+                                          {Number(
+                                            story.total_episodes ||
+                                              0
+                                          )}{' '}
+                                          episodes
+                                          {' · ID '}
+                                          {String(
+                                            story.id ||
+                                              ''
+                                          ).slice(
+                                            0,
+                                            8
+                                          )}
+                                          …
+                                        </div>
+                                      </div>
+                                    </button>
+                                  )
+                                )
+                              ) : (
+                                <div
+                                  style={{
+                                    padding: 18,
+                                    color:
+                                      '#64748B',
+                                    textAlign:
+                                      'center',
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    lineHeight:
+                                      1.5,
+                                  }}
+                                >
+                                  No published
+                                  story found.
+                                  Try a title,
+                                  author, Story ID,
+                                  or paste the
+                                  story link.
+                                </div>
+                              )}
+                            </div>
+
+                            {storyHasNext ? (
+                              <button
+                                type="button"
+                                disabled={
+                                  storiesLoading
+                                }
+                                onClick={() =>
+                                  loadStories({
+                                    query:
+                                      storySearch,
+                                    page:
+                                      storyPage +
+                                      1,
+                                    append: true,
+                                  })
+                                }
+                                style={{
+                                  width: '100%',
+                                  height: 40,
+                                  border: 0,
+                                  borderTop:
+                                    '1px solid #E2E8F0',
+                                  background:
+                                    '#F8FAFC',
+                                  color:
+                                    '#4F46E5',
+                                  font: 'inherit',
+                                  fontSize: 10,
+                                  fontWeight: 900,
+                                  cursor:
+                                    storiesLoading
+                                      ? 'not-allowed'
+                                      : 'pointer',
+                                  opacity:
+                                    storiesLoading
+                                      ? 0.6
+                                      : 1,
+                                }}
+                              >
+                                {storiesLoading
+                                  ? 'Loading...'
+                                  : 'Load more stories'}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
 
                   <div
                     style={{
