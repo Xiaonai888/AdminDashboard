@@ -9,7 +9,6 @@ const styles = `
     margin: 0;
     background: #F8FAFC;
     color: #0F172A;
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
   .orders-page {
