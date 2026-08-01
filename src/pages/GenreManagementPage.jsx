@@ -18,7 +18,7 @@ function slugify(value) {
 }
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  
 
   :root {
     --bg:#F8FAFC;
@@ -47,7 +47,6 @@ const styles = `
   body {
     margin:0;
     background:var(--bg);
-    font-family:Inter, sans-serif;
     color:var(--text);
   }
 
