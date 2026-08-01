@@ -4,7 +4,6 @@ import AdminSidebar from '../components/AdminSidebar'
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
   :root {
     --bg:#F8FAFC;
@@ -26,7 +25,6 @@ const styles = `
   }
 
   body {
-    font-family:Inter, sans-serif;
     background:var(--bg);
     color:var(--text);
   }
