@@ -257,8 +257,6 @@ const navSections = [
       { path: '/account', label: 'Account', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z' },
       { path: '/admin-login-guard', label: 'Admin Guard', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-5' },
       { path: '/admin/activity-logs', label: 'Activity Logs', icon: 'M3 12a9 9 0 1 0 3-6.7 M3 3v6h6 M12 7v5l3 2' },
-      { path: '/admin/settings', label: 'Settings', icon: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20.3h-3v-.08a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.03H5.3v-3h.14A1.7 1.7 0 0 0 7 9.94a1.7 1.7 0 0 0-.34-1.88L6.6 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.14v3h-.14A1.7 1.7 0 0 0 19.4 15z' },
-      { path: '/admin/change-password', label: 'Change Password', icon: 'M7 11V7a5 5 0 0 1 10 0v4 M5 11h14v10H5z M12 15v2' },
     ],
   },
 ];
@@ -283,7 +281,7 @@ export default function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const activeItemRef = useRef(null);
+  const sidebarRef = useRef(null);
   const allItems = navSections.flatMap(section => section.items);
   const activeItem = [...allItems]
     .sort((a, b) => b.path.length - a.path.length)
@@ -320,19 +318,31 @@ export default function AdminSidebar() {
   }, []);
 
   useEffect(() => {
-    if (!mobileOpen) return undefined;
+    const sidebar = sidebarRef.current;
 
-    const frame = window.requestAnimationFrame(() => {
-      activeItemRef.current?.scrollIntoView({
-        block: 'center',
-        behavior: 'smooth',
-      });
-    });
+    if (!sidebar) return undefined;
 
-    return () => window.cancelAnimationFrame(frame);
-  }, [mobileOpen, activeItem?.path]);
+    const savedScroll = Number(sessionStorage.getItem('shadow_admin_sidebar_scroll') || 0);
+
+    if (Number.isFinite(savedScroll)) {
+      sidebar.scrollTop = savedScroll;
+    }
+
+    const saveScroll = () => {
+      sessionStorage.setItem('shadow_admin_sidebar_scroll', String(sidebar.scrollTop));
+    };
+
+    sidebar.addEventListener('scroll', saveScroll, { passive: true });
+
+    return () => {
+      saveScroll();
+      sidebar.removeEventListener('scroll', saveScroll);
+    };
+  }, []);
 
   const goToPage = (path) => {
+    const sidebarScroll = sidebarRef.current?.scrollTop || 0;
+    sessionStorage.setItem('shadow_admin_sidebar_scroll', String(sidebarScroll));
     setMobileOpen(false);
     navigate(path);
   };
@@ -362,6 +372,7 @@ export default function AdminSidebar() {
       />
 
       <aside
+        ref={sidebarRef}
         className={`admin-main-sidebar ${mobileOpen ? 'open' : ''}`}
         aria-hidden={!mobileOpen && typeof window !== 'undefined' && window.innerWidth <= 760}
       >
@@ -377,7 +388,6 @@ export default function AdminSidebar() {
               <button
                 key={item.path}
                 type="button"
-                ref={activeItem?.path === item.path ? activeItemRef : null}
                 className={`admin-main-sidebar-item ${activeItem?.path === item.path ? 'active' : ''}`}
                 onClick={() => goToPage(item.path)}
               >
