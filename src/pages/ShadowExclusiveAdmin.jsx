@@ -37,7 +37,7 @@ const EMPTY_SUMMARY = {
 };
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+ 
 
   :root {
     --se-bg:#F8FAFC;
@@ -61,7 +61,7 @@ const styles = `
     min-height:100vh;
     background:var(--se-bg);
     padding:28px 36px 60px;
-    font-family:Inter,system-ui,sans-serif;
+  
     color:var(--se-text);
   }
 
