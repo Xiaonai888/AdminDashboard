@@ -52,7 +52,6 @@ function ComingSoon({ title }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontFamily: 'Inter, sans-serif',
         color: '#0F172A',
         padding: 24,
         borderRadius: 22,
