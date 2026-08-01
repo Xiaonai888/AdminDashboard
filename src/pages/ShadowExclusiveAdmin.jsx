@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
@@ -16,7 +16,7 @@ const SECTION_OPTIONS = [
 
 const ADMIN_PICK_TABS = [
   { key: 'all', label: 'All Published' },
-  { key: 'approved', label: 'Already Premium' },
+  { key: 'approved', label: 'Approved Exclusive' },
   { key: 'rejected', label: 'Rejected' },
   { key: 'removed', label: 'Normal / Removed' },
 ];
@@ -27,38 +27,42 @@ const REQUEST_TABS = [
   { key: 'rejected', label: 'Rejected' },
 ];
 
+const EMPTY_SUMMARY = {
+  total_published: 0,
+  exclusive_stories: 0,
+  pending_requests: 0,
+  rejected_requests: 0,
+  normal_stories: 0,
+  premium_stories: 0,
+};
+
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
   :root {
-    --bg:#F8FAFC;
-    --card:#FFFFFF;
-    --primary:#4F46E5;
-    --primaryLight:#EEF2FF;
-    --text:#0F172A;
-    --muted:#64748B;
-    --border:#E2E8F0;
-    --green:#10B981;
-    --greenBg:#D1FAE5;
-    --red:#EF4444;
-    --redBg:#FEE2E2;
-    --amber:#F59E0B;
-    --amberBg:#FEF3C7;
+    --se-bg:#F8FAFC;
+    --se-card:#FFFFFF;
+    --se-primary:#4F46E5;
+    --se-primary-light:#EEF2FF;
+    --se-text:#0F172A;
+    --se-muted:#64748B;
+    --se-border:#E2E8F0;
+    --se-green:#10B981;
+    --se-green-bg:#D1FAE5;
+    --se-red:#EF4444;
+    --se-red-bg:#FEE2E2;
+    --se-amber:#F59E0B;
+    --se-amber-bg:#FEF3C7;
   }
 
   * { box-sizing:border-box; }
 
-  body {
-    margin:0;
-    background:var(--bg);
-    font-family:Inter, system-ui, sans-serif;
-    color:var(--text);
-  }
-
   .se-page {
     min-height:100vh;
-    background:var(--bg);
+    background:var(--se-bg);
     padding:28px 36px 60px;
+    font-family:Inter,system-ui,sans-serif;
+    color:var(--se-text);
   }
 
   .se-shell {
@@ -74,25 +78,12 @@ const styles = `
     margin-bottom:22px;
   }
 
-  .se-back {
-    border:1px solid var(--border);
-    background:#fff;
-    color:#0F172A;
-    height:40px;
-    border-radius:12px;
-    padding:0 14px;
-    font-weight:900;
-    cursor:pointer;
-    margin-bottom:14px;
-  }
-
   .se-kicker {
     display:inline-flex;
     align-items:center;
-    gap:8px;
-    height:30px;
+    min-height:30px;
     border-radius:999px;
-    padding:0 12px;
+    padding:7px 12px;
     background:#FFF7ED;
     border:1px solid #FED7AA;
     color:#B45309;
@@ -112,18 +103,18 @@ const styles = `
 
   .se-subtitle {
     max-width:850px;
-    color:var(--muted);
+    color:var(--se-muted);
     font-size:14px;
     line-height:1.7;
-    margin-top:8px;
+    margin:8px 0 0;
     font-weight:500;
   }
 
   .se-refresh {
-    height:42px;
+    min-height:42px;
     border:0;
-    background:var(--primary);
-    color:white;
+    background:var(--se-primary);
+    color:#fff;
     border-radius:13px;
     padding:0 16px;
     font-family:inherit;
@@ -132,7 +123,11 @@ const styles = `
     box-shadow:0 12px 24px rgba(79,70,229,.18);
   }
 
-  .se-refresh:disabled {
+  .se-refresh:disabled,
+  .se-action-btn:disabled,
+  .se-search-btn:disabled,
+  .se-confirm:disabled,
+  .se-cancel:disabled {
     opacity:.6;
     cursor:not-allowed;
   }
@@ -145,9 +140,9 @@ const styles = `
   }
 
   .se-mode-tab {
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     background:#fff;
-    color:var(--muted);
+    color:var(--se-muted);
     border-radius:16px;
     padding:14px 16px;
     font-family:inherit;
@@ -157,7 +152,7 @@ const styles = `
   }
 
   .se-mode-tab.active {
-    border-color:var(--primary);
+    border-color:var(--se-primary);
     background:linear-gradient(135deg,#EEF2FF,#FFFFFF);
     box-shadow:0 12px 28px rgba(79,70,229,.12);
   }
@@ -165,38 +160,39 @@ const styles = `
   .se-mode-title {
     font-size:14px;
     font-weight:900;
-    color:#0F172A;
+    color:var(--se-text);
   }
 
   .se-mode-desc {
     margin-top:4px;
     font-size:12px;
     line-height:1.45;
-    color:var(--muted);
+    color:var(--se-muted);
     font-weight:600;
   }
 
   .se-stats {
     display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
     gap:14px;
     margin-bottom:18px;
   }
 
   .se-stat {
+    min-width:0;
     background:#fff;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     border-radius:18px;
     padding:16px;
     box-shadow:0 4px 18px rgba(15,23,42,.04);
   }
 
   .se-stat-label {
-    color:var(--muted);
-    font-size:11px;
+    color:var(--se-muted);
+    font-size:10.5px;
     font-weight:900;
     text-transform:uppercase;
-    letter-spacing:.6px;
+    letter-spacing:.55px;
   }
 
   .se-stat-value {
@@ -209,7 +205,7 @@ const styles = `
 
   .se-card {
     background:#fff;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     border-radius:22px;
     box-shadow:0 8px 28px rgba(15,23,42,.05);
     overflow:hidden;
@@ -217,7 +213,7 @@ const styles = `
 
   .se-card-head {
     padding:18px 20px;
-    border-bottom:1px solid var(--border);
+    border-bottom:1px solid var(--se-border);
     display:flex;
     align-items:center;
     justify-content:space-between;
@@ -232,10 +228,24 @@ const styles = `
   }
 
   .se-card-desc {
-    color:var(--muted);
+    color:var(--se-muted);
     font-size:12px;
     font-weight:600;
     margin-top:4px;
+    line-height:1.5;
+  }
+
+  .se-result-count {
+    display:inline-flex;
+    margin-top:8px;
+    min-height:25px;
+    align-items:center;
+    border-radius:999px;
+    padding:4px 10px;
+    background:#F1F5F9;
+    color:#475569;
+    font-size:11px;
+    font-weight:800;
   }
 
   .se-tabs {
@@ -246,26 +256,32 @@ const styles = `
   }
 
   .se-tab {
-    height:34px;
+    min-height:34px;
     border-radius:999px;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     background:#fff;
-    color:var(--muted);
-    padding:0 13px;
+    color:var(--se-muted);
+    padding:6px 13px;
     font-size:12px;
     font-weight:900;
     cursor:pointer;
+    white-space:nowrap;
   }
 
   .se-tab.active {
-    border-color:var(--primary);
-    background:var(--primary);
+    border-color:var(--se-primary);
+    background:var(--se-primary);
     color:#fff;
+  }
+
+  .se-tab-count {
+    margin-left:5px;
+    opacity:.85;
   }
 
   .se-toolbar {
     padding:14px 20px;
-    border-bottom:1px solid var(--border);
+    border-bottom:1px solid var(--se-border);
     display:flex;
     gap:10px;
     align-items:center;
@@ -273,8 +289,9 @@ const styles = `
 
   .se-search {
     flex:1;
+    min-width:0;
     height:42px;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     border-radius:13px;
     padding:0 14px;
     font-family:inherit;
@@ -286,13 +303,13 @@ const styles = `
 
   .se-search:focus {
     background:#fff;
-    border-color:var(--primary);
+    border-color:var(--se-primary);
     box-shadow:0 0 0 3px rgba(79,70,229,.1);
   }
 
   .se-search-btn {
     height:42px;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     background:#fff;
     border-radius:13px;
     padding:0 14px;
@@ -310,12 +327,12 @@ const styles = `
   }
 
   .se-message.success {
-    background:var(--greenBg);
+    background:var(--se-green-bg);
     color:#047857;
   }
 
   .se-message.error {
-    background:var(--redBg);
+    background:var(--se-red-bg);
     color:#B91C1C;
   }
 
@@ -358,7 +375,7 @@ const styles = `
     display:grid;
     place-items:center;
     color:#94A3B8;
-    font-size:11px;
+    font-size:10px;
     font-weight:900;
     text-align:center;
     padding:8px;
@@ -378,7 +395,7 @@ const styles = `
     gap:8px;
     flex-wrap:wrap;
     align-items:center;
-    color:var(--muted);
+    color:var(--se-muted);
     font-size:11.5px;
     font-weight:700;
   }
@@ -386,9 +403,9 @@ const styles = `
   .se-pill {
     display:inline-flex;
     align-items:center;
-    height:24px;
+    min-height:24px;
     border-radius:999px;
-    padding:0 9px;
+    padding:4px 9px;
     font-size:10px;
     font-weight:900;
     text-transform:uppercase;
@@ -401,22 +418,22 @@ const styles = `
   }
 
   .se-pill.pending {
-    background:var(--amberBg);
+    background:var(--se-amber-bg);
     color:#B45309;
   }
 
   .se-pill.approved {
-    background:var(--greenBg);
+    background:var(--se-green-bg);
     color:#047857;
   }
 
   .se-pill.rejected {
-    background:var(--redBg);
+    background:var(--se-red-bg);
     color:#B91C1C;
   }
 
   .se-pill.premium {
-    background:var(--primaryLight);
+    background:var(--se-primary-light);
     color:#4338CA;
   }
 
@@ -429,11 +446,11 @@ const styles = `
   }
 
   .se-action-btn {
-    height:34px;
+    min-height:34px;
     border-radius:999px;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     background:#fff;
-    padding:0 12px;
+    padding:7px 12px;
     font-size:11.5px;
     font-weight:900;
     cursor:pointer;
@@ -467,7 +484,7 @@ const styles = `
   .se-empty {
     padding:44px 20px;
     text-align:center;
-    color:var(--muted);
+    color:var(--se-muted);
     font-size:13px;
     font-weight:700;
     line-height:1.7;
@@ -486,15 +503,16 @@ const styles = `
 
   .se-modal {
     width:min(560px,100%);
+    max-height:calc(100dvh - 36px);
+    overflow-y:auto;
     background:#fff;
     border-radius:22px;
-    overflow:hidden;
     box-shadow:0 24px 70px rgba(15,23,42,.28);
   }
 
   .se-modal-head {
     padding:20px;
-    border-bottom:1px solid var(--border);
+    border-bottom:1px solid var(--se-border);
   }
 
   .se-modal-title {
@@ -504,8 +522,8 @@ const styles = `
   }
 
   .se-modal-desc {
-    margin-top:6px;
-    color:var(--muted);
+    margin:6px 0 0;
+    color:var(--se-muted);
     font-size:13px;
     line-height:1.6;
     font-weight:600;
@@ -535,7 +553,7 @@ const styles = `
     align-items:center;
     gap:8px;
     min-height:38px;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     border-radius:12px;
     padding:8px 10px;
     font-size:12px;
@@ -545,14 +563,14 @@ const styles = `
   }
 
   .se-check input {
-    accent-color:var(--primary);
+    accent-color:var(--se-primary);
   }
 
   .se-textarea {
     width:100%;
     min-height:92px;
     resize:vertical;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     border-radius:14px;
     padding:12px;
     font-family:inherit;
@@ -564,43 +582,39 @@ const styles = `
 
   .se-textarea:focus {
     background:#fff;
-    border-color:var(--primary);
+    border-color:var(--se-primary);
     box-shadow:0 0 0 3px rgba(79,70,229,.1);
   }
 
   .se-modal-foot {
+    position:sticky;
+    bottom:0;
     padding:16px 20px;
-    border-top:1px solid var(--border);
+    border-top:1px solid var(--se-border);
     display:flex;
     justify-content:flex-end;
     gap:10px;
+    background:#fff;
+  }
+
+  .se-cancel,
+  .se-confirm {
+    min-height:40px;
+    border-radius:12px;
+    padding:8px 14px;
+    font-weight:900;
+    cursor:pointer;
   }
 
   .se-cancel {
-    height:40px;
-    border-radius:12px;
-    border:1px solid var(--border);
+    border:1px solid var(--se-border);
     background:#fff;
-    padding:0 14px;
-    font-weight:900;
-    cursor:pointer;
   }
 
   .se-confirm {
-    height:40px;
-    border-radius:12px;
     border:0;
-    background:var(--primary);
+    background:var(--se-primary);
     color:#fff;
-    padding:0 16px;
-    font-weight:900;
-    cursor:pointer;
-  }
-
-  .se-confirm:disabled,
-  .se-cancel:disabled {
-    opacity:.6;
-    cursor:not-allowed;
   }
 
   @media (max-width:900px) {
@@ -619,30 +633,22 @@ const styles = `
       width:100%;
     }
 
-    .se-mode-tabs {
+    .se-mode-tabs,
+    .se-tabs {
       flex-wrap:nowrap;
       overflow-x:auto;
       padding-bottom:6px;
       scrollbar-width:none;
     }
 
-    .se-mode-tabs::-webkit-scrollbar {
+    .se-mode-tabs::-webkit-scrollbar,
+    .se-tabs::-webkit-scrollbar {
       display:none;
     }
 
     .se-mode-tab {
       flex:0 0 min(320px,86vw);
       min-width:0;
-    }
-
-    .se-stats {
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:10px;
-    }
-
-    .se-stat {
-      min-width:0;
-      padding:14px;
     }
 
     .se-card-head {
@@ -653,19 +659,10 @@ const styles = `
 
     .se-tabs {
       width:100%;
-      flex-wrap:nowrap;
-      overflow-x:auto;
-      padding-bottom:5px;
-      scrollbar-width:none;
-    }
-
-    .se-tabs::-webkit-scrollbar {
-      display:none;
     }
 
     .se-tab {
       flex:0 0 auto;
-      white-space:nowrap;
     }
 
     .se-toolbar {
@@ -692,16 +689,9 @@ const styles = `
       width:64px;
     }
 
-    .se-row > div:nth-child(2) {
-      min-width:0;
-    }
-
-    .se-story-title {
-      white-space:normal;
-      overflow-wrap:anywhere;
-    }
-
+    .se-story-title,
     .se-meta {
+      white-space:normal;
       overflow-wrap:anywhere;
     }
 
@@ -715,9 +705,6 @@ const styles = `
 
     .se-action-btn {
       width:100%;
-      min-height:38px;
-      height:auto;
-      padding:8px 11px;
       white-space:normal;
       line-height:1.3;
     }
@@ -729,25 +716,7 @@ const styles = `
 
     .se-modal {
       max-height:calc(100dvh - 20px);
-      overflow-y:auto;
       border-radius:20px;
-    }
-
-    .se-modal-head,
-    .se-modal-body {
-      padding:17px 16px;
-    }
-
-    .se-modal-desc {
-      overflow-wrap:anywhere;
-    }
-
-    .se-modal-foot {
-      position:sticky;
-      bottom:0;
-      z-index:2;
-      padding:14px 16px;
-      background:#fff;
     }
   }
 
@@ -760,25 +729,8 @@ const styles = `
       font-size:25px;
     }
 
-    .se-kicker {
-      max-width:100%;
-      height:auto;
-      min-height:30px;
-      padding:7px 11px;
-      text-align:center;
-    }
-
-    .se-mode-tab {
-      flex-basis:88vw;
-      padding:13px 14px;
-    }
-
     .se-stats {
-      grid-template-columns:1fr;
-    }
-
-    .se-card {
-      border-radius:19px;
+      grid-template-columns:repeat(2,minmax(0,1fr));
     }
 
     .se-toolbar {
@@ -814,14 +766,13 @@ const styles = `
       display:grid;
       grid-template-columns:1fr 1fr;
     }
-
-    .se-cancel,
-    .se-confirm {
-      width:100%;
-    }
   }
 
   @media (max-width:420px) {
+    .se-stats {
+      grid-template-columns:1fr;
+    }
+
     .se-row {
       grid-template-columns:1fr;
     }
@@ -845,13 +796,29 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
 }
 
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+function formatSectionLabel(value) {
+  const option = SECTION_OPTIONS.find((item) => item.key === value);
+
+  if (option) return option.label;
+
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function StatusPill({ status }) {
   const value = String(status || 'none').toLowerCase();
+
   return <span className={`se-pill ${value}`}>{value}</span>;
 }
 
 function AccessPill({ accessType }) {
   const value = String(accessType || 'free').toLowerCase();
+
   return <span className={`se-pill ${value === 'premium' ? 'premium' : 'none'}`}>{value}</span>;
 }
 
@@ -859,9 +826,19 @@ function StatCard({ label, value }) {
   return (
     <div className="se-stat">
       <div className="se-stat-label">{label}</div>
-      <div className="se-stat-value">{value}</div>
+      <div className="se-stat-value">{formatNumber(value)}</div>
     </div>
   );
+}
+
+function CoverImage({ src, title }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return <div className="se-empty-cover">No Cover</div>;
+  }
+
+  return <img src={src} alt={title || 'Story cover'} onError={() => setFailed(true)} />;
 }
 
 function ActionModal({
@@ -889,29 +866,35 @@ function ActionModal({
   };
 
   const descMap = {
-    request: 'This keeps the old request/pending flow for stories that authors may request later.',
-    approve: 'Admin can directly choose this story and add it into Premium / Shadow Exclusive.',
-    reject: 'Reject this story from the request workflow.',
-    remove: 'Remove this story from Shadow Exclusive. You can keep it premium if needed.',
-    sections: 'Update only the sections where this approved story appears.',
+    request: 'Move this published story into the pending review queue.',
+    approve: 'Add this story directly to Premium and Shadow Exclusive.',
+    reject: 'Reject this story from the Shadow Exclusive workflow.',
+    remove: 'Remove this story from Shadow Exclusive. Premium access can remain enabled.',
+    sections: 'Update the sections where this approved story appears.',
   };
 
   const showSections = mode === 'approve' || mode === 'sections';
 
   const toggleSection = (key) => {
-    setSections((current) => {
-      if (current.includes(key)) return current.filter((item) => item !== key);
-      return [...current, key];
-    });
+    setSections((current) => (
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    ));
   };
 
   return (
-    <div className="se-modal-backdrop">
-      <div className="se-modal">
+    <div className="se-modal-backdrop" role="presentation" onMouseDown={() => onClose()}>
+      <div
+        className="se-modal"
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <div className="se-modal-head">
           <h2 className="se-modal-title">{titleMap[mode]}</h2>
           <p className="se-modal-desc">
-            {story.title}
+            {story.title || 'Untitled Story'}
             <br />
             {descMap[mode]}
           </p>
@@ -943,7 +926,7 @@ function ActionModal({
                 checked={keepPremium}
                 onChange={(event) => setKeepPremium(event.target.checked)}
               />
-              Keep premium after removing from Shadow Exclusive
+              Keep premium access after removing from Shadow Exclusive
             </label>
           ) : null}
 
@@ -955,13 +938,14 @@ function ActionModal({
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 placeholder="Optional note..."
+                maxLength={2000}
               />
             </>
           ) : null}
         </div>
 
         <div className="se-modal-foot">
-          <button type="button" className="se-cancel" onClick={onClose} disabled={saving}>
+          <button type="button" className="se-cancel" onClick={() => onClose()} disabled={saving}>
             Cancel
           </button>
           <button type="button" className="se-confirm" onClick={onConfirm} disabled={saving}>
@@ -974,12 +958,12 @@ function ActionModal({
 }
 
 export default function ShadowExclusiveAdmin() {
-  const navigate = useNavigate();
-
   const [workMode, setWorkMode] = useState('admin_pick');
   const [activeStatus, setActiveStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [stories, setStories] = useState([]);
+  const [summary, setSummary] = useState(EMPTY_SUMMARY);
+  const [resultCount, setResultCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -1004,7 +988,6 @@ export default function ShadowExclusiveAdmin() {
 
   async function apiFetch(path, options = {}) {
     const token = getAdminToken();
-
     const headers = {
       ...(options.headers || {}),
     };
@@ -1027,6 +1010,8 @@ export default function ShadowExclusiveAdmin() {
     if (response.status === 401 || response.status === 403) {
       sessionStorage.removeItem('shadow_admin_token');
       localStorage.removeItem('shadow_admin_token');
+      sessionStorage.removeItem('shadow_admin_user');
+      localStorage.removeItem('shadow_admin_user');
       setAuthExpired(true);
       throw new Error('Admin session expired. Please login again.');
     }
@@ -1043,16 +1028,22 @@ export default function ShadowExclusiveAdmin() {
       setLoading(true);
 
       const params = new URLSearchParams();
+      params.set('limit', '100');
 
       if (activeStatus !== 'all') params.set('status', activeStatus);
       if (search.trim()) params.set('search', search.trim());
 
-      const query = params.toString();
-      const data = await apiFetch(`/api/admin/exclusive/stories${query ? `?${query}` : ''}`);
+      const data = await apiFetch(`/api/admin/exclusive/stories?${params.toString()}`);
 
-      setStories(data.stories || []);
+      setStories(Array.isArray(data.stories) ? data.stories : []);
+      setSummary({
+        ...EMPTY_SUMMARY,
+        ...(data.summary || {}),
+      });
+      setResultCount(Number(data.result_count || 0));
     } catch (error) {
       setStories([]);
+      setResultCount(0);
       showMessage(error.message || 'Failed to load stories', 'error');
     } finally {
       setLoading(false);
@@ -1061,17 +1052,17 @@ export default function ShadowExclusiveAdmin() {
 
   useEffect(() => {
     fetchStories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeStatus, workMode]);
 
-  const stats = useMemo(() => {
-    return {
-      total: stories.length,
-      pending: stories.filter((story) => story.exclusive_status === 'pending').length,
-      approved: stories.filter((story) => story.exclusive_status === 'approved').length,
-      rejected: stories.filter((story) => story.exclusive_status === 'rejected').length,
-    };
-  }, [stories]);
+  const getTabCount = (status) => {
+    if (status === 'all') return summary.total_published;
+    if (status === 'pending') return summary.pending_requests;
+    if (status === 'approved') return summary.exclusive_stories;
+    if (status === 'rejected') return summary.rejected_requests;
+    if (status === 'removed') return summary.normal_stories;
+
+    return 0;
+  };
 
   const switchMode = (mode) => {
     setWorkMode(mode);
@@ -1088,14 +1079,18 @@ export default function ShadowExclusiveAdmin() {
   const openAction = (mode, story) => {
     setModalMode(mode);
     setSelectedStory(story);
-    setSelectedSections(story?.exclusive_sections?.length ? story.exclusive_sections : ['featured']);
+    setSelectedSections(
+      Array.isArray(story?.exclusive_sections) && story.exclusive_sections.length
+        ? story.exclusive_sections
+        : ['featured'],
+    );
     setNote(story?.exclusive_note || '');
     setKeepPremium(false);
     setModalOpen(true);
   };
 
-  const closeModal = () => {
-    if (saving) return;
+  const closeModal = (force = false) => {
+    if (saving && !force) return;
 
     setModalOpen(false);
     setSelectedStory(null);
@@ -1116,44 +1111,38 @@ export default function ShadowExclusiveAdmin() {
       if (modalMode === 'request') {
         path = `/api/admin/exclusive/stories/${selectedStory.id}/request`;
         body = { note };
-      }
-
-      if (modalMode === 'approve') {
+      } else if (modalMode === 'approve') {
         path = `/api/admin/exclusive/stories/${selectedStory.id}/approve`;
         body = {
           access_type: 'premium',
           exclusive_sections: selectedSections.length ? selectedSections : ['featured'],
           note,
         };
-      }
-
-      if (modalMode === 'reject') {
+      } else if (modalMode === 'reject') {
         path = `/api/admin/exclusive/stories/${selectedStory.id}/reject`;
         body = { note };
-      }
-
-      if (modalMode === 'remove') {
+      } else if (modalMode === 'remove') {
         path = `/api/admin/exclusive/stories/${selectedStory.id}/remove`;
         body = {
           keep_premium: keepPremium,
           note,
         };
-      }
-
-      if (modalMode === 'sections') {
+      } else if (modalMode === 'sections') {
         path = `/api/admin/exclusive/stories/${selectedStory.id}/sections`;
         body = {
           exclusive_sections: selectedSections.length ? selectedSections : ['featured'],
         };
       }
 
+      if (!path) throw new Error('Invalid Shadow Exclusive action');
+
       const data = await apiFetch(path, {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
 
+      closeModal(true);
       showMessage(data.message || 'Saved successfully');
-      closeModal();
       await fetchStories();
     } catch (error) {
       showMessage(error.message || 'Failed to save', 'error');
@@ -1167,8 +1156,9 @@ export default function ShadowExclusiveAdmin() {
   }
 
   return (
-  <AdminLayout title="Shadow Exclusive" subtitle="Manage premium stories and author requests.">
-    <style>{styles}</style>
+    <AdminLayout title="Shadow Exclusive" subtitle="Manage premium stories and author requests.">
+      <style>{styles}</style>
+
       <ActionModal
         open={modalOpen}
         mode={modalMode}
@@ -1188,15 +1178,11 @@ export default function ShadowExclusiveAdmin() {
         <div className="se-shell">
           <div className="se-top">
             <div>
-
-              <div>
-                <span className="se-kicker">Premium Story Management</span>
-                <h1 className="se-title">Shadow Exclusive</h1>
-                <p className="se-subtitle">
-                  Choose stories by yourself, or review stories that authors request later.
-                  Admin Pick adds directly to Premium / Shadow Exclusive without waiting for author request.
-                </p>
-              </div>
+              <span className="se-kicker">Premium Story Management</span>
+              <h1 className="se-title">Shadow Exclusive</h1>
+              <p className="se-subtitle">
+                Choose published stories directly, or review stories submitted through the author request workflow.
+              </p>
             </div>
 
             <button type="button" className="se-refresh" onClick={fetchStories} disabled={loading}>
@@ -1212,7 +1198,7 @@ export default function ShadowExclusiveAdmin() {
             >
               <div className="se-mode-title">Admin Pick Stories</div>
               <div className="se-mode-desc">
-                You choose any published story and add it directly to Shadow Exclusive.
+                Select any published story and add it directly to Shadow Exclusive.
               </div>
             </button>
 
@@ -1223,16 +1209,18 @@ export default function ShadowExclusiveAdmin() {
             >
               <div className="se-mode-title">Author Requests</div>
               <div className="se-mode-desc">
-                Review stories that authors request for Shadow Exclusive approval.
+                Review stories waiting for Shadow Exclusive approval.
               </div>
             </button>
           </div>
 
           <section className="se-stats">
-            <StatCard label="Loaded Stories" value={stats.total} />
-            <StatCard label="Pending Review" value={stats.pending} />
-            <StatCard label="Approved Premium" value={stats.approved} />
-            <StatCard label="Rejected" value={stats.rejected} />
+            <StatCard label="Total Published" value={summary.total_published} />
+            <StatCard label="Approved Exclusive" value={summary.exclusive_stories} />
+            <StatCard label="Pending Review" value={summary.pending_requests} />
+            <StatCard label="Rejected" value={summary.rejected_requests} />
+            <StatCard label="Normal / Removed" value={summary.normal_stories} />
+            <StatCard label="Premium Access" value={summary.premium_stories} />
           </section>
 
           <section className="se-card">
@@ -1243,8 +1231,11 @@ export default function ShadowExclusiveAdmin() {
                 </h2>
                 <div className="se-card-desc">
                   {workMode === 'admin_pick'
-                    ? 'Pick from published stories and add directly to Shadow Exclusive.'
-                    : 'Approve or reject stories that are waiting in the request flow.'}
+                    ? 'Pick from published stories and add them directly to Shadow Exclusive.'
+                    : 'Approve or reject stories waiting in the request flow.'}
+                </div>
+                <div className="se-result-count">
+                  Showing {formatNumber(stories.length)} of {formatNumber(resultCount)} matching stories
                 </div>
               </div>
 
@@ -1257,6 +1248,7 @@ export default function ShadowExclusiveAdmin() {
                     onClick={() => setActiveStatus(tab.key)}
                   >
                     {tab.label}
+                    <span className="se-tab-count">{formatNumber(getTabCount(tab.key))}</span>
                   </button>
                 ))}
               </div>
@@ -1271,9 +1263,10 @@ export default function ShadowExclusiveAdmin() {
                   if (event.key === 'Enter') fetchStories();
                 }}
                 placeholder="Search story by title..."
+                maxLength={200}
               />
 
-              <button type="button" className="se-search-btn" onClick={fetchStories}>
+              <button type="button" className="se-search-btn" onClick={fetchStories} disabled={loading}>
                 Search
               </button>
             </div>
@@ -1291,17 +1284,7 @@ export default function ShadowExclusiveAdmin() {
                 stories.map((story) => (
                   <div className="se-row" key={story.id}>
                     <div className="se-cover">
-                      {story.cover_url ? (
-                        <img
-                          src={story.cover_url}
-                          alt={story.title}
-                          onError={(event) => {
-                            event.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="se-empty-cover">No Cover</div>
-                      )}
+                      <CoverImage src={story.cover_url} title={story.title} />
                     </div>
 
                     <div>
@@ -1312,15 +1295,17 @@ export default function ShadowExclusiveAdmin() {
                         <span>•</span>
                         <span>{story.story_language || 'Unknown'}</span>
                         <span>•</span>
-                        <span>EP {Number(story.total_episodes || 0)}</span>
+                        <span>EP {formatNumber(story.total_episodes)}</span>
+                        <span>•</span>
+                        <span>{formatNumber(story.total_views)} views</span>
                       </div>
 
                       <div className="se-meta">
                         <StatusPill status={story.exclusive_status} />
                         <AccessPill accessType={story.access_type} />
                         <span>
-                          {story.exclusive_sections?.length
-                            ? story.exclusive_sections.join(' / ')
+                          {Array.isArray(story.exclusive_sections) && story.exclusive_sections.length
+                            ? story.exclusive_sections.map(formatSectionLabel).join(' / ')
                             : 'No exclusive section'}
                         </span>
                       </div>
@@ -1328,37 +1313,67 @@ export default function ShadowExclusiveAdmin() {
 
                     <div className="se-actions">
                       {workMode === 'admin_pick' && story.exclusive_status !== 'approved' ? (
-                        <button type="button" className="se-action-btn approve" onClick={() => openAction('approve', story)}>
+                        <button
+                          type="button"
+                          className="se-action-btn approve"
+                          onClick={() => openAction('approve', story)}
+                          disabled={saving}
+                        >
                           Add to Shadow Exclusive
                         </button>
                       ) : null}
 
                       {workMode === 'admin_pick' && story.exclusive_status === 'none' && !story.is_shadow_exclusive ? (
-                        <button type="button" className="se-action-btn request" onClick={() => openAction('request', story)}>
+                        <button
+                          type="button"
+                          className="se-action-btn request"
+                          onClick={() => openAction('request', story)}
+                          disabled={saving}
+                        >
                           Move to Review
                         </button>
                       ) : null}
 
                       {workMode === 'author_requests' && story.exclusive_status !== 'approved' ? (
-                        <button type="button" className="se-action-btn approve" onClick={() => openAction('approve', story)}>
+                        <button
+                          type="button"
+                          className="se-action-btn approve"
+                          onClick={() => openAction('approve', story)}
+                          disabled={saving}
+                        >
                           Approve Request
                         </button>
                       ) : null}
 
                       {story.exclusive_status === 'approved' ? (
-                        <button type="button" className="se-action-btn" onClick={() => openAction('sections', story)}>
+                        <button
+                          type="button"
+                          className="se-action-btn"
+                          onClick={() => openAction('sections', story)}
+                          disabled={saving}
+                        >
                           Sections
                         </button>
                       ) : null}
 
                       {story.exclusive_status !== 'rejected' && story.exclusive_status !== 'none' ? (
-                        <button type="button" className="se-action-btn reject" onClick={() => openAction('reject', story)}>
+                        <button
+                          type="button"
+                          className="se-action-btn reject"
+                          onClick={() => openAction('reject', story)}
+                          disabled={saving}
+                        >
                           Reject
                         </button>
                       ) : null}
 
                       {story.is_shadow_exclusive ? (
-                        <button type="button" className="se-action-btn remove" onClick={() => openAction('remove', story)}>
+                        <button
+                          type="button"
+                          className="se-action-btn remove"
+                          onClick={() => openAction('remove', story)}
+                          disabled={saving}
+                        >
                           Remove
                         </button>
                       ) : null}
@@ -1367,15 +1382,17 @@ export default function ShadowExclusiveAdmin() {
                 ))
               ) : (
                 <div className="se-empty">
-                  {workMode === 'admin_pick'
-                    ? 'No published stories found. Admin Pick only shows stories where status is published.'
-                    : 'No author requests found. Requested stories will appear here when exclusive_status is pending.'}
+                  {search.trim()
+                    ? 'No story matches this search and filter.'
+                    : workMode === 'admin_pick'
+                      ? 'No published stories are available in this filter.'
+                      : 'No author requests are available in this filter.'}
                 </div>
               )}
             </div>
           </section>
         </div>
-                  </main>
+      </main>
     </AdminLayout>
   );
 }
