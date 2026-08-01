@@ -4,6 +4,8 @@ import AdminLayout from '../components/AdminLayout'
 import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropModal'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const DIAMOND_ICON_URL = 'https://www.shadowerabook.site/assets/Icons/Diamond.svg'
+
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
@@ -1546,8 +1548,9 @@ export default function ShadowMallPromotionPage() {
 
                       <input
                         type="number"
-                        min="1"
-                        step="1"
+                        min="0"
+                        step="any"
+
                         value={
                           form.original_price_diamonds
                         }
@@ -2311,13 +2314,17 @@ export default function ShadowMallPromotionPage() {
                             >
                               {originalDiamondPrice ||
                                 0}{' '}
-                              <span
-                                style={{
-                                  color: '#38BDF8',
-                                }}
-                              >
-                                ◆
-                              </span>
+                              <img
+  src={DIAMOND_ICON_URL}
+  alt="Diamond"
+  style={{
+    width: 13,
+    height: 13,
+    objectFit: 'contain',
+    opacity: 0.7,
+    verticalAlign: 'middle',
+  }}
+/>
                             </span>
 
                             <span
@@ -2328,13 +2335,17 @@ export default function ShadowMallPromotionPage() {
                               }}
                             >
                               {saleDiamondPrice || 0}{' '}
-                              <span
-                                style={{
-                                  color: '#38BDF8',
-                                }}
-                              >
-                                ◆
-                              </span>
+                              <img
+  src={DIAMOND_ICON_URL}
+  alt="Diamond"
+  style={{
+    width: 15,
+    height: 15,
+    objectFit: 'contain',
+    verticalAlign: 'middle',
+  }}
+/>
+
                             </span>
                           </div>
 
