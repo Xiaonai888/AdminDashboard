@@ -412,10 +412,24 @@ const styles = `
     animation: barGrow 0.6s ease-out forwards;
   }
 
+  .chart-value {
+    font-size: 10px;
+    color: var(--text-main);
+    font-weight: 700;
+    line-height: 1;
+  }
+
   .chart-day {
     font-size: 11px;
     color: var(--text-muted);
     font-weight: 500;
+  }
+
+  .dashboard-search-state {
+    padding: 18px 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
   }
 
   /* Log Items */
@@ -714,14 +728,80 @@ function getLogText(record) {
   return `Updated ${title}`;
 }
 
+
+function formatMoney(value) {
+  return `$${Number(value || 0).toFixed(2)}`;
+}
+
+function getLocalDayRange(offsetDays = 0) {
+  const start = new Date();
+  start.setDate(start.getDate() + offsetDays);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return {
+    from: start.toISOString(),
+    to: end.toISOString(),
+  };
+}
+
+function formatExclusiveStatus(value) {
+  const status = String(value || 'pending').toLowerCase();
+  if (status === 'approved') return 'Approved';
+  if (status === 'rejected') return 'Rejected';
+  if (status === 'removed' || status === 'none') return 'Removed';
+  return 'Pending';
+}
+
+function formatExclusiveSections(value) {
+  const sections = Array.isArray(value) ? value : [];
+  if (!sections.length) return 'Not assigned';
+
+  return sections
+    .map((item) => String(item || '').replace(/_/g, ' '))
+    .map((item) => item.replace(/\b\w/g, (letter) => letter.toUpperCase()))
+    .join(' / ');
+}
+
+async function fetchAdminJson(path) {
+  const token = getAdminToken();
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.message || 'Failed to load dashboard data');
+  }
+
+  return data;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState({ exclusive: [], authors: [] });
   const [activityLog, setActivityLog] = useState([]);
   const [activityLogLoading, setActivityLogLoading] = useState(true);
+  const [exclusiveLoading, setExclusiveLoading] = useState(true);
   const [exclusiveSummary, setExclusiveSummary] = useState({ exclusive_stories: 0, pending_requests: 0 });
+  const [exclusiveStories, setExclusiveStories] = useState([]);
+  const [visitorSummary, setVisitorSummary] = useState({
+    total_unique_visitors: 0,
+    total_sessions: 0,
+    visitors_today: 0,
+    visitors_this_month: 0,
+    active_last_10_minutes: 0,
+    total_page_views: 0,
+  });
+  const [incomeSummary, setIncomeSummary] = useState({ today: 0, yesterday: 0 });
   const [adminProfile, setAdminProfile] = useState(() => {
     try {
       return JSON.parse(
@@ -748,7 +828,6 @@ const AdminDashboard = () => {
   const fetchActivityLogs = async () => {
     try {
       setActivityLogLoading(true);
-
       const token = getAdminToken();
       const response = await fetch(`${API_URL}/api/slides/records?page=1&limit=3`, {
         headers: {
@@ -756,7 +835,6 @@ const AdminDashboard = () => {
           'X-Admin-Name': 'Admin',
         },
       });
-
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok || data.ok === false) {
@@ -771,23 +849,69 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchExclusiveSummary = async () => {
+  const fetchExclusiveDashboard = async () => {
     try {
-      const token = getAdminToken();
-      const response = await fetch(`${API_URL}/api/admin/exclusive/stories?limit=1`, {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+      setExclusiveLoading(true);
+      const [pendingData, approvedData] = await Promise.all([
+        fetchAdminJson('/api/admin/exclusive/stories?status=pending&limit=3'),
+        fetchAdminJson('/api/admin/exclusive/stories?status=approved&limit=3'),
+      ]);
+
+      const summary = pendingData.summary || approvedData.summary || {};
+      const storyMap = new Map();
+
+      [...(pendingData.stories || []), ...(approvedData.stories || [])].forEach((story) => {
+        storyMap.set(story.id, story);
       });
-      const data = await response.json().catch(() => ({}));
 
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load exclusive summary');
-      }
+      const stories = [...storyMap.values()]
+        .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0))
+        .slice(0, 3);
 
-      setExclusiveSummary(data.summary || { exclusive_stories: 0, pending_requests: 0 });
+      setExclusiveSummary({
+        exclusive_stories: Number(summary.exclusive_stories || 0),
+        pending_requests: Number(summary.pending_requests || 0),
+      });
+      setExclusiveStories(stories);
     } catch {
       setExclusiveSummary({ exclusive_stories: 0, pending_requests: 0 });
+      setExclusiveStories([]);
+    } finally {
+      setExclusiveLoading(false);
+    }
+  };
+
+  const fetchVisitorDashboard = async () => {
+    try {
+      const data = await fetchAdminJson('/api/admin/community/visitors/overview');
+      setVisitorSummary((current) => ({ ...current, ...(data.summary || {}) }));
+    } catch {
+      setVisitorSummary({
+        total_unique_visitors: 0,
+        total_sessions: 0,
+        visitors_today: 0,
+        visitors_this_month: 0,
+        active_last_10_minutes: 0,
+        total_page_views: 0,
+      });
+    }
+  };
+
+  const fetchIncomeDashboard = async () => {
+    try {
+      const today = getLocalDayRange(0);
+      const yesterday = getLocalDayRange(-1);
+      const [todayData, yesterdayData] = await Promise.all([
+        fetchAdminJson(`/api/admin/income/summary?from=${encodeURIComponent(today.from)}&to=${encodeURIComponent(today.to)}`),
+        fetchAdminJson(`/api/admin/income/summary?from=${encodeURIComponent(yesterday.from)}&to=${encodeURIComponent(yesterday.to)}`),
+      ]);
+
+      setIncomeSummary({
+        today: Number(todayData.summary?.net_platform_income_usd || 0),
+        yesterday: Number(yesterdayData.summary?.net_platform_income_usd || 0),
+      });
+    } catch {
+      setIncomeSummary({ today: 0, yesterday: 0 });
     }
   };
 
@@ -796,16 +920,12 @@ const AdminDashboard = () => {
 
     async function loadAdminProfile() {
       const token = getAdminToken();
-
       if (!token) return;
 
       try {
         const response = await fetch(`${API_URL}/api/auth/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
         const data = await response.json().catch(() => ({}));
 
         if (!ignore && response.ok && data.ok && data.admin) {
@@ -821,7 +941,9 @@ const AdminDashboard = () => {
     }
 
     fetchActivityLogs();
-    fetchExclusiveSummary();
+    fetchExclusiveDashboard();
+    fetchVisitorDashboard();
+    fetchIncomeDashboard();
     loadAdminProfile();
 
     return () => {
@@ -829,71 +951,121 @@ const AdminDashboard = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (!query) {
+      setSearchLoading(false);
+      setSearchResults({ exclusive: [], authors: [] });
+      return undefined;
+    }
+
+    let ignore = false;
+    const timer = window.setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+        const encoded = encodeURIComponent(query);
+        const [pendingData, approvedData, authorsData] = await Promise.all([
+          fetchAdminJson(`/api/admin/exclusive/stories?status=pending&search=${encoded}&limit=5`),
+          fetchAdminJson(`/api/admin/exclusive/stories?status=approved&search=${encoded}&limit=5`),
+          fetchAdminJson(`/api/admin/community/authors?q=${encoded}&limit=5`),
+        ]);
+
+        if (ignore) return;
+
+        const storyMap = new Map();
+        [...(pendingData.stories || []), ...(approvedData.stories || [])].forEach((story) => {
+          storyMap.set(story.id, story);
+        });
+
+        setSearchResults({
+          exclusive: [...storyMap.values()].slice(0, 5).map((story) => {
+            const status = formatExclusiveStatus(story.exclusive_status);
+            const approved = status === 'Approved';
+            return {
+              id: story.id,
+              name: story.title || 'Untitled story',
+              sub: `${story.main_genre || 'Story'} · EP ${Number(story.total_episodes || 0)}`,
+              color: approved ? '#EEF2FF' : '#FFF7ED',
+              icon: approved ? '◆' : '◈',
+              badge: status,
+              badgeColor: approved ? '#D1FAE5' : '#FEF3C7',
+              badgeText: approved ? '#047857' : '#B45309',
+            };
+          }),
+          authors: (authorsData.authors || []).slice(0, 5).map((author) => ({
+            id: author.id,
+            name: author.author_name || author.username || 'Author',
+            sub: `@${author.username || 'no_username'} · ${Number(author.books_count || 0)} stories`,
+            color: '#F0FDF4',
+            icon: '✍',
+          })),
+        });
+      } catch {
+        if (!ignore) setSearchResults({ exclusive: [], authors: [] });
+      } finally {
+        if (!ignore) setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      ignore = true;
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery]);
+
+  const incomeDifference = incomeSummary.today - incomeSummary.yesterday;
+  const incomeTrendUp = incomeDifference >= 0;
+  const incomeTrend = incomeSummary.yesterday > 0
+    ? `${incomeDifference >= 0 ? '+' : ''}${((incomeDifference / incomeSummary.yesterday) * 100).toFixed(1)}% vs yesterday`
+    : incomeSummary.today > 0
+      ? 'Income received today'
+      : 'No income today';
+
   const chartData = [
-    { day: 'Mon', value: 42, color: '#10B981' },
-    { day: 'Tue', value: 65, color: '#10B981' },
-    { day: 'Wed', value: 30, color: '#EF4444' },
-    { day: 'Thu', value: 82, color: '#10B981' },
-    { day: 'Fri', value: 50, color: '#10B981' },
-    { day: 'Sat', value: 98, color: '#4F46E5', active: true },
-    { day: 'Sun', value: 70, color: '#10B981' },
+    { day: 'Today', value: Number(visitorSummary.visitors_today || 0), active: true },
+    { day: 'Month', value: Number(visitorSummary.visitors_this_month || 0) },
+    { day: 'Active', value: Number(visitorSummary.active_last_10_minutes || 0) },
+    { day: 'Unique', value: Number(visitorSummary.total_unique_visitors || 0) },
+    { day: 'Sessions', value: Number(visitorSummary.total_sessions || 0) },
+    { day: 'Views', value: Number(visitorSummary.total_page_views || 0) },
   ];
-
-  const maxVal = Math.max(...chartData.map(d => d.value));
-
-  const searchResults = {
-    exclusive: [
-      { id: 1, name: 'The Crown Behind the Shadow', sub: 'Pending review · Fantasy · EP 28', color: '#FFF7ED', icon: '👑', badge: 'Pending', badgeColor: '#FEF3C7', badgeText: '#D97706' },
-      { id: 2, name: 'My Contract With the Cold Duke', sub: 'Approved · Romance · EP 34', color: '#EEF2FF', icon: '💎', badge: 'Approved', badgeColor: '#D1FAE5', badgeText: '#10B981' },
-    ],
-    authors: [
-      { id: 1, name: 'Sung Jin', sub: 'Author · 12 stories', color: '#F0FDF4', icon: '✍️' },
-      { id: 2, name: 'LoveWriter', sub: 'Author · 8 stories', color: '#FFF7ED', icon: '✍️' },
-    ],
-    reports: [
-      { id: 1, name: 'Exclusive consent request', sub: 'Pending · 2 hours ago', color: '#FEF3C7', icon: '⚠️', badge: 'Pending', badgeColor: '#FEF3C7', badgeText: '#D97706' },
-    ]
-  };
-
-  const filteredSearch = searchQuery.length > 0 ? {
-    exclusive: searchResults.exclusive.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase())),
-    authors: searchResults.authors.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())),
-    reports: searchResults.reports.filter(r => r.name.toLowerCase().includes(searchQuery.toLowerCase())),
-  } : searchResults;
-
-  const hasResults = filteredSearch.exclusive.length + filteredSearch.authors.length + filteredSearch.reports.length > 0;
+  const maxVal = Math.max(1, ...chartData.map((item) => item.value));
+  const hasResults = searchResults.exclusive.length + searchResults.authors.length > 0;
 
   const stats = [
     {
-      label: 'Exclusive Stories', value: exclusiveSummary.exclusive_stories.toLocaleString(),
-      trend: `${exclusiveSummary.pending_requests} pending review`, trendUp: true,
+      label: 'Exclusive Stories',
+      value: exclusiveSummary.exclusive_stories.toLocaleString(),
+      trend: `${exclusiveSummary.pending_requests} pending review`,
+      trendUp: true,
       icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
       iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
     },
     {
-      label: 'Premium Readers Today', value: '3,012',
-      trend: '+15% vs yesterday', trendUp: true,
+      label: 'Visitors Today',
+      value: Number(visitorSummary.visitors_today || 0).toLocaleString(),
+      trend: `${Number(visitorSummary.active_last_10_minutes || 0).toLocaleString()} active in 10 min`,
+      trendUp: true,
       icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
       iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#0F172A',
     },
     {
-      label: 'Daily Income', value: '$50.03',
-      trend: 'Trending up', trendUp: true,
+      label: 'Daily Income',
+      value: formatMoney(incomeSummary.today),
+      trend: incomeTrend,
+      trendUp: incomeTrendUp,
       icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
       iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#10B981',
     },
     {
-      label: 'Consent Requests', value: exclusiveSummary.pending_requests.toLocaleString(),
-      trend: exclusiveSummary.pending_requests === 1 ? 'Request needs attention' : 'Requests need attention', trendUp: false,
+      label: 'Consent Requests',
+      value: exclusiveSummary.pending_requests.toLocaleString(),
+      trend: exclusiveSummary.pending_requests === 1 ? 'Request needs attention' : 'Requests need attention',
+      trendUp: false,
       icon: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
       iconBg: '#FEF2F2', iconColor: '#EF4444', valueColor: '#EF4444',
     },
-  ];
-
-  const exclusiveStories = [
-    { title: 'The Crown Behind the Shadow', author: 'Shadow Author', section: 'Featured / Premium Fantasy', status: 'Approved' },
-    { title: 'My Contract With the Cold Duke', author: 'Lina Moon', section: 'Popular Exclusive / Premium Romance', status: 'Approved' },
-    { title: 'After Midnight, I Became Royalty', author: 'Kai Story', section: 'New Exclusive', status: 'Pending' },
   ];
 
   const getHour = () => {
@@ -908,16 +1080,13 @@ const AdminDashboard = () => {
       <style>{styles}</style>
       <div className="dashboard-wrapper">
         <AdminSidebar />
-        {/* MAIN CONTENT */}
         <div className="main-content">
-          {/* HEADER */}
           <header className="header">
             <div className="header-left">
               <h2>Dashboard Overview</h2>
             </div>
 
             <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              {/* Search */}
               <div className="search-wrap">
                 <svg className="search-icon" width={16} height={16} fill="none" stroke="#94A3B8" strokeWidth={2.5}>
                   <circle cx={7} cy={7} r={5} />
@@ -926,85 +1095,83 @@ const AdminDashboard = () => {
                 <input
                   type="text"
                   className="search-input"
-                  placeholder="Search exclusive stories, authors, reports..."
+                  placeholder="Search exclusive stories and authors..."
                   value={searchQuery}
-                  onChange={e => { setSearchQuery(e.target.value); setShowSearchDropdown(true); }}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setShowSearchDropdown(true);
+                  }}
                   onFocus={() => setShowSearchDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowSearchDropdown(false), 200)}
+                  onBlur={() => window.setTimeout(() => setShowSearchDropdown(false), 200)}
                 />
-                {showSearchDropdown && hasResults && (
+
+                {showSearchDropdown && searchQuery.trim() && (
                   <div className="search-dropdown">
-                    {filteredSearch.exclusive.length > 0 && (
+                    {searchLoading ? (
+                      <div className="dashboard-search-state">Searching real data...</div>
+                    ) : hasResults ? (
                       <>
-                        <div className="search-section-title">Shadow Exclusive</div>
-                        {filteredSearch.exclusive.map(item => (
-                          <div className="search-result-item" key={item.id}>
-                            <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
-                            <div className="info">
-                              <div className="name">{item.name}</div>
-                              <div className="sub">{item.sub}</div>
-                            </div>
-                            {item.badge && (
-                              <span className="search-badge" style={{ background: item.badgeColor, color: item.badgeText }}>{item.badge}</span>
-                            )}
-                          </div>
-                        ))}
+                        {searchResults.exclusive.length > 0 && (
+                          <>
+                            <div className="search-section-title">Shadow Exclusive</div>
+                            {searchResults.exclusive.map((item) => (
+                              <div
+                                className="search-result-item"
+                                key={`story-${item.id}`}
+                                onMouseDown={() => navigate('/shadow-exclusive')}
+                              >
+                                <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
+                                <div className="info">
+                                  <div className="name">{item.name}</div>
+                                  <div className="sub">{item.sub}</div>
+                                </div>
+                                <span className="search-badge" style={{ background: item.badgeColor, color: item.badgeText }}>
+                                  {item.badge}
+                                </span>
+                              </div>
+                            ))}
+                          </>
+                        )}
+
+                        {searchResults.authors.length > 0 && (
+                          <>
+                            <div className="search-section-title">Authors</div>
+                            {searchResults.authors.map((item) => (
+                              <div
+                                className="search-result-item"
+                                key={`author-${item.id}`}
+                                onMouseDown={() => navigate('/authors')}
+                              >
+                                <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
+                                <div className="info">
+                                  <div className="name">{item.name}</div>
+                                  <div className="sub">{item.sub}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </>
+                        )}
                       </>
-                    )}
-                    {filteredSearch.authors.length > 0 && (
-                      <>
-                        <div className="search-section-title">Authors</div>
-                        {filteredSearch.authors.map(item => (
-                          <div className="search-result-item" key={item.id}>
-                            <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
-                            <div className="info">
-                              <div className="name">{item.name}</div>
-                              <div className="sub">{item.sub}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                    {filteredSearch.reports.length > 0 && (
-                      <>
-                        <div className="search-section-title">Reports</div>
-                        {filteredSearch.reports.map(item => (
-                          <div className="search-result-item" key={item.id}>
-                            <div className="search-result-icon" style={{ background: item.color }}>{item.icon}</div>
-                            <div className="info">
-                              <div className="name">{item.name}</div>
-                              <div className="sub">{item.sub}</div>
-                            </div>
-                            {item.badge && (
-                              <span className="search-badge" style={{ background: item.badgeColor, color: item.badgeText }}>{item.badge}</span>
-                            )}
-                          </div>
-                        ))}
-                      </>
+                    ) : (
+                      <div className="dashboard-search-state">No matching real data found.</div>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* Reader Mail */}
-<div
-  style={{ position: 'relative', cursor: 'pointer', padding: '6px', borderRadius: '10px' }}
-  onClick={() => navigate('/reader-mails')}
-  title="Reader Mail"
->
-  <Icon d="M4 4h16v16H4z M4 7l8 6 8-6" size={20} color="#64748B" />
-</div>
-              
+              <div
+                style={{ position: 'relative', cursor: 'pointer', padding: '6px', borderRadius: '10px' }}
+                onClick={() => navigate('/reader-mails')}
+                title="Reader Mail"
+              >
+                <Icon d="M4 4h16v16H4z M4 7l8 6 8-6" size={20} color="#64748B" />
+              </div>
 
-              {/* Notifications */}
               <AdminSecurityBell />
 
-              {/* Profile */}
               <div style={{ position: 'relative' }}>
                 <div className="profile-btn" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-                  <div className="profile-avatar">
-                    {currentUserName.charAt(0)}
-                  </div>
+                  <div className="profile-avatar">{currentUserName.charAt(0)}</div>
                   <Icon d="M6 9l6 6 6-6" size={16} color="#64748B" />
                 </div>
 
@@ -1023,9 +1190,9 @@ const AdminDashboard = () => {
                         Edit Profile
                       </div>
                       <div className="profile-menu-item" onClick={() => navigate('/admin/settings')}>
-  <Icon d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.82 1.43V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.82-1.43 1.65 1.65 0 0 0-1-.33 1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1.43-.82H2.75a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.43-.82A1.65 1.65 0 0 0 4.6 7a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 10.82 2.84V2.75a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .82 1.43 1.65 1.65 0 0 0 1 .33 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .35.11.69.33 1 .21.31.52.53.88.62h.09a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.43.82c-.22.31-.33.65-.33 1z" size={15} />
-  Settings
-</div>
+                        <Icon d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .33 1.65 1.65 0 0 0-.82 1.43V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-.82-1.43 1.65 1.65 0 0 0-1-.33 1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.33-1 1.65 1.65 0 0 0-1.43-.82H2.75a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.43-.82A1.65 1.65 0 0 0 4.6 7a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.33A1.65 1.65 0 0 0 10.82 2.84V2.75a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 .82 1.43 1.65 1.65 0 0 0 1 .33 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c0 .35.11.69.33 1 .21.31.52.53.88.62h.09a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.43.82c-.22.31-.33.65-.33 1z" size={15} />
+                        Settings
+                      </div>
                       <div className="profile-menu-divider" />
                       <div className="profile-menu-item danger" onClick={handleSignOut}>
                         <Icon d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9" size={15} color="#EF4444" />
@@ -1038,107 +1205,101 @@ const AdminDashboard = () => {
             </div>
           </header>
 
-          {/* CONTENT */}
           <main className="content-body">
             <div className="welcome-row">
               <h1>{getHour()}, {currentUserName.split(' ')[0]}! 👋</h1>
-              <p>Here's what's happening on Shadow Exclusive today.</p>
+              <p>Here&apos;s what&apos;s happening on Shadow today.</p>
             </div>
 
-            {/* STAT CARDS */}
             <div className="stats-grid">
-              {stats.map((s, i) => (
-                <div className="stat-card" key={i}>
+              {stats.map((stat) => (
+                <div className="stat-card" key={stat.label}>
                   <div className="stat-card-top">
-                    <span className="stat-label">{s.label}</span>
-                    <div className="stat-icon-box" style={{ background: s.iconBg }}>
-                      <Icon d={s.icon} size={18} color={s.iconColor} />
+                    <span className="stat-label">{stat.label}</span>
+                    <div className="stat-icon-box" style={{ background: stat.iconBg }}>
+                      <Icon d={stat.icon} size={18} color={stat.iconColor} />
                     </div>
                   </div>
-                  <div className="stat-value" style={{ color: s.valueColor }}>{s.value}</div>
-                  <div className="stat-trend" style={{ color: s.trendUp ? 'var(--success)' : 'var(--danger)' }}>
-                    <Icon d={s.trendUp
-                      ? 'M23 6l-9.5 9.5-5-5L1 18'
-                      : 'M23 18l-9.5-9.5-5 5L1 6'
-                    } size={13} color={s.trendUp ? '#10B981' : '#EF4444'} />
-                    {s.trend}
+                  <div className="stat-value" style={{ color: stat.valueColor }}>{stat.value}</div>
+                  <div className="stat-trend" style={{ color: stat.trendUp ? 'var(--success)' : 'var(--danger)' }}>
+                    <Icon
+                      d={stat.trendUp ? 'M23 6l-9.5 9.5-5-5L1 18' : 'M23 18l-9.5-9.5-5 5L1 6'}
+                      size={13}
+                      color={stat.trendUp ? '#10B981' : '#EF4444'}
+                    />
+                    {stat.trend}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* BENTO GRID */}
             <div className="bento-grid">
-              {/* Chart */}
               <section className="card-panel">
                 <div className="panel-header">
-                  <h4>Reader Growth (Last 7 Days)</h4>
-                  <span className="panel-link">View Report</span>
+                  <h4>Visitor Activity Overview</h4>
+                  <span className="panel-link" onClick={() => navigate('/authors')}>View Report</span>
                 </div>
                 <div className="chart-wrap">
-                  {chartData.map((d, i) => (
-                    <div className="chart-col" key={i}>
+                  {chartData.map((item, index) => (
+                    <div className="chart-col" key={item.day} title={`${item.day}: ${item.value.toLocaleString()}`}>
+                      <span className="chart-value">{item.value.toLocaleString()}</span>
                       <div className="chart-bar-wrap">
                         <div
                           className="chart-bar"
                           style={{
-                            height: `${(d.value / maxVal) * 100}%`,
-                            background: d.active
+                            height: `${Math.max(item.value > 0 ? 8 : 0, (item.value / maxVal) * 100)}%`,
+                            background: item.active
                               ? 'linear-gradient(180deg, #4F46E5, #7C3AED)'
-                              : d.value < 40
-                                ? 'linear-gradient(180deg, #FCA5A5, #FEE2E2)'
-                                : 'linear-gradient(180deg, #6EE7B7, #D1FAE5)',
-                            animationDelay: `${i * 0.08}s`,
+                              : 'linear-gradient(180deg, #6EE7B7, #D1FAE5)',
+                            animationDelay: `${index * 0.08}s`,
                           }}
                         />
                       </div>
-                      <span className="chart-day">{d.day}</span>
+                      <span className="chart-day">{item.day}</span>
                     </div>
                   ))}
                 </div>
               </section>
 
-              {/* Activity Log */}
               <section className="card-panel">
                 <div className="panel-header">
                   <h4>Admin Activity Log</h4>
                 </div>
                 <div className="log-list">
-  {activityLogLoading ? (
-    <div className="log-time">Loading activity logs...</div>
-  ) : activityLog.length === 0 ? (
-    <div className="log-time">No activity logs yet.</div>
-  ) : (
-    activityLog.map((log) => (
-      <div className="log-item" key={log.id}>
-        <div className="log-avatar" style={{ background: getLogColor(log.action) }}>
-          {getLogInitial(log)}
-        </div>
-        <div>
-          <div className="log-text">
-            <strong>{log.actor || 'Admin'}</strong> {getLogText(log)}
-          </div>
-          <div className="log-time">{formatLogTime(log.created_at)}</div>
-        </div>
-      </div>
-    ))
-  )}
-</div>
+                  {activityLogLoading ? (
+                    <div className="log-time">Loading activity logs...</div>
+                  ) : activityLog.length === 0 ? (
+                    <div className="log-time">No activity logs yet.</div>
+                  ) : (
+                    activityLog.map((log) => (
+                      <div className="log-item" key={log.id}>
+                        <div className="log-avatar" style={{ background: getLogColor(log.action) }}>
+                          {getLogInitial(log)}
+                        </div>
+                        <div>
+                          <div className="log-text">
+                            <strong>{log.actor || 'Admin'}</strong> {getLogText(log)}
+                          </div>
+                          <div className="log-time">{formatLogTime(log.created_at)}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
 
-<button
-  type="button"
-  className="view-all-btn"
-  onClick={() => navigate('/admin/activity-logs')}
->
-  View All Logs
-</button>
+                <button
+                  type="button"
+                  className="view-all-btn"
+                  onClick={() => navigate('/admin/activity-logs')}
+                >
+                  View All Logs
+                </button>
               </section>
             </div>
 
-            {/* Shadow Exclusive Workflow */}
             <section className="card-panel">
               <div className="panel-header">
-                <h4>Shadow Exclusive Workflow <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>(Review)</span></h4>
+                <h4>Shadow Exclusive Workflow <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>(Real Data)</span></h4>
                 <span className="panel-link" onClick={() => navigate('/shadow-exclusive')}>Open Manager</span>
               </div>
               <div className="exclusive-table-wrap">
@@ -1146,29 +1307,45 @@ const AdminDashboard = () => {
                   <thead>
                     <tr>
                       <th>Story Title</th>
-                      <th>Author</th>
+                      <th>Episodes</th>
                       <th>Exclusive Section</th>
                       <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {exclusiveStories.map((story, i) => (
-                      <tr key={i}>
-                        <td>
-                          <div className="exclusive-title-cell">
-                            <span className="live-dot" />
-                            <span style={{ fontWeight: 600 }}>{story.title}</span>
-                          </div>
-                        </td>
-                        <td style={{ color: '#475569' }}>{story.author}</td>
-                        <td style={{ color: '#475569' }}>{story.section}</td>
-                        <td>
-                          <span className={`status-badge badge-${story.status.toLowerCase()}`}>
-                            {story.status}
-                          </span>
-                        </td>
+                    {exclusiveLoading ? (
+                      <tr>
+                        <td colSpan={4} style={{ color: '#64748B' }}>Loading exclusive stories...</td>
                       </tr>
-                    ))}
+                    ) : exclusiveStories.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ color: '#64748B' }}>No pending or approved exclusive stories yet.</td>
+                      </tr>
+                    ) : (
+                      exclusiveStories.map((story) => {
+                        const status = formatExclusiveStatus(story.exclusive_status);
+                        return (
+                          <tr key={story.id}>
+                            <td>
+                              <div className="exclusive-title-cell">
+                                <span
+                                  className="live-dot"
+                                  style={{ background: status === 'Approved' ? '#10B981' : '#F59E0B' }}
+                                />
+                                <span style={{ fontWeight: 600 }}>{story.title || 'Untitled story'}</span>
+                              </div>
+                            </td>
+                            <td style={{ color: '#475569' }}>{Number(story.total_episodes || 0).toLocaleString()}</td>
+                            <td style={{ color: '#475569' }}>{formatExclusiveSections(story.exclusive_sections)}</td>
+                            <td>
+                              <span className={`status-badge badge-${status.toLowerCase()}`}>
+                                {status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
