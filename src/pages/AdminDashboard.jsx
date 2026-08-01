@@ -721,6 +721,7 @@ const AdminDashboard = () => {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
   const [activityLogLoading, setActivityLogLoading] = useState(true);
+  const [exclusiveSummary, setExclusiveSummary] = useState({ exclusive_stories: 0, pending_requests: 0 });
   const [adminProfile, setAdminProfile] = useState(() => {
     try {
       return JSON.parse(
@@ -770,6 +771,26 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchExclusiveSummary = async () => {
+    try {
+      const token = getAdminToken();
+      const response = await fetch(`${API_URL}/api/admin/exclusive/stories?limit=1`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to load exclusive summary');
+      }
+
+      setExclusiveSummary(data.summary || { exclusive_stories: 0, pending_requests: 0 });
+    } catch {
+      setExclusiveSummary({ exclusive_stories: 0, pending_requests: 0 });
+    }
+  };
+
   useEffect(() => {
     let ignore = false;
 
@@ -800,6 +821,7 @@ const AdminDashboard = () => {
     }
 
     fetchActivityLogs();
+    fetchExclusiveSummary();
     loadAdminProfile();
 
     return () => {
@@ -843,8 +865,8 @@ const AdminDashboard = () => {
 
   const stats = [
     {
-      label: 'Exclusive Stories', value: '18',
-      trend: '+3 pending review', trendUp: true,
+      label: 'Exclusive Stories', value: exclusiveSummary.exclusive_stories.toLocaleString(),
+      trend: `${exclusiveSummary.pending_requests} pending review`, trendUp: true,
       icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
       iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
     },
