@@ -883,8 +883,8 @@ const AdminDashboard = () => {
       iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#10B981',
     },
     {
-      label: 'Consent Requests', value: '5',
-      trend: 'Needs attention', trendUp: false,
+      label: 'Consent Requests', value: exclusiveSummary.pending_requests.toLocaleString(),
+      trend: exclusiveSummary.pending_requests === 1 ? 'Request needs attention' : 'Requests need attention', trendUp: false,
       icon: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
       iconBg: '#FEF2F2', iconColor: '#EF4444', valueColor: '#EF4444',
     },
