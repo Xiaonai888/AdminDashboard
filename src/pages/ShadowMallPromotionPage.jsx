@@ -15,6 +15,10 @@ const defaultForm = {
   description: '',
   button_text: 'Shop now',
   link_url: '/shop',
+  promotion_type: 'link',
+  story_id: '',
+  original_price_diamonds: '',
+  sale_price_diamonds: '',
   profile_image_url: '',
   image_url: '',
   is_active: true,
@@ -42,6 +46,8 @@ export default function ShadowMallPromotionPage() {
   const [removeImage, setRemoveImage] = useState(false)
   const [removeProfileImage, setRemoveProfileImage] = useState(false)
   const [promotions, setPromotions] = useState([])
+  const [stories, setStories] = useState([])
+  const [storiesLoading, setStoriesLoading] = useState(true)
   const [editingId, setEditingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -92,8 +98,56 @@ export default function ShadowMallPromotionPage() {
     }
   }
 
+    async function loadStories() {
+    try {
+      setStoriesLoading(true)
+
+      const token = getAdminToken()
+      const params = new URLSearchParams({
+        tab: 'active',
+        page: '1',
+        limit: '100',
+        status: 'all',
+        visibility: 'active',
+        genre: 'all',
+        q: '',
+      })
+
+      const response = await fetch(
+        `${API_URL}/api/admin/stories?${params.toString()}`,
+        {
+          headers: {
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+          },
+        }
+      )
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(
+          data.message || 'Failed to load stories'
+        )
+      }
+
+      setStories(
+        Array.isArray(data.stories)
+          ? data.stories
+          : []
+      )
+    } catch (error) {
+      setMessage(
+        error.message || 'Failed to load stories'
+      )
+    } finally {
+      setStoriesLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadPromotions()
+    loadStories()
   }, [])
 
   useEffect(() => {
@@ -308,6 +362,39 @@ export default function ShadowMallPromotionPage() {
       return
     }
 
+    if (form.promotion_type === 'story_sale') {
+      const originalPrice = Number(
+        form.original_price_diamonds
+      )
+      const salePrice = Number(
+        form.sale_price_diamonds
+      )
+
+      if (!form.story_id) {
+        setMessage('Please choose a story to sell.')
+        return
+      }
+
+      if (
+        !Number.isFinite(originalPrice) ||
+        !Number.isFinite(salePrice) ||
+        originalPrice <= 0 ||
+        salePrice <= 0
+      ) {
+        setMessage(
+          'Original price and sale price must be greater than 0.'
+        )
+        return
+      }
+
+      if (salePrice > originalPrice) {
+        setMessage(
+          'Sale price cannot be higher than original price.'
+        )
+        return
+      }
+    }
+
     try {
       setSaving(true)
       setMessage('')
@@ -328,6 +415,28 @@ export default function ShadowMallPromotionPage() {
       formData.append(
         'link_url',
         form.link_url.trim()
+      )
+      formData.append(
+        'promotion_type',
+        form.promotion_type
+      )
+      formData.append(
+        'story_id',
+        form.promotion_type === 'story_sale'
+          ? form.story_id
+          : ''
+      )
+      formData.append(
+        'original_price_diamonds',
+        form.promotion_type === 'story_sale'
+          ? String(form.original_price_diamonds)
+          : ''
+      )
+      formData.append(
+        'sale_price_diamonds',
+        form.promotion_type === 'story_sale'
+          ? String(form.sale_price_diamonds)
+          : ''
       )
       formData.append(
         'is_active',
@@ -414,6 +523,15 @@ export default function ShadowMallPromotionPage() {
     setForm({
       ...defaultForm,
       ...promotion,
+      promotion_type:
+        promotion.promotion_type === 'story_sale'
+          ? 'story_sale'
+          : 'link',
+      story_id: promotion.story_id || '',
+      original_price_diamonds:
+        promotion.original_price_diamonds || '',
+      sale_price_diamonds:
+        promotion.sale_price_diamonds || '',
     })
     setRemoveImage(false)
     setRemoveProfileImage(false)
@@ -722,6 +840,32 @@ export default function ShadowMallPromotionPage() {
   const pinnedCount = promotions.filter(
     (item) => Boolean(item.is_pinned)
   ).length
+
+  const selectedStory =
+    stories.find(
+      (story) =>
+        String(story.id) ===
+        String(form.story_id)
+    ) || null
+
+  const originalDiamondPrice = Number(
+    form.original_price_diamonds || 0
+  )
+  const saleDiamondPrice = Number(
+    form.sale_price_diamonds || 0
+  )
+
+  const discountPercent =
+    originalDiamondPrice > 0 &&
+    saleDiamondPrice > 0 &&
+    saleDiamondPrice <= originalDiamondPrice
+      ? Math.round(
+          ((originalDiamondPrice -
+            saleDiamondPrice) /
+            originalDiamondPrice) *
+            100
+        )
+      : 0
 
   const tabs = [
     { label: 'Products', path: '/shadow-mall' },
@@ -1123,8 +1267,6 @@ export default function ShadowMallPromotionPage() {
               {[
                 ['sponsor', 'Sponsor name'],
                 ['title', 'Promotion title'],
-                ['button_text', 'Button text'],
-                ['link_url', 'Destination link'],
               ].map(([field, label]) => (
                 <label
                   key={field}
@@ -1170,6 +1312,328 @@ export default function ShadowMallPromotionPage() {
                   />
                 </label>
               ))}
+
+              <label
+                style={{
+                  display: 'block',
+                  marginBottom: 14,
+                }}
+              >
+                <span
+                  style={{
+                    display: 'block',
+                    marginBottom: 7,
+                    color: '#334155',
+                    fontSize: 12,
+                    fontWeight: 900,
+                  }}
+                >
+                  Promotion action
+                </span>
+
+                <select
+                  value={form.promotion_type}
+                  onChange={(event) =>
+                    updateField(
+                      'promotion_type',
+                      event.target.value
+                    )
+                  }
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 14,
+                    padding: '0 12px',
+                    outline: 'none',
+                    color: '#0F172A',
+                    background: '#FFFFFF',
+                    font: 'inherit',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <option value="link">
+                    Shop Now / Destination Link
+                  </option>
+                  <option value="story_sale">
+                    Sell Story for Diamonds
+                  </option>
+                </select>
+              </label>
+
+              {form.promotion_type === 'link' ? (
+                <>
+                  <label
+                    style={{
+                      display: 'block',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'block',
+                        marginBottom: 7,
+                        color: '#334155',
+                        fontSize: 12,
+                        fontWeight: 900,
+                      }}
+                    >
+                      Button text
+                    </span>
+
+                    <input
+                      value={form.button_text}
+                      onChange={(event) =>
+                        updateField(
+                          'button_text',
+                          event.target.value
+                        )
+                      }
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 14,
+                        padding: '0 12px',
+                        outline: 'none',
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        font: 'inherit',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'block',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'block',
+                        marginBottom: 7,
+                        color: '#334155',
+                        fontSize: 12,
+                        fontWeight: 900,
+                      }}
+                    >
+                      Destination link
+                    </span>
+
+                    <input
+                      value={form.link_url}
+                      onChange={(event) =>
+                        updateField(
+                          'link_url',
+                          event.target.value
+                        )
+                      }
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 14,
+                        padding: '0 12px',
+                        outline: 'none',
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        font: 'inherit',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </label>
+                </>
+              ) : (
+                <div
+                  style={{
+                    marginBottom: 14,
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 16,
+                    background: '#F8FAFC',
+                    padding: 14,
+                  }}
+                >
+                  <label
+                    style={{
+                      display: 'block',
+                      marginBottom: 14,
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'block',
+                        marginBottom: 7,
+                        color: '#334155',
+                        fontSize: 12,
+                        fontWeight: 900,
+                      }}
+                    >
+                      Story to sell
+                    </span>
+
+                    <select
+                      value={form.story_id}
+                      disabled={storiesLoading}
+                      onChange={(event) =>
+                        updateField(
+                          'story_id',
+                          event.target.value
+                        )
+                      }
+                      style={{
+                        width: '100%',
+                        height: 44,
+                        border: '1px solid #E2E8F0',
+                        borderRadius: 14,
+                        padding: '0 12px',
+                        outline: 'none',
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        font: 'inherit',
+                        fontSize: 13,
+                        fontWeight: 700,
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <option value="">
+                        {storiesLoading
+                          ? 'Loading stories...'
+                          : 'Choose a published story'}
+                      </option>
+
+                      {stories.map((story) => (
+                        <option
+                          key={story.id}
+                          value={story.id}
+                        >
+                          {story.title}
+                          {story.author_page?.page_name
+                            ? ` · ${story.author_page.page_name}`
+                            : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        'repeat(2, minmax(0, 1fr))',
+                      gap: 10,
+                    }}
+                  >
+                    <label>
+                      <span
+                        style={{
+                          display: 'block',
+                          marginBottom: 7,
+                          color: '#334155',
+                          fontSize: 12,
+                          fontWeight: 900,
+                        }}
+                      >
+                        Original price
+                      </span>
+
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={
+                          form.original_price_diamonds
+                        }
+                        onChange={(event) =>
+                          updateField(
+                            'original_price_diamonds',
+                            event.target.value
+                          )
+                        }
+                        placeholder="200"
+                        style={{
+                          width: '100%',
+                          height: 44,
+                          border:
+                            '1px solid #E2E8F0',
+                          borderRadius: 14,
+                          padding: '0 12px',
+                          outline: 'none',
+                          color: '#0F172A',
+                          background: '#FFFFFF',
+                          font: 'inherit',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </label>
+
+                    <label>
+                      <span
+                        style={{
+                          display: 'block',
+                          marginBottom: 7,
+                          color: '#334155',
+                          fontSize: 12,
+                          fontWeight: 900,
+                        }}
+                      >
+                        Sale price
+                      </span>
+
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={form.sale_price_diamonds}
+                        onChange={(event) =>
+                          updateField(
+                            'sale_price_diamonds',
+                            event.target.value
+                          )
+                        }
+                        placeholder="100"
+                        style={{
+                          width: '100%',
+                          height: 44,
+                          border:
+                            '1px solid #E2E8F0',
+                          borderRadius: 14,
+                          padding: '0 12px',
+                          outline: 'none',
+                          color: '#0F172A',
+                          background: '#FFFFFF',
+                          font: 'inherit',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {discountPercent > 0 ? (
+                    <div
+                      style={{
+                        marginTop: 11,
+                        color: '#DC2626',
+                        fontSize: 12,
+                        fontWeight: 900,
+                      }}
+                    >
+                      {discountPercent}% OFF
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               <label
                 style={{
@@ -1797,21 +2261,132 @@ export default function ShadowMallPromotionPage() {
                       padding: 12,
                     }}
                   >
-                    <button
-                      type="button"
-                      style={{
-                        width: '100%',
-                        height: 42,
-                        border: 0,
-                        borderRadius: 8,
-                        background: '#111111',
-                        color: '#FFFFFF',
-                        fontSize: 13,
-                        fontWeight: 900,
-                      }}
-                    >
-                      {form.button_text || 'Shop now'}
-                    </button>
+                    {form.promotion_type ===
+                    'story_sale' ? (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent:
+                            'space-between',
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            minWidth: 0,
+                            flex: 1,
+                          }}
+                        >
+                          <div
+                            style={{
+                              overflow: 'hidden',
+                              color: '#111827',
+                              fontSize: 13,
+                              fontWeight: 900,
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {selectedStory?.title ||
+                              'Choose a story'}
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              marginTop: 5,
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: '#94A3B8',
+                                fontSize: 11,
+                                fontWeight: 800,
+                                textDecoration:
+                                  'line-through',
+                              }}
+                            >
+                              {originalDiamondPrice ||
+                                0}{' '}
+                              <span
+                                style={{
+                                  color: '#38BDF8',
+                                }}
+                              >
+                                ◆
+                              </span>
+                            </span>
+
+                            <span
+                              style={{
+                                color: '#111827',
+                                fontSize: 14,
+                                fontWeight: 900,
+                              }}
+                            >
+                              {saleDiamondPrice || 0}{' '}
+                              <span
+                                style={{
+                                  color: '#38BDF8',
+                                }}
+                              >
+                                ◆
+                              </span>
+                            </span>
+                          </div>
+
+                          {discountPercent > 0 ? (
+                            <div
+                              style={{
+                                marginTop: 3,
+                                color: '#DC2626',
+                                fontSize: 10,
+                                fontWeight: 900,
+                              }}
+                            >
+                              {discountPercent}% OFF
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <button
+                          type="button"
+                          style={{
+                            height: 38,
+                            flexShrink: 0,
+                            border: 0,
+                            borderRadius: 9,
+                            background: '#111827',
+                            color: '#FFFFFF',
+                            padding: '0 16px',
+                            fontSize: 12,
+                            fontWeight: 900,
+                          }}
+                        >
+                          Buy now
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        style={{
+                          width: '100%',
+                          height: 42,
+                          border: 0,
+                          borderRadius: 8,
+                          background: '#111111',
+                          color: '#FFFFFF',
+                          fontSize: 13,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {form.button_text ||
+                          'Shop now'}
+                      </button>
+                    )}
                   </div>
                 </article>
               </div>
