@@ -106,14 +106,14 @@ export default function ShadowMallPromotionPage() {
 
       const token = getAdminToken()
       const params = new URLSearchParams({
-        tab: 'active',
-        page: '1',
-        limit: '100',
-        status: 'all',
-        visibility: 'active',
-        genre: 'all',
-        q: '',
-      })
+  tab: 'active',
+  page: '1',
+  limit: '100',
+  status: 'published',
+  visibility: 'active',
+  genre: 'all',
+  q: '',
+})
 
       const response = await fetch(
         `${API_URL}/api/admin/stories?${params.toString()}`,
