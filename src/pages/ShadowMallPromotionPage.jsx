@@ -1102,7 +1102,6 @@ export default function ShadowMallPromotionPage() {
           minHeight: '100vh',
           background: '#F8FAFC',
           color: '#0F172A',
-          fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
       >
         <main
