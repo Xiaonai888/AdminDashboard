@@ -22,7 +22,6 @@ const styles = `
   .settings-page {
     min-height: 100%;
     color: var(--settings-text);
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
 
   .settings-container {
