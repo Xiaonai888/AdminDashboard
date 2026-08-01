@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 
   :root {
     --bg-main: #F8FAFC;
@@ -38,7 +38,6 @@ const styles = `
   .dashboard-wrapper {
     display: flex;
     height: 100vh;
-    font-family: 'Inter', sans-serif;
     background-color: var(--bg-main);
     color: var(--text-main);
     overflow: hidden;
@@ -85,7 +84,6 @@ const styles = `
     width: 300px;
     outline: none;
     font-size: 13.5px;
-    font-family: 'Inter', sans-serif;
     color: var(--text-main);
     transition: all 0.2s;
   }
