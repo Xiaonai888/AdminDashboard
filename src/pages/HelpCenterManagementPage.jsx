@@ -39,7 +39,7 @@ const iconPaths = {
 }
 
 const styles = `
-  .hc-page{max-width:1500px;margin:0 auto;padding-bottom:48px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#0F172A}
+  .hc-page{max-width:1500px;margin:0 auto;padding-bottom:48px;color:#0F172A}
   .hc-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
   .hc-actions-copy h1{font-size:27px;line-height:1.15;font-weight:900;letter-spacing:-.04em;margin:0}
   .hc-actions-copy p{font-size:13px;line-height:1.6;color:#64748B;margin:7px 0 0}
