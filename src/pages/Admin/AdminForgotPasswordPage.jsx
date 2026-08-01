@@ -132,7 +132,6 @@ const styles = {
     placeItems: 'center',
     padding: 24,
     background: 'linear-gradient(135deg, #0F172A 0%, #111827 48%, #1E1B4B 100%)',
-    fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     color: '#0F172A',
   },
   card: {
