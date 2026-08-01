@@ -1548,7 +1548,7 @@ export default function ShadowMallPromotionPage() {
 
                       <input
                         type="number"
-                        min="0"
+                        min="0.000001"
                         step="any"
 
                         value={
@@ -1594,8 +1594,8 @@ export default function ShadowMallPromotionPage() {
 
                       <input
                         type="number"
-                        min="1"
-                        step="1"
+                        min="0.000001"
+                        step="any"
                         value={form.sale_price_diamonds}
                         onChange={(event) =>
                           updateField(
