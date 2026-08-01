@@ -195,6 +195,19 @@ const navSections = [
       { path: '/task-center', label: 'Task Center', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' },
     ],
   },
+
+  {
+  label: 'Shadow Mall',
+  items: [
+    { path: '/shadow-mall', label: 'Products', icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6' },
+    { path: '/shadow-mall/orders', label: 'Orders', icon: 'M6 2h12l2 5H4l2-5z M5 7v15h14V7 M9 11h6' },
+    { path: '/shadow-mall/publishers', label: 'Publishers', icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 10h6 M9 14h6 M9 18h6' },
+    { path: '/shadow-mall/promotion', label: 'Promotion', icon: 'M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z' },
+    { path: '/author-stores', label: 'Author Stores', icon: 'M3 9l2-6h14l2 6 M5 13v8h14v-8 M9 21v-6h6v6 M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0' },
+    { path: '/author-store/review', label: 'Store Review', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  ],
+},
+  
   {
     label: 'Content',
     items: [
@@ -216,17 +229,7 @@ const navSections = [
       { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
     ],
   },
-  {
-    label: 'Shadow Mall',
-    items: [
-      { path: '/shadow-mall', label: 'Products', icon: 'M3 3h18v18H3z M7 7h10M7 11h10M7 15h6' },
-      { path: '/shadow-mall/orders', label: 'Orders', icon: 'M6 2h12l2 5H4l2-5z M5 7v15h14V7 M9 11h6' },
-      { path: '/shadow-mall/publishers', label: 'Publishers', icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 10h6 M9 14h6 M9 18h6' },
-      { path: '/shadow-mall/promotion', label: 'Promotion', icon: 'M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z' },
-      { path: '/author-stores', label: 'Author Stores', icon: 'M3 9l2-6h14l2 6 M5 13v8h14v-8 M9 21v-6h6v6 M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0' },
-      { path: '/author-store/review', label: 'Store Review', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-    ],
-  },
+ 
   {
     label: 'Moderation',
     items: [
