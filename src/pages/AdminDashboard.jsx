@@ -6,8 +6,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 
 
 const styles = `
-
-
   :root {
     --bg-main: #F8FAFC;
     --bg-card: #FFFFFF;
@@ -84,6 +82,7 @@ const styles = `
     width: 300px;
     outline: none;
     font-size: 13.5px;
+    font-family: 'Inter', sans-serif;
     color: var(--text-main);
     transition: all 0.2s;
   }
@@ -798,6 +797,10 @@ const AdminDashboard = () => {
     visitors_this_month: 0,
     active_last_10_minutes: 0,
     total_page_views: 0,
+    readers_today: 0,
+    active_readers_last_10_minutes: 0,
+    stories_updated_today: 0,
+    episodes_published_today: 0,
   });
   const [incomeSummary, setIncomeSummary] = useState({ today: 0, yesterday: 0 });
   const [adminProfile, setAdminProfile] = useState(() => {
@@ -891,6 +894,10 @@ const AdminDashboard = () => {
         visitors_this_month: 0,
         active_last_10_minutes: 0,
         total_page_views: 0,
+        readers_today: 0,
+        active_readers_last_10_minutes: 0,
+        stories_updated_today: 0,
+        episodes_published_today: 0,
       });
     }
   };
@@ -1033,12 +1040,20 @@ const AdminDashboard = () => {
 
   const stats = [
     {
-      label: 'Exclusive Stories',
-      value: exclusiveSummary.exclusive_stories.toLocaleString(),
-      trend: `${exclusiveSummary.pending_requests} pending review`,
+      label: 'Stories Updated Today',
+      value: Number(visitorSummary.stories_updated_today || 0).toLocaleString(),
+      trend: `${Number(visitorSummary.episodes_published_today || 0).toLocaleString()} new episodes today`,
+      trendUp: true,
+      icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z M12 7v6 M9 10h6',
+      iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
+    },
+    {
+      label: 'Readers Today',
+      value: Number(visitorSummary.readers_today || 0).toLocaleString(),
+      trend: `${Number(visitorSummary.active_readers_last_10_minutes || 0).toLocaleString()} active in 10 min`,
       trendUp: true,
       icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
-      iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
+      iconBg: '#FFF7ED', iconColor: '#F59E0B', valueColor: '#0F172A',
     },
     {
       label: 'Visitors Today',
@@ -1053,10 +1068,20 @@ const AdminDashboard = () => {
       value: formatMoney(incomeSummary.today),
       trend: incomeTrend,
       trendUp: incomeTrendUp,
-      icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+      icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 0 010 7H6',
       iconBg: '#F0FDF4', iconColor: '#10B981', valueColor: '#10B981',
     },
     {
+      hidden: true,
+      label: 'Exclusive Stories',
+      value: exclusiveSummary.exclusive_stories.toLocaleString(),
+      trend: `${exclusiveSummary.pending_requests} pending review`,
+      trendUp: true,
+      icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+      iconBg: '#EEF2FF', iconColor: '#4F46E5', valueColor: '#0F172A',
+    },
+    {
+      hidden: true,
       label: 'Consent Requests',
       value: exclusiveSummary.pending_requests.toLocaleString(),
       trend: exclusiveSummary.pending_requests === 1 ? 'Request needs attention' : 'Requests need attention',
@@ -1065,6 +1090,8 @@ const AdminDashboard = () => {
       iconBg: '#FEF2F2', iconColor: '#EF4444', valueColor: '#EF4444',
     },
   ];
+
+  const visibleStats = stats.filter((stat) => !stat.hidden);
 
   const getHour = () => {
     const h = new Date().getHours();
@@ -1210,7 +1237,7 @@ const AdminDashboard = () => {
             </div>
 
             <div className="stats-grid">
-              {stats.map((stat) => (
+              {visibleStats.map((stat) => (
                 <div className="stat-card" key={stat.label}>
                   <div className="stat-card-top">
                     <span className="stat-label">{stat.label}</span>
