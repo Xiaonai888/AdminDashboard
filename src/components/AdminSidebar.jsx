@@ -16,7 +16,6 @@ const sidebarStyles = `
     padding: 20px 14px;
     background: #FFFFFF;
     border-right: 1px solid #E2E8F0;
-    font-family: Inter, sans-serif;
     transition: width 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
   }
 
