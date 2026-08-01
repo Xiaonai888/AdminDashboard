@@ -13,9 +13,8 @@ const SECTIONS = [
 ];
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
   :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--success:#10B981;--successBg:#D1FAE5;--danger:#EF4444;--dangerBg:#FEE2E2}
-  *{box-sizing:border-box;margin:0;padding:0}body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+  *{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text)}
   .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}
   .main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900}.content-body{padding:28px 36px 48px;max-width:1600px;margin:0 auto}.page-title-row{margin-bottom:22px}.page-title-row h1{font-size:27px;font-weight:900;letter-spacing:-.04em}.page-title-row p{font-size:13.5px;color:var(--muted);margin-top:5px}
   .section-tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}.section-tab{height:42px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#475569;padding:0 18px;font-weight:900;cursor:pointer}.section-tab.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 10px 20px rgba(79,70,229,.18)}
