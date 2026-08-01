@@ -22,7 +22,7 @@ const styles = `
     display: flex;
     background: var(--shadow-admin-bg);
     color: var(--shadow-admin-text);
-    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
   }
 
   .shadow-admin-sidebar {
