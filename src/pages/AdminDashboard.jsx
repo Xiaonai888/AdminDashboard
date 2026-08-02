@@ -725,18 +725,40 @@ function getLogText(record) {
   return `Updated ${title}`;
 }
 
-
+const CAMBODIA_OFFSET_MS =
+  7 * 60 * 60 * 1000;
 function formatMoney(value) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
-function getLocalDayRange(offsetDays = 0) {
-  const start = new Date();
-  start.setDate(start.getDate() + offsetDays);
-  start.setHours(0, 0, 0, 0);
+function getCambodiaDate(
+  value = new Date()
+) {
+  return new Date(
+    new Date(value).getTime() +
+      CAMBODIA_OFFSET_MS
+  );
+}
 
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+function getLocalDayRange(offsetDays = 0) {
+  const cambodiaDate =
+    getCambodiaDate();
+
+  const startUtc = Date.UTC(
+    cambodiaDate.getUTCFullYear(),
+    cambodiaDate.getUTCMonth(),
+    cambodiaDate.getUTCDate() +
+      offsetDays
+  );
+
+  const start = new Date(
+    startUtc - CAMBODIA_OFFSET_MS
+  );
+
+  const end = new Date(
+    start.getTime() +
+      24 * 60 * 60 * 1000
+  );
 
   return {
     from: start.toISOString(),
