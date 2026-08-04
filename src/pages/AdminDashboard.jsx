@@ -1260,7 +1260,12 @@ const AdminDashboard = () => {
 
             <div className="stats-grid">
               {visibleStats.map((stat) => (
-                <div className="stat-card" key={stat.label}>
+                <div
+  className="stat-card"
+  key={stat.label}
+  onClick={() => stat.path && navigate(stat.path)}
+  style={{ cursor: stat.path ? 'pointer' : 'default' }}
+>
                   <div className="stat-card-top">
                     <span className="stat-label">{stat.label}</span>
                     <div className="stat-icon-box" style={{ background: stat.iconBg }}>
