@@ -39,6 +39,7 @@ import AdminReportCenterPage from './pages/AdminReportCenterPage';
 import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
+import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
 
 function ComingSoon({ title }) {
   return (
@@ -88,6 +89,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route path="/admin" element={<ProtectedPage><AdminDashboard /></ProtectedPage>} />
+        <Route path="/admin/orders/new" element={<ProtectedPage><AdminNewOrdersPage /></ProtectedPage>} />
         <Route path="/slides" element={<ProtectedPage><SlideSection /></ProtectedPage>} />
         <Route path="/banners" element={<ProtectedPage><BannerSystem /></ProtectedPage>} />
         <Route path="/shadow-mall" element={<ProtectedPage><ShadowMallProductsPage /></ProtectedPage>} />
