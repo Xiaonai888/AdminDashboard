@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
@@ -294,14 +294,18 @@ export default function AdminNewOrdersPage() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
 
-  const loadOrders = async (targetPage = 1, replace = false) => {
+  const loadOrders = async (
+    targetPage = 1,
+    replace = false,
+    targetSource = source
+  ) => {
     try {
       replace ? setLoading(true) : setLoadingMore(true)
       setError('')
 
       const token = getAdminToken()
       const response = await fetch(
-        `${API_URL}/api/admin/community/dashboard/orders?page=${targetPage}&limit=20`,
+        `${API_URL}/api/admin/community/dashboard/orders?page=${targetPage}&limit=20&source=${targetSource}`,
         {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -335,10 +339,11 @@ export default function AdminNewOrdersPage() {
     loadOrders(1, true)
   }, [])
 
-  const filteredOrders = useMemo(() => {
-    if (source === 'all') return orders
-    return orders.filter((order) => order.source === source)
-  }, [orders, source])
+  const changeSource = (nextSource) => {
+    setSource(nextSource)
+    setPage(1)
+    loadOrders(1, true, nextSource)
+  }
 
   const openOrderManager = (order) => {
     navigate(
@@ -377,7 +382,7 @@ export default function AdminNewOrdersPage() {
             <button
               type="button"
               className={`new-orders-filter ${source === 'all' ? 'active' : ''}`}
-              onClick={() => setSource('all')}
+              onClick={() => changeSource('all')}
             >
               All
             </button>
@@ -385,7 +390,7 @@ export default function AdminNewOrdersPage() {
             <button
               type="button"
               className={`new-orders-filter ${source === 'shadow_mall' ? 'active' : ''}`}
-              onClick={() => setSource('shadow_mall')}
+              onClick={() => changeSource('shadow_mall')}
             >
               Shadow Mall
             </button>
@@ -393,7 +398,7 @@ export default function AdminNewOrdersPage() {
             <button
               type="button"
               className={`new-orders-filter ${source === 'author_store' ? 'active' : ''}`}
-              onClick={() => setSource('author_store')}
+              onClick={() => changeSource('author_store')}
             >
               Author Store
             </button>
@@ -401,7 +406,7 @@ export default function AdminNewOrdersPage() {
             <button
               type="button"
               className="new-orders-button primary"
-              onClick={() => loadOrders(1, true)}
+              onClick={() => loadOrders(1, true, source)}
               disabled={loading}
             >
               Refresh
@@ -414,7 +419,7 @@ export default function AdminNewOrdersPage() {
         <div className="new-orders-panel">
           {loading ? (
             <div className="new-orders-state">Loading newest paid orders...</div>
-          ) : filteredOrders.length === 0 ? (
+          ) : orders.length === 0 ? (
             <div className="new-orders-state">No paid orders found.</div>
           ) : (
             <div className="new-orders-table-wrap">
@@ -433,7 +438,7 @@ export default function AdminNewOrdersPage() {
                 </thead>
 
                 <tbody>
-                  {filteredOrders.map((order) => {
+                  {orders.map((order) => {
                     const product = formatProduct(order)
                     const isAuthorStore = order.source === 'author_store'
 
@@ -522,7 +527,7 @@ export default function AdminNewOrdersPage() {
               <button
                 type="button"
                 className="new-orders-button primary"
-                onClick={() => loadOrders(page + 1, false)}
+                onClick={() => loadOrders(page + 1, false, source)}
                 disabled={loadingMore}
               >
                 {loadingMore ? 'Loading...' : 'Load 20 More'}
