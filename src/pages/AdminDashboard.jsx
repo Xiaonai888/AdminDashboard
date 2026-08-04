@@ -825,6 +825,14 @@ const AdminDashboard = () => {
     episodes_published_today: 0,
   });
   const [incomeSummary, setIncomeSummary] = useState({ today: 0, yesterday: 0 });
+  const [growthSummary, setGrowthSummary] = useState({
+    reader_online: 0,
+    new_readers: 0,
+    new_authors: 0,
+    new_orders: 0,
+    shadow_mall_orders: 0,
+    author_store_orders: 0,
+  });
   const [adminProfile, setAdminProfile] = useState(() => {
     try {
       return JSON.parse(
@@ -942,6 +950,22 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchGrowthDashboard = async () => {
+    try {
+      const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
+      setGrowthSummary((current) => ({ ...current, ...(data.summary || {}) }));
+    } catch {
+      setGrowthSummary({
+        reader_online: 0,
+        new_readers: 0,
+        new_authors: 0,
+        new_orders: 0,
+        shadow_mall_orders: 0,
+        author_store_orders: 0,
+      });
+    }
+  };
+
   useEffect(() => {
     let ignore = false;
 
@@ -971,6 +995,7 @@ const AdminDashboard = () => {
     fetchExclusiveDashboard();
     fetchVisitorDashboard();
     fetchIncomeDashboard();
+    fetchGrowthDashboard();
     loadAdminProfile();
 
     return () => {
@@ -1114,6 +1139,52 @@ const AdminDashboard = () => {
   ];
 
   const visibleStats = stats.filter((stat) => !stat.hidden);
+
+  const growthStats = [
+    {
+      label: 'Reader Online',
+      value: Number(growthSummary.reader_online || 0).toLocaleString(),
+      trend: 'Task Center activity in 10 min',
+      trendUp: true,
+      icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+      iconBg: '#ECFDF5',
+      iconColor: '#10B981',
+      valueColor: '#0F172A',
+    },
+    {
+      label: 'New Reader',
+      value: Number(growthSummary.new_readers || 0).toLocaleString(),
+      trend: 'New reader accounts today',
+      trendUp: true,
+      icon: 'M15 19a6 6 0 0 0-12 0 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M19 8v6 M16 11h6',
+      iconBg: '#EFF6FF',
+      iconColor: '#2563EB',
+      valueColor: '#0F172A',
+    },
+    {
+      label: 'New Author',
+      value: Number(growthSummary.new_authors || 0).toLocaleString(),
+      trend: 'New author pages today',
+      trendUp: true,
+      icon: 'M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
+      iconBg: '#F5F3FF',
+      iconColor: '#7C3AED',
+      valueColor: '#0F172A',
+    },
+    {
+      label: 'New Order',
+      value: Number(growthSummary.new_orders || 0).toLocaleString(),
+      trend: `${Number(growthSummary.shadow_mall_orders || 0).toLocaleString()} Mall · ${Number(growthSummary.author_store_orders || 0).toLocaleString()} Author Store`,
+      trendUp: true,
+      path: '/admin/orders/new',
+      icon: 'M6 2h12l2 5H4l2-5z M5 7v15h14V7 M9 11h6',
+      iconBg: '#FFF7ED',
+      iconColor: '#F59E0B',
+      valueColor: '#0F172A',
+    },
+  ];
+
+  const dashboardStats = [...visibleStats, ...growthStats];
 
   const getHour = () => {
     const h = new Date().getHours();
@@ -1259,13 +1330,13 @@ const AdminDashboard = () => {
             </div>
 
             <div className="stats-grid">
-              {visibleStats.map((stat) => (
+              {dashboardStats.map((stat) => (
                 <div
-  className="stat-card"
-  key={stat.label}
-  onClick={() => stat.path && navigate(stat.path)}
-  style={{ cursor: stat.path ? 'pointer' : 'default' }}
->
+                  className="stat-card"
+                  key={stat.label}
+                  onClick={() => stat.path && navigate(stat.path)}
+                  style={{ cursor: stat.path ? 'pointer' : 'default' }}
+                >
                   <div className="stat-card-top">
                     <span className="stat-label">{stat.label}</span>
                     <div className="stat-icon-box" style={{ background: stat.iconBg }}>
