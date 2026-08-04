@@ -996,11 +996,14 @@ const AdminDashboard = () => {
     fetchVisitorDashboard();
     fetchIncomeDashboard();
     fetchGrowthDashboard();
-    loadAdminProfile();
+loadAdminProfile();
 
-    return () => {
-      ignore = true;
-    };
+const growthRefreshTimer = window.setInterval(fetchGrowthDashboard, 60000);
+
+return () => {
+  ignore = true;
+  window.clearInterval(growthRefreshTimer);
+};
   }, []);
 
   useEffect(() => {
