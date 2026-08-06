@@ -516,9 +516,6 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                 marginTop: 16,
                 maxHeight: '68vh',
                 overflowY: 'auto',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.8,
-                fontSize: 15,
                 color: '#0f172a',
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
@@ -526,7 +523,10 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                 padding: 16,
               }}
             >
-              {readingEpisode.content || 'No content found.'}
+              <AdminEpisodePreview
+                storyType={fullStory.story_type}
+                episode={readingEpisode}
+              />
             </div>
           </div>
         </div>
