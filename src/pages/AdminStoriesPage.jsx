@@ -29,16 +29,34 @@ function copyText(value) {
   navigator.clipboard?.writeText(String(value)).catch(() => {})
 }
 
-async function downloadCover(url, title) {
-  if (!url) return
-  const response = await fetch(url)
+async function downloadStoryMedia(storyId, mediaType, mediaIndex, fallbackName) {
+  const token = getAdminToken()
+  const response = await fetch(
+    `${API_URL}/api/admin/stories/${encodeURIComponent(storyId)}/media/${encodeURIComponent(mediaType)}/${Number(mediaIndex || 0)}/download`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new Error(data.message || 'Failed to download media')
+  }
+
   const blob = await response.blob()
+  const disposition = response.headers.get('content-disposition') || ''
+  const utf8Name = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  const plainName = disposition.match(/filename="?([^";]+)"?/i)?.[1]
+  const fileName = utf8Name
+    ? decodeURIComponent(utf8Name)
+    : plainName || fallbackName || 'story-media'
   const objectUrl = URL.createObjectURL(blob)
   const link = document.createElement('a')
+
   link.href = objectUrl
-  link.download = `${String(title || 'story-cover').replace(/[^\w-]+/g, '-')}-cover`
+  link.download = fileName
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(objectUrl)
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
 }
 
 function getStatusClass(status) {
@@ -419,8 +437,6 @@ function AdminEpisodePreview({ storyType, episode }) {
   ) : <div className="story-admin-muted-box">No content found.</div>
 }
 
-
-
 function StoryDrawer({ story, details, loading, onClose, onAction }) {
   const [readingEpisode, setReadingEpisode] = useState(null)
 
@@ -432,10 +448,20 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
   const author = fullStory.author_page
   const slides = Array.isArray(details?.slides) ? details.slides : Array.isArray(fullStory.slides) ? fullStory.slides : []
   const mediaItems = [
-    fullStory.cover_url ? { label: 'Cover', url: fullStory.cover_url, fileName: `${fullStory.title}-cover` } : null,
+    fullStory.cover_url
+      ? {
+          label: 'Cover',
+          url: fullStory.cover_url,
+          mediaType: 'cover',
+          mediaIndex: 0,
+          fileName: `${fullStory.title}-cover`,
+        }
+      : null,
     ...slides.slice(0, 5).map((slide, index) => ({
       label: `Slide ${index + 1}`,
       url: slide.image_url || slide.slide_url || slide.url || slide.cover_url,
+      mediaType: 'slide',
+      mediaIndex: index,
       fileName: `${fullStory.title}-slide-${index + 1}`,
     })),
   ].filter((item) => item?.url)
@@ -475,7 +501,15 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                 {mediaItems.map((item) => (
                   <div key={item.label} className="story-admin-media-row">
                     <span>{item.label}</span>
-                    <button type="button" onClick={() => downloadCover(item.url, item.fileName)} title={`Download ${item.label}`}>
+                    <button type="button" onClick={() => {
+                        downloadStoryMedia(
+                          fullStory.id,
+                          item.mediaType,
+                          item.mediaIndex,
+                          item.fileName
+                        ).catch((error) => window.alert(error.message))
+                      }}
+                      title={`Download ${item.label}`}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M12 3v11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                         <path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -573,6 +607,9 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                 marginTop: 16,
                 maxHeight: '68vh',
                 overflowY: 'auto',
+                whiteSpace: 'pre-wrap',
+                lineHeight: 1.8,
+                fontSize: 15,
                 color: '#0f172a',
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
@@ -580,10 +617,7 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                 padding: 16,
               }}
             >
-              <AdminEpisodePreview
-                storyType={fullStory.story_type}
-                episode={readingEpisode}
-              />
+              {readingEpisode.content || 'No content found.'}
             </div>
           </div>
         </div>
