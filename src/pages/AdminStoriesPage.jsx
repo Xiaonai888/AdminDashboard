@@ -152,6 +152,218 @@ function ModerationModal({ action, story, onClose, onSubmit, loading }) {
   )
 }
 
+function safeAdminImageUrl(value) {
+  const source = String(value || '').trim()
+  if (!source) return ''
+
+  try {
+    const url = new URL(source, window.location.origin)
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : ''
+  } catch {
+    return ''
+  }
+}
+
+function sanitizeAdminEpisodeHtml(value) {
+  const source = String(value || '').trim()
+  if (!source || typeof DOMParser === 'undefined') return source
+
+  const documentValue = new DOMParser().parseFromString(`<div>${source}</div>`, 'text/html')
+  const root = documentValue.body.firstElementChild
+  if (!root) return ''
+
+  const allowedTags = new Set(['P', 'DIV', 'BR', 'STRONG', 'B', 'EM', 'I', 'IMG'])
+
+  root.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach((element) => element.remove())
+
+  Array.from(root.querySelectorAll('*')).forEach((element) => {
+    if (!allowedTags.has(element.tagName)) {
+      element.replaceWith(...element.childNodes)
+      return
+    }
+
+    Array.from(element.attributes).forEach((attribute) => {
+      if (!['src', 'alt'].includes(attribute.name.toLowerCase())) {
+        element.removeAttribute(attribute.name)
+      }
+    })
+
+    if (element.tagName === 'IMG') {
+      const imageUrl = safeAdminImageUrl(element.getAttribute('src'))
+      if (imageUrl) {
+        element.setAttribute('src', imageUrl)
+        element.setAttribute('style', 'display:block;max-width:100%;height:auto;margin:16px auto;border-radius:12px;')
+      } else {
+        element.remove()
+      }
+    }
+  })
+
+  return root.innerHTML
+}
+
+function AdminEpisodePreview({ storyType, episode }) {
+  const type = String(storyType || 'novel').toLowerCase()
+  const content = episode?.content || ''
+
+  const novelHtml = useMemo(
+    () => sanitizeAdminEpisodeHtml(content),
+    [content]
+  )
+
+  if (type === 'manga') {
+    const pages = Array.isArray(episode?.pages) ? episode.pages : []
+
+    return (
+      <div style={{ display: 'grid', gap: 4 }}>
+        {pages.length ? pages.map((page, index) => {
+          const imageUrl = safeAdminImageUrl(page.image_url)
+
+          return imageUrl ? (
+            <img
+              key={page.id || `${imageUrl}-${index}`}
+              src={imageUrl}
+              alt={`Manga page ${index + 1}`}
+              loading="lazy"
+              style={{ display: 'block', width: '100%', height: 'auto' }}
+            />
+          ) : null
+        }) : <div className="story-admin-muted-box">No Manga pages found.</div>}
+      </div>
+    )
+  }
+
+  if (type === 'chat_story') {
+    let chatData = null
+
+    try {
+      chatData = typeof content === 'string' ? JSON.parse(content) : content
+    } catch {
+      chatData = null
+    }
+
+    const characters = new Map(
+      (Array.isArray(chatData?.characters) ? chatData.characters : [])
+        .map((character) => [String(character.id || ''), character])
+    )
+    const messages = Array.isArray(chatData?.messages)
+      ? [...chatData.messages].sort(
+          (first, second) => Number(first?.sort_order || 0) - Number(second?.sort_order || 0)
+        )
+      : []
+    const leadCharacterId = String(
+      chatData?.lead_character_id || chatData?.leadCharacterId || ''
+    )
+
+    if (!messages.length) {
+      return <div className="story-admin-muted-box">No Chat Story messages found.</div>
+    }
+
+    return (
+      <div style={{ display: 'grid', gap: 12 }}>
+        {messages.map((message, index) => {
+          const characterId = String(message?.character_id || message?.characterId || '')
+          const character = characters.get(characterId)
+          const isRight =
+            characterId === leadCharacterId ||
+            character?.is_lead === true ||
+            character?.chat_side === 'right'
+          const imageUrl = safeAdminImageUrl(message?.image_url || message?.imageUrl)
+          const avatarUrl = safeAdminImageUrl(character?.avatar_url)
+          const isCentered = message?.type === 'aside' || message?.type === 'author_note'
+
+          if (isCentered) {
+            return (
+              <div
+                key={message.id || index}
+                style={{
+                  justifySelf: 'center',
+                  maxWidth: '88%',
+                  borderRadius: 16,
+                  background: '#eef2f7',
+                  padding: '10px 14px',
+                  textAlign: 'center',
+                  whiteSpace: 'pre-wrap',
+                }}
+              >
+                {message.text}
+              </div>
+            )
+          }
+
+          return (
+            <div
+              key={message.id || index}
+              style={{
+                display: 'flex',
+                justifyContent: isRight ? 'flex-end' : 'flex-start',
+                alignItems: 'flex-end',
+                gap: 8,
+              }}
+            >
+              {!isRight && avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : null}
+
+              <div style={{ maxWidth: '76%', textAlign: isRight ? 'right' : 'left' }}>
+                {character?.nickname ? (
+                  <div style={{ marginBottom: 4, fontSize: 11, color: '#64748b' }}>
+                    {character.nickname}
+                  </div>
+                ) : null}
+
+                {message?.type === 'image' && imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    loading="lazy"
+                    style={{ display: 'block', maxWidth: '100%', maxHeight: '60vh', borderRadius: 14 }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      borderRadius: 18,
+                      background: isRight ? '#6d4aff' : '#eef2f7',
+                      color: isRight ? '#ffffff' : '#1e293b',
+                      padding: '10px 14px',
+                      textAlign: 'left',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: 1.7,
+                    }}
+                  >
+                    {message?.text || ''}
+                  </div>
+                )}
+              </div>
+
+              {isRight && avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return novelHtml ? (
+    <div
+      dangerouslySetInnerHTML={{ __html: novelHtml }}
+      style={{ lineHeight: 1.9, fontSize: 16 }}
+    />
+  ) : <div className="story-admin-muted-box">No content found.</div>
+}
+
+
 function StoryDrawer({ story, details, loading, onClose, onAction }) {
   const [readingEpisode, setReadingEpisode] = useState(null)
 
