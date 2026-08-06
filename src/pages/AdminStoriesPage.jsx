@@ -203,8 +203,35 @@ function sanitizeAdminEpisodeHtml(value) {
 }
 
 function AdminEpisodePreview({ storyType, episode }) {
-  const type = String(storyType || 'novel').toLowerCase()
   const content = episode?.content || ''
+  const pages = Array.isArray(episode?.pages) ? episode.pages : []
+
+  const chatData = useMemo(() => {
+    try {
+      const parsed = typeof content === 'string' ? JSON.parse(content) : content
+      return parsed?.format === 'shadow_chat_story_v1' ? parsed : null
+    } catch {
+      return null
+    }
+  }, [content])
+
+  const normalizedType = String(
+    storyType ||
+    episode?.story_type ||
+    episode?.storyType ||
+    ''
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+
+  const type = chatData
+    ? 'chat_story'
+    : pages.length || normalizedType.includes('manga')
+      ? 'manga'
+      : normalizedType.includes('chat')
+        ? 'chat_story'
+        : 'novel'
 
   const novelHtml = useMemo(
     () => sanitizeAdminEpisodeHtml(content),
@@ -212,8 +239,6 @@ function AdminEpisodePreview({ storyType, episode }) {
   )
 
   if (type === 'manga') {
-    const pages = Array.isArray(episode?.pages) ? episode.pages : []
-
     return (
       <div style={{ display: 'grid', gap: 4 }}>
         {pages.length ? pages.map((page, index) => {
@@ -234,25 +259,21 @@ function AdminEpisodePreview({ storyType, episode }) {
   }
 
   if (type === 'chat_story') {
-    let chatData = null
-
-    try {
-      chatData = typeof content === 'string' ? JSON.parse(content) : content
-    } catch {
-      chatData = null
-    }
-
     const characters = new Map(
       (Array.isArray(chatData?.characters) ? chatData.characters : [])
         .map((character) => [String(character.id || ''), character])
     )
     const messages = Array.isArray(chatData?.messages)
       ? [...chatData.messages].sort(
-          (first, second) => Number(first?.sort_order || 0) - Number(second?.sort_order || 0)
+          (first, second) =>
+            Number(first?.sort_order || 0) -
+            Number(second?.sort_order || 0)
         )
       : []
     const leadCharacterId = String(
-      chatData?.lead_character_id || chatData?.leadCharacterId || ''
+      chatData?.lead_character_id ||
+      chatData?.leadCharacterId ||
+      ''
     )
 
     if (!messages.length) {
@@ -262,15 +283,24 @@ function AdminEpisodePreview({ storyType, episode }) {
     return (
       <div style={{ display: 'grid', gap: 12 }}>
         {messages.map((message, index) => {
-          const characterId = String(message?.character_id || message?.characterId || '')
+          const characterId = String(
+            message?.character_id ||
+            message?.characterId ||
+            ''
+          )
           const character = characters.get(characterId)
           const isRight =
             characterId === leadCharacterId ||
             character?.is_lead === true ||
             character?.chat_side === 'right'
-          const imageUrl = safeAdminImageUrl(message?.image_url || message?.imageUrl)
+          const imageUrl = safeAdminImageUrl(
+            message?.image_url ||
+            message?.imageUrl
+          )
           const avatarUrl = safeAdminImageUrl(character?.avatar_url)
-          const isCentered = message?.type === 'aside' || message?.type === 'author_note'
+          const isCentered =
+            message?.type === 'aside' ||
+            message?.type === 'author_note'
 
           if (isCentered) {
             return (
@@ -305,13 +335,29 @@ function AdminEpisodePreview({ storyType, episode }) {
                 <img
                   src={avatarUrl}
                   alt=""
-                  style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                  }}
                 />
               ) : null}
 
-              <div style={{ maxWidth: '76%', textAlign: isRight ? 'right' : 'left' }}>
+              <div
+                style={{
+                  maxWidth: '76%',
+                  textAlign: isRight ? 'right' : 'left',
+                }}
+              >
                 {character?.nickname ? (
-                  <div style={{ marginBottom: 4, fontSize: 11, color: '#64748b' }}>
+                  <div
+                    style={{
+                      marginBottom: 4,
+                      fontSize: 11,
+                      color: '#64748b',
+                    }}
+                  >
                     {character.nickname}
                   </div>
                 ) : null}
@@ -321,7 +367,12 @@ function AdminEpisodePreview({ storyType, episode }) {
                     src={imageUrl}
                     alt=""
                     loading="lazy"
-                    style={{ display: 'block', maxWidth: '100%', maxHeight: '60vh', borderRadius: 14 }}
+                    style={{
+                      display: 'block',
+                      maxWidth: '100%',
+                      maxHeight: '60vh',
+                      borderRadius: 14,
+                    }}
                   />
                 ) : (
                   <div
@@ -345,7 +396,12 @@ function AdminEpisodePreview({ storyType, episode }) {
                 <img
                   src={avatarUrl}
                   alt=""
-                  style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover' }}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                  }}
                 />
               ) : null}
             </div>
@@ -362,6 +418,7 @@ function AdminEpisodePreview({ storyType, episode }) {
     />
   ) : <div className="story-admin-muted-box">No content found.</div>
 }
+
 
 
 function StoryDrawer({ story, details, loading, onClose, onAction }) {
