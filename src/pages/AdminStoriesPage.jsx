@@ -192,8 +192,9 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
                 <div className="story-admin-title-large">{fullStory.title}</div>
                 <div className="story-admin-muted">{author?.page_name || 'Unknown Author'} · @{author?.page_username || 'no_username'}</div>
                 <div className="story-admin-status-row">
-                  <StoryStatus label={fullStory.status} />
-                  <StoryStatus label={fullStory.admin_visibility_status} />
+  <StoryStatus label={fullStory.story_type === 'chat_story' ? 'Chat Story' : fullStory.story_type === 'manga' ? 'Manga' : 'Novel'} />
+  <StoryStatus label={fullStory.status} />
+  <StoryStatus label={fullStory.admin_visibility_status} />
                   {fullStory.deleted_at ? <StoryStatus label="deleted" /> : null}
                 </div>
               </div>
