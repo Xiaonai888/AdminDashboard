@@ -40,6 +40,7 @@ import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
 import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
+import AdminChatEvidencePage from './pages/AdminChatEvidencePage';
 
 function ComingSoon({ title }) {
   return (
@@ -116,6 +117,7 @@ export default function App() {
         <Route path="/comments" element={<ProtectedPage><CommentModerationPage /></ProtectedPage>} />
         <Route path="/comments/trash" element={<ProtectedPage><AdminCommentTrashPage /></ProtectedPage>} />
         <Route path="/reports" element={<ProtectedPage><AdminReportCenterPage /></ProtectedPage>} />
+        <Route path="/chat-evidence" element={<ProtectedPage><AdminChatEvidencePage /></ProtectedPage>} />
         <Route path="/shadow-mall/orders" element={<ProtectedPage><ShadowMallOrdersPage /></ProtectedPage>} />
         <Route path="/author-store/review" element={<ProtectedPage><AuthorStoreReviewPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
