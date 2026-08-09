@@ -434,7 +434,15 @@ export default function AuthorsCommunity() {
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [filter, setFilter] = useState(initialTab === 'visitors' && searchParams.get('filter') === 'today' ? 'today' : 'all')
+  const requestedFilter = searchParams.get('filter')
+  const initialFilter =
+  initialTab === 'visitors' && requestedFilter === 'today'
+    ? 'today'
+    : initialTab === 'readers' && requestedFilter === 'new_reader'
+      ? 'new_reader'
+      : 'all'
+
+const [filter, setFilter] = useState(initialFilter)
   const [summary, setSummary] = useState({
     total_readers: 0,
     total_authors: 0,
@@ -657,8 +665,9 @@ export default function AuthorsCommunity() {
   }
 
   const readerFilters = [
-    { key: 'all', label: 'All' },
-    { key: 'reader_only', label: 'Readers Only' },
+  { key: 'all', label: 'All' },
+  { key: 'new_reader', label: 'New Reader' },
+  { key: 'reader_only', label: 'Readers Only' },
     { key: 'authors', label: 'Authors' },
     { key: 'active', label: 'Active' },
     { key: 'inactive', label: 'Inactive' },
