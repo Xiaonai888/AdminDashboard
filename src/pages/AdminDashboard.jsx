@@ -952,8 +952,16 @@ const AdminDashboard = () => {
 
   const fetchGrowthDashboard = async () => {
     try {
-      const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
-      setGrowthSummary((current) => ({ ...current, ...(data.summary || {}) }));
+      const [growthData, presenceData] = await Promise.all([
+        fetchAdminJson('/api/admin/community/dashboard/growth'),
+        fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1'),
+      ]);
+
+      setGrowthSummary((current) => ({
+        ...current,
+        ...(growthData.summary || {}),
+        reader_online: Number(presenceData.summary?.online || 0),
+      }));
     } catch {
       setGrowthSummary({
         reader_online: 0,
@@ -1150,8 +1158,9 @@ return () => {
   const growthStats = [
     {
       label: 'Reader Online',
+      path: '/reader-online',
       value: Number(growthSummary.reader_online || 0).toLocaleString(),
-      trend: 'Task Center activity in 10 min',
+      trend: 'Live website presence',
       trendUp: true,
       icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
       iconBg: '#ECFDF5',
