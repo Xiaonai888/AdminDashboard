@@ -1169,6 +1169,7 @@ return () => {
     },
     {
       label: 'New Reader',
+      path: '/authors?tab=readers&filter=new_reader',
       value: Number(growthSummary.new_readers || 0).toLocaleString(),
       trend: 'New reader accounts today',
       trendUp: true,
