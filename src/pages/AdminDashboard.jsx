@@ -1100,6 +1100,7 @@ return () => {
     },
     {
       label: 'Readers Today',
+      path: '/readers-today',
       value: Number(visitorSummary.readers_today || 0).toLocaleString(),
       trend: `${Number(visitorSummary.active_readers_last_10_minutes || 0).toLocaleString()} active in 10 min`,
       trendUp: true,
