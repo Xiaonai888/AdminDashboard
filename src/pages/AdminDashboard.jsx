@@ -951,28 +951,19 @@ const AdminDashboard = () => {
   };
 
   const fetchGrowthDashboard = async () => {
-    try {
-      const [growthData, presenceData] = await Promise.all([
-        fetchAdminJson('/api/admin/community/dashboard/growth'),
-        fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1'),
-      ]);
+  const [growthResult, presenceResult] = await Promise.allSettled([
+    fetchAdminJson('/api/admin/community/dashboard/growth'),
+    fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1'),
+  ]);
 
-      setGrowthSummary((current) => ({
-        ...current,
-        ...(growthData.summary || {}),
-        reader_online: Number(presenceData.summary?.online || 0),
-      }));
-    } catch {
-      setGrowthSummary({
-        reader_online: 0,
-        new_readers: 0,
-        new_authors: 0,
-        new_orders: 0,
-        shadow_mall_orders: 0,
-        author_store_orders: 0,
-      });
-    }
-  };
+  setGrowthSummary((current) => ({
+    ...current,
+    ...(growthResult.status === 'fulfilled' ? growthResult.value.summary || {} : {}),
+    reader_online: presenceResult.status === 'fulfilled'
+      ? Number(presenceResult.value.summary?.online || 0)
+      : current.reader_online,
+  }));
+};
 
   useEffect(() => {
     let ignore = false;
