@@ -99,6 +99,78 @@ function StatusBadge({ status }) {
   )
 }
 
+function formatRelativeActivity(value) {
+  if (!value) return 'Never'
+
+  const time = new Date(value).getTime()
+  if (!Number.isFinite(time)) return 'Never'
+
+  const diff = Math.max(0, Date.now() - time)
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (diff < minute) return 'Just now'
+  if (diff < hour) return `${Math.floor(diff / minute)}m ago`
+  if (diff < day) return `${Math.floor(diff / hour)}h ago`
+
+  const days = Math.floor(diff / day)
+  if (days === 1) return 'Yesterday'
+  return `${days} days ago`
+}
+
+function ActivityBadge({ status }) {
+  const active = String(status || '').toLowerCase() === 'active'
+
+  return (
+    <span className={`community-activity-badge ${active ? 'active' : 'inactive'}`}>
+      {active ? 'Active Today' : 'Inactive'}
+    </span>
+  )
+}
+
+function PresenceBadge({ status }) {
+  const value = String(status || 'offline').toLowerCase()
+  const safeStatus = ['online', 'idle', 'offline'].includes(value) ? value : 'offline'
+  const label =
+    safeStatus === 'online'
+      ? 'Online'
+      : safeStatus === 'idle'
+        ? 'Idle'
+        : 'Offline'
+
+  return (
+    <span className={`community-presence-badge ${safeStatus}`}>
+      {label}
+    </span>
+  )
+}
+
+function ActivityStatusCell({ item, type }) {
+  const isAuthor = type === 'author'
+  const activityStatus = item.activity_status || 'inactive'
+  const lastActivityAt = isAuthor ? item.last_publish_at : item.last_active_at
+  const active = String(activityStatus).toLowerCase() === 'active'
+
+  const note = isAuthor
+    ? lastActivityAt
+      ? `Last update ${formatRelativeActivity(lastActivityAt)}`
+      : 'Never published'
+    : lastActivityAt
+      ? `Last active ${formatRelativeActivity(lastActivityAt)}`
+      : 'Never active'
+
+  return (
+    <div className="community-activity-cell">
+      <div className="community-activity-badges">
+        {!isAuthor ? <PresenceBadge status={item.presence_status} /> : null}
+        <ActivityBadge status={activityStatus} />
+      </div>
+      <span className={active ? 'active-note' : ''}>{note}</span>
+    </div>
+  )
+}
+
 function VisitorStatusBadge({ visitor }) {
   return visitor.is_suspected_bot ? (
     <span className="community-visitor-badge bot">Suspected Bot</span>
@@ -247,7 +319,8 @@ function UserDetailDrawer({ item, type, onClose }) {
             <div className="community-drawer-username">@{username || 'no_username'}</div>
             <div className="community-drawer-badges">
               {isAuthor ? <span className="community-role-badge author">Author</span> : <RoleBadge isAuthor={item.is_author} />}
-              <StatusBadge status={status} />
+              {!isAuthor ? <PresenceBadge status={item.presence_status} /> : null}
+              <ActivityBadge status={item.activity_status} />
             </div>
           </div>
         </div>
@@ -271,7 +344,27 @@ function UserDetailDrawer({ item, type, onClose }) {
             <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
           )}
           <DetailItem label="Joined Date" value={formatDate(joinedAt)} />
-          <DetailItem label="Status" value={normalizeStatus(status)} />
+          <DetailItem
+            label="Activity"
+            value={String(item.activity_status || '').toLowerCase() === 'active' ? 'Active Today' : 'Inactive'}
+          />
+          {!isAuthor ? (
+            <DetailItem
+              label="Presence"
+              value={String(item.presence_status || 'offline').replace(/^./, (char) => char.toUpperCase())}
+            />
+          ) : null}
+          <DetailItem
+            label={isAuthor ? 'Last Update' : 'Last Active'}
+            value={
+              (isAuthor ? item.last_publish_at : item.last_active_at)
+                ? formatDateTime(isAuthor ? item.last_publish_at : item.last_active_at)
+                : isAuthor
+                  ? 'Never published'
+                  : 'Never active'
+            }
+          />
+          <DetailItem label="Account Status" value={normalizeStatus(item.account_status || status)} />
         </div>
 
         <div className="community-id-box">
@@ -665,17 +758,17 @@ const [filter, setFilter] = useState(initialFilter)
   }
 
   const readerFilters = [
-  { key: 'all', label: 'All' },
-  { key: 'new_reader', label: 'New Reader' },
-  { key: 'reader_only', label: 'Readers Only' },
+    { key: 'all', label: 'All' },
+    { key: 'new_reader', label: 'New Reader' },
+    { key: 'reader_only', label: 'Readers Only' },
     { key: 'authors', label: 'Authors' },
-    { key: 'active', label: 'Active' },
+    { key: 'active', label: 'Active Today' },
     { key: 'inactive', label: 'Inactive' },
   ]
 
   const authorFilters = [
     { key: 'all', label: 'All' },
-    { key: 'active', label: 'Active' },
+    { key: 'active', label: 'Active Today' },
     { key: 'inactive', label: 'Inactive' },
     { key: 'with_books', label: 'With Books' },
     { key: 'no_books', label: 'No Books' },
@@ -704,26 +797,30 @@ const [filter, setFilter] = useState(initialFilter)
   const readerQuickStats = useMemo(() => {
     const readersOnly = readers.filter((reader) => !reader.is_author).length
     const authorReaders = readers.filter((reader) => reader.is_author).length
-    const activeReaders = readers.filter((reader) => String(reader.status || 'active').toLowerCase() === 'active').length
+    const activeReaders = readers.filter(
+      (reader) => String(reader.activity_status || '').toLowerCase() === 'active'
+    ).length
 
     return [
       { label: 'Matched Readers', value: pagination.total || readers.length },
       { label: 'Readers Only', value: readersOnly },
       { label: 'Reader Authors', value: authorReaders },
-      { label: 'Active Readers', value: activeReaders },
+      { label: 'Active Today', value: activeReaders },
     ]
   }, [readers, pagination.total])
 
   const authorQuickStats = useMemo(() => {
     const withBooks = authors.filter((author) => Number(author.books_count || 0) > 0).length
     const noBooks = authors.filter((author) => Number(author.books_count || 0) <= 0).length
-    const activeAuthors = authors.filter((author) => String(author.status || 'active').toLowerCase() === 'active').length
+    const activeAuthors = authors.filter(
+      (author) => String(author.activity_status || '').toLowerCase() === 'active'
+    ).length
 
     return [
       { label: 'Matched Authors', value: pagination.total || authors.length },
       { label: 'With Books', value: withBooks },
       { label: 'No Books', value: noBooks },
-      { label: 'Active Authors', value: activeAuthors },
+      { label: 'Active Today', value: activeAuthors },
     ]
   }, [authors, pagination.total])
 
@@ -1030,7 +1127,7 @@ const [filter, setFilter] = useState(initialFilter)
                     <th>Email</th>
                     <th>Role</th>
                     <th>Joined Date</th>
-                    <th>Status</th>
+                    <th>Activity</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -1043,7 +1140,7 @@ const [filter, setFilter] = useState(initialFilter)
                       <td><span className="community-email">{reader.email || '-'}</span></td>
                       <td><RoleBadge isAuthor={reader.is_author} /></td>
                       <td>{formatDate(reader.joined_at)}</td>
-                      <td><StatusBadge status={reader.status} /></td>
+                      <td><ActivityStatusCell item={reader} type="reader" /></td>
                       <td>
                         <div className="community-table-actions">
                           <button type="button" onClick={(event) => { event.stopPropagation(); setSelectedItem(reader) }}>View</button>
@@ -1066,7 +1163,7 @@ const [filter, setFilter] = useState(initialFilter)
                     <th>Email</th>
                     <th>Books</th>
                     <th>Joined Date</th>
-                    <th>Status</th>
+                    <th>Activity</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -1079,7 +1176,7 @@ const [filter, setFilter] = useState(initialFilter)
                       <td><span className="community-email">{author.email || '-'}</span></td>
                       <td><span className="community-book-badge">{formatNumber(author.books_count)} books</span></td>
                       <td>{formatDate(author.joined_at)}</td>
-                      <td><StatusBadge status={author.status} /></td>
+                      <td><ActivityStatusCell item={author} type="author" /></td>
                       <td>
                         <div className="community-table-actions">
                           <button type="button" onClick={(event) => { event.stopPropagation(); setSelectedItem(author) }}>View</button>
@@ -1238,6 +1335,16 @@ const styles = `
   .community-signal-item b { color: #DC2626; font-size: 12px; font-weight: 950; }
   .community-signal-empty { color: #64748B; font-size: 12px; font-weight: 800; }
   .community-user-agent-value { color: #0F172A; font-size: 12px; font-weight: 800; line-height: 1.55; word-break: break-word; margin-bottom: 10px; }
+  .community-activity-cell { min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .community-activity-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .community-activity-cell > span { color: #64748B; font-size: 10px; font-weight: 850; white-space: nowrap; }
+  .community-activity-cell > span.active-note { color: #16A34A; }
+  .community-activity-badge, .community-presence-badge { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 0 9px; font-size: 10px; font-weight: 950; white-space: nowrap; }
+  .community-activity-badge.active { background: #DCFCE7; color: #15803D; }
+  .community-activity-badge.inactive { background: #F1F5F9; color: #64748B; }
+  .community-presence-badge.online { background: #ECFDF5; color: #047857; }
+  .community-presence-badge.idle { background: #FEF3C7; color: #A16207; }
+  .community-presence-badge.offline { background: #F8FAFC; color: #94A3B8; border: 1px solid #E2E8F0; }
   @keyframes communitySpin { to { transform: rotate(360deg); } }
   @keyframes communityFade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes communitySlide { from { transform: translateX(30px); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
