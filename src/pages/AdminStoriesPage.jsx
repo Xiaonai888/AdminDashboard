@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import StoryUpdateActivityPanel from '../components/StoryUpdateActivityPanel'
 
@@ -628,6 +628,7 @@ function StoryDrawer({ story, details, loading, onClose, onAction }) {
 
 export default function AdminStoriesPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   function handleExpiredAdminToken(response, data) {
     if (response.status !== 401) return false
@@ -639,7 +640,7 @@ export default function AdminStoriesPage() {
     return true
   }
 
-  const [activeTab, setActiveTab] = useState('active')
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'updates' ? 'updates' : 'active')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [status, setStatus] = useState('all')
