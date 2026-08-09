@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AdminReadersTodayPage from './pages/AdminReadersTodayPage';
-
+import AdminReaderOnlinePage from './pages/AdminReaderOnlinePage';
 
 import AdminDashboard from './pages/AdminDashboard';
 import SlideSection from './pages/SlideSection';
@@ -124,6 +124,7 @@ export default function App() {
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
         <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
         <Route path="/readers-today" element={<ProtectedPage><AdminReadersTodayPage /></ProtectedPage>} />
+        <Route path="/reader-online" element={<ProtectedPage><AdminReaderOnlinePage /></ProtectedPage>} />
         <Route path="/media-library" element={<ProtectedPage><ShadowMediaLibraryPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
