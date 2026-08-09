@@ -1091,6 +1091,7 @@ return () => {
   const stats = [
     {
       label: 'Stories Updated Today',
+      path: '/stories?tab=updates',
       value: Number(visitorSummary.stories_updated_today || 0).toLocaleString(),
       trend: `${Number(visitorSummary.episodes_published_today || 0).toLocaleString()} new episodes today`,
       trendUp: true,
