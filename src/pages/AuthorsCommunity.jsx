@@ -533,7 +533,9 @@ export default function AuthorsCommunity() {
     ? 'today'
     : initialTab === 'readers' && requestedFilter === 'new_reader'
       ? 'new_reader'
-      : 'all'
+      : initialTab === 'authors' && requestedFilter === 'new_author'
+        ? 'new_author'
+        : 'all'
 
 const [filter, setFilter] = useState(initialFilter)
   const [summary, setSummary] = useState({
@@ -768,6 +770,7 @@ const [filter, setFilter] = useState(initialFilter)
 
   const authorFilters = [
     { key: 'all', label: 'All' },
+    { key: 'new_author', label: 'New Author' },
     { key: 'active', label: 'Active Today' },
     { key: 'inactive', label: 'Inactive' },
     { key: 'with_books', label: 'With Books' },
