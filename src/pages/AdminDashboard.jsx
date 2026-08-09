@@ -1109,6 +1109,7 @@ return () => {
     },
     {
       label: 'Visitors Today',
+      path: '/authors?tab=visitors&filter=today',
       value: Number(visitorSummary.visitors_today || 0).toLocaleString(),
       trend: `${Number(visitorSummary.active_last_10_minutes || 0).toLocaleString()} active in 10 min`,
       trendUp: true,
@@ -1117,6 +1118,7 @@ return () => {
     },
     {
       label: 'Daily Income',
+      path: '/income',
       value: formatMoney(incomeSummary.today),
       trend: incomeTrend,
       trendUp: incomeTrendUp,
