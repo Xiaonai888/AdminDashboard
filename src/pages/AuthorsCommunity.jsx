@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import { useSearchParams } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const EMPTY_GENDER_SUMMARY = {
@@ -420,7 +421,10 @@ async function readApiResponse(response) {
 }
 
 export default function AuthorsCommunity() {
-  const [activeTab, setActiveTab] = useState('readers')
+  const [searchParams] = useSearchParams()
+  const requestedTab = searchParams.get('tab')
+  const initialTab = ['readers', 'authors', 'visitors'].includes(requestedTab) ? requestedTab : 'readers'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -430,7 +434,7 @@ export default function AuthorsCommunity() {
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState(initialTab === 'visitors' && searchParams.get('filter') === 'today' ? 'today' : 'all')
   const [summary, setSummary] = useState({
     total_readers: 0,
     total_authors: 0,
