@@ -331,6 +331,78 @@ const styles = `
     object-fit:cover;
   }
 
+  .phone-shadow-top {
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:110px;
+    background:linear-gradient(180deg, rgba(0,0,0,.52) 0%, rgba(0,0,0,.2) 45%, rgba(0,0,0,0) 100%);
+    pointer-events:none;
+    z-index:1;
+  }
+
+  .ad-badge {
+    position:absolute;
+    top:18px;
+    left:18px;
+    z-index:2;
+    min-width:62px;
+    height:34px;
+    padding:0 14px;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:14px;
+    font-weight:900;
+    letter-spacing:.01em;
+    color:#111827;
+    box-shadow:0 10px 24px rgba(0,0,0,.18);
+  }
+
+  .ad-badge.new {
+    background:#FACC15;
+  }
+
+  .ad-badge.hot {
+    background:#FB7185;
+    color:#FFFFFF;
+  }
+
+  .ad-badge.top {
+    background:#A855F7;
+    color:#FFFFFF;
+  }
+
+  .ad-brand-block {
+    position:absolute;
+    left:18px;
+    right:18px;
+    bottom:68px;
+    z-index:2;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+  }
+
+  .ad-brand-logo {
+    font-size:34px;
+    font-weight:1000;
+    line-height:1;
+    color:#FFFFFF;
+    text-shadow:0 3px 14px rgba(0,0,0,.34);
+    letter-spacing:-.03em;
+  }
+
+  .ad-brand-text {
+    font-size:13px;
+    font-weight:900;
+    letter-spacing:.12em;
+    color:#FFFFFF;
+    text-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
   .phone-screen.splash img {
     width:78%;
     height:78%;
@@ -659,6 +731,8 @@ const defaultSettings = {
     durationSeconds: 2,
     closeAfterSeconds: 0,
     frequency: 'once_per_session',
+    badge: 'NEW',
+    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
   opening: {
     title: 'Opening Ad',
@@ -668,6 +742,8 @@ const defaultSettings = {
     durationSeconds: 5,
     closeAfterSeconds: 3,
     frequency: 'once_per_session',
+    badge: 'NEW',
+    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
   freeUnlock: {
     title: 'Free Unlock & Read Ad',
@@ -677,6 +753,8 @@ const defaultSettings = {
     durationSeconds: 5,
     closeAfterSeconds: 3,
     frequency: 'every_unlock',
+    badge: 'NEW',
+    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
   me: {
     title: 'Me Ads',
@@ -686,9 +764,10 @@ const defaultSettings = {
     durationSeconds: 8,
     closeAfterSeconds: 3,
     frequency: 'once_per_session',
+    badge: 'NEW',
+    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
 }
-
 const tabInfo = {
   splash: {
     label: 'Splash Logo Ad',
@@ -725,6 +804,8 @@ function toSetting(item) {
     durationSeconds: Number(item.duration_seconds || 0),
     closeAfterSeconds: Number(item.close_after_seconds || 0),
     frequency: item.frequency || 'once_per_session',
+    badge: item.badge || 'NEW',
+    brandText: item.brand_text || 'STORIES LIVE IN THE SHADOWS.',
   }
 }
 
@@ -900,6 +981,8 @@ export default function AdminAdvertisementPage() {
       formData.append('duration_seconds', String(current.durationSeconds))
       formData.append('close_after_seconds', String(current.closeAfterSeconds))
       formData.append('frequency', current.frequency)
+      formData.append('badge', current.badge || '')
+      formData.append('brand_text', current.brandText || '')
 
       const response = await fetch(`${API_URL}/api/advertisements/admin/${activeTab}`, {
         method: 'PUT',
@@ -1021,6 +1104,26 @@ export default function AdminAdvertisementPage() {
                 </div>
 
                 <label className="field-label">Image URL</label>
+                <label className="field-label">Badge</label>
+<select
+  className="input"
+  value={current.badge || ''}
+  onChange={(event) => updateCurrent('badge', event.target.value)}
+>
+  <option value="">No Badge</option>
+  <option value="NEW">New</option>
+  <option value="HOT">Hot</option>
+  <option value="TOP">Top</option>
+</select>
+
+<label className="field-label">Brand Text</label>
+<input
+  className="input"
+  value={current.brandText || ''}
+  onChange={(event) => updateCurrent('brandText', event.target.value)}
+  placeholder="STORIES LIVE IN THE SHADOWS."
+/>
+                
                 <input
                   className="input"
                   value={current.imageUrl}
@@ -1135,20 +1238,32 @@ export default function AdminAdvertisementPage() {
                 <div className="phone-preview">
                   <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
                     {previewImage ? (
-                      <>
-                        <img src={previewImage} alt="Advertisement preview" />
-                        {current.closeAfterSeconds > 0 && (
-                          <span className="close-pill">
-                            Close in {current.closeAfterSeconds}s
-                          </span>
-                        )}
-                        <span className="time-pill">{current.durationSeconds}s</span>
-                      </>
-                    ) : (
-                      <div className="preview-empty">
-                        Upload an image to preview this advertisement.
-                      </div>
-                    )}
+  <>
+    <img src={previewImage} alt="Advertisement preview" />
+    <div className="phone-shadow-top" />
+    {current.badge ? (
+      <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
+        {current.badge}
+      </span>
+    ) : null}
+    <div className="ad-brand-block">
+      <div className="ad-brand-logo">SHADOW</div>
+      <div className="ad-brand-text">
+        {current.brandText || 'STORIES LIVE IN THE SHADOWS.'}
+      </div>
+    </div>
+    {current.closeAfterSeconds > 0 && (
+      <span className="close-pill">
+        Close in {current.closeAfterSeconds}s
+      </span>
+    )}
+    <span className="time-pill">{current.durationSeconds}s</span>
+  </>
+) : (
+  <div className="preview-empty">
+    Upload an image to preview this advertisement.
+  </div>
+)}
                   </div>
                 </div>
 
