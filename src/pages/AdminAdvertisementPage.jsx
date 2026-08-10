@@ -1103,13 +1103,14 @@ export default function AdminAdvertisementPage() {
                   />
                 </div>
 
-                                <label className="field-label">Image URL</label>
+                <label className="field-label">Image URL</label>
                 <input
                   className="input"
                   value={current.imageUrl}
                   onChange={(event) => updateCurrent('imageUrl', event.target.value)}
                   placeholder="Auto-filled after upload"
                 />
+
                 <label className="upload-box">
                   <input
                     ref={fileInputRef}
@@ -1123,6 +1124,7 @@ export default function AdminAdvertisementPage() {
                     This uploads to Supabase Storage when you click Save.
                   </div>
                 </label>
+
                 <label className="field-label">Badge</label>
                 <select
                   className="input"
@@ -1134,6 +1136,7 @@ export default function AdminAdvertisementPage() {
                   <option value="HOT">Hot</option>
                   <option value="TOP">Top</option>
                 </select>
+
                 <label className="field-label">Brand Text</label>
                 <input
                   className="input"
@@ -1141,7 +1144,6 @@ export default function AdminAdvertisementPage() {
                   onChange={(event) => updateCurrent('brandText', event.target.value)}
                   placeholder="STORIES LIVE IN THE SHADOWS."
                 />
-
 
                 {activeTab !== 'splash' && (
                   <>
@@ -1236,32 +1238,36 @@ export default function AdminAdvertisementPage() {
                 <div className="phone-preview">
                   <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
                     {previewImage ? (
-  <>
-    <img src={previewImage} alt="Advertisement preview" />
-    <div className="phone-shadow-top" />
-    {current.badge ? (
-      <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
-        {current.badge}
-      </span>
-    ) : null}
-    <div className="ad-brand-block">
-      <div className="ad-brand-logo">SHADOW</div>
-      <div className="ad-brand-text">
-        {current.brandText || 'STORIES LIVE IN THE SHADOWS.'}
-      </div>
-    </div>
-    {current.closeAfterSeconds > 0 && (
-      <span className="close-pill">
-        Close in {current.closeAfterSeconds}s
-      </span>
-    )}
-    <span className="time-pill">{current.durationSeconds}s</span>
-  </>
-) : (
-  <div className="preview-empty">
-    Upload an image to preview this advertisement.
-  </div>
-)}
+                      <>
+                        <img src={previewImage} alt="Advertisement preview" />
+                        <div className="phone-shadow-top" />
+
+                        {current.badge ? (
+                          <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
+                            {current.badge}
+                          </span>
+                        ) : null}
+
+                        <div className="ad-brand-block">
+                          <div className="ad-brand-logo">SHADOW</div>
+                          <div className="ad-brand-text">
+                            {current.brandText || 'STORIES LIVE IN THE SHADOWS.'}
+                          </div>
+                        </div>
+
+                        {current.closeAfterSeconds > 0 && (
+                          <span className="close-pill">
+                            Close in {current.closeAfterSeconds}s
+                          </span>
+                        )}
+
+                        <span className="time-pill">{current.durationSeconds}s</span>
+                      </>
+                    ) : (
+                      <div className="preview-empty">
+                        Upload an image to preview this advertisement.
+                      </div>
+                    )}
                   </div>
                 </div>
 
