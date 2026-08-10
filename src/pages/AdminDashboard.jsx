@@ -1009,7 +1009,9 @@ const fetchReaderOnline = async () => {
   }
 
   const canAutoRefresh = () =>
-    !document.hidden && Date.now() - lastActivityAt < IDLE_LIMIT_MS;
+  !document.hidden &&
+  document.hasFocus() &&
+  Date.now() - lastActivityAt < IDLE_LIMIT_MS;
 
   const refreshDailyData = () => {
     if (!canAutoRefresh()) return;
@@ -1020,7 +1022,7 @@ const fetchReaderOnline = async () => {
   };
 
   const refreshAfterResume = () => {
-    if (document.hidden) return;
+  if (document.hidden || !document.hasFocus()) return;
 
     lastActivityAt = Date.now();
     activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
@@ -1096,7 +1098,8 @@ const fetchReaderOnline = async () => {
   window.addEventListener('touchstart', handleActivity, { passive: true });
   window.addEventListener('scroll', handleActivity, { passive: true });
   window.addEventListener('online', handleOnline);
-  document.addEventListener('visibilitychange', handleVisibilityChange);
+window.addEventListener('focus', refreshAfterResume);
+document.addEventListener('visibilitychange', handleVisibilityChange);
 
   return () => {
     ignore = true;
@@ -1111,7 +1114,8 @@ const fetchReaderOnline = async () => {
     window.removeEventListener('touchstart', handleActivity);
     window.removeEventListener('scroll', handleActivity);
     window.removeEventListener('online', handleOnline);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
+window.removeEventListener('focus', refreshAfterResume);
+document.removeEventListener('visibilitychange', handleVisibilityChange);
   };
 }, []);
 
