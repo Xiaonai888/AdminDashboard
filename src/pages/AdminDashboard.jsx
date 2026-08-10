@@ -950,60 +950,169 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchGrowthDashboard = async () => {
-  const [growthResult, presenceResult] = await Promise.allSettled([
-    fetchAdminJson('/api/admin/community/dashboard/growth'),
-    fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1'),
-  ]);
+  const fetchGrowthSummary = async () => {
+  try {
+    const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
 
-  setGrowthSummary((current) => ({
-    ...current,
-    ...(growthResult.status === 'fulfilled' ? growthResult.value.summary || {} : {}),
-    reader_online: presenceResult.status === 'fulfilled'
-      ? Number(presenceResult.value.summary?.online || 0)
-      : current.reader_online,
-  }));
+    setGrowthSummary((current) => ({
+      ...current,
+      ...(data.summary || {}),
+    }));
+  } catch {
+  }
+};
+
+const fetchReaderOnline = async () => {
+  try {
+    const data = await fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1');
+
+    setGrowthSummary((current) => ({
+      ...current,
+      reader_online: Number(data.summary?.online || 0),
+    }));
+  } catch {
+  }
 };
 
   useEffect(() => {
-    let ignore = false;
+  let ignore = false;
+  let lastActivityAt = Date.now();
+  let activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
 
-    async function loadAdminProfile() {
-      const token = getAdminToken();
-      if (!token) return;
+  const IDLE_LIMIT_MS = 15 * 60 * 1000;
+  const ONLINE_REFRESH_MS = 60 * 1000;
+  const GROWTH_REFRESH_MS = 5 * 60 * 1000;
+  const TODAY_REFRESH_MS = 10 * 60 * 1000;
+  const INCOME_REFRESH_MS = 5 * 60 * 1000;
 
-      try {
-        const response = await fetch(`${API_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json().catch(() => ({}));
+  async function loadAdminProfile() {
+    const token = getAdminToken();
+    if (!token) return;
 
-        if (!ignore && response.ok && data.ok && data.admin) {
-          setAdminProfile(data.admin);
-          sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
+    try {
+      const response = await fetch(`${API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json().catch(() => ({}));
 
-          if (localStorage.getItem('shadow_admin_token')) {
-            localStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
-          }
+      if (!ignore && response.ok && data.ok && data.admin) {
+        setAdminProfile(data.admin);
+        sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
+
+        if (localStorage.getItem('shadow_admin_token')) {
+          localStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
         }
-      } catch {
       }
+    } catch {
     }
+  }
 
-    fetchActivityLogs();
-    fetchExclusiveDashboard();
+  const canAutoRefresh = () =>
+    !document.hidden && Date.now() - lastActivityAt < IDLE_LIMIT_MS;
+
+  const refreshDailyData = () => {
+    if (!canAutoRefresh()) return;
+
     fetchVisitorDashboard();
     fetchIncomeDashboard();
-    fetchGrowthDashboard();
-loadAdminProfile();
+    fetchGrowthSummary();
+  };
 
-const growthRefreshTimer = window.setInterval(fetchGrowthDashboard, 60000);
+  const refreshAfterResume = () => {
+    if (document.hidden) return;
 
-return () => {
-  ignore = true;
-  window.clearInterval(growthRefreshTimer);
-};
-  }, []);
+    lastActivityAt = Date.now();
+    activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
+
+    fetchReaderOnline();
+    fetchVisitorDashboard();
+    fetchIncomeDashboard();
+    fetchGrowthSummary();
+  };
+
+  const handleActivity = () => {
+    const wasIdle = Date.now() - lastActivityAt >= IDLE_LIMIT_MS;
+    lastActivityAt = Date.now();
+
+    if (wasIdle && !document.hidden) {
+      refreshAfterResume();
+    }
+  };
+
+  const handleVisibilityChange = () => {
+    if (!document.hidden) {
+      refreshAfterResume();
+    }
+  };
+
+  const handleOnline = () => {
+    if (!document.hidden) {
+      refreshAfterResume();
+    }
+  };
+
+  fetchActivityLogs();
+  fetchExclusiveDashboard();
+  fetchVisitorDashboard();
+  fetchIncomeDashboard();
+  fetchGrowthSummary();
+  fetchReaderOnline();
+  loadAdminProfile();
+
+  const onlineRefreshTimer = window.setInterval(() => {
+    if (!canAutoRefresh()) return;
+
+    const currentDayKey = getCambodiaDate().toISOString().slice(0, 10);
+
+    if (currentDayKey !== activeDayKey) {
+      activeDayKey = currentDayKey;
+      refreshDailyData();
+    }
+
+    fetchReaderOnline();
+  }, ONLINE_REFRESH_MS);
+
+  const growthRefreshTimer = window.setInterval(() => {
+    if (canAutoRefresh()) {
+      fetchGrowthSummary();
+    }
+  }, GROWTH_REFRESH_MS);
+
+  const todayRefreshTimer = window.setInterval(() => {
+    if (canAutoRefresh()) {
+      fetchVisitorDashboard();
+    }
+  }, TODAY_REFRESH_MS);
+
+  const incomeRefreshTimer = window.setInterval(() => {
+    if (canAutoRefresh()) {
+      fetchIncomeDashboard();
+    }
+  }, INCOME_REFRESH_MS);
+
+  window.addEventListener('pointerdown', handleActivity);
+  window.addEventListener('keydown', handleActivity);
+  window.addEventListener('touchstart', handleActivity, { passive: true });
+  window.addEventListener('scroll', handleActivity, { passive: true });
+  window.addEventListener('online', handleOnline);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  return () => {
+    ignore = true;
+
+    window.clearInterval(onlineRefreshTimer);
+    window.clearInterval(growthRefreshTimer);
+    window.clearInterval(todayRefreshTimer);
+    window.clearInterval(incomeRefreshTimer);
+
+    window.removeEventListener('pointerdown', handleActivity);
+    window.removeEventListener('keydown', handleActivity);
+    window.removeEventListener('touchstart', handleActivity);
+    window.removeEventListener('scroll', handleActivity);
+    window.removeEventListener('online', handleOnline);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, []);
 
   useEffect(() => {
     const query = searchQuery.trim();
