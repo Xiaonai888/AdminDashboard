@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminSidebar from '../components/AdminSidebar'
+import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropModal'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const SHADOW_LOGO_URL = 'https://shadowerabook.site/assets/icons/Logo%20Shadow%202.svg'
+const BRAND_TEXT = 'STORIES LIVE IN THE SHADOWS.'
 
 const styles = `
 
@@ -192,9 +195,14 @@ const styles = `
     text-align:center;
   }
 
-  .upload-box:hover {
+  .upload-box:hover,
+  .upload-box.dragging {
     border-color:var(--primary);
     background:var(--light);
+  }
+
+  .upload-box.dragging {
+    box-shadow:0 0 0 3px rgba(79,70,229,.1);
   }
 
   .upload-title {
@@ -379,29 +387,32 @@ const styles = `
     position:absolute;
     left:18px;
     right:18px;
-    bottom:68px;
+    bottom:64px;
     z-index:2;
     display:flex;
     flex-direction:column;
     align-items:flex-start;
-    gap:6px;
+    gap:7px;
+    padding:10px 12px;
+    border-radius:14px;
+    background:rgba(255,255,255,.92);
+    box-shadow:0 12px 28px rgba(0,0,0,.2);
+    backdrop-filter:blur(8px);
   }
 
   .ad-brand-logo {
-    font-size:34px;
-    font-weight:1000;
-    line-height:1;
-    color:#FFFFFF;
-    text-shadow:0 3px 14px rgba(0,0,0,.34);
-    letter-spacing:-.03em;
+    width:min(72%, 220px) !important;
+    height:auto !important;
+    object-fit:contain !important;
+    display:block;
   }
 
   .ad-brand-text {
-    font-size:13px;
+    font-size:11px;
     font-weight:900;
-    letter-spacing:.12em;
-    color:#FFFFFF;
-    text-shadow:0 2px 10px rgba(0,0,0,.35);
+    letter-spacing:.1em;
+    color:#111827;
+    line-height:1.25;
   }
   .phone-screen.splash img {
     width:78%;
@@ -436,6 +447,7 @@ const styles = `
     position:absolute;
     top:14px;
     right:14px;
+    z-index:3;
     background:rgba(255,255,255,.92);
     color:#111827;
     border-radius:999px;
@@ -447,6 +459,7 @@ const styles = `
   .time-pill {
     position:absolute;
     bottom:14px;
+    z-index:3;
     left:50%;
     transform:translateX(-50%);
     background:rgba(15,23,42,.78);
@@ -732,7 +745,6 @@ const defaultSettings = {
     closeAfterSeconds: 0,
     frequency: 'once_per_session',
     badge: 'NEW',
-    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
   opening: {
     title: 'Opening Ad',
@@ -743,7 +755,6 @@ const defaultSettings = {
     closeAfterSeconds: 3,
     frequency: 'once_per_session',
     badge: 'NEW',
-    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
   freeUnlock: {
     title: 'Free Unlock & Read Ad',
@@ -754,7 +765,6 @@ const defaultSettings = {
     closeAfterSeconds: 3,
     frequency: 'every_unlock',
     badge: 'NEW',
-    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
   me: {
     title: 'Me Ads',
@@ -765,7 +775,6 @@ const defaultSettings = {
     closeAfterSeconds: 3,
     frequency: 'once_per_session',
     badge: 'NEW',
-    brandText: 'STORIES LIVE IN THE SHADOWS.',
   },
 }
 const tabInfo = {
@@ -805,7 +814,6 @@ function toSetting(item) {
     closeAfterSeconds: Number(item.close_after_seconds || 0),
     frequency: item.frequency || 'once_per_session',
     badge: item.badge || 'NEW',
-    brandText: item.brand_text || 'STORIES LIVE IN THE SHADOWS.',
   }
 }
 
@@ -848,6 +856,12 @@ export default function AdminAdvertisementPage() {
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [recordPage, setRecordPage] = useState(1)
   const [recordTotalPages, setRecordTotalPages] = useState(1)
+  const [dragging, setDragging] = useState(false)
+  const [cropOpen, setCropOpen] = useState(false)
+  const [cropImage, setCropImage] = useState('')
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
 
   const current = settings[activeTab]
   const previewImage = useMemo(
@@ -940,27 +954,83 @@ export default function AdminAdvertisementPage() {
     }
   }
 
-  function handleUpload(event) {
-    const file = event.target.files?.[0]
-
+  function openCropForFile(file) {
     if (!file) return
 
-    const previousPreview = previewUrls[activeTab]
-
-    if (previousPreview?.startsWith('blob:')) {
-      URL.revokeObjectURL(previousPreview)
+    if (!file.type?.startsWith('image/')) {
+      setError('Please choose an image file.')
+      return
     }
 
-    setSelectedFiles((previous) => ({
-      ...previous,
-      [activeTab]: file,
-    }))
-    setPreviewUrls((previous) => ({
-      ...previous,
-      [activeTab]: URL.createObjectURL(file),
-    }))
+    if (cropImage?.startsWith('blob:')) {
+      URL.revokeObjectURL(cropImage)
+    }
+
+    setCropImage(URL.createObjectURL(file))
+    setCrop({ x: 0, y: 0 })
+    setZoom(1)
+    setCroppedAreaPixels(null)
+    setCropOpen(true)
     setSaved('')
     setError('')
+  }
+
+  function handleUpload(event) {
+    openCropForFile(event.target.files?.[0])
+  }
+
+  function handleDrop(event) {
+    event.preventDefault()
+    setDragging(false)
+    openCropForFile(event.dataTransfer.files?.[0])
+  }
+
+  function closeCropEditor() {
+    if (cropImage?.startsWith('blob:')) {
+      URL.revokeObjectURL(cropImage)
+    }
+
+    setCropOpen(false)
+    setCropImage('')
+    setCroppedAreaPixels(null)
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  async function saveCrop() {
+    if (!cropImage || !croppedAreaPixels) return
+
+    try {
+      const croppedFile = await createCroppedImageFile(
+        cropImage,
+        croppedAreaPixels,
+        1080,
+        `advertisement-${activeTab}`,
+        1920,
+      )
+
+      const previousPreview = previewUrls[activeTab]
+
+      if (previousPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(previousPreview)
+      }
+
+      setSelectedFiles((previous) => ({
+        ...previous,
+        [activeTab]: croppedFile,
+      }))
+      setPreviewUrls((previous) => ({
+        ...previous,
+        [activeTab]: URL.createObjectURL(croppedFile),
+      }))
+      setSaved('')
+      setError('')
+      closeCropEditor()
+    } catch (cropError) {
+      setError(cropError.message || 'Failed to crop image.')
+    }
   }
 
   async function handleSave() {
@@ -982,7 +1052,6 @@ export default function AdminAdvertisementPage() {
       formData.append('close_after_seconds', String(current.closeAfterSeconds))
       formData.append('frequency', current.frequency)
       formData.append('badge', current.badge || '')
-      formData.append('brand_text', current.brandText || '')
 
       const response = await fetch(`${API_URL}/api/advertisements/admin/${activeTab}`, {
         method: 'PUT',
@@ -1103,15 +1172,29 @@ export default function AdminAdvertisementPage() {
                   />
                 </div>
 
-                <label className="field-label">Image URL</label>
+                                <label className="field-label">Image URL</label>
                 <input
                   className="input"
                   value={current.imageUrl}
                   onChange={(event) => updateCurrent('imageUrl', event.target.value)}
                   placeholder="Auto-filled after upload"
                 />
-
-                <label className="upload-box">
+                <label
+                  className={`upload-box ${dragging ? 'dragging' : ''}`}
+                  onDragEnter={(event) => {
+                    event.preventDefault()
+                    setDragging(true)
+                  }}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    setDragging(true)
+                  }}
+                  onDragLeave={(event) => {
+                    event.preventDefault()
+                    setDragging(false)
+                  }}
+                  onDrop={handleDrop}
+                >
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1119,12 +1202,11 @@ export default function AdminAdvertisementPage() {
                     onChange={handleUpload}
                     style={{ display: 'none' }}
                   />
-                  <div className="upload-title">Upload Image</div>
+                  <div className="upload-title">Drop image here or click to choose</div>
                   <div className="upload-help">
-                    This uploads to Supabase Storage when you click Save.
+                    Auto crop: 9:16 · Output: 1080×1920 · Saved to R2 when you click Save.
                   </div>
                 </label>
-
                 <label className="field-label">Badge</label>
                 <select
                   className="input"
@@ -1137,13 +1219,6 @@ export default function AdminAdvertisementPage() {
                   <option value="TOP">Top</option>
                 </select>
 
-                <label className="field-label">Brand Text</label>
-                <input
-                  className="input"
-                  value={current.brandText || ''}
-                  onChange={(event) => updateCurrent('brandText', event.target.value)}
-                  placeholder="STORIES LIVE IN THE SHADOWS."
-                />
 
                 {activeTab !== 'splash' && (
                   <>
@@ -1198,7 +1273,7 @@ export default function AdminAdvertisementPage() {
                 </select>
 
                 <div className="note-box">
-                  Upload works like Slide/Banner images. Image URL is filled after Save.
+                  Images support click upload and drag & drop. Every selected image opens the 9:16 crop editor before Save.
                 </div>
 
                 {saved ? <div className="saved">{saved}</div> : null}
@@ -1238,36 +1313,32 @@ export default function AdminAdvertisementPage() {
                 <div className="phone-preview">
                   <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
                     {previewImage ? (
-                      <>
-                        <img src={previewImage} alt="Advertisement preview" />
-                        <div className="phone-shadow-top" />
-
-                        {current.badge ? (
-                          <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
-                            {current.badge}
-                          </span>
-                        ) : null}
-
-                        <div className="ad-brand-block">
-                          <div className="ad-brand-logo">SHADOW</div>
-                          <div className="ad-brand-text">
-                            {current.brandText || 'STORIES LIVE IN THE SHADOWS.'}
-                          </div>
-                        </div>
-
-                        {current.closeAfterSeconds > 0 && (
-                          <span className="close-pill">
-                            Close in {current.closeAfterSeconds}s
-                          </span>
-                        )}
-
-                        <span className="time-pill">{current.durationSeconds}s</span>
-                      </>
-                    ) : (
-                      <div className="preview-empty">
-                        Upload an image to preview this advertisement.
-                      </div>
-                    )}
+  <>
+    <img src={previewImage} alt="Advertisement preview" />
+    <div className="phone-shadow-top" />
+    {current.badge ? (
+      <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
+        {current.badge}
+      </span>
+    ) : null}
+    <div className="ad-brand-block">
+      <div className="ad-brand-logo">SHADOW</div>
+      <div className="ad-brand-text">
+        {current.brandText || 'STORIES LIVE IN THE SHADOWS.'}
+      </div>
+    </div>
+    {current.closeAfterSeconds > 0 && (
+      <span className="close-pill">
+        Close in {current.closeAfterSeconds}s
+      </span>
+    )}
+    <span className="time-pill">{current.durationSeconds}s</span>
+  </>
+) : (
+  <div className="preview-empty">
+    Upload an image to preview this advertisement.
+  </div>
+)}
                   </div>
                 </div>
 
@@ -1355,6 +1426,22 @@ export default function AdminAdvertisementPage() {
           </section>
         </section>
       </main>
+
+      <ImageCropModal
+        open={cropOpen}
+        image={cropImage}
+        crop={crop}
+        zoom={zoom}
+        croppedAreaPixels={croppedAreaPixels}
+        title="Crop Advertisement"
+        helper="Move and zoom the image inside the 9:16 frame."
+        aspect={9 / 16}
+        onCropChange={setCrop}
+        onZoomChange={setZoom}
+        onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+        onClose={closeCropEditor}
+        onSave={saveCrop}
+      />
     </div>
   )
 }
