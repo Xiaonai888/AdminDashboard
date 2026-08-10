@@ -917,18 +917,6 @@ const AdminDashboard = () => {
       const data = await fetchAdminJson('/api/admin/community/visitors/overview');
       setVisitorSummary((current) => ({ ...current, ...(data.summary || {}) }));
     } catch {
-      setVisitorSummary({
-        total_unique_visitors: 0,
-        total_sessions: 0,
-        visitors_today: 0,
-        visitors_this_month: 0,
-        active_last_10_minutes: 0,
-        total_page_views: 0,
-        readers_today: 0,
-        active_readers_last_10_minutes: 0,
-        stories_updated_today: 0,
-        episodes_published_today: 0,
-      });
     }
   };
 
@@ -946,45 +934,44 @@ const AdminDashboard = () => {
         yesterday: Number(yesterdayData.summary?.net_platform_income_usd || 0),
       });
     } catch {
-      setIncomeSummary({ today: 0, yesterday: 0 });
     }
   };
 
   const fetchGrowthSummary = async () => {
-  try {
-    const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
-    const { reader_online, ...summary } = data.summary || {};
+    try {
+      const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
+      const { reader_online, ...summary } = data.summary || {};
 
-    setGrowthSummary((current) => ({
-      ...current,
-      ...summary,
-    }));
-  } catch {
-  }
-};
+      setGrowthSummary((current) => ({
+        ...current,
+        ...summary,
+      }));
+    } catch {
+    }
+  };
 
-const fetchReaderOnline = async () => {
-  try {
-    const data = await fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1');
+  const fetchReaderOnline = async () => {
+    try {
+      const data = await fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1');
 
-    setGrowthSummary((current) => ({
-      ...current,
-      reader_online: Number(data.summary?.online || 0),
-    }));
-  } catch {
-  }
-};
+      setGrowthSummary((current) => ({
+        ...current,
+        reader_online: Number(data.summary?.online || 0),
+      }));
+    } catch {
+    }
+  };
 
   useEffect(() => {
-  let ignore = false;
-  let lastActivityAt = Date.now();
-  let activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
+    let ignore = false;
+    let lastActivityAt = Date.now();
+    let activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
 
-  const IDLE_LIMIT_MS = 15 * 60 * 1000;
-  const ONLINE_REFRESH_MS = 60 * 1000;
-  const GROWTH_REFRESH_MS = 5 * 60 * 1000;
-  const TODAY_REFRESH_MS = 10 * 60 * 1000;
-  const INCOME_REFRESH_MS = 5 * 60 * 1000;
+    const IDLE_LIMIT_MS = 15 * 60 * 1000;
+    const ONLINE_REFRESH_MS = 60 * 1000;
+    const GROWTH_REFRESH_MS = 5 * 60 * 1000;
+    const TODAY_REFRESH_MS = 10 * 60 * 1000;
+    const INCOME_REFRESH_MS = 5 * 60 * 1000;
 
   async function loadAdminProfile() {
     const token = getAdminToken();
@@ -1008,21 +995,21 @@ const fetchReaderOnline = async () => {
     }
   }
 
-  const canAutoRefresh = () =>
-  !document.hidden &&
-  document.hasFocus() &&
-  Date.now() - lastActivityAt < IDLE_LIMIT_MS;
+    const canAutoRefresh = () =>
+      !document.hidden &&
+      document.hasFocus() &&
+      Date.now() - lastActivityAt < IDLE_LIMIT_MS;
 
-  const refreshDailyData = () => {
-    if (!canAutoRefresh()) return;
+    const refreshDailyData = () => {
+      if (!canAutoRefresh()) return;
 
-    fetchVisitorDashboard();
-    fetchIncomeDashboard();
-    fetchGrowthSummary();
-  };
+      fetchVisitorDashboard();
+      fetchIncomeDashboard();
+      fetchGrowthSummary();
+    };
 
-  const refreshAfterResume = () => {
-  if (document.hidden || !document.hasFocus()) return;
+    const refreshAfterResume = () => {
+      if (document.hidden || !document.hasFocus()) return;
 
     lastActivityAt = Date.now();
     activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
@@ -1098,8 +1085,8 @@ const fetchReaderOnline = async () => {
   window.addEventListener('touchstart', handleActivity, { passive: true });
   window.addEventListener('scroll', handleActivity, { passive: true });
   window.addEventListener('online', handleOnline);
-window.addEventListener('focus', refreshAfterResume);
-document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('focus', refreshAfterResume);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 
   return () => {
     ignore = true;
@@ -1114,8 +1101,8 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('touchstart', handleActivity);
     window.removeEventListener('scroll', handleActivity);
     window.removeEventListener('online', handleOnline);
-window.removeEventListener('focus', refreshAfterResume);
-document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('focus', refreshAfterResume);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
   };
 }, []);
 
