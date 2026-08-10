@@ -13,8 +13,9 @@ function createImage(url) {
 export async function createCroppedImageFile(
   imageSrc,
   pixelCrop,
-  outputSize = 1200,
-  filePrefix = 'cropped-image'
+  outputWidth = 1200,
+  filePrefix = 'cropped-image',
+  outputHeight = outputWidth,
 ) {
   const image = await createImage(imageSrc)
   const canvas = document.createElement('canvas')
@@ -24,8 +25,8 @@ export async function createCroppedImageFile(
     throw new Error('Image crop is not supported in this browser.')
   }
 
-  canvas.width = outputSize
-  canvas.height = outputSize
+  canvas.width = outputWidth
+  canvas.height = outputHeight
 
   context.drawImage(
     image,
@@ -35,29 +36,24 @@ export async function createCroppedImageFile(
     pixelCrop.height,
     0,
     0,
-    outputSize,
-    outputSize
+    outputWidth,
+    outputHeight,
   )
 
   const blob = await new Promise((resolve, reject) => {
     canvas.toBlob(
       (result) => {
-        if (result) {
-          resolve(result)
-        } else {
-          reject(new Error('Failed to create cropped image.'))
-        }
+        if (result) resolve(result)
+        else reject(new Error('Failed to create cropped image.'))
       },
       'image/jpeg',
-      0.92
+      0.92,
     )
   })
 
-  return new File(
-    [blob],
-    `${filePrefix}-${Date.now()}.jpg`,
-    { type: 'image/jpeg' }
-  )
+  return new File([blob], `${filePrefix}-${Date.now()}.jpg`, {
+    type: 'image/jpeg',
+  })
 }
 
 export default function ImageCropModal({
@@ -69,6 +65,7 @@ export default function ImageCropModal({
   title,
   helper,
   cropShape = 'rect',
+  aspect = 1,
   onCropChange,
   onZoomChange,
   onCropComplete,
@@ -76,6 +73,8 @@ export default function ImageCropModal({
   onSave,
 }) {
   if (!open) return null
+
+  const isPortrait = aspect < 1
 
   return (
     <div
@@ -99,7 +98,7 @@ export default function ImageCropModal({
         <div
           style={{
             width: '100%',
-            maxWidth: 560,
+            maxWidth: isPortrait ? 390 : 560,
             borderRadius: 24,
             background: '#FFFFFF',
             padding: 18,
@@ -126,7 +125,6 @@ export default function ImageCropModal({
               >
                 {title}
               </h2>
-
               <p
                 style={{
                   margin: '5px 0 0',
@@ -139,7 +137,6 @@ export default function ImageCropModal({
                 {helper}
               </p>
             </div>
-
             <button
               type="button"
               onClick={onClose}
@@ -165,7 +162,8 @@ export default function ImageCropModal({
             style={{
               position: 'relative',
               width: '100%',
-              aspectRatio: '1 / 1',
+              aspectRatio: aspect,
+              maxHeight: isPortrait ? '68vh' : 'none',
               overflow: 'hidden',
               borderRadius: 18,
               background: '#111827',
@@ -175,7 +173,7 @@ export default function ImageCropModal({
               image={image}
               crop={crop}
               zoom={zoom}
-              aspect={1}
+              aspect={aspect}
               cropShape={cropShape}
               showGrid={cropShape !== 'round'}
               restrictPosition={false}
@@ -201,7 +199,6 @@ export default function ImageCropModal({
               <span>Zoom</span>
               <span>{zoom.toFixed(1)}x</span>
             </div>
-
             <input
               type="range"
               min="1"
@@ -256,7 +253,6 @@ export default function ImageCropModal({
             >
               Cancel
             </button>
-
             <button
               type="button"
               disabled={!croppedAreaPixels}
@@ -270,10 +266,10 @@ export default function ImageCropModal({
                 fontSize: 13,
                 fontWeight: 900,
                 cursor: croppedAreaPixels ? 'pointer' : 'not-allowed',
-                opacity: croppedAreaPixels ? 1 : 0.6,
+                opacity: croppedAreaPixels ? 1 : 0.5,
               }}
             >
-              Save Crop
+              Use Cropped Image
             </button>
           </div>
         </div>
