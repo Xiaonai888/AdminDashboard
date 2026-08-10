@@ -1103,34 +1103,13 @@ export default function AdminAdvertisementPage() {
                   />
                 </div>
 
-                <label className="field-label">Image URL</label>
-                <label className="field-label">Badge</label>
-<select
-  className="input"
-  value={current.badge || ''}
-  onChange={(event) => updateCurrent('badge', event.target.value)}
->
-  <option value="">No Badge</option>
-  <option value="NEW">New</option>
-  <option value="HOT">Hot</option>
-  <option value="TOP">Top</option>
-</select>
-
-<label className="field-label">Brand Text</label>
-<input
-  className="input"
-  value={current.brandText || ''}
-  onChange={(event) => updateCurrent('brandText', event.target.value)}
-  placeholder="STORIES LIVE IN THE SHADOWS."
-/>
-                
+                                <label className="field-label">Image URL</label>
                 <input
                   className="input"
                   value={current.imageUrl}
                   onChange={(event) => updateCurrent('imageUrl', event.target.value)}
                   placeholder="Auto-filled after upload"
                 />
-
                 <label className="upload-box">
                   <input
                     ref={fileInputRef}
@@ -1144,6 +1123,25 @@ export default function AdminAdvertisementPage() {
                     This uploads to Supabase Storage when you click Save.
                   </div>
                 </label>
+                <label className="field-label">Badge</label>
+                <select
+                  className="input"
+                  value={current.badge || ''}
+                  onChange={(event) => updateCurrent('badge', event.target.value)}
+                >
+                  <option value="">No Badge</option>
+                  <option value="NEW">New</option>
+                  <option value="HOT">Hot</option>
+                  <option value="TOP">Top</option>
+                </select>
+                <label className="field-label">Brand Text</label>
+                <input
+                  className="input"
+                  value={current.brandText || ''}
+                  onChange={(event) => updateCurrent('brandText', event.target.value)}
+                  placeholder="STORIES LIVE IN THE SHADOWS."
+                />
+
 
                 {activeTab !== 'splash' && (
                   <>
