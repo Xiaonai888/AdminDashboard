@@ -3,7 +3,7 @@ import AdminSidebar from '../components/AdminSidebar'
 import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropModal'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
-const SHADOW_LOGO_URL = 'https://shadowerabook.site/assets/icons/Logo%20Shadow%202.svg'
+const SHADOW_LOGO_URL = 'https://shadowerabook.site/assets/Icons/Logo%20Shadow%202.svg'
 const BRAND_TEXT = 'STORIES LIVE IN THE SHADOWS.'
 
 const styles = `
