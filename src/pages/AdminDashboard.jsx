@@ -953,10 +953,11 @@ const AdminDashboard = () => {
   const fetchGrowthSummary = async () => {
   try {
     const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
+    const { reader_online, ...summary } = data.summary || {};
 
     setGrowthSummary((current) => ({
       ...current,
-      ...(data.summary || {}),
+      ...summary,
     }));
   } catch {
   }
