@@ -310,12 +310,13 @@ const styles = `
   }
 
   .phone-preview {
-    height:620px;
-    max-width:360px;
+    width:min(100%,320px);
+    aspect-ratio:9/19.5;
+    height:auto;
     margin:0 auto;
     border-radius:34px;
     background:#050505;
-    padding:16px;
+    padding:8px;
     border:8px solid #111827;
     box-shadow:0 24px 60px rgba(15,23,42,.22);
     overflow:hidden;
@@ -325,18 +326,27 @@ const styles = `
     position:relative;
     width:100%;
     height:100%;
-    border-radius:24px;
+    border-radius:22px;
     background:#000000;
     overflow:hidden;
     display:flex;
-    align-items:center;
-    justify-content:center;
+    flex-direction:column;
   }
 
-  .phone-screen img {
+  .ad-preview-image {
+    position:relative;
+    min-height:0;
+    flex:1;
+    width:100%;
+    overflow:hidden;
+    background:#000000;
+  }
+
+  .ad-preview-image > img {
     width:100%;
     height:100%;
     object-fit:cover;
+    display:block;
   }
 
   .phone-shadow-top {
@@ -344,98 +354,79 @@ const styles = `
     top:0;
     left:0;
     right:0;
-    height:110px;
-    background:linear-gradient(180deg, rgba(0,0,0,.52) 0%, rgba(0,0,0,.2) 45%, rgba(0,0,0,0) 100%);
+    height:95px;
+    background:linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.2) 50%, rgba(0,0,0,0) 100%);
     pointer-events:none;
     z-index:1;
   }
 
   .ad-badge {
     position:absolute;
-    top:18px;
-    left:18px;
+    top:15px;
+    left:15px;
     z-index:2;
-    min-width:62px;
-    height:34px;
-    padding:0 14px;
-    border-radius:12px;
+    min-width:44px;
+    height:26px;
+    padding:0 10px;
+    border-radius:8px;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:14px;
+    font-size:10px;
     font-weight:900;
     letter-spacing:.01em;
-    color:#111827;
-    box-shadow:0 10px 24px rgba(0,0,0,.18);
+    color:#111111;
+    box-shadow:0 5px 16px rgba(0,0,0,.2);
   }
 
   .ad-badge.new {
-    background:#FACC15;
+    background:#FFD400;
   }
 
   .ad-badge.hot {
-    background:#FB7185;
+    background:#FF4F64;
     color:#FFFFFF;
   }
 
   .ad-badge.top {
-    background:#A855F7;
+    background:#8B5CF6;
     color:#FFFFFF;
   }
 
-  .ad-brand-block {
-    position:absolute;
-    left:18px;
-    right:18px;
-    bottom:64px;
-    z-index:2;
+  .ad-brand-footer {
+    flex:0 0 88px;
+    width:100%;
+    background:#FFFFFF;
     display:flex;
     flex-direction:column;
-    align-items:flex-start;
-    gap:7px;
-    padding:10px 12px;
-    border-radius:14px;
-    background:rgba(255,255,255,.92);
-    box-shadow:0 12px 28px rgba(0,0,0,.2);
-    backdrop-filter:blur(8px);
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    padding:10px 14px;
   }
 
   .ad-brand-logo {
-    width:min(72%, 220px) !important;
+    width:150px !important;
+    max-width:72% !important;
     height:auto !important;
     object-fit:contain !important;
     display:block;
   }
 
   .ad-brand-text {
-    font-size:11px;
+    font-size:8px;
     font-weight:900;
-    letter-spacing:.1em;
-    color:#111827;
-    line-height:1.25;
-  }
-  .phone-screen.splash img {
-    width:78%;
-    height:78%;
-    object-fit:contain;
-  }
-
-  .phone-screen.me-ad {
-    padding:48px 28px;
-    background:#111827;
-  }
-
-  .phone-screen.me-ad img {
-    width:100%;
-    height:auto;
-    max-height:82%;
-    aspect-ratio:3/4;
-    object-fit:cover;
-    border-radius:20px;
-    box-shadow:0 18px 45px rgba(0,0,0,.45);
+    letter-spacing:.13em;
+    color:#111111;
+    line-height:1.2;
+    text-align:center;
   }
 
   .preview-empty {
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     color:#94A3B8;
     text-align:center;
     font-size:13px;
@@ -448,27 +439,21 @@ const styles = `
     top:14px;
     right:14px;
     z-index:3;
-    background:rgba(255,255,255,.92);
-    color:#111827;
-    border-radius:999px;
-    padding:8px 11px;
-    font-size:12px;
-    font-weight:900;
-  }
-
-  .time-pill {
-    position:absolute;
-    bottom:14px;
-    z-index:3;
-    left:50%;
-    transform:translateX(-50%);
-    background:rgba(15,23,42,.78);
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background:rgba(0,0,0,.62);
     color:#FFFFFF;
     border-radius:999px;
-    padding:8px 12px;
-    font-size:12px;
+    padding:6px 10px;
+    font-size:10px;
+    font-weight:800;
+    box-shadow:0 5px 16px rgba(0,0,0,.18);
+  }
+
+  .close-pill-count {
+    color:#FFB020;
     font-weight:900;
-    white-space:nowrap;
   }
 
   .note-box {
@@ -607,7 +592,9 @@ const styles = `
     }
 
     .phone-preview {
-      height:min(620px, 78vh);
+      width:min(100%,320px);
+      height:auto;
+      aspect-ratio:9/19.5;
     }
   }
 
@@ -654,19 +641,16 @@ const styles = `
     }
 
     .phone-preview {
-      width:min(100%, 340px);
-      height:min(590px, 72vh);
-      padding:12px;
+      width:min(100%,320px);
+      height:auto;
+      aspect-ratio:9/19.5;
+      padding:8px;
       border-width:6px;
       border-radius:30px;
     }
 
     .phone-screen {
       border-radius:21px;
-    }
-
-    .phone-screen.me-ad {
-      padding:34px 20px;
     }
 
     .record-item {
@@ -710,7 +694,7 @@ const styles = `
     .phone-preview {
       width:100%;
       height:auto;
-      aspect-ratio:9/16;
+      aspect-ratio:9/19.5;
       max-height:none;
     }
 
@@ -1313,32 +1297,35 @@ export default function AdminAdvertisementPage() {
                 <div className="phone-preview">
                   <div className={`phone-screen ${tabInfo[activeTab].previewClass}`}>
                     {previewImage ? (
-  <>
-    <img src={previewImage} alt="Advertisement preview" />
-    <div className="phone-shadow-top" />
-    {current.badge ? (
-      <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
-        {current.badge}
-      </span>
-    ) : null}
-    <div className="ad-brand-block">
-      <div className="ad-brand-logo">SHADOW</div>
-      <div className="ad-brand-text">
-        {current.brandText || 'STORIES LIVE IN THE SHADOWS.'}
-      </div>
-    </div>
-    {current.closeAfterSeconds > 0 && (
-      <span className="close-pill">
-        Close in {current.closeAfterSeconds}s
-      </span>
-    )}
-    <span className="time-pill">{current.durationSeconds}s</span>
-  </>
-) : (
-  <div className="preview-empty">
-    Upload an image to preview this advertisement.
-  </div>
-)}
+                      <>
+                        <div className="ad-preview-image">
+                          <img src={previewImage} alt="Advertisement preview" />
+                          <div className="phone-shadow-top" />
+
+                          {current.badge ? (
+                            <span className={`ad-badge ${String(current.badge).toLowerCase()}`}>
+                              {current.badge}
+                            </span>
+                          ) : null}
+
+                          {current.closeAfterSeconds > 0 ? (
+                            <span className="close-pill">
+                              <span className="close-pill-count">{current.closeAfterSeconds}S</span>
+                              <span>Skip</span>
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="ad-brand-footer">
+                          <img className="ad-brand-logo" src={SHADOW_LOGO_URL} alt="Shadow" />
+                          <div className="ad-brand-text">{BRAND_TEXT}</div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="preview-empty">
+                        Upload an image to preview this advertisement.
+                      </div>
+                    )}
                   </div>
                 </div>
 
