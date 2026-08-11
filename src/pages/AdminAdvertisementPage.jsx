@@ -362,17 +362,17 @@ const styles = `
 
   .ad-badge {
     position:absolute;
-    top:15px;
+    top:48px;
     left:15px;
     z-index:2;
-    min-width:44px;
-    height:26px;
+    min-width:54px;
+    height:21px;
     padding:0 10px;
     border-radius:8px;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:10px;
+    font-size:9px;
     font-weight:900;
     letter-spacing:.01em;
     color:#111111;
@@ -394,7 +394,7 @@ const styles = `
   }
 
   .ad-brand-footer {
-    flex:0 0 88px;
+    flex:0 0 100px;
     width:100%;
     background:#FFFFFF;
     display:flex;
@@ -406,7 +406,7 @@ const styles = `
   }
 
   .ad-brand-logo {
-    width:150px !important;
+    width:132px !important;
     max-width:72% !important;
     height:auto !important;
     object-fit:contain !important;
