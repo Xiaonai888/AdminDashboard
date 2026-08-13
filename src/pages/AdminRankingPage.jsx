@@ -937,16 +937,16 @@ const tabs = [
 ]
 
 const settingItems = [
-  ['Score Formula', 'Views + weighted likes + weighted comments + bookmarks.'],
+  ['Score Formula', 'Views + Likes × 5 + Comments × 10 + Episodes × 3.'],
   ['Minimum Activity', 'Control minimum views, likes, or episodes before an item can rank.'],
-  ['Public Safety', 'Exclude deleted, restricted, disabled, or suspicious items from public ranking.'],
+  ['Public Safety', 'Deleted stories stay excluded, and Admin can hide a story from public Ranking without deleting it.'],
   ['Income Privacy', 'Income Rank stays admin-only and never appears on the reader website.'],
   ['Suspicious Activity', 'Later stage can detect abnormal views, likes, comments, or spam growth.'],
-  ['Manual Control', 'Later stage can hide, unhide, pin, feature, or clear ranking flags.'],
+  ['Manual Control', 'Hide and unhide are live now. Pin, feature, and ranking flags can be added later.'],
 ]
 
 function getAdminToken() {
-  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
 
 function formatNumber(value) {
@@ -971,9 +971,9 @@ function copyText(value) {
 
 function statusClass(status) {
   const value = String(status || '').toLowerCase()
-  if (value === 'published' || value === 'active') return 'green'
+  if (value === 'published' || value === 'active' || value === 'visible') return 'green'
   if (value === 'restricted' || value === 'ready' || value === 'scheduled') return 'yellow'
-  if (value === 'disabled' || value === 'deleted') return 'red'
+  if (value === 'disabled' || value === 'deleted' || value === 'hidden') return 'red'
   return 'gray'
 }
 
@@ -1060,7 +1060,7 @@ export default function AdminRankingPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [period, setPeriod] = useState('weekly')
   const [metric, setMetric] = useState('score')
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState('published')
   const [page, setPage] = useState(1)
   const [stories, setStories] = useState([])
   const [hiddenItems, setHiddenItems] = useState([])
@@ -1104,6 +1104,7 @@ export default function AdminRankingPage() {
           period,
           metric,
           status,
+          ranking_visibility: 'visible',
           q: debouncedSearch,
         })
 
@@ -1247,7 +1248,7 @@ export default function AdminRankingPage() {
     }
   }
 
-  const hasLiveData = activeTab === 'stories'
+  const hasLiveData = activeTab === 'stories' || activeTab === 'hidden'
   const showToolbar = activeTab !== 'settings'
 
   return (
@@ -1260,7 +1261,9 @@ export default function AdminRankingPage() {
             <h2>Ranking Management</h2>
             <p>Control story, author, episode, income, hidden, and settings sections from one professional admin page. Public ranking does not show author income.</p>
           </div>
-          <div className="ranking-hero-badge">{hasLiveData ? 'Story Rank · Live Data' : 'Prepared Section'}</div>
+          <div className="ranking-hero-badge">
+            {activeTab === 'stories' ? 'Story Rank · Live Data' : activeTab === 'hidden' ? 'Hidden Rank · Live Data' : 'Prepared Section'}
+          </div>
         </section>
 
         {error ? <div className="ranking-alert">{error}</div> : null}
@@ -1276,7 +1279,7 @@ export default function AdminRankingPage() {
 
         {showToolbar ? (
           <div className="ranking-toolbar">
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, author, username, story ID, author ID..." />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, genre, language, or story ID..." />
             <select value={period} onChange={(event) => setPeriod(event.target.value)}>
               <option value="daily">Today</option>
               <option value="weekly">This Week</option>
@@ -1336,7 +1339,7 @@ export default function AdminRankingPage() {
                   <tbody>
                     {!loading && stories.map((story, index) => (
                       <tr key={story.id}>
-                        <td><span className="ranking-rank">#{(pagination.page - 1) * PAGE_SIZE + index + 1}</span></td>
+                        <td><span className="ranking-rank">#{story.rank || (pagination.page - 1) * PAGE_SIZE + index + 1}</span></td>
                         <td>
                           <div className="ranking-cover">
                             {story.cover_url ? <img src={story.cover_url} alt={story.title} /> : '📖'}
