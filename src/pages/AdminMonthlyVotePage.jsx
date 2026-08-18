@@ -121,6 +121,7 @@ export default function AdminMonthlyVotePage() {
   const [loadingCandidates, setLoadingCandidates] = useState(false)
   const [searching, setSearching] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [finalizing, setFinalizing] = useState(false)
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -419,6 +420,46 @@ export default function AdminMonthlyVotePage() {
     }
   }
 
+  async function finalizeCampaign() {
+    if (!selectedCampaignId || !selectedCampaign) return
+
+    const endsAt = new Date(selectedCampaign.ends_at).getTime()
+
+    if (Number.isFinite(endsAt) && Date.now() < endsAt) {
+      setError('Monthly Vote has not reached its end time yet.')
+      return
+    }
+
+    if (!window.confirm('Finalize this Monthly Vote and lock Top 1–3 winners?')) return
+
+    try {
+      setFinalizing(true)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch(
+        `${API_URL}/api/admin/monthly-vote/campaigns/${selectedCampaignId}/finalize`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+
+      const data = await readResponse(response)
+
+      setSuccess(
+        `Finalized. Story winners: ${Number(data.result?.story_winners || 0)}, Author winners: ${Number(data.result?.author_winners || 0)}.`
+      )
+
+      await loadCampaigns(selectedCampaignId)
+      await loadCandidates(selectedCampaignId)
+    } catch (err) {
+      setError(err.message || 'Failed to finalize Monthly Vote')
+    } finally {
+      setFinalizing(false)
+    }
+  }
+
   const storyCount = candidates.filter((item) => item.candidate_type === 'story').length
   const authorCount = candidates.filter((item) => item.candidate_type === 'author').length
   const totalVotes = candidates.reduce((sum, item) => sum + Number(item.vote_count || 0), 0)
@@ -506,10 +547,25 @@ export default function AdminMonthlyVotePage() {
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 14 }}>
-                    <button type="submit" className="mv-btn primary" disabled={saving}>
+                  <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="submit" className="mv-btn primary" disabled={saving || finalizing}>
                       {saving ? 'Saving...' : selectedCampaignId ? 'Save Changes' : 'Create Campaign'}
                     </button>
+
+                    {selectedCampaignId ? (
+                      <button
+                        type="button"
+                        className="mv-btn dark"
+                        disabled={
+                          finalizing ||
+                          selectedCampaign?.status === 'draft' ||
+                          selectedCampaign?.status === 'cancelled'
+                        }
+                        onClick={finalizeCampaign}
+                      >
+                        {finalizing ? 'Finalizing...' : 'Finalize Winners'}
+                      </button>
+                    ) : null}
                   </div>
                 </form>
 
