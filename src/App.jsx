@@ -42,6 +42,7 @@ import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
 import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
 import AdminChatEvidencePage from './pages/AdminChatEvidencePage';
+import AdminMonthlyVotePage from './pages/AdminMonthlyVotePage'
 
 function ComingSoon({ title }) {
   return (
@@ -111,6 +112,7 @@ export default function App() {
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
         <Route path="/withdraw" element={<ProtectedPage><AdminWithdrawalPage /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><AdminRankingPage /></ProtectedPage>} />
+        <Route path="/monthly-vote" element={<ProtectedPage><AdminMonthlyVotePage /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<ProtectedPage><AdminActivityLogsPage /></ProtectedPage>} />
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
