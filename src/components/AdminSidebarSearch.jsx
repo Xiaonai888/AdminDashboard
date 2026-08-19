@@ -126,13 +126,19 @@ const searchStyles = `
   }
 `;
 
+const extraSearchItems = [
+  { path: '/reader-online', label: 'Reader Online', section: 'Content' },
+  { path: '/admin/settings', label: 'Admin Settings', section: 'System' },
+  { path: '/admin/change-password', label: 'Change Password', section: 'System' },
+];
+
 export default function AdminSidebarSearch({ sections, onNavigate }) {
   const [query, setQuery] = useState('');
 
   const items = useMemo(
-    () => sections.flatMap(section => section.items.map(item => ({ ...item, section: section.label }))),
-    [sections]
-  );
+  () => [...sections.flatMap(section => section.items.map(item => ({ ...item, section: section.label }))), ...extraSearchItems],
+  [sections]
+);
 
   const normalizedQuery = query.trim().toLowerCase();
   const results = normalizedQuery
