@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-
+import { adminPageSearchItems } from './AdminPageSearchIndex';
 const searchStyles = `
   .admin-sidebar-search-wrap {
     position: relative;
@@ -135,15 +135,19 @@ const extraSearchItems = [
 export default function AdminSidebarSearch({ sections, onNavigate }) {
   const [query, setQuery] = useState('');
 
-  const items = useMemo(
-  () => [...sections.flatMap(section => section.items.map(item => ({ ...item, section: section.label }))), ...extraSearchItems],
-  [sections]
-);
+  const items = useMemo(() => {
+  const merged = new Map();
+  [...sections.flatMap(section => section.items.map(item => ({ ...item, section: section.label }))), ...extraSearchItems, ...adminPageSearchItems].forEach(item => {
+    const current = merged.get(item.path) || {};
+    merged.set(item.path, { ...item, ...current, searchText: `${current.searchText || ''} ${item.searchText || ''}` });
+  });
+  return [...merged.values()];
+}, [sections]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const results = normalizedQuery
     ? items
-        .filter(item => `${item.section} ${item.label}`.toLowerCase().includes(normalizedQuery))
+        .filter(item => `${item.section} ${item.label} ${item.searchText || ''}`.toLowerCase().includes(normalizedQuery))
         .slice(0, 8)
     : [];
 
