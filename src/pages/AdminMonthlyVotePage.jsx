@@ -71,6 +71,28 @@ function createDefaultDesign(campaign) {
   }
 }
 
+
+
+function createDefaultAnnouncement() {
+  return {
+    badge_text: '',
+    title: '',
+    description: '',
+    image_url: '',
+    image_storage_key: '',
+    button_text: '',
+    button_url: '',
+    background_color: '#ffffff',
+    text_color: '#111827',
+    accent_color: '#ff3f70',
+    starts_at: '',
+    ends_at: '',
+    sort_order: 0,
+    is_visible: true,
+  }
+}
+
+
 const styles = `
 .mv-page{display:flex;flex-direction:column;gap:18px}
 .mv-hero{background:linear-gradient(135deg,#111827,#7c3aed,#db2777);color:#fff;border-radius:24px;padding:24px}
@@ -151,6 +173,20 @@ const styles = `
 .mv-preview-cta{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;min-height:34px;border-radius:999px;padding:0 14px;color:#fff;font-size:10px;font-weight:950}
 .mv-preview-tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 .mv-preview-chip{border-radius:999px;background:rgba(255,255,255,.82);padding:6px 9px;font-size:9px;font-weight:900;box-shadow:0 1px 5px rgba(15,23,42,.07)}
+.mv-ann-form{display:flex;flex-direction:column;gap:14px}
+.mv-ann-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mv-ann-list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.mv-ann-item{display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:10px}
+.mv-ann-thumb{width:62px;height:62px;flex-shrink:0;overflow:hidden;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8}
+.mv-ann-thumb img{width:100%;height:100%;object-fit:cover}
+.mv-ann-status{display:inline-flex;align-items:center;width:max-content;margin-top:5px;border-radius:999px;padding:4px 7px;background:#f1f5f9;color:#64748b;font-size:9px;font-weight:950}
+.mv-ann-status.live{background:#dcfce7;color:#15803d}
+.mv-ann-preview{overflow:hidden;border:1px solid #e2e8f0;border-radius:16px;padding:14px;box-shadow:0 8px 20px rgba(15,23,42,.06)}
+.mv-ann-preview img{width:100%;max-height:190px;object-fit:cover;border-radius:12px;margin-bottom:10px}
+.mv-ann-preview-badge{font-size:9px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+.mv-ann-preview-title{margin-top:5px;font-size:17px;font-weight:950;line-height:1.25}
+.mv-ann-preview-desc{margin-top:7px;font-size:11px;font-weight:700;line-height:1.55;opacity:.72}
+.mv-ann-preview-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-top:10px;border-radius:999px;padding:0 14px;color:#fff;font-size:10px;font-weight:950}
 @media(max-width:1050px){.mv-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.mv-fields{grid-template-columns:1fr}.mv-field.full{grid-column:auto}.mv-search{grid-template-columns:1fr}.mv-row{flex-wrap:wrap;align-items:flex-start}.mv-votes{text-align:left}.mv-summary{grid-template-columns:1fr}.mv-toggle-grid{grid-template-columns:1fr}}
 `
@@ -176,6 +212,13 @@ export default function AdminMonthlyVotePage() {
   const [designSaving, setDesignSaving] = useState(false)
   const [designPublishing, setDesignPublishing] = useState(false)
   const [heroUploading, setHeroUploading] = useState(false)
+  const [announcements, setAnnouncements] = useState([])
+  const [announcementsLoading, setAnnouncementsLoading] = useState(false)
+  const [announcementSaving, setAnnouncementSaving] = useState(false)
+  const [announcementUploading, setAnnouncementUploading] = useState(false)
+  const [announcementBusyId, setAnnouncementBusyId] = useState('')
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState('')
+  const [announcementForm, setAnnouncementForm] = useState(createDefaultAnnouncement())
   const [form, setForm] = useState({
     month: currentMonth(),
     title: `${new Date().toLocaleString('en-US', { month: 'long' })} Monthly Vote`,
@@ -270,6 +313,31 @@ export default function AdminMonthlyVotePage() {
     }
   }
 
+
+  async function loadAnnouncements(campaignId) {
+    if (!campaignId) {
+      setAnnouncements([])
+      setEditingAnnouncementId('')
+      setAnnouncementForm(createDefaultAnnouncement())
+      return
+    }
+
+    try {
+      setAnnouncementsLoading(true)
+      const response = await fetch(
+        `${API_URL}/api/admin/monthly-vote/campaigns/${campaignId}/announcements`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const data = await readResponse(response)
+      setAnnouncements(Array.isArray(data.announcements) ? data.announcements : [])
+    } catch (err) {
+      setAnnouncements([])
+      setError(err.message || 'Failed to load announcements')
+    } finally {
+      setAnnouncementsLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadCampaigns()
   }, [])
@@ -277,6 +345,7 @@ export default function AdminMonthlyVotePage() {
   useEffect(() => {
     loadCandidates(selectedCampaignId)
     loadDesign(selectedCampaignId)
+    loadAnnouncements(selectedCampaignId)
   }, [selectedCampaignId])
 
   useEffect(() => {
@@ -346,6 +415,9 @@ export default function AdminMonthlyVotePage() {
     setError('')
     setSuccess('')
     setDesign(createDefaultDesign(null))
+    setAnnouncements([])
+    setEditingAnnouncementId('')
+    setAnnouncementForm(createDefaultAnnouncement())
     setForm({
       month: currentMonth(),
       title: `${new Date().toLocaleString('en-US', { month: 'long' })} Monthly Vote`,
@@ -643,6 +715,208 @@ export default function AdminMonthlyVotePage() {
     }
   }
 
+  function resetAnnouncementForm() {
+    setEditingAnnouncementId('')
+    setAnnouncementForm(createDefaultAnnouncement())
+  }
+
+  function editAnnouncement(item) {
+    setEditingAnnouncementId(item.id)
+    setAnnouncementForm({
+      badge_text: item.badge_text || '',
+      title: item.title || '',
+      description: item.description || '',
+      image_url: item.image_url || '',
+      image_storage_key: item.image_storage_key || '',
+      button_text: item.button_text || '',
+      button_url: item.button_url || '',
+      background_color: item.background_color || '#ffffff',
+      text_color: item.text_color || '#111827',
+      accent_color: item.accent_color || '#ff3f70',
+      starts_at: toLocalInput(item.starts_at),
+      ends_at: toLocalInput(item.ends_at),
+      sort_order: Number(item.sort_order || 0),
+      is_visible: Boolean(item.is_visible),
+    })
+  }
+
+  async function uploadAnnouncementImage(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) return
+    if (!selectedCampaignId) {
+      setError('Create or select a campaign first.')
+      return
+    }
+
+    try {
+      setAnnouncementUploading(true)
+      setError('')
+      setSuccess('')
+
+      const formData = new FormData()
+      formData.append('images', file)
+
+      const response = await fetch(`${API_URL}/api/admin/media-library/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      const data = await readResponse(response)
+      const uploaded = Array.isArray(data.images) ? data.images[0] : null
+
+      if (!uploaded?.image_url) {
+        throw new Error('Image upload did not return a URL')
+      }
+
+      setAnnouncementForm((current) => ({
+        ...current,
+        image_url: uploaded.image_url,
+        image_storage_key: uploaded.storage_key || '',
+      }))
+      setSuccess('Announcement image uploaded. Save the announcement to apply it.')
+    } catch (err) {
+      setError(err.message || 'Failed to upload announcement image')
+    } finally {
+      setAnnouncementUploading(false)
+    }
+  }
+
+  async function saveAnnouncement(event) {
+    event.preventDefault()
+
+    if (!selectedCampaignId) {
+      setError('Create or select a campaign first.')
+      return
+    }
+
+    const startsAt = announcementForm.starts_at ? toIso(announcementForm.starts_at) : null
+    const endsAt = announcementForm.ends_at ? toIso(announcementForm.ends_at) : null
+
+    if (announcementForm.starts_at && !startsAt) {
+      setError('Announcement start time is not valid.')
+      return
+    }
+
+    if (announcementForm.ends_at && !endsAt) {
+      setError('Announcement end time is not valid.')
+      return
+    }
+
+    if (startsAt && endsAt && new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      setError('Announcement end time must be after start time.')
+      return
+    }
+
+    const hasContent =
+      announcementForm.badge_text.trim() ||
+      announcementForm.title.trim() ||
+      announcementForm.description.trim() ||
+      announcementForm.image_url ||
+      announcementForm.button_text.trim()
+
+    if (!hasContent) {
+      setError('Add a title, description, image, badge, or button first.')
+      return
+    }
+
+    try {
+      setAnnouncementSaving(true)
+      setError('')
+      setSuccess('')
+
+      const editing = Boolean(editingAnnouncementId)
+      const response = await fetch(
+        editing
+          ? `${API_URL}/api/admin/monthly-vote/announcements/${editingAnnouncementId}`
+          : `${API_URL}/api/admin/monthly-vote/campaigns/${selectedCampaignId}/announcements`,
+        {
+          method: editing ? 'PATCH' : 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            badge_text: announcementForm.badge_text,
+            title: announcementForm.title,
+            description: announcementForm.description,
+            image_url: announcementForm.image_url,
+            image_storage_key: announcementForm.image_storage_key,
+            button_text: announcementForm.button_text,
+            button_url: announcementForm.button_url,
+            background_color: announcementForm.background_color,
+            text_color: announcementForm.text_color,
+            accent_color: announcementForm.accent_color,
+            starts_at: startsAt,
+            ends_at: endsAt,
+            sort_order: Number(announcementForm.sort_order || 0),
+            is_visible: Boolean(announcementForm.is_visible),
+          }),
+        }
+      )
+
+      await readResponse(response)
+      setSuccess(editing ? 'Announcement updated.' : 'Announcement created.')
+      resetAnnouncementForm()
+      await loadAnnouncements(selectedCampaignId)
+    } catch (err) {
+      setError(err.message || 'Failed to save announcement')
+    } finally {
+      setAnnouncementSaving(false)
+    }
+  }
+
+  async function toggleAnnouncementVisibility(item) {
+    try {
+      setAnnouncementBusyId(item.id)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch(`${API_URL}/api/admin/monthly-vote/announcements/${item.id}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_visible: !item.is_visible }),
+      })
+
+      await readResponse(response)
+      setSuccess(item.is_visible ? 'Announcement hidden.' : 'Announcement shown.')
+      await loadAnnouncements(selectedCampaignId)
+    } catch (err) {
+      setError(err.message || 'Failed to update announcement')
+    } finally {
+      setAnnouncementBusyId('')
+    }
+  }
+
+  async function deleteAnnouncement(item) {
+    if (!window.confirm(`Delete ${item.title || 'this announcement'}?`)) return
+
+    try {
+      setAnnouncementBusyId(item.id)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch(`${API_URL}/api/admin/monthly-vote/announcements/${item.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      await readResponse(response)
+      if (editingAnnouncementId === item.id) resetAnnouncementForm()
+      setSuccess('Announcement deleted.')
+      await loadAnnouncements(selectedCampaignId)
+    } catch (err) {
+      setError(err.message || 'Failed to delete announcement')
+    } finally {
+      setAnnouncementBusyId('')
+    }
+  }
+
   async function finalizeCampaign() {
     if (!selectedCampaignId || !selectedCampaign) return
 
@@ -734,11 +1008,14 @@ export default function AdminMonthlyVotePage() {
                       <label>Status</label>
                       <select
                         value={form.status}
+                        disabled={selectedCampaign?.status === 'ended'}
                         onChange={(e) => setForm((v) => ({ ...v, status: e.target.value }))}
                       >
                         <option value="draft">Draft</option>
                         <option value="active">Active</option>
-                        <option value="ended">Ended</option>
+                        {form.status === 'ended' ? (
+                          <option value="ended" disabled>Ended (Finalized)</option>
+                        ) : null}
                         <option value="cancelled">Cancelled</option>
                       </select>
                     </div>
@@ -782,7 +1059,8 @@ export default function AdminMonthlyVotePage() {
                         disabled={
                           finalizing ||
                           selectedCampaign?.status === 'draft' ||
-                          selectedCampaign?.status === 'cancelled'
+                          selectedCampaign?.status === 'cancelled' ||
+                          selectedCampaign?.status === 'ended'
                         }
                         onClick={finalizeCampaign}
                       >
@@ -1037,6 +1315,288 @@ export default function AdminMonthlyVotePage() {
                         </button>
                       ) : null}
                     </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="mv-card" style={{ marginTop: 18 }}>
+              <div className="mv-head">
+                <div>
+                  <div className="mv-title">Announcements</div>
+                  <div className="mv-sub">Add book releases, event notices, promotions, or other cards shown on the reader Event page.</div>
+                </div>
+                <button
+                  type="button"
+                  className="mv-btn light"
+                  disabled={!selectedCampaignId || announcementSaving || announcementUploading}
+                  onClick={resetAnnouncementForm}
+                >
+                  New
+                </button>
+              </div>
+
+              <div className="mv-body">
+                {!selectedCampaignId ? (
+                  <div className="mv-empty">Create or select a campaign first.</div>
+                ) : (
+                  <>
+                    <form className="mv-ann-form" onSubmit={saveAnnouncement}>
+                      <div className="mv-ann-toolbar">
+                        <div>
+                          <div className="mv-title">{editingAnnouncementId ? 'Edit Announcement' : 'New Announcement'}</div>
+                          <div className="mv-sub">Leave Start or End empty if the announcement should not use that limit.</div>
+                        </div>
+                        <label className="mv-toggle">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(announcementForm.is_visible)}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, is_visible: e.target.checked }))}
+                          />
+                          Visible
+                        </label>
+                      </div>
+
+                      <div className="mv-fields">
+                        <div className="mv-field">
+                          <label>Badge</label>
+                          <input
+                            value={announcementForm.badge_text}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, badge_text: e.target.value }))}
+                            placeholder="NEW BOOK"
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Sort Order</label>
+                          <input
+                            type="number"
+                            min="-10000"
+                            max="10000"
+                            value={announcementForm.sort_order}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, sort_order: e.target.value }))}
+                          />
+                        </div>
+
+                        <div className="mv-field full">
+                          <label>Title</label>
+                          <input
+                            value={announcementForm.title}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, title: e.target.value }))}
+                            placeholder="New book is available now"
+                          />
+                        </div>
+
+                        <div className="mv-field full">
+                          <label>Description</label>
+                          <textarea
+                            value={announcementForm.description}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, description: e.target.value }))}
+                            placeholder="Write the announcement message..."
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Button Text</label>
+                          <input
+                            value={announcementForm.button_text}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, button_text: e.target.value }))}
+                            placeholder="Read Now"
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Button Link</label>
+                          <input
+                            value={announcementForm.button_url}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, button_url: e.target.value }))}
+                            placeholder="/story/... or https://..."
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Starts</label>
+                          <input
+                            type="datetime-local"
+                            value={announcementForm.starts_at}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, starts_at: e.target.value }))}
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Ends</label>
+                          <input
+                            type="datetime-local"
+                            value={announcementForm.ends_at}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, ends_at: e.target.value }))}
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Background</label>
+                          <input
+                            type="color"
+                            value={announcementForm.background_color}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, background_color: e.target.value }))}
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Text Color</label>
+                          <input
+                            type="color"
+                            value={announcementForm.text_color}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, text_color: e.target.value }))}
+                          />
+                        </div>
+
+                        <div className="mv-field">
+                          <label>Accent Color</label>
+                          <input
+                            type="color"
+                            value={announcementForm.accent_color}
+                            onChange={(e) => setAnnouncementForm((v) => ({ ...v, accent_color: e.target.value }))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mv-section">Announcement Image</div>
+                      <div className="mv-upload">
+                        <div className="mv-upload-row">
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                            onChange={uploadAnnouncementImage}
+                            disabled={announcementUploading}
+                          />
+                          <button
+                            type="button"
+                            className="mv-mini remove"
+                            disabled={!announcementForm.image_url || announcementUploading}
+                            onClick={() =>
+                              setAnnouncementForm((v) => ({
+                                ...v,
+                                image_url: '',
+                                image_storage_key: '',
+                              }))
+                            }
+                          >
+                            Remove Image
+                          </button>
+                          <span className="mv-meta">{announcementUploading ? 'Uploading...' : 'Uses Admin Media Library storage'}</span>
+                        </div>
+                        {announcementForm.image_url ? (
+                          <img className="mv-upload-preview" src={announcementForm.image_url} alt="Announcement upload preview" />
+                        ) : null}
+                      </div>
+
+                      <div className="mv-section">Preview</div>
+                      <div
+                        className="mv-ann-preview"
+                        style={{
+                          background: announcementForm.background_color,
+                          color: announcementForm.text_color,
+                        }}
+                      >
+                        {announcementForm.image_url ? <img src={announcementForm.image_url} alt="" /> : null}
+                        {announcementForm.badge_text ? (
+                          <div className="mv-ann-preview-badge" style={{ color: announcementForm.accent_color }}>
+                            {announcementForm.badge_text}
+                          </div>
+                        ) : null}
+                        <div className="mv-ann-preview-title">{announcementForm.title || 'Announcement title'}</div>
+                        {announcementForm.description ? (
+                          <div className="mv-ann-preview-desc">{announcementForm.description}</div>
+                        ) : null}
+                        {announcementForm.button_text ? (
+                          <div className="mv-ann-preview-btn" style={{ background: announcementForm.accent_color }}>
+                            {announcementForm.button_text}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="mv-design-actions">
+                        <button
+                          type="submit"
+                          className="mv-btn primary"
+                          disabled={announcementSaving || announcementUploading}
+                        >
+                          {announcementSaving
+                            ? 'Saving...'
+                            : editingAnnouncementId
+                              ? 'Save Announcement'
+                              : 'Add Announcement'}
+                        </button>
+                        {editingAnnouncementId ? (
+                          <button
+                            type="button"
+                            className="mv-btn light"
+                            disabled={announcementSaving || announcementUploading}
+                            onClick={resetAnnouncementForm}
+                          >
+                            Cancel Edit
+                          </button>
+                        ) : null}
+                      </div>
+                    </form>
+
+                    <div className="mv-section">Current Announcements</div>
+                    {announcementsLoading ? (
+                      <div className="mv-empty">Loading announcements...</div>
+                    ) : announcements.length ? (
+                      <div className="mv-ann-list">
+                        {announcements.map((item) => (
+                          <div className="mv-ann-item" key={item.id}>
+                            <div className="mv-ann-thumb">
+                              {item.image_url ? (
+                                <img src={item.image_url} alt={item.title || 'Announcement'} />
+                              ) : (
+                                <span>IMG</span>
+                              )}
+                            </div>
+                            <div className="mv-copy">
+                              <div className="mv-name">{item.title || item.badge_text || 'Announcement'}</div>
+                              <div className="mv-meta">
+                                Order {Number(item.sort_order || 0)}
+                                {item.starts_at ? ` · Starts ${new Date(item.starts_at).toLocaleString()}` : ''}
+                                {item.ends_at ? ` · Ends ${new Date(item.ends_at).toLocaleString()}` : ''}
+                              </div>
+                              <span className={`mv-ann-status ${item.is_visible ? 'live' : ''}`}>
+                                {item.is_visible ? 'Visible' : 'Hidden'}
+                              </span>
+                            </div>
+                            <div className="mv-actions">
+                              <button
+                                type="button"
+                                className="mv-mini add"
+                                disabled={announcementBusyId === item.id}
+                                onClick={() => editAnnouncement(item)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="mv-mini toggle"
+                                disabled={announcementBusyId === item.id}
+                                onClick={() => toggleAnnouncementVisibility(item)}
+                              >
+                                {item.is_visible ? 'Hide' : 'Show'}
+                              </button>
+                              <button
+                                type="button"
+                                className="mv-mini remove"
+                                disabled={announcementBusyId === item.id}
+                                onClick={() => deleteAnnouncement(item)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mv-empty">No announcements yet.</div>
+                    )}
                   </>
                 )}
               </div>
