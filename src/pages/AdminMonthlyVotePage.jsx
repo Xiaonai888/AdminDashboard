@@ -48,6 +48,29 @@ function CandidateImage({ src, name, round }) {
   )
 }
 
+
+function createDefaultDesign(campaign) {
+  return {
+    badge_text: 'MONTHLY VOTE',
+    hero_title: campaign?.title || 'Monthly Vote',
+    hero_description: 'Vote for your favorite story or author and help crown this month’s winner.',
+    hero_image_url: '',
+    hero_image_storage_key: '',
+    background_type: 'gradient',
+    background_value: 'linear-gradient(135deg,#fff8fb,#ffeef4)',
+    text_color: '#111827',
+    accent_color: '#ff3f70',
+    cta_text: '',
+    cta_url: '',
+    show_hero_image: true,
+    show_countdown: true,
+    show_vote_balance: true,
+    show_top_three: true,
+    show_candidate_list: true,
+    is_published: false,
+  }
+}
+
 const styles = `
 .mv-page{display:flex;flex-direction:column;gap:18px}
 .mv-hero{background:linear-gradient(135deg,#111827,#7c3aed,#db2777);color:#fff;border-radius:24px;padding:24px}
@@ -105,8 +128,31 @@ const styles = `
 .mv-summary div{border:1px solid #e2e8f0;border-radius:13px;background:#f8fafc;padding:11px}
 .mv-summary span{display:block;color:#64748b;font-size:10px;font-weight:850}
 .mv-summary strong{display:block;margin-top:4px;color:#0f172a;font-size:14px}
+.mv-field textarea{width:100%;min-height:96px;resize:vertical;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:10px 12px;outline:none;font:inherit;font-size:13px;font-weight:750;line-height:1.55}
+.mv-field textarea:focus{background:#fff;border-color:#db2777;box-shadow:0 0 0 3px rgba(219,39,119,.1)}
+.mv-design-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.mv-toggle-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.mv-toggle{display:flex;align-items:center;gap:9px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:10px 11px;color:#475569;font-size:11px;font-weight:850}
+.mv-toggle input{width:16px;height:16px;accent-color:#db2777}
+.mv-upload{border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc;padding:12px}
+.mv-upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mv-upload input[type=file]{max-width:100%;font-size:11px;font-weight:750;color:#64748b}
+.mv-upload-preview{margin-top:10px;width:100%;max-height:190px;object-fit:cover;border-radius:12px;border:1px solid #e2e8f0;background:#fff}
+.mv-publish-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:10px;font-weight:950}
+.mv-publish-badge.live{background:#dcfce7;color:#15803d}
+.mv-preview-shell{margin-top:14px;border:1px solid #e2e8f0;border-radius:18px;background:#eef2f7;padding:14px}
+.mv-preview-phone{width:min(330px,100%);margin:0 auto;border:7px solid #111827;border-radius:28px;background:#fff;overflow:hidden;box-shadow:0 14px 34px rgba(15,23,42,.16)}
+.mv-preview-top{height:24px;background:#111827}
+.mv-preview-hero{padding:16px;min-height:210px;background:#fff}
+.mv-preview-image{width:100%;height:118px;object-fit:cover;border-radius:14px;margin-bottom:12px;background:#f1f5f9}
+.mv-preview-badge{font-size:9px;font-weight:950;letter-spacing:.12em}
+.mv-preview-title{margin-top:7px;font-size:22px;font-weight:950;line-height:1.1}
+.mv-preview-desc{margin-top:8px;font-size:10px;font-weight:700;line-height:1.55;opacity:.72}
+.mv-preview-cta{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;min-height:34px;border-radius:999px;padding:0 14px;color:#fff;font-size:10px;font-weight:950}
+.mv-preview-tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.mv-preview-chip{border-radius:999px;background:rgba(255,255,255,.82);padding:6px 9px;font-size:9px;font-weight:900;box-shadow:0 1px 5px rgba(15,23,42,.07)}
 @media(max-width:1050px){.mv-grid{grid-template-columns:1fr}}
-@media(max-width:700px){.mv-fields{grid-template-columns:1fr}.mv-field.full{grid-column:auto}.mv-search{grid-template-columns:1fr}.mv-row{flex-wrap:wrap;align-items:flex-start}.mv-votes{text-align:left}.mv-summary{grid-template-columns:1fr}}
+@media(max-width:700px){.mv-fields{grid-template-columns:1fr}.mv-field.full{grid-column:auto}.mv-search{grid-template-columns:1fr}.mv-row{flex-wrap:wrap;align-items:flex-start}.mv-votes{text-align:left}.mv-summary{grid-template-columns:1fr}.mv-toggle-grid{grid-template-columns:1fr}}
 `
 
 export default function AdminMonthlyVotePage() {
@@ -125,6 +171,11 @@ export default function AdminMonthlyVotePage() {
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [design, setDesign] = useState(createDefaultDesign(null))
+  const [designLoading, setDesignLoading] = useState(false)
+  const [designSaving, setDesignSaving] = useState(false)
+  const [designPublishing, setDesignPublishing] = useState(false)
+  const [heroUploading, setHeroUploading] = useState(false)
   const [form, setForm] = useState({
     month: currentMonth(),
     title: `${new Date().toLocaleString('en-US', { month: 'long' })} Monthly Vote`,
@@ -193,12 +244,39 @@ export default function AdminMonthlyVotePage() {
     }
   }
 
+  async function loadDesign(campaignId) {
+    if (!campaignId) {
+      setDesign(createDefaultDesign(null))
+      return
+    }
+
+    try {
+      setDesignLoading(true)
+      const response = await fetch(
+        `${API_URL}/api/admin/monthly-vote/campaigns/${campaignId}/design`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      const data = await readResponse(response)
+      const campaign = campaigns.find((item) => item.id === campaignId) || data.campaign || null
+      setDesign({
+        ...createDefaultDesign(campaign),
+        ...(data.design || {}),
+      })
+    } catch (err) {
+      setDesign(createDefaultDesign(selectedCampaign))
+      setError(err.message || 'Failed to load Event Appearance')
+    } finally {
+      setDesignLoading(false)
+    }
+  }
+
   useEffect(() => {
     loadCampaigns()
   }, [])
 
   useEffect(() => {
     loadCandidates(selectedCampaignId)
+    loadDesign(selectedCampaignId)
   }, [selectedCampaignId])
 
   useEffect(() => {
@@ -267,6 +345,7 @@ export default function AdminMonthlyVotePage() {
     setSearchResults([])
     setError('')
     setSuccess('')
+    setDesign(createDefaultDesign(null))
     setForm({
       month: currentMonth(),
       title: `${new Date().toLocaleString('en-US', { month: 'long' })} Monthly Vote`,
@@ -417,6 +496,150 @@ export default function AdminMonthlyVotePage() {
       setError(err.message || 'Failed to remove candidate')
     } finally {
       setBusyId('')
+    }
+  }
+
+  async function uploadHeroImage(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) return
+    if (!selectedCampaignId) {
+      setError('Create or select a campaign first.')
+      return
+    }
+
+    try {
+      setHeroUploading(true)
+      setError('')
+      setSuccess('')
+
+      const formData = new FormData()
+      formData.append('images', file)
+
+      const response = await fetch(`${API_URL}/api/admin/media-library/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+
+      const data = await readResponse(response)
+      const uploaded = Array.isArray(data.images) ? data.images[0] : null
+
+      if (!uploaded?.image_url) {
+        throw new Error('Image upload did not return a URL')
+      }
+
+      setDesign((current) => ({
+        ...current,
+        hero_image_url: uploaded.image_url,
+        hero_image_storage_key: uploaded.storage_key || '',
+        show_hero_image: true,
+      }))
+      setSuccess('Hero image uploaded. Save or Publish to apply it.')
+    } catch (err) {
+      setError(err.message || 'Failed to upload hero image')
+    } finally {
+      setHeroUploading(false)
+    }
+  }
+
+  async function saveEventAppearance({ publish = false } = {}) {
+    if (!selectedCampaignId) {
+      setError('Create or select a campaign first.')
+      return
+    }
+
+    try {
+      if (publish) setDesignPublishing(true)
+      else setDesignSaving(true)
+
+      setError('')
+      setSuccess('')
+
+      const payload = {
+        badge_text: design.badge_text,
+        hero_title: design.hero_title,
+        hero_description: design.hero_description,
+        hero_image_url: design.hero_image_url,
+        hero_image_storage_key: design.hero_image_storage_key,
+        background_type: design.background_type,
+        background_value: design.background_value,
+        text_color: design.text_color,
+        accent_color: design.accent_color,
+        cta_text: design.cta_text,
+        cta_url: design.cta_url,
+        show_hero_image: Boolean(design.show_hero_image),
+        show_countdown: Boolean(design.show_countdown),
+        show_vote_balance: Boolean(design.show_vote_balance),
+        show_top_three: Boolean(design.show_top_three),
+        show_candidate_list: Boolean(design.show_candidate_list),
+      }
+
+      const saveResponse = await fetch(
+        `${API_URL}/api/admin/monthly-vote/campaigns/${selectedCampaignId}/design`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      )
+
+      const saved = await readResponse(saveResponse)
+      let nextDesign = saved.design || { ...design, is_published: false }
+
+      if (publish) {
+        const publishResponse = await fetch(
+          `${API_URL}/api/admin/monthly-vote/campaigns/${selectedCampaignId}/design/publish`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        )
+        const published = await readResponse(publishResponse)
+        nextDesign = published.design || { ...nextDesign, is_published: true }
+      }
+
+      setDesign((current) => ({ ...current, ...nextDesign }))
+      setSuccess(publish ? 'Event Appearance published.' : 'Event Appearance saved.')
+    } catch (err) {
+      setError(err.message || 'Failed to save Event Appearance')
+    } finally {
+      setDesignSaving(false)
+      setDesignPublishing(false)
+    }
+  }
+
+  async function unpublishEventAppearance() {
+    if (!selectedCampaignId) return
+
+    try {
+      setDesignPublishing(true)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch(
+        `${API_URL}/api/admin/monthly-vote/campaigns/${selectedCampaignId}/design/unpublish`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      )
+
+      const data = await readResponse(response)
+      setDesign((current) => ({
+        ...current,
+        ...(data.design || {}),
+        is_published: false,
+      }))
+      setSuccess('Event Appearance unpublished.')
+    } catch (err) {
+      setError(err.message || 'Failed to unpublish Event Appearance')
+    } finally {
+      setDesignPublishing(false)
     }
   }
 
@@ -576,6 +799,246 @@ export default function AdminMonthlyVotePage() {
                     <div><span>Total Votes</span><strong>{Number(totalVotes).toLocaleString()}</strong></div>
                   </div>
                 ) : null}
+              </div>
+            </section>
+
+            <section className="mv-card" style={{ marginTop: 18 }}>
+              <div className="mv-head">
+                <div>
+                  <div className="mv-title">Event Appearance</div>
+                  <div className="mv-sub">Upload artwork, change text, colors, buttons, and preview the reader hero.</div>
+                </div>
+                <span className={`mv-publish-badge ${design.is_published ? 'live' : ''}`}>
+                  {design.is_published ? 'Published' : 'Draft'}
+                </span>
+              </div>
+
+              <div className="mv-body">
+                {!selectedCampaignId ? (
+                  <div className="mv-empty">Create or select a campaign first.</div>
+                ) : designLoading ? (
+                  <div className="mv-empty">Loading appearance...</div>
+                ) : (
+                  <>
+                    <div className="mv-fields">
+                      <div className="mv-field">
+                        <label>Badge Text</label>
+                        <input
+                          value={design.badge_text}
+                          onChange={(e) => setDesign((v) => ({ ...v, badge_text: e.target.value }))}
+                          placeholder="MONTHLY VOTE"
+                        />
+                      </div>
+
+                      <div className="mv-field">
+                        <label>Background Type</label>
+                        <select
+                          value={design.background_type}
+                          onChange={(e) => setDesign((v) => ({ ...v, background_type: e.target.value }))}
+                        >
+                          <option value="gradient">Gradient</option>
+                          <option value="solid">Solid</option>
+                          <option value="image">Image</option>
+                        </select>
+                      </div>
+
+                      <div className="mv-field full">
+                        <label>Hero Title</label>
+                        <input
+                          value={design.hero_title}
+                          onChange={(e) => setDesign((v) => ({ ...v, hero_title: e.target.value }))}
+                          placeholder="August Monthly Vote"
+                        />
+                      </div>
+
+                      <div className="mv-field full">
+                        <label>Description</label>
+                        <textarea
+                          value={design.hero_description}
+                          onChange={(e) => setDesign((v) => ({ ...v, hero_description: e.target.value }))}
+                          placeholder="Write the Event message shown to readers..."
+                        />
+                      </div>
+
+                      <div className="mv-field full">
+                        <label>Background Value</label>
+                        <input
+                          value={design.background_value}
+                          onChange={(e) => setDesign((v) => ({ ...v, background_value: e.target.value }))}
+                          placeholder={
+                            design.background_type === 'solid'
+                              ? '#fff4f8'
+                              : design.background_type === 'image'
+                                ? 'https://...'
+                                : 'linear-gradient(135deg,#fff8fb,#ffeef4)'
+                          }
+                        />
+                      </div>
+
+                      <div className="mv-field">
+                        <label>Text Color</label>
+                        <input
+                          type="color"
+                          value={design.text_color}
+                          onChange={(e) => setDesign((v) => ({ ...v, text_color: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="mv-field">
+                        <label>Accent Color</label>
+                        <input
+                          type="color"
+                          value={design.accent_color}
+                          onChange={(e) => setDesign((v) => ({ ...v, accent_color: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="mv-field">
+                        <label>Button Text</label>
+                        <input
+                          value={design.cta_text}
+                          onChange={(e) => setDesign((v) => ({ ...v, cta_text: e.target.value }))}
+                          placeholder="Read Now"
+                        />
+                      </div>
+
+                      <div className="mv-field">
+                        <label>Button Link</label>
+                        <input
+                          value={design.cta_url}
+                          onChange={(e) => setDesign((v) => ({ ...v, cta_url: e.target.value }))}
+                          placeholder="/story/... or https://..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mv-section">Hero Image</div>
+                    <div className="mv-upload">
+                      <div className="mv-upload-row">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                          onChange={uploadHeroImage}
+                          disabled={heroUploading}
+                        />
+                        <button
+                          type="button"
+                          className="mv-mini remove"
+                          disabled={!design.hero_image_url || heroUploading}
+                          onClick={() =>
+                            setDesign((v) => ({
+                              ...v,
+                              hero_image_url: '',
+                              hero_image_storage_key: '',
+                            }))
+                          }
+                        >
+                          Remove Image
+                        </button>
+                        <span className="mv-meta">{heroUploading ? 'Uploading...' : 'Uses Admin Media Library storage'}</span>
+                      </div>
+
+                      {design.hero_image_url ? (
+                        <img className="mv-upload-preview" src={design.hero_image_url} alt="Event hero preview" />
+                      ) : null}
+                    </div>
+
+                    <div className="mv-section">Show / Hide Reader Sections</div>
+                    <div className="mv-toggle-grid">
+                      {[
+                        ['show_hero_image', 'Hero image'],
+                        ['show_countdown', 'Countdown'],
+                        ['show_vote_balance', 'Vote Balance'],
+                        ['show_top_three', 'Top 3'],
+                        ['show_candidate_list', 'Candidate List'],
+                      ].map(([key, label]) => (
+                        <label className="mv-toggle" key={key}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(design[key])}
+                            onChange={(e) => setDesign((v) => ({ ...v, [key]: e.target.checked }))}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="mv-section">Mobile Preview</div>
+                    <div className="mv-preview-shell">
+                      <div className="mv-preview-phone">
+                        <div className="mv-preview-top" />
+                        <div
+                          className="mv-preview-hero"
+                          style={{
+                            color: design.text_color,
+                            background:
+                              design.background_type === 'image' && design.background_value
+                                ? `linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)), url("${design.background_value}") center/cover`
+                                : design.background_value || '#fff8fb',
+                          }}
+                        >
+                          {design.show_hero_image && design.hero_image_url ? (
+                            <img className="mv-preview-image" src={design.hero_image_url} alt="" />
+                          ) : null}
+
+                          <div className="mv-preview-badge" style={{ color: design.accent_color }}>
+                            {design.badge_text || 'MONTHLY VOTE'}
+                          </div>
+                          <div className="mv-preview-title">
+                            {design.hero_title || selectedCampaign?.title || 'Monthly Vote'}
+                          </div>
+                          {design.hero_description ? (
+                            <div className="mv-preview-desc">{design.hero_description}</div>
+                          ) : null}
+
+                          {design.cta_text ? (
+                            <div className="mv-preview-cta" style={{ background: design.accent_color }}>
+                              {design.cta_text}
+                            </div>
+                          ) : null}
+
+                          <div className="mv-preview-tools">
+                            {design.show_vote_balance ? <span className="mv-preview-chip">Vote Balance</span> : null}
+                            {design.show_countdown ? <span className="mv-preview-chip">Countdown</span> : null}
+                            {design.show_top_three ? <span className="mv-preview-chip">Top 3</span> : null}
+                            {design.show_candidate_list ? <span className="mv-preview-chip">Candidates</span> : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mv-design-actions">
+                      <button
+                        type="button"
+                        className="mv-btn light"
+                        disabled={designSaving || designPublishing || heroUploading}
+                        onClick={() => saveEventAppearance()}
+                      >
+                        {designSaving ? 'Saving...' : 'Save Draft'}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="mv-btn primary"
+                        disabled={designSaving || designPublishing || heroUploading}
+                        onClick={() => saveEventAppearance({ publish: true })}
+                      >
+                        {designPublishing && !design.is_published ? 'Publishing...' : 'Publish'}
+                      </button>
+
+                      {design.is_published ? (
+                        <button
+                          type="button"
+                          className="mv-btn dark"
+                          disabled={designPublishing}
+                          onClick={unpublishEventAppearance}
+                        >
+                          {designPublishing ? 'Working...' : 'Unpublish'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                )}
               </div>
             </section>
 
