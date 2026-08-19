@@ -324,32 +324,48 @@ export default function AdminSidebar() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+    const sidebarScrollRef = useRef(0);
+
   useEffect(() => {
     const sidebar = sidebarRef.current;
-
     if (!sidebar) return undefined;
 
-    const savedScroll = Number(sessionStorage.getItem('shadow_admin_sidebar_scroll') || 0);
+    const key = 'shadow_admin_sidebar_scroll';
+    const savedScroll = Number(
+      localStorage.getItem(key) || sessionStorage.getItem(key) || 0
+    );
 
-    if (Number.isFinite(savedScroll)) {
-      sidebar.scrollTop = savedScroll;
-    }
+    sidebarScrollRef.current = Number.isFinite(savedScroll) ? savedScroll : 0;
+
+    const restoreScroll = () => {
+      sidebar.scrollTop = sidebarScrollRef.current;
+    };
+
+    restoreScroll();
+    const frame = requestAnimationFrame(restoreScroll);
 
     const saveScroll = () => {
-      sessionStorage.setItem('shadow_admin_sidebar_scroll', String(sidebar.scrollTop));
+      sidebarScrollRef.current = sidebar.scrollTop;
+      localStorage.setItem(key, String(sidebarScrollRef.current));
+      sessionStorage.setItem(key, String(sidebarScrollRef.current));
     };
 
     sidebar.addEventListener('scroll', saveScroll, { passive: true });
 
     return () => {
-      saveScroll();
+      cancelAnimationFrame(frame);
       sidebar.removeEventListener('scroll', saveScroll);
     };
   }, []);
 
   const goToPage = (path) => {
-    const sidebarScroll = sidebarRef.current?.scrollTop || 0;
-    sessionStorage.setItem('shadow_admin_sidebar_scroll', String(sidebarScroll));
+    const key = 'shadow_admin_sidebar_scroll';
+    const sidebarScroll = sidebarRef.current?.scrollTop ?? sidebarScrollRef.current;
+
+    sidebarScrollRef.current = sidebarScroll;
+    localStorage.setItem(key, String(sidebarScroll));
+    sessionStorage.setItem(key, String(sidebarScroll));
+
     setMobileOpen(false);
     navigate(path);
   };
