@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import AdminSidebarSearch from './AdminSidebarSearch';
 
 const sidebarStyles = `
   .admin-main-sidebar {
@@ -386,6 +387,7 @@ export default function AdminSidebar() {
           <Icon path="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5" size={22} />
           <span className="admin-main-sidebar-logo-text">Shadow Admin</span>
         </div>
+        <AdminSidebarSearch sections={navSections} onNavigate={goToPage} />
 
         {navSections.map(section => (
           <React.Fragment key={section.label}>
