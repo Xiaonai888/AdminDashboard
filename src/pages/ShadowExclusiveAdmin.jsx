@@ -1103,17 +1103,19 @@ if (response.status === 403) {
   };
 
   const openAction = (mode, story) => {
-    setModalMode(mode);
-    setSelectedStory(story);
-    setSelectedSections(
-      Array.isArray(story?.exclusive_sections) && story.exclusive_sections.length
-        ? story.exclusive_sections
-        : ['featured'],
-    );
-    setNote(story?.exclusive_note || '');
-    setKeepPremium(false);
-    setModalOpen(true);
-  };
+  if (!canManageExclusive) return;
+
+  setModalMode(mode);
+  setSelectedStory(story);
+  setSelectedSections(
+    Array.isArray(story?.exclusive_sections) && story.exclusive_sections.length
+      ? story.exclusive_sections
+      : ['featured'],
+  );
+  setNote(story?.exclusive_note || '');
+  setKeepPremium(false);
+  setModalOpen(true);
+};
 
   const closeModal = (force = false) => {
     if (saving && !force) return;
