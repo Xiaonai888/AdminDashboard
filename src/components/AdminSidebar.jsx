@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import AdminSidebarSearch from './AdminSidebarSearch';.
+import AdminSidebarSearch from './AdminSidebarSearch';
 import { filterAdminNavSections } from './adminSidebarPermissions';
 
 const sidebarStyles = `
