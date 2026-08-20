@@ -988,9 +988,20 @@ export default function ShadowExclusiveAdmin() {
   const [selectedStory, setSelectedStory] = useState(null);
   const [selectedSections, setSelectedSections] = useState(['featured']);
   const [note, setNote] = useState('');
-  const [keepPremium, setKeepPremium] = useState(false);
+const [keepPremium, setKeepPremium] = useState(false);
 
-  const statusTabs = workMode === 'author_requests' ? REQUEST_TABS : ADMIN_PICK_TABS;
+const adminUser = getAdminUser();
+const adminRole = String(adminUser?.role || '').trim().toLowerCase();
+const canManageExclusive =
+  adminUser?.has_all_permissions === true ||
+  adminRole === 'owner' ||
+  adminRole === 'admin' ||
+  (
+    Array.isArray(adminUser?.permission_keys) &&
+    adminUser.permission_keys.includes('shadow_exclusive.manage')
+  );
+
+const statusTabs = workMode === 'author_requests' ? REQUEST_TABS : ADMIN_PICK_TABS;
 
   const showMessage = (text, type = 'success') => {
     setMessage(text);
