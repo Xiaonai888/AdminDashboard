@@ -10,6 +10,14 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
 }
 
+function getAdminUser() {
+  try {
+    return JSON.parse(sessionStorage.getItem('shadow_admin_user') || localStorage.getItem('shadow_admin_user') || '{}')
+  } catch {
+    return {}
+  }
+}
+
 function formatDate(value) {
   if (!value) return '-'
   return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -437,7 +445,7 @@ function AdminEpisodePreview({ storyType, episode }) {
   ) : <div className="story-admin-muted-box">No content found.</div>
 }
 
-function StoryDrawer({ story, details, loading, onClose, onAction }) {
+function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) {
   const [readingEpisode, setReadingEpisode] = useState(null)
 
   if (!story) return null
