@@ -532,10 +532,18 @@ function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) 
             <div className="story-admin-action-grid">
               <button type="button" onClick={() => copyText(fullStory.id)}>Copy Story ID</button>
               <button type="button" onClick={() => copyText(fullStory.author_id)}>Copy Author ID</button>
-              <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
-              {fullStory.admin_visibility_status === 'active' ? <button type="button" onClick={() => onAction('restrict', fullStory)}>Restrict</button> : <button type="button" onClick={() => onAction('active', fullStory)}>Remove Restriction</button>}
-              <button type="button" onClick={() => onAction('disable', fullStory)}>Disable Story</button>
-              {author?.admin_status === 'disabled' ? <button type="button" onClick={() => onAction('enableAuthor', fullStory)}>Enable Author Page</button> : <button type="button" onClick={() => onAction('disableAuthor', fullStory)}>Disable Author Page</button>}
+              {canManage ? (
+                <>
+                  <button type="button" onClick={() => onAction('warning', fullStory)}>Warning</button>
+                  {fullStory.admin_visibility_status === 'active'
+                    ? <button type="button" onClick={() => onAction('restrict', fullStory)}>Restrict</button>
+                    : <button type="button" onClick={() => onAction('active', fullStory)}>Remove Restriction</button>}
+                  <button type="button" onClick={() => onAction('disable', fullStory)}>Disable Story</button>
+                  {author?.admin_status === 'disabled'
+                    ? <button type="button" onClick={() => onAction('enableAuthor', fullStory)}>Enable Author Page</button>
+                    : <button type="button" onClick={() => onAction('disableAuthor', fullStory)}>Disable Author Page</button>}
+                </>
+              ) : null}
             </div>
 
             <div className="story-admin-detail-grid">
@@ -637,6 +645,16 @@ function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) 
 export default function AdminStoriesPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const adminUser = useMemo(getAdminUser, [])
+  const adminRole = String(adminUser?.role || '').trim().toLowerCase()
+  const canManageStories =
+    adminUser?.has_all_permissions === true ||
+    adminRole === 'owner' ||
+    adminRole === 'admin' ||
+    (
+      Array.isArray(adminUser?.permission_keys) &&
+      adminUser.permission_keys.includes('stories.manage')
+    )
 
   function handleExpiredAdminToken(response, data) {
     if (response.status !== 401) return false
@@ -803,6 +821,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
   }, [stories])
 
   function openAction(action, story) {
+    if (!canManageStories) return
     setModalAction(action)
     setModalStory(story)
   }
@@ -965,16 +984,17 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
                       <td>{formatDate(story.updated_at)}</td>
                       <td>
                         <div className="story-admin-row-actions">
-                          
-                          <button
-  type="button"
-  onClick={(event) => {
-    event.stopPropagation()
-    openAction('warning', story)
-  }}
->
-  Warning
-</button>
+                          {canManageStories ? (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openAction('warning', story)
+                              }}
+                            >
+                              Warning
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -994,8 +1014,27 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
         </div>
       </div>
 
-      <StoryDrawer story={selectedStory} details={details} loading={detailsLoading} onClose={() => { setSelectedStory(null); setDetails(null) }} onAction={openAction} />
-      <ModerationModal action={modalAction} story={modalStory} onClose={closeAction} onSubmit={submitAction} loading={saving} />
+      <StoryDrawer
+        story={selectedStory}
+        details={details}
+        loading={detailsLoading}
+        onClose={() => {
+          setSelectedStory(null)
+          setDetails(null)
+        }}
+        onAction={openAction}
+        canManage={canManageStories}
+      />
+
+      {canManageStories ? (
+        <ModerationModal
+          action={modalAction}
+          story={modalStory}
+          onClose={closeAction}
+          onSubmit={submitAction}
+          loading={saving}
+        />
+      ) : null}
     </AdminLayout>
   )
 }
