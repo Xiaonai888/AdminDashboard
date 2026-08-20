@@ -1030,15 +1030,18 @@ const statusTabs = workMode === 'author_requests' ? REQUEST_TABS : ADMIN_PICK_TA
 
     const data = await response.json().catch(() => ({}));
 
-    if (response.status === 401 || response.status === 403) {
-      sessionStorage.removeItem('shadow_admin_token');
-      localStorage.removeItem('shadow_admin_token');
-      sessionStorage.removeItem('shadow_admin_user');
-      localStorage.removeItem('shadow_admin_user');
-      setAuthExpired(true);
-      throw new Error('Admin session expired. Please login again.');
-    }
+    if (response.status === 401) {
+  sessionStorage.removeItem('shadow_admin_token');
+  localStorage.removeItem('shadow_admin_token');
+  sessionStorage.removeItem('shadow_admin_user');
+  localStorage.removeItem('shadow_admin_user');
+  setAuthExpired(true);
+  throw new Error('Admin session expired. Please login again.');
+}
 
+if (response.status === 403) {
+  throw new Error('You do not have permission to perform this action.');
+}
     if (!response.ok || data.ok === false) {
       throw new Error(data.message || 'Request failed');
     }
