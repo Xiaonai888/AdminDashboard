@@ -1339,7 +1339,8 @@ if (response.status === 403) {
                       </div>
                     </div>
 
-                    <div className="se-actions">
+                    {canManageExclusive ? (
+  <div className="se-actions">
                       {workMode === 'admin_pick' && story.exclusive_status !== 'approved' ? (
                         <button
                           type="button"
