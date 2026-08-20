@@ -796,6 +796,18 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
 }
 
+function getAdminUser() {
+  try {
+    return JSON.parse(
+      sessionStorage.getItem('shadow_admin_user') ||
+      localStorage.getItem('shadow_admin_user') ||
+      '{}'
+    );
+  } catch {
+    return {};
+  }
+}
+
 function formatNumber(value) {
   return Number(value || 0).toLocaleString();
 }
