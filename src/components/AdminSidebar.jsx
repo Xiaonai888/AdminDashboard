@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import AdminSidebarSearch from './AdminSidebarSearch';
+import AdminSidebarSearch from './AdminSidebarSearch';.
+import { filterAdminNavSections } from './adminSidebarPermissions';
 
 const sidebarStyles = `
   .admin-main-sidebar {
@@ -289,7 +290,8 @@ export default function AdminSidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarRef = useRef(null);
-  const allItems = navSections.flatMap(section => section.items);
+  const visibleSections = filterAdminNavSections(navSections);
+  const allItems = visibleSections.flatMap(section => section.items);
   const activeItem = [...allItems]
     .sort((a, b) => b.path.length - a.path.length)
     .find(item => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`));
@@ -403,9 +405,9 @@ export default function AdminSidebar() {
           <Icon path="M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5" size={22} />
           <span className="admin-main-sidebar-logo-text">Shadow Admin</span>
         </div>
-        <AdminSidebarSearch sections={navSections} onNavigate={goToPage} />
+        <AdminSidebarSearch sections={visibleSections} onNavigate={goToPage} />
 
-        {navSections.map(section => (
+        {visibleSections.map(section => (
           <React.Fragment key={section.label}>
             <span className="admin-main-sidebar-label">{section.label}</span>
             {section.items.map(item => (
