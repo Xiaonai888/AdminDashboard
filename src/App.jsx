@@ -44,6 +44,7 @@ import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
 import AdminChatEvidencePage from './pages/AdminChatEvidencePage';
 import AdminMonthlyVotePage from './pages/AdminMonthlyVotePage'
 import AdminRolesPage from './pages/AdminRolesPage'
+import AdminStaffAccountsPage from './pages/AdminStaffAccountsPage'
 
 function ComingSoon({ title }) {
   return (
@@ -105,7 +106,7 @@ export default function App() {
         <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
         <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
         <Route path="/rule" element={<ProtectedPage><AdminRolesPage /></ProtectedPage>} />
-        <Route path="/account" element={<ProtectedPage><ComingSoon title="Account" /></ProtectedPage>} />
+        <Route path="/account" element={<ProtectedPage><AdminStaffAccountsPage /></ProtectedPage>} />
         <Route path="/block-list" element={<ProtectedPage><AdminBlockListPage /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><AdminIncomePage /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
