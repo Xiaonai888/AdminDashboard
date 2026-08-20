@@ -1128,7 +1128,7 @@ if (response.status === 403) {
   };
 
   const runAction = async () => {
-    if (!selectedStory) return;
+  if (!canManageExclusive || !selectedStory) return;
 
     try {
       setSaving(true);
