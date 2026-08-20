@@ -150,7 +150,7 @@ export default function App() {
         <Route path="/banners" element={<ProtectedPage><BannerSystem /></ProtectedPage>} />
         <Route path="/shadow-mall" element={<ProtectedPage><ShadowMallProductsPage /></ProtectedPage>} />
         <Route path="/shadow-exclusive" element={<ProtectedPage><ShadowExclusiveAdmin /></ProtectedPage>} />
-        <Route path="/authors" element={<ProtectedPage><AuthorsCommunity /></ProtectedPage>} />
+        <Route path="/authors" element={<ProtectedPage permission="community.view"><AuthorsCommunity /></ProtectedPage>} />
         <Route path="/advertisement" element={<ProtectedPage><AdminAdvertisementPage /></ProtectedPage>} />
         <Route path="/notifications" element={<ProtectedPage><AdminNotificationsPage /></ProtectedPage>} />
         <Route path="/reader-mails" element={<ProtectedPage><AdminReaderMailsPage /></ProtectedPage>} />
