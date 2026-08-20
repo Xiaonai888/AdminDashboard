@@ -82,8 +82,59 @@ function ComingSoon({ title }) {
   );
 }
 
-function ProtectedPage({ children }) {
-  return <ProtectedRoute>{children}</ProtectedRoute>;
+function PermissionGate({ permission, children }) {
+  let admin = {}
+
+  try {
+    admin = JSON.parse(
+      sessionStorage.getItem('shadow_admin_user') ||
+      localStorage.getItem('shadow_admin_user') ||
+      '{}'
+    )
+  } catch {
+    admin = {}
+  }
+
+  const role = String(admin?.role || '').trim().toLowerCase()
+
+  const allowed =
+    admin?.has_all_permissions === true ||
+    role === 'owner' ||
+    role === 'admin' ||
+    (
+      Array.isArray(admin?.permission_keys) &&
+      admin.permission_keys.includes(permission)
+    )
+
+  if (allowed) return children
+
+  return (
+    <AdminLayout
+      title="Access Denied"
+      subtitle="You do not have permission to open this page."
+    >
+      <div style={{
+        padding: 32,
+        background: '#FFFFFF',
+        border: '1px solid #E2E8F0',
+        borderRadius: 18,
+        color: '#64748B',
+        fontWeight: 700,
+      }}>
+        Permission required: <strong>{permission}</strong>
+      </div>
+    </AdminLayout>
+  )
+}
+
+function ProtectedPage({ children, permission = '' }) {
+  return (
+    <ProtectedRoute>
+      {permission
+        ? <PermissionGate permission={permission}>{children}</PermissionGate>
+        : children}
+    </ProtectedRoute>
+  );
 }
 
 export default function App() {
@@ -126,7 +177,6 @@ export default function App() {
         <Route path="/shadow-mall/orders" element={<ProtectedPage><ShadowMallOrdersPage /></ProtectedPage>} />
         <Route path="/author-store/review" element={<ProtectedPage><AuthorStoreReviewPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
-        <Route path="/stories" element={<ProtectedPage><AdminStoriesPage /></ProtectedPage>} />
         <Route path="/readers-today" element={<ProtectedPage><AdminReadersTodayPage /></ProtectedPage>} />
         <Route path="/reader-online" element={<ProtectedPage><AdminReaderOnlinePage /></ProtectedPage>} />
         <Route path="/media-library" element={<ProtectedPage><ShadowMediaLibraryPage /></ProtectedPage>} />
@@ -136,7 +186,14 @@ export default function App() {
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
         <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
 
-
+<Route
+  path="/stories"
+  element={
+    <ProtectedPage permission="stories.view">
+      <AdminStoriesPage />
+    </ProtectedPage>
+  }
+/>
 
         <Route
           path="/spam-guard"
