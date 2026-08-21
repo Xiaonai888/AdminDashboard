@@ -822,7 +822,16 @@ export default function AdminStaffAccountsPage() {
   const [success, setSuccess] = useState('')
 
   const currentAdmin = useMemo(() => getAdminUser(), [])
-  const currentLegacyRole = String(currentAdmin?.role || '').toLowerCase()
+const currentLegacyRole = String(currentAdmin?.role || '').toLowerCase()
+const currentPermissionKeys = Array.isArray(currentAdmin?.permission_keys)
+  ? currentAdmin.permission_keys
+  : []
+
+const canManageAccounts =
+  currentAdmin?.has_all_permissions === true ||
+  currentLegacyRole === 'owner' ||
+  currentLegacyRole === 'admin' ||
+  currentPermissionKeys.includes('accounts.manage')
   const assignableRoles = useMemo(
     () => roles.filter((role) => !role.is_system && !role.is_protected && role.system_key !== 'owner'),
     [roles]
@@ -838,9 +847,9 @@ export default function AdminStaffAccountsPage() {
         fetch(`${API_URL}/api/admin/accounts`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${API_URL}/api/admin/roles`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        fetch(`${API_URL}/api/admin/accounts/roles`, {
+  headers: { Authorization: `Bearer ${token}` },
+}),
       ])
 
       const [accountsData, rolesData] = await Promise.all([
@@ -901,14 +910,18 @@ export default function AdminStaffAccountsPage() {
   }, [page, totalPages])
 
   function openCreate() {
-    setEditingAccount(null)
+  if (!canManageAccounts) return
+
+  setEditingAccount(null)
     setPanelMode('create')
     setError('')
     setSuccess('')
   }
 
   function openEdit(account) {
-    setEditingAccount(account)
+  if (!canManageAccounts) return
+
+  setEditingAccount(account)
     setPanelMode('edit')
     setError('')
     setSuccess('')
@@ -921,7 +934,9 @@ export default function AdminStaffAccountsPage() {
   }
 
   function canEditAccount(account) {
-    const targetLegacyRole = String(account?.legacy_role || '').toLowerCase()
+  if (!canManageAccounts) return false
+
+  const targetLegacyRole = String(account?.legacy_role || '').toLowerCase()
 
     if (targetLegacyRole === 'owner') return false
     if (targetLegacyRole === 'admin' && currentLegacyRole !== 'owner') return false
@@ -929,7 +944,9 @@ export default function AdminStaffAccountsPage() {
   }
 
   async function createAccount(payload) {
-    try {
+  if (!canManageAccounts) return
+
+  try {
       setSaving(true)
       setError('')
       setSuccess('')
@@ -961,7 +978,9 @@ export default function AdminStaffAccountsPage() {
   }
 
   async function updateAccount(accountId, payload) {
-    try {
+  if (!canManageAccounts) return
+
+  try {
       setSaving(true)
       setError('')
       setSuccess('')
@@ -1039,9 +1058,11 @@ export default function AdminStaffAccountsPage() {
               ))}
             </select>
 
-            <button type="button" className="staff-add-btn" onClick={openCreate}>
-              ＋ Add Account
-            </button>
+            {canManageAccounts ? (
+  <button type="button" className="staff-add-btn" onClick={openCreate}>
+    ＋ Add Account
+  </button>
+) : null}
           </div>
 
           <div className="staff-card">
@@ -1097,34 +1118,36 @@ export default function AdminStaffAccountsPage() {
                               </span>
                             </td>
                             <td>{formatDateTime(account.last_login_at)}</td>
-                            <td>
-                              <div className="staff-actions">
-                                <button
-                                  type="button"
-                                  className="staff-icon-btn"
-                                  onClick={() => openEdit(account)}
-                                  disabled={protectedAccount}
-                                  title={protectedAccount ? 'Protected account' : 'Edit account'}
-                                >
-                                  ✎
-                                </button>
-                                <button
-                                  type="button"
-                                  className="staff-icon-btn"
-                                  onClick={() => toggleAccountStatus(account)}
-                                  disabled={protectedAccount || saving}
-                                  title={
-                                    protectedAccount
-                                      ? 'Protected account'
-                                      : account.status === 'active'
-                                        ? 'Set inactive'
-                                        : 'Set active'
-                                  }
-                                >
-                                  ⋮
-                                </button>
-                              </div>
-                            </td>
+                            <<td>
+  {canManageAccounts ? (
+    <div className="staff-actions">
+      <button
+        type="button"
+        className="staff-icon-btn"
+        onClick={() => openEdit(account)}
+        disabled={protectedAccount}
+        title={protectedAccount ? 'Protected account' : 'Edit account'}
+      >
+        ✎
+      </button>
+      <button
+        type="button"
+        className="staff-icon-btn"
+        onClick={() => toggleAccountStatus(account)}
+        disabled={protectedAccount || saving}
+        title={
+          protectedAccount
+            ? 'Protected account'
+            : account.status === 'active'
+              ? 'Set inactive'
+              : 'Set active'
+        }
+      >
+        ⋮
+      </button>
+    </div>
+  ) : null}
+</td>
                           </tr>
                         )
                       })}
@@ -1185,7 +1208,7 @@ export default function AdminStaffAccountsPage() {
             </div>
           </div>
 
-          {panelMode ? (
+          {canManageAccounts && panelMode ? (
             <CreateEditPanel
               mode={panelMode}
               account={editingAccount}
