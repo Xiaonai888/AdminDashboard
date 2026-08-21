@@ -1118,7 +1118,7 @@ const canManageAccounts =
                               </span>
                             </td>
                             <td>{formatDateTime(account.last_login_at)}</td>
-                            <<td>
+                            <td>
   {canManageAccounts ? (
     <div className="staff-actions">
       <button
