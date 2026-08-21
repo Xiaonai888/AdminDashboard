@@ -156,8 +156,8 @@ export default function App() {
         <Route path="/reader-mails" element={<ProtectedPage><AdminReaderMailsPage /></ProtectedPage>} />
         <Route path="/recommended" element={<ProtectedPage><ComingSoon title="Recommended" /></ProtectedPage>} />
         <Route path="/category" element={<ProtectedPage><ComingSoon title="Category" /></ProtectedPage>} />
-        <Route path="/rule" element={<ProtectedPage><AdminRolesPage /></ProtectedPage>} />
-        <Route path="/account" element={<ProtectedPage><AdminStaffAccountsPage /></ProtectedPage>} />
+        <Route path="/rule" element={<ProtectedPage permission="roles.view"><AdminRolesPage /></ProtectedPage>} />
+        <Route path="/account" element={<ProtectedPage permission="accounts.view"><AdminStaffAccountsPage /></ProtectedPage>} />
         <Route path="/block-list" element={<ProtectedPage><AdminBlockListPage /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><AdminIncomePage /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
