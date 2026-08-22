@@ -545,7 +545,9 @@ export default function AdminSecurityBell() {
   useEffect(() => {
     loadNotifications()
 
-    const timer = window.setInterval(loadNotifications, 60000)
+    const timer = window.setInterval(() => {
+  if (!document.hidden) loadNotifications()
+}, 300000)
 
     return () => window.clearInterval(timer)
   }, [loadNotifications])
