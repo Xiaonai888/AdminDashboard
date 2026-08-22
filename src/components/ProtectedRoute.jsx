@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
+const ADMIN_SESSION_VERIFY_TTL_MS = 5 * 60 * 1000;
+
+let verifiedToken = '';
+let verifiedAt = 0;
+let verificationPromise = null;
+let verificationToken = '';
 
 function getStoredAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || '';
@@ -12,6 +18,10 @@ function clearAdminSession() {
   sessionStorage.removeItem('shadow_admin_user');
   localStorage.removeItem('shadow_admin_token');
   localStorage.removeItem('shadow_admin_user');
+  verifiedToken = '';
+  verifiedAt = 0;
+  verificationPromise = null;
+  verificationToken = '';
 }
 
 function syncSessionToken(token) {
@@ -20,59 +30,98 @@ function syncSessionToken(token) {
   }
 }
 
+function hasFreshVerification(token) {
+  return Boolean(
+    token &&
+    token === verifiedToken &&
+    Date.now() - verifiedAt < ADMIN_SESSION_VERIFY_TTL_MS
+  );
+}
+
+function verifyAdminSessionRequest(token) {
+  if (
+    verificationPromise &&
+    verificationToken === token
+  ) {
+    return verificationPromise;
+  }
+
+  verificationToken = token;
+
+  verificationPromise = fetch(`${API_URL}/api/auth/me`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+    .then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.message || 'Admin session is invalid');
+      }
+
+      sessionStorage.setItem(
+        'shadow_admin_user',
+        JSON.stringify(data.admin || {})
+      );
+
+      verifiedToken = token;
+      verifiedAt = Date.now();
+
+      return data;
+    })
+    .finally(() => {
+      if (verificationToken === token) {
+        verificationPromise = null;
+        verificationToken = '';
+      }
+    });
+
+  return verificationPromise;
+}
+
 export default function ProtectedRoute({ children }) {
   const location = useLocation();
-  const [status, setStatus] = useState(() => (getStoredAdminToken() ? 'checking' : 'missing'));
+  const [status, setStatus] = useState(() => {
+    const token = getStoredAdminToken();
+
+    if (!token) return 'missing';
+    return hasFreshVerification(token) ? 'valid' : 'checking';
+  });
 
   useEffect(() => {
     let cancelled = false;
+    const token = getStoredAdminToken();
 
-    async function verifyAdminSession() {
-      const token = getStoredAdminToken();
+    if (!token) {
+      clearAdminSession();
+      setStatus('missing');
+      return undefined;
+    }
 
-      if (!token) {
-        clearAdminSession();
+    syncSessionToken(token);
 
+    if (hasFreshVerification(token)) {
+      setStatus('valid');
+      return undefined;
+    }
+
+    setStatus('checking');
+
+    verifyAdminSessionRequest(token)
+      .then(() => {
         if (!cancelled) {
-          setStatus('missing');
+          setStatus('valid');
         }
-
-        return;
-      }
-
-      syncSessionToken(token);
-
-      try {
-        const response = await fetch(`${API_URL}/api/auth/me`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (cancelled) return;
-
-        if (!response.ok || !data?.ok) {
-          clearAdminSession();
-          setStatus('invalid');
-          return;
-        }
-
-        sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin || {}));
-        setStatus('valid');
-      } catch {
+      })
+      .catch(() => {
         if (cancelled) return;
 
         clearAdminSession();
         setStatus('invalid');
-      }
-    }
-
-    setStatus(getStoredAdminToken() ? 'checking' : 'missing');
-    verifyAdminSession();
+      });
 
     return () => {
       cancelled = true;
