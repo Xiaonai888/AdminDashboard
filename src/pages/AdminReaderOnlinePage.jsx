@@ -377,7 +377,7 @@ export default function AdminReaderOnlinePage() {
     const timer = window.setInterval(() => {
       if (document.hidden) return
       setRefreshKey((value) => value + 1)
-    }, 30000)
+    }, 60000)
 
     return () => window.clearInterval(timer)
   }, [])
