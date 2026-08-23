@@ -1273,6 +1273,10 @@ const AdminDashboard = () => {
     {
       label: 'New Author',
       value: Number(growthSummary.new_authors || 0).toLocaleString(),
+      {
+  label: 'New Author',
+  path: '/authors?tab=authors',
+  value: Number(growthSummary.new_authors || 0).toLocaleString(),
       trend: 'New author pages today',
       trendUp: true,
       icon: 'M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
