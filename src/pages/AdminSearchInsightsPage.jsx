@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
   :root {
@@ -549,130 +551,492 @@ const Icon = ({ d, size = 18 }) => (
   </svg>
 )
 
-const stats = [
+const STAT_DEFINITIONS = [
   {
+    key: 'searches',
     label: 'Searches',
-    value: '12,456',
-    change: '+16.6%',
-    direction: 'up',
     tone: 'purple',
+    positiveIsGood: true,
+    changeKey: 'searches_change',
     icon: 'M11 3a8 8 0 1 0 4.9 14.3L21 22l1-1-4.7-5.1A8 8 0 0 0 11 3z',
   },
   {
+    key: 'unique_terms',
     label: 'Unique Terms',
-    value: '1,248',
-    change: '+12.1%',
-    direction: 'up',
     tone: 'blue',
+    positiveIsGood: true,
+    changeKey: 'unique_terms_change',
     icon: 'M4 4h16v16H4z M8 8h8 M8 12h5 M8 16h7',
   },
   {
+    key: 'no_result_searches',
     label: 'No Result Searches',
-    value: '342',
-    change: '+21.7%',
-    direction: 'down',
     tone: 'orange',
+    positiveIsGood: false,
+    changeKey: 'no_result_change',
     icon: 'M12 9v4 M12 17h.01 M10.3 3.7L2.4 17.4A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.6L13.7 3.7a2 2 0 0 0-3.4 0z',
   },
   {
+    key: 'ctr',
     label: 'Click-Through Rate',
-    value: '24.8%',
-    change: '+5.4%',
-    direction: 'up',
     tone: 'green',
+    positiveIsGood: true,
+    changeKey: '',
     icon: 'M6 3l12 8-5 2 3 6-2 1-3-6-5 4z',
   },
 ]
 
-const searchRows = [
-  { term: 'romance, love, ស្នេហា', searches: 1245, users: 892, noResults: 23, ctr: 28.4, trend: 18.2 },
-  { term: 'zombie, zombies, ខ្មោចឆៅ', searches: 982, users: 721, noResults: 412, ctr: 6.3, trend: -8.4 },
-  { term: 'isekai, អ៊ីសេកៃ', searches: 768, users: 612, noResults: 301, ctr: 9.1, trend: 32.1 },
-  { term: 'time travel, ឆ្លងពេលវេលា', searches: 645, users: 498, noResults: 144, ctr: 21.7, trend: 14.6 },
-  { term: 'bl, boys love, ប្រុសស្រឡាញ់ប្រុស', searches: 522, users: 410, noResults: 67, ctr: 30.1, trend: 11.5 },
-  { term: 'fantasy, ហ្វេនតាស៊ី', searches: 498, users: 389, noResults: 58, ctr: 32.9, trend: 16.7 },
-  { term: 'revenge, សងសឹក', searches: 421, users: 320, noResults: 96, ctr: 18.5, trend: -4.1 },
-  { term: 'historical, ប្រវត្តិសាស្ត្រ', searches: 387, users: 298, noResults: 72, ctr: 19.1, trend: 8.3 },
-]
+const TYPE_META = {
+  all: { label: 'All', color: '#4F46E5' },
+  stories: { label: 'Stories', color: '#6366F1' },
+  pdfs: { label: 'PDF Books', color: '#3B82F6' },
+  readers: { label: 'Readers', color: '#F59E0B' },
+  pages: { label: 'Pages', color: '#10B981' },
+  posts: { label: 'Posts', color: '#94A3B8' },
+}
 
-const chartValues = [180, 410, 630, 390, 440, 410, 590, 510, 690, 760, 490, 620, 480, 710, 560, 650]
-const chartLabels = ['Jul 26', '', 'Jul 31', '', 'Aug 5', '', 'Aug 10', '', 'Aug 15', '', 'Aug 19', '', 'Aug 22', '', 'Aug 24', '']
+function getAdminToken() {
+  return (
+    sessionStorage.getItem('shadow_admin_token') ||
+    localStorage.getItem('shadow_admin_token')
+  )
+}
 
-const searchTypes = [
-  { label: 'Stories', value: '65.2%', color: '#4F46E5' },
-  { label: 'PDF Books', value: '15.3%', color: '#3B82F6' },
-  { label: 'Readers', value: '10.1%', color: '#F59E0B' },
-  { label: 'Pages', value: '6.4%', color: '#10B981' },
-  { label: 'Posts', value: '3.0%', color: '#CBD5E1' },
-]
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString()
+}
 
-const cloudWords = [
-  ['romance', 31],
-  ['zombie', 26],
-  ['isekai', 17],
-  ['fantasy', 14],
-  ['bl', 13],
-  ['historical', 12],
-  ['revenge', 11],
-  ['time travel', 13],
-  ['school', 10],
-  ['system', 11],
-  ['magic', 12],
-  ['gl', 10],
-  ['khmer', 12],
-  ['ghost', 11],
-]
+function formatPercent(value) {
+  const number = Number(value || 0)
+  return `${number.toFixed(number % 1 === 0 ? 0 : 1)}%`
+}
 
-function getChartGeometry() {
+function getChangeMeta(value, positiveIsGood) {
+  const number = Number(value || 0)
+  const good = positiveIsGood ? number >= 0 : number <= 0
+
+  return {
+    arrow: number >= 0 ? '↗' : '↘',
+    value: `${number >= 0 ? '+' : ''}${number.toFixed(1)}%`,
+    direction: good ? 'up' : 'down',
+  }
+}
+
+function formatChartDate(value) {
+  const date = new Date(`${value}T00:00:00`)
+
+  if (Number.isNaN(date.getTime())) return String(value || '')
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function getNiceMax(values) {
+  const maxValue = Math.max(...values, 0)
+
+  if (maxValue <= 1) return 1
+
+  const magnitude = 10 ** Math.floor(Math.log10(maxValue))
+  const normalized = maxValue / magnitude
+
+  if (normalized <= 1) return 1 * magnitude
+  if (normalized <= 2) return 2 * magnitude
+  if (normalized <= 5) return 5 * magnitude
+
+  return 10 * magnitude
+}
+
+function getChartGeometry(values) {
   const width = 720
   const height = 220
-  const padX = 36
+  const padX = 42
   const padTop = 16
   const padBottom = 34
-  const max = 900
+  const max = getNiceMax(values)
   const innerWidth = width - padX * 2
   const innerHeight = height - padTop - padBottom
+  const count = Math.max(values.length, 1)
 
-  const points = chartValues.map((value, index) => {
-    const x = padX + (innerWidth * index) / (chartValues.length - 1)
-    const y = padTop + innerHeight - (value / max) * innerHeight
+  const points = values.map((value, index) => {
+    const x =
+      count === 1
+        ? padX + innerWidth / 2
+        : padX + (innerWidth * index) / (count - 1)
+    const y =
+      padTop +
+      innerHeight -
+      (Number(value || 0) / max) * innerHeight
+
     return { x, y }
   })
 
-  const line = points.map((point) => `${point.x},${point.y}`).join(' ')
-  const area = [
-    `M ${points[0].x} ${padTop + innerHeight}`,
-    ...points.map((point) => `L ${point.x} ${point.y}`),
-    `L ${points[points.length - 1].x} ${padTop + innerHeight}`,
-    'Z',
-  ].join(' ')
+  const line = points
+    .map((point) => `${point.x},${point.y}`)
+    .join(' ')
 
-  return { width, height, padX, padTop, padBottom, innerHeight, points, line, area }
+  const area =
+    points.length > 0
+      ? [
+          `M ${points[0].x} ${padTop + innerHeight}`,
+          ...points.map(
+            (point) => `L ${point.x} ${point.y}`
+          ),
+          `L ${points[points.length - 1].x} ${
+            padTop + innerHeight
+          }`,
+          'Z',
+        ].join(' ')
+      : ''
+
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(
+    (ratio) => Math.round(max * ratio)
+  )
+
+  return {
+    width,
+    height,
+    padX,
+    padTop,
+    padBottom,
+    innerHeight,
+    points,
+    line,
+    area,
+    max,
+    ticks,
+  }
+}
+
+function getDonutBackground(types) {
+  if (!types.length) return '#E2E8F0'
+
+  let cursor = 0
+  const parts = []
+
+  for (const item of types) {
+    const percentage = Math.max(
+      0,
+      Number(item.percentage || 0)
+    )
+    const start = cursor
+    const end = Math.min(100, cursor + percentage)
+
+    parts.push(
+      `${item.color} ${start}% ${end}%`
+    )
+
+    cursor = end
+  }
+
+  if (cursor < 100) {
+    parts.push(`#E2E8F0 ${cursor}% 100%`)
+  }
+
+  return `conic-gradient(${parts.join(', ')})`
+}
+
+function getGroupLabel(group) {
+  const seen = new Set()
+  const terms = []
+
+  const add = (value) => {
+    const term = String(value || '').trim()
+    const key = term.toLocaleLowerCase()
+
+    if (!term || seen.has(key)) return
+
+    seen.add(key)
+    terms.push(term)
+  }
+
+  add(group?.term)
+
+  for (const alias of group?.aliases || []) {
+    add(alias?.term)
+  }
+
+  return terms.slice(0, 4).join(', ')
+}
+
+function buildInsights(groups) {
+  if (!groups.length) {
+    return [
+      'Search data will appear here after readers start using Discover Search.',
+    ]
+  }
+
+  const noResult = [...groups]
+    .filter((item) => Number(item.no_result_searches || 0) > 0)
+    .sort(
+      (a, b) =>
+        Number(b.no_result_searches || 0) -
+        Number(a.no_result_searches || 0)
+    )[0]
+
+  const trending = [...groups]
+    .filter((item) => Number(item.trend_percent || 0) > 0)
+    .sort(
+      (a, b) =>
+        Number(b.trend_percent || 0) -
+        Number(a.trend_percent || 0)
+    )[0]
+
+  const clicked = [...groups]
+    .filter((item) => Number(item.clicks || 0) > 0)
+    .sort(
+      (a, b) =>
+        Number(b.ctr || 0) -
+        Number(a.ctr || 0)
+    )[0]
+
+  const items = []
+
+  if (noResult) {
+    items.push(
+      `${getGroupLabel(noResult)} has ${formatNumber(
+        noResult.no_result_searches
+      )} searches with no result in this period.`
+    )
+  }
+
+  if (trending) {
+    items.push(
+      `${getGroupLabel(trending)} increased ${formatPercent(
+        Math.abs(Number(trending.trend_percent || 0))
+      )} compared with the previous period.`
+    )
+  }
+
+  if (clicked) {
+    items.push(
+      `${getGroupLabel(clicked)} currently has the strongest click-through rate at ${formatPercent(
+        clicked.ctr
+      )}.`
+    )
+  } else {
+    items.push(
+      'Click-through data will appear after search result click tracking is connected.'
+    )
+  }
+
+  return items.slice(0, 3)
 }
 
 export default function AdminSearchInsightsPage() {
   const [range, setRange] = useState('30')
   const [tab, setTab] = useState('top')
   const [selectedTerm, setSelectedTerm] = useState('')
-  const geometry = useMemo(() => getChartGeometry(), [])
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadInsights() {
+      try {
+        setLoading(true)
+        setMessage('')
+
+        const token = getAdminToken()
+        const response = await fetch(
+          `${API_URL}/api/admin/search-insights?days=${range}`,
+          {
+            headers: {
+              ...(token
+                ? {
+                    Authorization: `Bearer ${token}`,
+                  }
+                : {}),
+            },
+            signal: controller.signal,
+          }
+        )
+
+        const result = await response
+          .json()
+          .catch(() => ({}))
+
+        if (!response.ok || result.ok === false) {
+          throw new Error(
+            result.message ||
+              'Failed to load search insights'
+          )
+        }
+
+        setData(result)
+      } catch (error) {
+        if (error?.name === 'AbortError') return
+
+        setData(null)
+        setMessage(
+          error?.message ||
+            'Failed to load search insights'
+        )
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadInsights()
+
+    return () => controller.abort()
+  }, [range])
+
+  const summary = data?.summary || {}
+  const trend = Array.isArray(data?.trend)
+    ? data.trend
+    : []
+  const groups = Array.isArray(data?.groups)
+    ? data.groups
+    : []
+  const rawTypes = Array.isArray(data?.types)
+    ? data.types
+    : []
+
+  const stats = useMemo(
+    () =>
+      STAT_DEFINITIONS.map((definition) => {
+        const isCtr = definition.key === 'ctr'
+        const change = definition.changeKey
+          ? getChangeMeta(
+              summary[definition.changeKey],
+              definition.positiveIsGood
+            )
+          : null
+
+        return {
+          ...definition,
+          value: isCtr
+            ? formatPercent(summary[definition.key])
+            : formatNumber(summary[definition.key]),
+          change,
+        }
+      }),
+    [summary]
+  )
+
+  const searchRows = useMemo(
+    () =>
+      groups.map((group) => ({
+        id: group.id,
+        term: getGroupLabel(group),
+        searches: Number(group.searches || 0),
+        users: Number(group.unique_searchers || 0),
+        noResults: Number(
+          group.no_result_searches || 0
+        ),
+        clicks: Number(group.clicks || 0),
+        ctr: Number(group.ctr || 0),
+        trend: Number(group.trend_percent || 0),
+      })),
+    [groups]
+  )
 
   const rows = useMemo(() => {
     const list = [...searchRows]
 
     if (tab === 'no-result') {
-      return list.sort((a, b) => b.noResults - a.noResults)
+      return list.sort(
+        (a, b) => b.noResults - a.noResults
+      )
     }
 
     if (tab === 'trending') {
-      return list.sort((a, b) => b.trend - a.trend)
+      return list.sort(
+        (a, b) => b.trend - a.trend
+      )
     }
 
     if (tab === 'clicked') {
-      return list.sort((a, b) => b.ctr - a.ctr)
+      return list.sort(
+        (a, b) =>
+          b.clicks - a.clicks || b.ctr - a.ctr
+      )
     }
 
-    return list.sort((a, b) => b.searches - a.searches)
-  }, [tab])
+    return list.sort(
+      (a, b) => b.searches - a.searches
+    )
+  }, [searchRows, tab])
+
+  const chartValues = useMemo(
+    () =>
+      trend.map((item) =>
+        Number(item.searches || 0)
+      ),
+    [trend]
+  )
+
+  const geometry = useMemo(
+    () => getChartGeometry(chartValues),
+    [chartValues]
+  )
+
+  const chartLabelInterval = Math.max(
+    1,
+    Math.ceil(trend.length / 6)
+  )
+
+  const searchTypes = useMemo(
+    () =>
+      rawTypes.map((item) => {
+        const meta =
+          TYPE_META[item.type] || {
+            label: String(item.type || 'Other'),
+            color: '#CBD5E1',
+          }
+
+        return {
+          ...item,
+          label: meta.label,
+          color: meta.color,
+          value: formatPercent(item.percentage),
+        }
+      }),
+    [rawTypes]
+  )
+
+  const donutBackground = useMemo(
+    () => getDonutBackground(searchTypes),
+    [searchTypes]
+  )
+
+  const cloudWords = useMemo(() => {
+    const top = [...groups]
+      .sort(
+        (a, b) =>
+          Number(b.searches || 0) -
+          Number(a.searches || 0)
+      )
+      .slice(0, 14)
+
+    const maxSearches = Math.max(
+      ...top.map((item) =>
+        Number(item.searches || 0)
+      ),
+      1
+    )
+
+    return top.map((item) => {
+      const ratio =
+        Number(item.searches || 0) / maxSearches
+
+      return [
+        String(item.term || ''),
+        Math.round(12 + ratio * 18),
+      ]
+    })
+  }, [groups])
+
+  const insights = useMemo(
+    () => buildInsights(groups),
+    [groups]
+  )
 
   return (
     <AdminLayout
@@ -686,7 +1050,9 @@ export default function AdminSearchInsightsPage() {
           <select
             className="si-range"
             value={range}
-            onChange={(event) => setRange(event.target.value)}
+            onChange={(event) =>
+              setRange(event.target.value)
+            }
             aria-label="Search insight period"
           >
             <option value="7">Last 7 days</option>
@@ -695,273 +1061,520 @@ export default function AdminSearchInsightsPage() {
           </select>
         </div>
 
-        <div className="si-stats">
-          {stats.map((item) => (
-            <section className="si-card si-stat" key={item.label}>
-              <div className="si-stat-top">
-                <div>
-                  <div className="si-stat-label">{item.label}</div>
-                  <div className="si-stat-value">{item.value}</div>
-                </div>
+        {message ? (
+          <section
+            className="si-card si-panel"
+            style={{
+              marginBottom: 18,
+              color: '#B91C1C',
+              background: '#FEF2F2',
+              borderColor: '#FECACA',
+            }}
+          >
+            {message}
+          </section>
+        ) : null}
 
-                <div className={`si-stat-icon ${item.tone}`}>
-                  <Icon d={item.icon} size={17} />
-                </div>
-              </div>
+        {loading ? (
+          <section
+            className="si-card si-panel"
+            style={{
+              minHeight: 180,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748B',
+              fontWeight: 850,
+            }}
+          >
+            Loading search insights...
+          </section>
+        ) : (
+          <>
+            <div className="si-stats">
+              {stats.map((item) => (
+                <section
+                  className="si-card si-stat"
+                  key={item.label}
+                >
+                  <div className="si-stat-top">
+                    <div>
+                      <div className="si-stat-label">
+                        {item.label}
+                      </div>
+                      <div className="si-stat-value">
+                        {item.value}
+                      </div>
+                    </div>
 
-              <div className={`si-stat-change ${item.direction}`}>
-                <span>{item.direction === 'up' ? '↗' : '↘'}</span>
-                <span>{item.change}</span>
-                <span style={{ color: '#94A3B8', fontWeight: 750 }}>
-                  vs previous period
-                </span>
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <div className="si-chart-grid">
-          <section className="si-card si-panel">
-            <div className="si-panel-header">
-              <div>
-                <h3 className="si-panel-title">Search Trend</h3>
-                <div className="si-panel-subtitle">Reader search activity over time</div>
-              </div>
-
-              <select className="si-mini-select" defaultValue="daily" aria-label="Chart interval">
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-              </select>
-            </div>
-
-            <svg
-              className="si-trend-chart"
-              viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-              role="img"
-              aria-label="Search trend line chart"
-            >
-              <defs>
-                <linearGradient id="siAreaFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.18" />
-                  <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.02" />
-                </linearGradient>
-              </defs>
-
-              {[0, 200, 400, 600, 800].map((value) => {
-                const y = geometry.padTop + geometry.innerHeight - (value / 900) * geometry.innerHeight
-
-                return (
-                  <g key={value}>
-                    <line
-                      x1={geometry.padX}
-                      y1={y}
-                      x2={geometry.width - geometry.padX}
-                      y2={y}
-                      stroke="#EEF2F7"
-                      strokeWidth="1"
-                    />
-                    <text x="2" y={y + 3} className="si-chart-label">
-                      {value}
-                    </text>
-                  </g>
-                )
-              })}
-
-              <path d={geometry.area} fill="url(#siAreaFill)" />
-              <polyline
-                points={geometry.line}
-                fill="none"
-                stroke="#4F46E5"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {geometry.points.map((point, index) => (
-                <g key={index}>
-                  <circle cx={point.x} cy={point.y} r="3.2" fill="#FFFFFF" stroke="#4F46E5" strokeWidth="2" />
-                  {chartLabels[index] ? (
-                    <text
-                      x={point.x}
-                      y={geometry.height - 8}
-                      textAnchor="middle"
-                      className="si-chart-label"
+                    <div
+                      className={`si-stat-icon ${item.tone}`}
                     >
-                      {chartLabels[index]}
-                    </text>
-                  ) : null}
-                </g>
-              ))}
-            </svg>
-          </section>
-
-          <section className="si-card si-panel">
-            <div className="si-panel-header">
-              <div>
-                <h3 className="si-panel-title">Search by Type</h3>
-                <div className="si-panel-subtitle">Where search demand is concentrated</div>
-              </div>
-            </div>
-
-            <div className="si-donut-wrap">
-              <div className="si-donut" aria-label="Search type donut chart" />
-
-              <div className="si-legend">
-                {searchTypes.map((item) => (
-                  <div className="si-legend-row" key={item.label}>
-                    <span className="si-dot" style={{ background: item.color }} />
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
+                      <Icon
+                        d={item.icon}
+                        size={17}
+                      />
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
 
-        <section className="si-card si-table-card">
-          <div className="si-tabs">
-            {[
-              ['top', 'Top Search Terms'],
-              ['no-result', 'No Result Searches'],
-              ['trending', 'Trending Up'],
-              ['clicked', 'Most Clicked'],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={`si-tab ${tab === key ? 'active' : ''}`}
-                onClick={() => setTab(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="si-table-wrap">
-            <table className="si-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Search Term Group</th>
-                  <th>Searches</th>
-                  <th>Unique Users</th>
-                  <th>No Results</th>
-                  <th>CTR</th>
-                  <th>Trend</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.term}>
-                    <td className="si-rank">{index + 1}</td>
-                    <td className="si-term">
-                      {row.term}
-                      <div className="si-term-sub">Grouped similar search terms</div>
-                    </td>
-                    <td>{row.searches.toLocaleString()}</td>
-                    <td>{row.users.toLocaleString()}</td>
-                    <td>{row.noResults.toLocaleString()}</td>
-                    <td>{row.ctr.toFixed(1)}%</td>
-                    <td>
-                      <span className={`si-trend-pill ${row.trend >= 0 ? 'up' : 'down'}`}>
-                        <span>{row.trend >= 0 ? '↗' : '↘'}</span>
-                        <span>{Math.abs(row.trend).toFixed(1)}%</span>
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="si-view-btn"
-                        onClick={() => setSelectedTerm(row.term)}
+                  {item.change ? (
+                    <div
+                      className={`si-stat-change ${item.change.direction}`}
+                    >
+                      <span>{item.change.arrow}</span>
+                      <span>{item.change.value}</span>
+                      <span
+                        style={{
+                          color: '#94A3B8',
+                          fontWeight: 750,
+                        }}
                       >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="si-table-footer">
-            <button type="button" className="si-view-all">
-              View All
-            </button>
-          </div>
-        </section>
-
-        <div className="si-bottom-grid">
-          <section className="si-card si-panel">
-            <div className="si-panel-header">
-              <div>
-                <h3 className="si-panel-title">Popular Searches</h3>
-                <div className="si-panel-subtitle">Grouped demand from the selected period</div>
-              </div>
+                        vs previous period
+                      </span>
+                    </div>
+                  ) : (
+                    <div
+                      className="si-stat-change"
+                      style={{ color: '#94A3B8' }}
+                    >
+                      Current period
+                    </div>
+                  )}
+                </section>
+              ))}
             </div>
 
-            <div className="si-cloud">
-              {cloudWords.map(([word, size], index) => (
-                <span
-                  className="si-word"
-                  key={word}
+            <div className="si-chart-grid">
+              <section className="si-card si-panel">
+                <div className="si-panel-header">
+                  <div>
+                    <h3 className="si-panel-title">
+                      Search Trend
+                    </h3>
+                    <div className="si-panel-subtitle">
+                      Reader search activity over time
+                    </div>
+                  </div>
+                </div>
+
+                {trend.length === 0 ? (
+                  <div
+                    style={{
+                      minHeight: 220,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#94A3B8',
+                      fontSize: 12,
+                      fontWeight: 800,
+                    }}
+                  >
+                    No search activity yet.
+                  </div>
+                ) : (
+                  <svg
+                    className="si-trend-chart"
+                    viewBox={`0 0 ${geometry.width} ${geometry.height}`}
+                    role="img"
+                    aria-label="Search trend line chart"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="siAreaFill"
+                        x1="0"
+                        x2="0"
+                        y1="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#4F46E5"
+                          stopOpacity="0.18"
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#4F46E5"
+                          stopOpacity="0.02"
+                        />
+                      </linearGradient>
+                    </defs>
+
+                    {geometry.ticks.map((value) => {
+                      const y =
+                        geometry.padTop +
+                        geometry.innerHeight -
+                        (value / geometry.max) *
+                          geometry.innerHeight
+
+                      return (
+                        <g key={value}>
+                          <line
+                            x1={geometry.padX}
+                            y1={y}
+                            x2={
+                              geometry.width -
+                              geometry.padX
+                            }
+                            y2={y}
+                            stroke="#EEF2F7"
+                            strokeWidth="1"
+                          />
+                          <text
+                            x="2"
+                            y={y + 3}
+                            className="si-chart-label"
+                          >
+                            {value}
+                          </text>
+                        </g>
+                      )
+                    })}
+
+                    <path
+                      d={geometry.area}
+                      fill="url(#siAreaFill)"
+                    />
+
+                    <polyline
+                      points={geometry.line}
+                      fill="none"
+                      stroke="#4F46E5"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+
+                    {geometry.points.map(
+                      (point, index) => {
+                        const showLabel =
+                          index %
+                            chartLabelInterval ===
+                            0 ||
+                          index ===
+                            geometry.points.length -
+                              1
+
+                        return (
+                          <g key={index}>
+                            <circle
+                              cx={point.x}
+                              cy={point.y}
+                              r="3.2"
+                              fill="#FFFFFF"
+                              stroke="#4F46E5"
+                              strokeWidth="2"
+                            />
+
+                            {showLabel ? (
+                              <text
+                                x={point.x}
+                                y={
+                                  geometry.height - 8
+                                }
+                                textAnchor="middle"
+                                className="si-chart-label"
+                              >
+                                {formatChartDate(
+                                  trend[index]?.date
+                                )}
+                              </text>
+                            ) : null}
+                          </g>
+                        )
+                      }
+                    )}
+                  </svg>
+                )}
+              </section>
+
+              <section className="si-card si-panel">
+                <div className="si-panel-header">
+                  <div>
+                    <h3 className="si-panel-title">
+                      Search by Type
+                    </h3>
+                    <div className="si-panel-subtitle">
+                      Which Discover filters readers use
+                    </div>
+                  </div>
+                </div>
+
+                <div className="si-donut-wrap">
+                  <div
+                    className="si-donut"
+                    aria-label="Search type donut chart"
+                    style={{
+                      background:
+                        donutBackground,
+                    }}
+                  />
+
+                  <div className="si-legend">
+                    {searchTypes.length === 0 ? (
+                      <div
+                        style={{
+                          color: '#94A3B8',
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      >
+                        No type data yet.
+                      </div>
+                    ) : (
+                      searchTypes.map((item) => (
+                        <div
+                          className="si-legend-row"
+                          key={item.type}
+                        >
+                          <span
+                            className="si-dot"
+                            style={{
+                              background:
+                                item.color,
+                            }}
+                          />
+                          <span>{item.label}</span>
+                          <strong>{item.value}</strong>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section className="si-card si-table-card">
+              <div className="si-tabs">
+                {[
+                  ['top', 'Top Search Terms'],
+                  [
+                    'no-result',
+                    'No Result Searches',
+                  ],
+                  ['trending', 'Trending Up'],
+                  ['clicked', 'Most Clicked'],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`si-tab ${
+                      tab === key ? 'active' : ''
+                    }`}
+                    onClick={() => setTab(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="si-table-wrap">
+                <table className="si-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Search Term Group</th>
+                      <th>Searches</th>
+                      <th>Unique Users</th>
+                      <th>No Results</th>
+                      <th>CTR</th>
+                      <th>Trend</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="8"
+                          style={{
+                            textAlign: 'center',
+                            color: '#94A3B8',
+                            padding: 28,
+                          }}
+                        >
+                          No search data yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.map((row, index) => (
+                        <tr key={row.id || row.term}>
+                          <td className="si-rank">
+                            {index + 1}
+                          </td>
+                          <td className="si-term">
+                            {row.term}
+                            <div className="si-term-sub">
+                              Grouped similar search
+                              terms
+                            </div>
+                          </td>
+                          <td>
+                            {formatNumber(
+                              row.searches
+                            )}
+                          </td>
+                          <td>
+                            {formatNumber(row.users)}
+                          </td>
+                          <td>
+                            {formatNumber(
+                              row.noResults
+                            )}
+                          </td>
+                          <td>
+                            {formatPercent(row.ctr)}
+                          </td>
+                          <td>
+                            <span
+                              className={`si-trend-pill ${
+                                row.trend >= 0
+                                  ? 'up'
+                                  : 'down'
+                              }`}
+                            >
+                              <span>
+                                {row.trend >= 0
+                                  ? '↗'
+                                  : '↘'}
+                              </span>
+                              <span>
+                                {formatPercent(
+                                  Math.abs(
+                                    row.trend
+                                  )
+                                )}
+                              </span>
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="si-view-btn"
+                              onClick={() =>
+                                setSelectedTerm(
+                                  row.term
+                                )
+                              }
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="si-table-footer">
+                <div
                   style={{
-                    fontSize: `${size}px`,
-                    opacity: 0.58 + (index % 5) * 0.09,
+                    color: '#94A3B8',
+                    fontSize: 11,
+                    fontWeight: 800,
                   }}
                 >
-                  {word}
-                </span>
-              ))}
+                  Showing {rows.length} search groups
+                </div>
+              </div>
+            </section>
+
+            <div className="si-bottom-grid">
+              <section className="si-card si-panel">
+                <div className="si-panel-header">
+                  <div>
+                    <h3 className="si-panel-title">
+                      Popular Searches
+                    </h3>
+                    <div className="si-panel-subtitle">
+                      Grouped demand from the
+                      selected period
+                    </div>
+                  </div>
+                </div>
+
+                <div className="si-cloud">
+                  {cloudWords.length === 0 ? (
+                    <span
+                      style={{
+                        color: '#94A3B8',
+                        fontSize: 12,
+                        fontWeight: 800,
+                      }}
+                    >
+                      No popular searches yet.
+                    </span>
+                  ) : (
+                    cloudWords.map(
+                      ([word, size], index) => (
+                        <span
+                          className="si-word"
+                          key={`${word}-${index}`}
+                          style={{
+                            fontSize: `${size}px`,
+                            opacity:
+                              0.58 +
+                              (index % 5) * 0.09,
+                          }}
+                        >
+                          {word}
+                        </span>
+                      )
+                    )
+                  )}
+                </div>
+              </section>
+
+              <section className="si-card si-panel">
+                <div className="si-panel-header">
+                  <div>
+                    <h3 className="si-panel-title">
+                      Insights
+                    </h3>
+                    <div className="si-panel-subtitle">
+                      Quick signals from reader
+                      demand
+                    </div>
+                  </div>
+                </div>
+
+                <div className="si-insight-list">
+                  {insights.map(
+                    (insight, index) => (
+                      <div
+                        className="si-insight"
+                        key={`${index}-${insight}`}
+                      >
+                        <div className="si-insight-icon">
+                          <Icon
+                            d={
+                              index === 0
+                                ? 'M12 2v20 M5 9l7-7 7 7'
+                                : index === 1
+                                  ? 'M3 17l6-6 4 4 8-9'
+                                  : 'M6 3l12 8-5 2 3 6-2 1-3-6-5 4z'
+                            }
+                            size={15}
+                          />
+                        </div>
+                        <div className="si-insight-text">
+                          {insight}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {selectedTerm ? (
+                  <div className="si-selected">
+                    Selected group: {selectedTerm}
+                  </div>
+                ) : null}
+              </section>
             </div>
-          </section>
-
-          <section className="si-card si-panel">
-            <div className="si-panel-header">
-              <div>
-                <h3 className="si-panel-title">Insights</h3>
-                <div className="si-panel-subtitle">Quick signals from reader demand</div>
-              </div>
-            </div>
-
-            <div className="si-insight-list">
-              <div className="si-insight">
-                <div className="si-insight-icon">
-                  <Icon d="M12 2v20 M5 9l7-7 7 7" size={15} />
-                </div>
-                <div className="si-insight-text">
-                  Zombie has the highest number of searches that return no useful result.
-                </div>
-              </div>
-
-              <div className="si-insight">
-                <div className="si-insight-icon">
-                  <Icon d="M3 17l6-6 4 4 8-9" size={15} />
-                </div>
-                <div className="si-insight-text">
-                  Isekai search demand increased by 32.1% compared with the previous period.
-                </div>
-              </div>
-
-              <div className="si-insight">
-                <div className="si-insight-icon">
-                  <Icon d="M6 3l12 8-5 2 3 6-2 1-3-6-5 4z" size={15} />
-                </div>
-                <div className="si-insight-text">
-                  Fantasy and BL searches currently have the strongest click-through rates.
-                </div>
-              </div>
-            </div>
-
-            {selectedTerm ? (
-              <div className="si-selected">
-                Selected group: {selectedTerm}
-              </div>
-            ) : null}
-          </section>
-        </div>
+          </>
+        )}
       </div>
     </AdminLayout>
   )
