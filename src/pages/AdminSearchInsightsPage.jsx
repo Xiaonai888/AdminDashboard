@@ -1271,6 +1271,14 @@ const mergeSuggestions = Array.isArray(data?.merge_suggestions)
   })
 }
 
+  async function splitSearchAlias(groupId, alias) {
+  if (!window.confirm('Split this alias for future searches?')) return
+  await runGroupAction(`/api/admin/search-insights/groups/${groupId}/split`, {
+    method: 'POST',
+    body: JSON.stringify({ normalized_alias: alias }),
+  })
+}
+
   const summary = data?.summary || {}
   const trend = Array.isArray(data?.trend)
     ? data.trend
