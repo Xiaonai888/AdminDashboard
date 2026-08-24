@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminSearchInsightsLivePanels from '../components/AdminSearchInsightsLivePanels'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -1118,12 +1119,26 @@ export default function AdminSearchInsightsPage() {
     return () => controller.abort()
   }, [range, refreshKey])
 
-  function openGroupManager(row) {
-    setSelectedGroup(row)
-    setRenameValue(row.canonicalTerm || row.term || '')
-    setMergeTargetId('')
-    setActionMessage('')
-  }
+  function openGroupManager(row, targetGroupId = '') {
+  setSelectedGroup(row)
+  setRenameValue(row.canonicalTerm || row.term || '')
+  setMergeTargetId(targetGroupId ? String(targetGroupId) : '')
+  setActionMessage('')
+}
+
+  function reviewMergeSuggestion(item) {
+  const source = searchRows.find(
+    (row) => Number(row.id) === Number(item.source_group_id)
+  )
+  if (source) openGroupManager(source, item.target_group_id)
+}
+
+  const recentActivity = Array.isArray(data?.recent_activity)
+  ? data.recent_activity
+  : []
+const mergeSuggestions = Array.isArray(data?.merge_suggestions)
+  ? data.merge_suggestions
+  : []
 
   function closeGroupManager() {
     if (actionLoading) return
@@ -1838,6 +1853,12 @@ export default function AdminSearchInsightsPage() {
                 </div>
               </div>
             </section>
+
+            <AdminSearchInsightsLivePanels
+  recentActivity={recentActivity}
+  mergeSuggestions={mergeSuggestions}
+  onReviewSuggestion={reviewMergeSuggestion}
+/>
 
             <div className="si-bottom-grid">
               <section className="si-card si-panel">
