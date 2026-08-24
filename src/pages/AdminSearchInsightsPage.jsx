@@ -468,6 +468,209 @@ const styles = `
     font-weight: 850;
   }
 
+  .si-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(15, 23, 42, 0.46);
+    backdrop-filter: blur(4px);
+  }
+
+  .si-modal {
+    width: min(660px, 100%);
+    max-height: min(86vh, 780px);
+    overflow-y: auto;
+    background: #FFFFFF;
+    border: 1px solid var(--si-border);
+    border-radius: 20px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  }
+
+  .si-modal-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    background: rgba(255, 255, 255, 0.97);
+    border-bottom: 1px solid var(--si-border);
+    backdrop-filter: blur(12px);
+  }
+
+  .si-modal-title {
+    margin: 0;
+    color: var(--si-text);
+    font-size: 17px;
+    font-weight: 950;
+  }
+
+  .si-modal-subtitle {
+    margin-top: 4px;
+    color: var(--si-muted);
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .si-modal-close {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border: 1px solid var(--si-border);
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #64748B;
+    font: inherit;
+    font-size: 18px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .si-modal-body {
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .si-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .si-detail-card {
+    min-width: 0;
+    border: 1px solid var(--si-border);
+    border-radius: 13px;
+    background: #F8FAFC;
+    padding: 12px;
+  }
+
+  .si-detail-label {
+    color: var(--si-muted);
+    font-size: 9px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  .si-detail-value {
+    margin-top: 5px;
+    color: var(--si-text);
+    font-size: 16px;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+  }
+
+  .si-manage-section {
+    border: 1px solid var(--si-border);
+    border-radius: 15px;
+    padding: 14px;
+  }
+
+  .si-manage-title {
+    color: var(--si-text);
+    font-size: 12px;
+    font-weight: 950;
+    margin-bottom: 10px;
+  }
+
+  .si-alias-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .si-alias-pill {
+    border: 1px solid #E0E7FF;
+    border-radius: 999px;
+    background: #F8FAFF;
+    color: #4338CA;
+    padding: 6px 9px;
+    font-size: 10px;
+    font-weight: 850;
+  }
+
+  .si-manage-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: center;
+  }
+
+  .si-manage-input,
+  .si-manage-select {
+    width: 100%;
+    min-width: 0;
+    height: 39px;
+    border: 1px solid var(--si-border);
+    border-radius: 11px;
+    background: #FFFFFF;
+    color: var(--si-text);
+    padding: 0 11px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    outline: none;
+  }
+
+  .si-manage-input:focus,
+  .si-manage-select:focus {
+    border-color: var(--si-primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+  }
+
+  .si-action-btn {
+    min-height: 39px;
+    border: 0;
+    border-radius: 11px;
+    padding: 0 13px;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 950;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .si-action-btn.primary {
+    background: var(--si-primary);
+    color: #FFFFFF;
+  }
+
+  .si-action-btn.secondary {
+    border: 1px solid #C7D2FE;
+    background: var(--si-primary-light);
+    color: var(--si-primary);
+  }
+
+  .si-action-btn.danger {
+    border: 1px solid #FECACA;
+    background: #FEF2F2;
+    color: #B91C1C;
+  }
+
+  .si-action-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+  }
+
+  .si-action-message {
+    border: 1px solid #FDE68A;
+    border-radius: 11px;
+    background: #FFFBEB;
+    color: #92400E;
+    padding: 9px 10px;
+    font-size: 10px;
+    font-weight: 850;
+    line-height: 1.5;
+  }
+
   @media (max-width: 1100px) {
     .si-stats {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -531,6 +734,29 @@ const styles = `
 
     .si-tab {
       min-height: 46px;
+    }
+
+    .si-modal-backdrop {
+      align-items: flex-end;
+      padding: 0;
+    }
+
+    .si-modal {
+      width: 100%;
+      max-height: 92vh;
+      border-radius: 20px 20px 0 0;
+    }
+
+    .si-detail-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .si-manage-row {
+      grid-template-columns: 1fr;
+    }
+
+    .si-action-btn {
+      width: 100%;
     }
   }
 `
@@ -827,7 +1053,12 @@ function buildInsights(groups) {
 export default function AdminSearchInsightsPage() {
   const [range, setRange] = useState('30')
   const [tab, setTab] = useState('top')
-  const [selectedTerm, setSelectedTerm] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [mergeTargetId, setMergeTargetId] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionMessage, setActionMessage] = useState('')
+  const [refreshKey, setRefreshKey] = useState(0)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -885,7 +1116,133 @@ export default function AdminSearchInsightsPage() {
     loadInsights()
 
     return () => controller.abort()
-  }, [range])
+  }, [range, refreshKey])
+
+  function openGroupManager(row) {
+    setSelectedGroup(row)
+    setRenameValue(row.canonicalTerm || row.term || '')
+    setMergeTargetId('')
+    setActionMessage('')
+  }
+
+  function closeGroupManager() {
+    if (actionLoading) return
+
+    setSelectedGroup(null)
+    setRenameValue('')
+    setMergeTargetId('')
+    setActionMessage('')
+  }
+
+  async function runGroupAction(path, options = {}) {
+    try {
+      setActionLoading(true)
+      setActionMessage('')
+
+      const token = getAdminToken()
+      const response = await fetch(
+        `${API_URL}${path}`,
+        {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token
+              ? { Authorization: `Bearer ${token}` }
+              : {}),
+            ...(options.headers || {}),
+          },
+        }
+      )
+
+      const result = await response
+        .json()
+        .catch(() => ({}))
+
+      if (!response.ok || result.ok === false) {
+        throw new Error(
+          result.message || 'Search group action failed'
+        )
+      }
+
+      setSelectedGroup(null)
+      setRenameValue('')
+      setMergeTargetId('')
+      setRefreshKey((value) => value + 1)
+    } catch (error) {
+      setActionMessage(
+        error?.message || 'Search group action failed'
+      )
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  async function renameSelectedGroup() {
+    const groupId = Number(selectedGroup?.id)
+    const canonicalTerm = renameValue.trim()
+
+    if (!groupId || !canonicalTerm) {
+      setActionMessage('Enter a valid group name.')
+      return
+    }
+
+    await runGroupAction(
+      `/api/admin/search-insights/groups/${groupId}/rename`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          canonical_term: canonicalTerm,
+        }),
+      }
+    )
+  }
+
+  async function mergeSelectedGroup() {
+    const sourceGroupId = Number(selectedGroup?.id)
+    const targetGroupId = Number(mergeTargetId)
+
+    if (!sourceGroupId || !targetGroupId) {
+      setActionMessage('Choose a target group first.')
+      return
+    }
+
+    if (sourceGroupId === targetGroupId) {
+      setActionMessage('Source and target cannot be the same group.')
+      return
+    }
+
+    if (!window.confirm('Merge this group into the selected target?')) {
+      return
+    }
+
+    await runGroupAction(
+      `/api/admin/search-insights/groups/${sourceGroupId}/merge`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          target_group_id: targetGroupId,
+        }),
+      }
+    )
+  }
+
+  async function ignoreSelectedGroup() {
+    const groupId = Number(selectedGroup?.id)
+
+    if (!groupId) return
+
+    if (!window.confirm('Ignore this search group and hide it from analytics?')) {
+      return
+    }
+
+    await runGroupAction(
+      `/api/admin/search-insights/groups/${groupId}/ignore`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ ignored: true }),
+      }
+    )
+  }
 
   const summary = data?.summary || {}
   const trend = Array.isArray(data?.trend)
@@ -924,7 +1281,11 @@ export default function AdminSearchInsightsPage() {
     () =>
       groups.map((group) => ({
         id: group.id,
+        canonicalTerm: String(group.term || ''),
         term: getGroupLabel(group),
+        aliases: Array.isArray(group.aliases)
+          ? group.aliases
+          : [],
         searches: Number(group.searches || 0),
         users: Number(group.unique_searchers || 0),
         noResults: Number(
@@ -1452,12 +1813,10 @@ export default function AdminSearchInsightsPage() {
                               type="button"
                               className="si-view-btn"
                               onClick={() =>
-                                setSelectedTerm(
-                                  row.term
-                                )
+                                openGroupManager(row)
                               }
                             >
-                              View
+                              Manage
                             </button>
                           </td>
                         </tr>
@@ -1566,15 +1925,170 @@ export default function AdminSearchInsightsPage() {
                   )}
                 </div>
 
-                {selectedTerm ? (
-                  <div className="si-selected">
-                    Selected group: {selectedTerm}
-                  </div>
-                ) : null}
               </section>
             </div>
           </>
         )}
+        {selectedGroup ? (
+          <div
+            className="si-modal-backdrop"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) {
+                closeGroupManager()
+              }
+            }}
+          >
+            <section className="si-modal">
+              <div className="si-modal-head">
+                <div>
+                  <h2 className="si-modal-title">
+                    Manage Search Group
+                  </h2>
+                  <div className="si-modal-subtitle">
+                    {selectedGroup.term}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="si-modal-close"
+                  onClick={closeGroupManager}
+                  disabled={actionLoading}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="si-modal-body">
+                <div className="si-detail-grid">
+                  <div className="si-detail-card">
+                    <div className="si-detail-label">Searches</div>
+                    <div className="si-detail-value">
+                      {formatNumber(selectedGroup.searches)}
+                    </div>
+                  </div>
+                  <div className="si-detail-card">
+                    <div className="si-detail-label">Unique Users</div>
+                    <div className="si-detail-value">
+                      {formatNumber(selectedGroup.users)}
+                    </div>
+                  </div>
+                  <div className="si-detail-card">
+                    <div className="si-detail-label">No Results</div>
+                    <div className="si-detail-value">
+                      {formatNumber(selectedGroup.noResults)}
+                    </div>
+                  </div>
+                  <div className="si-detail-card">
+                    <div className="si-detail-label">CTR</div>
+                    <div className="si-detail-value">
+                      {formatPercent(selectedGroup.ctr)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="si-manage-section">
+                  <div className="si-manage-title">Aliases in this group</div>
+                  <div className="si-alias-list">
+                    {selectedGroup.aliases.length > 0 ? (
+                      selectedGroup.aliases.map((alias) => (
+                        <span
+                          className="si-alias-pill"
+                          key={alias.normalized_term || alias.term}
+                        >
+                          {alias.term}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="si-alias-pill">
+                        {selectedGroup.canonicalTerm}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="si-manage-section">
+                  <div className="si-manage-title">Rename group</div>
+                  <div className="si-manage-row">
+                    <input
+                      className="si-manage-input"
+                      value={renameValue}
+                      onChange={(event) =>
+                        setRenameValue(event.target.value)
+                      }
+                      maxLength={120}
+                      placeholder="Canonical group name"
+                    />
+                    <button
+                      type="button"
+                      className="si-action-btn primary"
+                      onClick={renameSelectedGroup}
+                      disabled={actionLoading}
+                    >
+                      Save Name
+                    </button>
+                  </div>
+                </div>
+
+                <div className="si-manage-section">
+                  <div className="si-manage-title">Merge duplicate group</div>
+                  <div className="si-manage-row">
+                    <select
+                      className="si-manage-select"
+                      value={mergeTargetId}
+                      onChange={(event) =>
+                        setMergeTargetId(event.target.value)
+                      }
+                    >
+                      <option value="">Choose target group</option>
+                      {searchRows
+                        .filter(
+                          (item) =>
+                            Number(item.id) !==
+                            Number(selectedGroup.id)
+                        )
+                        .map((item) => (
+                          <option
+                            value={item.id}
+                            key={item.id}
+                          >
+                            {item.term}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="si-action-btn secondary"
+                      onClick={mergeSelectedGroup}
+                      disabled={actionLoading || !mergeTargetId}
+                    >
+                      Merge
+                    </button>
+                  </div>
+                </div>
+
+                <div className="si-manage-section">
+                  <div className="si-manage-title">Spam / unwanted search</div>
+                  <button
+                    type="button"
+                    className="si-action-btn danger"
+                    onClick={ignoreSelectedGroup}
+                    disabled={actionLoading}
+                  >
+                    Ignore This Group
+                  </button>
+                </div>
+
+                {actionMessage ? (
+                  <div className="si-action-message">
+                    {actionMessage}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          </div>
+        ) : null}
       </div>
     </AdminLayout>
   )
