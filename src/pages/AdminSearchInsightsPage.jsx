@@ -1456,6 +1456,11 @@ const mergeSuggestions = Array.isArray(data?.merge_suggestions)
             <option value="90">Last 90 days</option>
           </select>
         </div>
+        {actionMessage && !selectedGroup ? (
+  <section className="si-card si-action-message" style={{ marginBottom: 18 }}>
+    {actionMessage}
+  </section>
+) : null}
 
         {message ? (
           <section
