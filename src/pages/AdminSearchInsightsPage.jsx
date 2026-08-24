@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminSearchInsightsLivePanels from '../components/AdminSearchInsightsLivePanels'
+import AdminSearchInsightsMaintenance from '../components/AdminSearchInsightsMaintenance'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -1140,6 +1141,10 @@ const mergeSuggestions = Array.isArray(data?.merge_suggestions)
   ? data.merge_suggestions
   : []
 
+  const ignoredGroups = Array.isArray(data?.ignored_groups)
+  ? data.ignored_groups
+  : []
+
   function closeGroupManager() {
     if (actionLoading) return
 
@@ -1258,6 +1263,13 @@ const mergeSuggestions = Array.isArray(data?.merge_suggestions)
       }
     )
   }
+
+  async function restoreIgnoredGroup(groupId) {
+  await runGroupAction(`/api/admin/search-insights/groups/${groupId}/ignore`, {
+    method: 'PATCH',
+    body: JSON.stringify({ ignored: false }),
+  })
+}
 
   const summary = data?.summary || {}
   const trend = Array.isArray(data?.trend)
@@ -1858,6 +1870,14 @@ const mergeSuggestions = Array.isArray(data?.merge_suggestions)
   recentActivity={recentActivity}
   mergeSuggestions={mergeSuggestions}
   onReviewSuggestion={reviewMergeSuggestion}
+/>
+
+            <AdminSearchInsightsMaintenance
+  groups={searchRows}
+  ignoredGroups={ignoredGroups}
+  actionLoading={actionLoading}
+  onSplitAlias={splitSearchAlias}
+  onRestoreGroup={restoreIgnoredGroup}
 />
 
             <div className="si-bottom-grid">
