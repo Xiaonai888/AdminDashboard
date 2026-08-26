@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminSidebar from '../components/AdminSidebar'
+import TaskCenterReadingModePanel from '../components/TaskCenterReadingModePanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const USE_LEGACY_SIDEBAR = false
@@ -859,6 +860,12 @@ export default function AdminTaskCenterPage() {
 
       <div className="panel-body">
         {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
+
+        <TaskCenterReadingModePanel
+  settings={settings}
+  readingMissions={readingMissions}
+  onChanged={loadSettings}
+/>
 
         <div className="task-list">
           {readingMissions.length === 0 ? (
