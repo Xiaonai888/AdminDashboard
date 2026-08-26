@@ -212,12 +212,13 @@ export default function PaymentControlPage() {
   const filteredPayments = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     return payments.filter((item) => {
+      const matchesStatus = status === 'all' || normalizeStatus(item.status) === status
       const matchesSearch = !keyword || searchText(item).includes(keyword)
       const amount = Number(item.package_usd || item.amount_usd || 0)
       const matchesAmount = amountFilter === 'all' || Number(amountFilter) === amount
-      return matchesSearch && matchesAmount
+      return matchesStatus && matchesSearch && matchesAmount
     })
-  }, [payments, search, amountFilter])
+  }, [payments, status, search, amountFilter])
 
   const pageCount = Math.max(1, Math.ceil(filteredPayments.length / PAGE_SIZE))
   const paginatedPayments = filteredPayments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -230,7 +231,7 @@ export default function PaymentControlPage() {
     return { waiting, review, success, totalUsd }
   }, [payments])
 
-  async function loadPayments(nextStatus = status, silent = false) {
+  async function loadPayments() {
     const token = getAdminToken()
     if (!token) {
       navigate('/login')
@@ -238,19 +239,43 @@ export default function PaymentControlPage() {
     }
 
     try {
-      if (!silent) setLoading(true)
+      setLoading(true)
       setMessage('')
-      const query = nextStatus === 'all' ? '?status=all&limit=200' : `?status=${encodeURIComponent(nextStatus)}&limit=200`
-      const response = await fetch(`${API_URL}/api/admin/purchases/manual${query}`, { headers: getHeaders() })
+      const response = await fetch(`${API_URL}/api/admin/purchases/manual?status=all&limit=200`, { headers: getHeaders() })
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load payments.')
       setPayments(data.payments || data.purchases || [])
     } catch (error) {
-      if (!silent) setPayments([])
+      setPayments([])
       setMessage(error.message || 'Failed to load payments.')
     } finally {
-      if (!silent) setLoading(false)
+      setLoading(false)
     }
+  }
+
+  function mergePaymentChange(action, incomingPayment) {
+    if (!incomingPayment?.id) return
+
+    setPayments((current) => {
+      if (action === 'delete') {
+        return current.filter((item) => item.id !== incomingPayment.id)
+      }
+
+      const index = current.findIndex((item) => item.id === incomingPayment.id)
+
+      if (index === -1) {
+        if (action !== 'insert') return current
+        return [incomingPayment, ...current].slice(0, 200)
+      }
+
+      const next = [...current]
+      next[index] = {
+        ...current[index],
+        ...incomingPayment,
+        user: incomingPayment.user || current[index].user || null,
+      }
+      return next
+    })
   }
 
   async function reviewPayment(payment, action) {
@@ -270,7 +295,7 @@ export default function PaymentControlPage() {
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) throw new Error(data.message || `Failed to ${action} payment.`)
-      await loadPayments(status, true)
+      if (data.payment) mergePaymentChange('update', data.payment)
     } catch (error) {
       setMessage(error.message || `Failed to ${action} payment.`)
     } finally {
@@ -279,25 +304,17 @@ export default function PaymentControlPage() {
   }
 
   useEffect(() => {
-    loadPayments(status)
+    loadPayments()
   }, [])
 
   useEffect(() => {
     const controller = new AbortController()
     let retryTimer = null
-    let refreshTimer = null
     let stopped = false
 
     const waitForRetry = () => new Promise((resolve) => {
       retryTimer = window.setTimeout(resolve, 5000)
     })
-
-    const scheduleRefresh = () => {
-      if (refreshTimer) window.clearTimeout(refreshTimer)
-      refreshTimer = window.setTimeout(() => {
-        loadPayments(status, true)
-      }, 300)
-    }
 
     async function connectPaymentStream() {
       while (!stopped) {
@@ -334,15 +351,24 @@ export default function PaymentControlPage() {
             buffer = events.pop() || ''
 
             for (const eventBlock of events) {
-              const eventName = eventBlock
-                .split('\n')
+              const lines = eventBlock.split('\n')
+              const eventName = lines
                 .find((line) => line.startsWith('event:'))
                 ?.slice(6)
                 .trim()
 
-              if (eventName === 'payment-change') {
-                scheduleRefresh()
-              }
+              if (eventName !== 'payment-change') continue
+
+              const dataLine = lines.find((line) => line.startsWith('data:'))
+              if (!dataLine) continue
+
+              try {
+                const eventData = JSON.parse(dataLine.slice(5).trim())
+                mergePaymentChange(
+                  String(eventData.action || 'update').toLowerCase(),
+                  eventData.payment || null
+                )
+              } catch {}
             }
           }
         } catch {
@@ -361,9 +387,8 @@ export default function PaymentControlPage() {
       stopped = true
       controller.abort()
       if (retryTimer) window.clearTimeout(retryTimer)
-      if (refreshTimer) window.clearTimeout(refreshTimer)
     }
-  }, [status])
+  }, [])
 
   useEffect(() => {
     setPage(1)
@@ -386,7 +411,7 @@ export default function PaymentControlPage() {
 
           <div className="pay-tabs">
             {tabs.map((item) => (
-              <button key={item.key} type="button" className={`pay-tab ${status === item.key ? 'active' : ''}`} onClick={() => { setStatus(item.key); loadPayments(item.key) }}>{item.label}</button>
+              <button key={item.key} type="button" className={`pay-tab ${status === item.key ? 'active' : ''}`} onClick={() => setStatus(item.key)}>{item.label}</button>
             ))}
           </div>
 
