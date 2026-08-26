@@ -1917,7 +1917,6 @@ export default function AdminReportCenterPage() {
             <div>
               <h1>Report Center</h1>
               <p>
-                Review reports for stories, comments, author pages, and author posts.
                 Review reports for stories, comments, author pages, author posts, and reader posts.
                 Open a report to add an admin note and update its review status.
               </p>
