@@ -556,15 +556,15 @@ export default function AdminTaskCenterPage() {
               >
                 Cover Image
               </button>
-            </div>
 
-            <button
-  type="button"
-  className={`task-tab ${activeTab === 'activity' ? 'active' : ''}`}
-  onClick={() => setActiveTab('activity')}
->
-  Reader Activity
-</button>
+              <button
+                type="button"
+                className={`task-tab ${activeTab === 'activity' ? 'active' : ''}`}
+                onClick={() => setActiveTab('activity')}
+              >
+                Reader Activity
+              </button>
+            </div>
 
             <div className={activeTab === 'cover' ? 'shell' : 'shell task-shell-full'}>
               <div>
@@ -958,6 +958,8 @@ export default function AdminTaskCenterPage() {
     </>
   )}
 </div>
+
+                {activeTab === 'activity' ? <TaskCenterReaderActivityPanel /> : null}
               </div>
 
               <aside className="preview-panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
