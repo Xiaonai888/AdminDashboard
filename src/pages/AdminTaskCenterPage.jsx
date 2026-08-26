@@ -17,7 +17,7 @@ const styles = `
   .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.btn-primary,.btn-secondary,.btn-danger{border:none;border-radius:14px;padding:14px 16px;font-weight:900;cursor:pointer;font-family:inherit}.btn-primary{background:var(--primary);color:#fff;box-shadow:0 12px 24px rgba(79,70,229,.22)}.btn-primary:disabled,.btn-secondary:disabled,.btn-danger:disabled{opacity:.65;cursor:not-allowed}.btn-secondary{background:#F1F5F9;color:#334155;border:1px solid var(--border)}.btn-danger{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
   .message{margin-bottom:14px;padding:12px 14px;border-radius:14px;font-size:13px;font-weight:900;line-height:1.45}.message.success{background:#D1FAE5;color:#047857}.message.error{background:#FEE2E2;color:#B91C1C}.message.info{background:#EEF2FF;color:#4F46E5}.note-box{margin-top:14px;padding:12px 14px;border-radius:14px;background:#F8FAFC;border:1px solid var(--border);color:var(--muted);font-size:12px;line-height:1.55}
   .task-list{display:grid;gap:14px}.task-card{display:block;border:1px solid var(--border);background:#fff;border-radius:18px;padding:16px}.task-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.task-left{display:flex;align-items:center;gap:13px;min-width:0}.task-icon{width:42px;height:42px;border-radius:50%;background:#F8FAFC;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:#0F172A;flex-shrink:0}.task-title{font-size:14px;font-weight:900}.task-sub{font-size:12px;color:var(--muted);margin-top:3px}.task-reward{margin-top:7px;font-size:12px;font-weight:900;color:#D97706}.status-pill{border-radius:999px;background:#F1F5F9;color:#64748B;font-size:11px;font-weight:900;padding:7px 10px;white-space:nowrap}.status-pill.active{background:#D1FAE5;color:#047857}.status-pill.inactive{background:#F1F5F9;color:#64748B}.preview-panel{position:sticky;top:92px}.mini-cover{aspect-ratio:16/9;border-radius:18px;overflow:hidden;background:#EEF2FF;border:1px solid var(--border)}.mini-cover img{width:100%;height:100%;object-fit:cover}.mini-empty{height:100%;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:12px;font-weight:900;text-align:center;padding:18px}
-  .task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-field{display:flex;flex-direction:column;gap:6px}.task-field.full{grid-column:1/-1}.task-field label{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#64748B}.task-field input,.task-field textarea{width:100%;border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:12px 13px;font:inherit;font-size:13px;font-weight:800;color:#0F172A;outline:none}.task-field textarea{min-height:76px;resize:vertical}.task-field input:focus,.task-field textarea:focus{border-color:#4F46E5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.08)}.switch-btn{width:62px;height:34px;border:0;border-radius:999px;background:#CBD5E1;padding:4px;cursor:pointer;transition:.2s}.switch-btn.on{background:#10B981}.switch-knob{display:block;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 3px 8px rgba(15,23,42,.22);transition:.2s}.switch-btn.on .switch-knob{transform:translateX(28px)}.task-preview-box{margin-top:14px;border:1px solid #E2E8F0;background:#fff;border-radius:16px;padding:14px}.task-preview-title{font-size:13px;font-weight:900}.task-preview-sub{margin-top:4px;font-size:12px;color:#64748B;font-weight:700}.task-preview-meta{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}.task-preview-pill{border-radius:999px;background:#F1F5F9;color:#334155;font-size:11px;font-weight:900;padding:7px 10px}.task-note{margin-top:12px}
+  .task-card.featured{border-color:#C7D2FE;background:linear-gradient(180deg,#FFFFFF,#F8FAFF);box-shadow:0 12px 30px rgba(79,70,229,.08)}.task-icon.featured{background:#EEF2FF;color:#4F46E5;border-color:#C7D2FE}.task-feature-body{margin-top:16px;border-top:1px solid #EEF2F7;padding-top:16px}.task-section-label{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#94A3B8;margin-bottom:10px}.task-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.task-field{display:flex;flex-direction:column;gap:6px}.task-field.full{grid-column:1/-1}.task-field label{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;color:#64748B}.task-field input,.task-field textarea{width:100%;border:1px solid var(--border);background:#F8FAFC;border-radius:13px;padding:12px 13px;font:inherit;font-size:13px;font-weight:800;color:#0F172A;outline:none}.task-field textarea{min-height:76px;resize:vertical}.task-field input:focus,.task-field textarea:focus{border-color:#4F46E5;background:#fff;box-shadow:0 0 0 4px rgba(79,70,229,.08)}.task-field input:disabled,.task-field textarea:disabled{opacity:.65;cursor:not-allowed;background:#F1F5F9;color:#94A3B8}.switch-btn:disabled{opacity:.55;cursor:not-allowed}.switch-btn{width:62px;height:34px;border:0;border-radius:999px;background:#CBD5E1;padding:4px;cursor:pointer;transition:.2s}.switch-btn.on{background:#10B981}.switch-knob{display:block;width:26px;height:26px;border-radius:999px;background:#fff;box-shadow:0 3px 8px rgba(15,23,42,.22);transition:.2s}.switch-btn.on .switch-knob{transform:translateX(28px)}.task-preview-box{margin-top:14px;border:1px solid #E2E8F0;background:#fff;border-radius:16px;padding:14px}.task-preview-title{font-size:13px;font-weight:900}.task-preview-sub{margin-top:4px;font-size:12px;color:#64748B;font-weight:700}.task-preview-meta{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}.task-preview-pill{border-radius:999px;background:#F1F5F9;color:#334155;font-size:11px;font-weight:900;padding:7px 10px}.task-note{margin-top:12px}
   .task-tabs{display:flex;gap:10px;margin-bottom:18px}.task-tab{border:1px solid var(--border);background:#fff;color:#64748B;border-radius:999px;padding:11px 18px;font-family:inherit;font-size:13px;font-weight:900;cursor:pointer}.task-tab.active{border-color:#4F46E5;background:#EEF2FF;color:#4F46E5;box-shadow:0 10px 22px rgba(79,70,229,.10)}.task-shell-full{grid-template-columns:minmax(0,1fr)}.mission-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
   @media(max-width:1100px){
     .shell{grid-template-columns:1fr}
@@ -718,6 +718,7 @@ export default function AdminTaskCenterPage() {
                 type="button"
                 className={`switch-btn ${selectedMission.is_active ? 'on' : ''}`}
                 onClick={() => updateReadingMission(selectedMission.id, 'is_active', !selectedMission.is_active)}
+                disabled={isAutoMode}
                 aria-label="Toggle reading mission"
               >
                 <span className="switch-knob" />
@@ -733,6 +734,7 @@ export default function AdminTaskCenterPage() {
               <input
                 value={selectedMission.title}
                 onChange={(event) => updateReadingMission(selectedMission.id, 'title', event.target.value)}
+                disabled={isAutoMode}
                 placeholder="Read 2 minutes"
               />
             </div>
@@ -765,6 +767,7 @@ export default function AdminTaskCenterPage() {
                 <input
                   value={selectedMission.button_text}
                   onChange={(event) => updateReadingMission(selectedMission.id, 'button_text', event.target.value)}
+                  disabled={isAutoMode}
                   placeholder="Go"
                 />
               </div>
@@ -774,6 +777,7 @@ export default function AdminTaskCenterPage() {
                 <input
                   value={selectedMission.story_link}
                   onChange={(event) => updateReadingMission(selectedMission.id, 'story_link', event.target.value)}
+                  disabled={isAutoMode}
                   placeholder="/story/story-id"
                 />
               </div>
@@ -783,6 +787,7 @@ export default function AdminTaskCenterPage() {
                 <textarea
                   value={selectedMission.subtitle}
                   onChange={(event) => updateReadingMission(selectedMission.id, 'subtitle', event.target.value)}
+                  disabled={isAutoMode}
                   placeholder="Keep reading longer to earn more coins."
                 />
               </div>
@@ -814,7 +819,7 @@ export default function AdminTaskCenterPage() {
                 type="button"
                 className="btn-danger"
                 onClick={() => deleteReadingMission(selectedMission)}
-                disabled={missionSavingId === selectedMission.id}
+                disabled={isAutoMode || missionSavingId === selectedMission.id}
               >
                 Delete Mission
               </button>
@@ -929,7 +934,7 @@ export default function AdminTaskCenterPage() {
                         event.stopPropagation()
                         deleteReadingMission(mission)
                       }}
-                      disabled={savingThis}
+                      disabled={isAutoMode || savingThis}
                       style={{ padding: '8px 12px', borderRadius: 999 }}
                     >
                       Delete
