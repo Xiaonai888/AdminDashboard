@@ -282,7 +282,88 @@ export default function PaymentControlPage() {
     loadPayments(status)
   }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    let retryTimer = null
+    let refreshTimer = null
+    let stopped = false
 
+    const waitForRetry = () => new Promise((resolve) => {
+      retryTimer = window.setTimeout(resolve, 5000)
+    })
+
+    const scheduleRefresh = () => {
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        loadPayments(status, true)
+      }, 300)
+    }
+
+    async function connectPaymentStream() {
+      while (!stopped) {
+        try {
+          const token = getAdminToken()
+          if (!token) return
+
+          const response = await fetch(
+            `${API_URL}/api/admin/purchases/manual/stream`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'text/event-stream',
+              },
+              signal: controller.signal,
+              cache: 'no-store',
+            }
+          )
+
+          if (!response.ok || !response.body) {
+            throw new Error('Payment live stream unavailable')
+          }
+
+          const reader = response.body.getReader()
+          const decoder = new TextDecoder()
+          let buffer = ''
+
+          while (!stopped) {
+            const { value, done } = await reader.read()
+            if (done) break
+
+            buffer += decoder.decode(value, { stream: true })
+            const events = buffer.split('\n\n')
+            buffer = events.pop() || ''
+
+            for (const eventBlock of events) {
+              const eventName = eventBlock
+                .split('\n')
+                .find((line) => line.startsWith('event:'))
+                ?.slice(6)
+                .trim()
+
+              if (eventName === 'payment-change') {
+                scheduleRefresh()
+              }
+            }
+          }
+        } catch {
+          if (controller.signal.aborted || stopped) return
+        }
+
+        if (!stopped) {
+          await waitForRetry()
+        }
+      }
+    }
+
+    connectPaymentStream()
+
+    return () => {
+      stopped = true
+      controller.abort()
+      if (retryTimer) window.clearTimeout(retryTimer)
+      if (refreshTimer) window.clearTimeout(refreshTimer)
+    }
+  }, [status])
 
   useEffect(() => {
     setPage(1)
