@@ -7,9 +7,9 @@ const styles = `
   .reading-mode-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
   .reading-mode-title{font-size:14px;font-weight:900;color:#0F172A}
   .reading-mode-sub{margin-top:4px;font-size:12px;line-height:1.5;color:#64748B}
-  .reading-mode-toggle{display:flex;gap:10px;padding:4px;border:0;border-radius:14px;background:transparent;flex-shrink:0;min-width:420px}
-  .reading-mode-option{flex:1;min-width:190px;border:0;border-radius:12px;background:#DC2626;color:#FFFFFF;padding:12px 24px;font:inherit;font-size:13px;font-weight:900;cursor:pointer;transition:.18s;box-shadow:0 5px 14px rgba(220,38,38,.24)}
-  .reading-mode-option.active{background:#991B1B;color:#FFFFFF;box-shadow:0 6px 18px rgba(153,27,27,.32);outline:3px solid #FCA5A5}
+  .reading-mode-toggle{display:flex;gap:6px;padding:4px;border:1px solid #E2E8F0;border-radius:999px;background:#F1F5F9;flex-shrink:0}
+  .reading-mode-option{border:0;border-radius:999px;background:transparent;color:#64748B;padding:9px 14px;font:inherit;font-size:12px;font-weight:900;cursor:pointer;transition:.18s}
+  .reading-mode-option.active{background:#fff;color:#4F46E5;box-shadow:0 4px 14px rgba(15,23,42,.10)}
   .reading-mode-option:disabled{opacity:.55;cursor:not-allowed}
   .reading-mode-info{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
   .reading-mode-pill{border-radius:999px;background:#EEF2FF;color:#4F46E5;padding:7px 10px;font-size:11px;font-weight:900}
@@ -27,7 +27,7 @@ const styles = `
   .auto-story-link{margin-top:5px;font-size:11px;color:#64748B;overflow-wrap:anywhere}
   .auto-story-meta{margin-top:9px;display:flex;gap:7px;flex-wrap:wrap}
   .auto-story-meta span{border-radius:999px;background:#F1F5F9;color:#334155;padding:6px 8px;font-size:10.5px;font-weight:900}
-  @media(max-width:760px){.reading-mode-top{flex-direction:column}.reading-mode-toggle{width:100%;min-width:0}.reading-mode-option{flex:1;min-width:0}.auto-story-grid{grid-template-columns:1fr}}
+  @media(max-width:760px){.reading-mode-top{flex-direction:column}.reading-mode-toggle{width:100%}.reading-mode-option{flex:1}.auto-story-grid{grid-template-columns:1fr}}
 `
 
 function getAdminToken() {
@@ -129,7 +129,7 @@ export default function TaskCenterReadingModePanel({ settings = {}, readingMissi
               onClick={() => changeMode('manual')}
               disabled={Boolean(savingMode)}
             >
-              {savingMode === 'manual' ? 'Saving...' : 'MANUAL TEST'}
+              {savingMode === 'manual' ? 'Saving...' : 'Manual'}
             </button>
 
             <button
@@ -138,7 +138,7 @@ export default function TaskCenterReadingModePanel({ settings = {}, readingMissi
               onClick={() => changeMode('auto')}
               disabled={Boolean(savingMode) || !canEnableAuto}
             >
-              {savingMode === 'auto' ? 'Saving...' : 'AUTO TEST'}
+              {savingMode === 'auto' ? 'Saving...' : 'Auto'}
             </button>
           </div>
         </div>
