@@ -282,13 +282,7 @@ export default function PaymentControlPage() {
     loadPayments(status)
   }, [])
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      loadPayments(status, true)
-    }, 15000)
 
-    return () => window.clearInterval(timer)
-  }, [status])
 
   useEffect(() => {
     setPage(1)
@@ -306,7 +300,7 @@ export default function PaymentControlPage() {
               <h1>Payment Control</h1>
               <p>Use this as backup approval when the bot is slow. Confirm only after checking the ABA PayWay alert.</p>
             </div>
-            <div className="pay-live">Live auto update</div>
+            <div className="pay-live">Payment update</div>
           </div>
 
           <div className="pay-tabs">
