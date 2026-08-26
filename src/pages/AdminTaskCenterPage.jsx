@@ -259,6 +259,7 @@ export default function AdminTaskCenterPage() {
   const [readingMissionView, setReadingMissionView] = useState('home')
 
   const coverUrl = previewUrl || settings.cover_url || ''
+  const isAutoMode = settings?.reading_mission_mode === 'auto'
 
   function syncReadingMissions(list = []) {
     const safeList = Array.isArray(list) ? list : []
@@ -275,6 +276,7 @@ export default function AdminTaskCenterPage() {
   }
 
   function updateReadingMission(missionId, field, value) {
+    if (isAutoMode && !['reward_coins', 'target_minutes'].includes(field)) return
     setReadingMissions((current) =>
       current.map((mission) =>
         mission.id === missionId
