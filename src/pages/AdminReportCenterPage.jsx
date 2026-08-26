@@ -15,6 +15,7 @@ const TYPE_FILTERS = [
   { value: 'comment', label: 'Comments' },
   { value: 'author_page', label: 'Author Pages' },
   { value: 'author_post', label: 'Author Posts' },
+  { value: 'reader_post', label: 'Reader Posts' },
 ]
 
 const STATUS_FILTERS = [
@@ -37,6 +38,7 @@ const TYPE_ICONS = {
   comment: 'M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z',
   author_page: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
   author_post: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M8 13h8 M8 17h6',
+  reader_post: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
 }
 
 function getAdminToken() {
@@ -1415,6 +1417,7 @@ export default function AdminReportCenterPage() {
       comment: 0,
       author_page: 0,
       author_post: 0,
+      reader_post: 0,
     },
   })
   const [reports, setReports] = useState([])
@@ -1915,6 +1918,7 @@ export default function AdminReportCenterPage() {
               <h1>Report Center</h1>
               <p>
                 Review reports for stories, comments, author pages, and author posts.
+                Review reports for stories, comments, author pages, author posts, and reader posts.
                 Open a report to add an admin note and update its review status.
               </p>
             </div>
