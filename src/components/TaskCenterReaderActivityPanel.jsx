@@ -167,6 +167,7 @@ export default function TaskCenterReaderActivityPanel() {
           filter,
           page: String(page),
           limit: String(PAGE_LIMIT),
+          refresh: reloadKey > 0 ? '1' : '0',
         })
 
         const response = await fetch(
