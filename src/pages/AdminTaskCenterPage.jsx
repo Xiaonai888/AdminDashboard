@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminSidebar from '../components/AdminSidebar'
 import TaskCenterReadingModePanel from '../components/TaskCenterReadingModePanel'
+import TaskCenterReaderActivityPanel from '../components/TaskCenterReaderActivityPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const USE_LEGACY_SIDEBAR = false
@@ -557,7 +558,15 @@ export default function AdminTaskCenterPage() {
               </button>
             </div>
 
-            <div className={activeTab === 'reading' ? 'shell task-shell-full' : 'shell'}>
+            <button
+  type="button"
+  className={`task-tab ${activeTab === 'activity' ? 'active' : ''}`}
+  onClick={() => setActiveTab('activity')}
+>
+  Reader Activity
+</button>
+
+            <div className={activeTab === 'cover' ? 'shell' : 'shell task-shell-full'}>
               <div>
                 <div className="panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
                   <div className="panel-header">
