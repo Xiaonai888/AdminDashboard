@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
+const DEFAULT_FORMULA = 'score = views*1 + likes*5 + comments*10 + followers*20 + stories*3'
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -37,6 +38,9 @@ export default function AdminAuthorRankPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cached, setCached] = useState(false)
+  const [enabled, setEnabled] = useState(true)
+  const [formula, setFormula] = useState(DEFAULT_FORMULA)
+  const [minimumActivity, setMinimumActivity] = useState({ stories: 1, followers: 0 })
   const [refreshKey, setRefreshKey] = useState(0)
   const [hideAuthor, setHideAuthor] = useState(null)
   const [hideReason, setHideReason] = useState('')
@@ -82,6 +86,12 @@ export default function AdminAuthorRankPanel() {
 
         setAuthors(data.authors || data.rankings || [])
         setCached(Boolean(data.cached))
+        setEnabled(data.enabled !== false)
+        setFormula(data.formula || DEFAULT_FORMULA)
+        setMinimumActivity({
+          stories: Number(data.minimum_activity?.stories ?? 1),
+          followers: Number(data.minimum_activity?.followers ?? 0),
+        })
         setPagination({
           page: data.page || 1,
           total: data.total || 0,
@@ -199,7 +209,9 @@ export default function AdminAuthorRankPanel() {
 
       <div style={{ padding: '10px 18px', borderBottom: '1px solid #E2E8F0' }}>
         <div className="ranking-muted">
-          All-time real data · 15 min cache · {cached ? 'Cached data' : 'Fresh data'} · Score = Views + Likes × 5 + Comments × 10 + Followers × 20 + Stories × 3
+          {enabled
+            ? `All-time real data · 15 min cache · ${cached ? 'Cached data' : 'Fresh data'} · ${formula} · Min: ${formatNumber(minimumActivity.stories)} stories / ${formatNumber(minimumActivity.followers)} followers`
+            : 'Author Rank is disabled in Ranking Settings.'}
         </div>
       </div>
 
@@ -282,8 +294,12 @@ export default function AdminAuthorRankPanel() {
         ) : !authors.length && !error ? (
           <div className="ranking-empty">
             <div className="ranking-empty-icon">🏆</div>
-            <div className="ranking-empty-title">No Author Rank data</div>
-            <div className="ranking-empty-text">No active visible authors with published ranking stories were found.</div>
+            <div className="ranking-empty-title">{enabled ? 'No Author Rank data' : 'Author Rank is disabled'}</div>
+            <div className="ranking-empty-text">
+              {enabled
+                ? 'No active visible authors matched the current ranking settings.'
+                : 'Enable Author Rank from Ranking Settings to show results.'}
+            </div>
           </div>
         ) : null}
       </div>
