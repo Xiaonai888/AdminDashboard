@@ -279,9 +279,13 @@ export default function AdminEventPage() {
     const title = String(form.title || '').trim()
     const endsAt = readDate(form.ends_at)
 
-    if (!title) {
-      throw new Error('Event title is required')
-    }
+   if (!title) {
+  throw new Error('Event title is required')
+}
+
+if (!form.image_url) {
+  throw new Error('Event image is required')
+}
 
     if (!endsAt) {
       throw new Error('End date and time are required')
