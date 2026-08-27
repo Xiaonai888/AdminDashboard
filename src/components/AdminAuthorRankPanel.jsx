@@ -38,6 +38,10 @@ export default function AdminAuthorRankPanel() {
   const [error, setError] = useState('')
   const [cached, setCached] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [hideAuthor, setHideAuthor] = useState(null)
+  const [hideReason, setHideReason] = useState('')
+  const [hideNote, setHideNote] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -108,6 +112,57 @@ export default function AdminAuthorRankPanel() {
     }
   }, [page, debouncedSearch, refreshKey])
 
+  function openHideModal(author) {
+    setHideAuthor(author)
+    setHideReason('')
+    setHideNote('')
+    setError('')
+  }
+
+  function closeHideModal() {
+    if (saving) return
+    setHideAuthor(null)
+    setHideReason('')
+    setHideNote('')
+  }
+
+  async function submitHideAuthor() {
+    if (!hideAuthor?.id || hideReason.trim().length < 5) return
+
+    try {
+      setSaving(true)
+      setError('')
+
+      const response = await fetch(`${API_URL}/api/admin/ranking/authors/${hideAuthor.id}/visibility`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        body: JSON.stringify({
+          ranking_visibility_status: 'hidden',
+          reason: hideReason.trim(),
+          note: hideNote.trim(),
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to hide author from ranking')
+      }
+
+      setHideAuthor(null)
+      setHideReason('')
+      setHideNote('')
+      setRefreshKey((value) => value + 1)
+    } catch (err) {
+      setError(err.message || 'Failed to hide author from ranking')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <>
       {error ? <div className="ranking-alert" style={{ margin: 16 }}>{error}</div> : null}
@@ -149,7 +204,7 @@ export default function AdminAuthorRankPanel() {
       </div>
 
       <div className="ranking-table-wrap">
-        <table className="ranking-table" style={{ minWidth: 1100 }}>
+        <table className="ranking-table" style={{ minWidth: 1160 }}>
           <thead>
             <tr>
               <th>Rank</th>
@@ -210,6 +265,7 @@ export default function AdminAuthorRankPanel() {
                   <div className="ranking-actions">
                     <button type="button" onClick={() => copyText(author.id)}>Copy ID</button>
                     <button type="button" onClick={() => copyText(author.user_id)}>User ID</button>
+                    <button type="button" className="ranking-danger-btn" onClick={() => openHideModal(author)}>Hide</button>
                   </div>
                 </td>
               </tr>
@@ -227,7 +283,7 @@ export default function AdminAuthorRankPanel() {
           <div className="ranking-empty">
             <div className="ranking-empty-icon">🏆</div>
             <div className="ranking-empty-title">No Author Rank data</div>
-            <div className="ranking-empty-text">No active authors with published ranking stories were found.</div>
+            <div className="ranking-empty-text">No active visible authors with published ranking stories were found.</div>
           </div>
         ) : null}
       </div>
@@ -249,6 +305,74 @@ export default function AdminAuthorRankPanel() {
           Next
         </button>
       </div>
+
+      {hideAuthor ? (
+        <div className="ranking-modal-layer" onMouseDown={closeHideModal}>
+          <div className="ranking-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="ranking-modal-top">
+              <div>
+                <div className="ranking-kicker">Ranking Visibility</div>
+                <h3>Hide Author from Ranking</h3>
+              </div>
+              <button type="button" className="ranking-modal-close" onClick={closeHideModal}>×</button>
+            </div>
+
+            <div className="ranking-modal-story">
+              <div
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: 999,
+                  overflow: 'hidden',
+                  background: '#EEF2FF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {hideAuthor.avatar_url
+                  ? <img src={hideAuthor.avatar_url} alt={hideAuthor.page_name || 'Author'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : '👤'}
+              </div>
+              <div>
+                <div className="ranking-title">{hideAuthor.page_name || 'Unknown Author'}</div>
+                <div className="ranking-muted">@{hideAuthor.page_username || 'no_username'}</div>
+              </div>
+            </div>
+
+            <label className="ranking-modal-field">
+              <span>Hidden Reason</span>
+              <textarea
+                value={hideReason}
+                onChange={(event) => setHideReason(event.target.value)}
+                placeholder="Write why this author should be hidden from ranking..."
+              />
+            </label>
+
+            <label className="ranking-modal-field">
+              <span>Admin Note</span>
+              <textarea
+                value={hideNote}
+                onChange={(event) => setHideNote(event.target.value)}
+                placeholder="Optional internal note..."
+              />
+            </label>
+
+            <div className="ranking-modal-actions">
+              <button type="button" className="ranking-btn light" disabled={saving} onClick={closeHideModal}>Cancel</button>
+              <button
+                type="button"
+                className="ranking-danger-btn"
+                disabled={saving || hideReason.trim().length < 5}
+                onClick={submitHideAuthor}
+              >
+                {saving ? 'Saving...' : 'Hide from Ranking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   )
 }
