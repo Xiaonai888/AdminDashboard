@@ -77,23 +77,19 @@ export function filterAdminNavSections(sections) {
   )
 
   return sections
-  .map((section) => {
-    if (section.alwaysVisible) return section
+    .map((section) => {
+      if (section.alwaysVisible) return section
 
-    return {
-      ...section,
-      items: section.items.filter((item) => {
-        const requiredPermission = PATH_PERMISSION[item.path]
-        return Boolean(requiredPermission && permissionKeys.has(requiredPermission))
-      }),
-    }
-  })
-  .filter((section) => section.items.length > 0)
-      ...section,
-      items: section.items.filter((item) => {
-        const requiredPermission = PATH_PERMISSION[item.path]
-        return Boolean(requiredPermission && permissionKeys.has(requiredPermission))
-      }),
-    }))
+      return {
+        ...section,
+        items: section.items.filter((item) => {
+          const requiredPermission = PATH_PERMISSION[item.path]
+          return Boolean(
+            requiredPermission &&
+            permissionKeys.has(requiredPermission)
+          )
+        }),
+      }
+    })
     .filter((section) => section.items.length > 0)
 }
