@@ -1072,11 +1072,19 @@ export default function AdminRankingPage() {
   const [activeTab, setActiveTab] = useState('stories')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [period, setPeriod] = useState('weekly')
+  const [period] = useState('all_time')
   const [metric, setMetric] = useState('score')
   const [status, setStatus] = useState('published')
   const [page, setPage] = useState(1)
   const [stories, setStories] = useState([])
+  const [storyEnabled, setStoryEnabled] = useState(true)
+  const [storyFormula, setStoryFormula] = useState('score = views*1 + likes*5 + comments*10 + episodes*3')
+  const [storyMinimumActivity, setStoryMinimumActivity] = useState({
+    views: 0,
+    likes: 0,
+    comments: 0,
+    episodes: 0,
+  })
   const [hiddenItems, setHiddenItems] = useState([])
   const [pagination, setPagination] = useState({ page: 1, total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [loading, setLoading] = useState(false)
@@ -1137,6 +1145,14 @@ export default function AdminRankingPage() {
         if (!alive) return
 
         setStories(data.stories || [])
+        setStoryEnabled(data.enabled !== false)
+        setStoryFormula(data.formula || 'score = views*1 + likes*5 + comments*10 + episodes*3')
+        setStoryMinimumActivity({
+          views: Number(data.minimum_activity?.views ?? 0),
+          likes: Number(data.minimum_activity?.likes ?? 0),
+          comments: Number(data.minimum_activity?.comments ?? 0),
+          episodes: Number(data.minimum_activity?.episodes ?? 0),
+        })
         setPagination({
           page: data.page || 1,
           total: data.total || 0,
@@ -1317,11 +1333,7 @@ export default function AdminRankingPage() {
         {showToolbar ? (
           <div className="ranking-toolbar">
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, genre, language, or story ID..." />
-            <select value={period} onChange={(event) => setPeriod(event.target.value)}>
-              <option value="daily">Today</option>
-              <option value="weekly">This Week</option>
-              <option value="monthly">This Month</option>
-              <option value="last_month">Last Month</option>
+            <select value="all_time" disabled>
               <option value="all_time">All Time</option>
             </select>
             <select value={metric} onChange={(event) => setMetric(event.target.value)}>
@@ -1367,6 +1379,14 @@ export default function AdminRankingPage() {
   <AdminIncomeRankPanel />
 ) : activeTab === 'stories' ? (
             <>
+              <div style={{ padding: '10px 18px', borderBottom: '1px solid #E2E8F0' }}>
+                <div className="ranking-muted">
+                  {storyEnabled
+                    ? `All-time real data · ${storyFormula} · Min: ${formatNumber(storyMinimumActivity.views)} views / ${formatNumber(storyMinimumActivity.likes)} likes / ${formatNumber(storyMinimumActivity.comments)} comments / ${formatNumber(storyMinimumActivity.episodes)} episodes`
+                    : 'Story Rank is disabled in Ranking Settings.'}
+                </div>
+              </div>
+
               <div className="ranking-table-wrap">
                 <table className="ranking-table">
                   <thead>
@@ -1423,7 +1443,14 @@ export default function AdminRankingPage() {
                   </tbody>
                 </table>
 
-                {loading ? <LoadingState /> : stories.length ? null : <EmptyState title="Story Rank is ready" text={activeConfig.empty} />}
+                {loading ? (
+                  <LoadingState />
+                ) : stories.length ? null : (
+                  <EmptyState
+                    title={storyEnabled ? 'No Story Rank data' : 'Story Rank is disabled'}
+                    text={storyEnabled ? activeConfig.empty : 'Enable Story Rank from Ranking Settings to show results.'}
+                  />
+                )}
               </div>
 
               <div className="ranking-pagination">
