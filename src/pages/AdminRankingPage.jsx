@@ -907,7 +907,42 @@ const tabs = [
     empty: '',
     columns: [],
   },
-
+  {
+    key: 'authors',
+    label: 'Author Rank',
+    subtitle: 'Track top authors by engagement and growth.',
+    empty: 'Author ranking data will connect after Story Rank.',
+    columns: ['Rank', 'Author', 'Author ID', 'Username', 'Stories', 'Followers', 'Views', 'Likes', 'Score', 'Action'],
+  },
+  {
+    key: 'episodes',
+    label: 'Episode Rank',
+    subtitle: 'Monitor top performing episodes.',
+    empty: 'Episode ranking data will connect after Author Rank.',
+    columns: ['Rank', 'Episode', 'Episode ID', 'Story', 'Author', 'Views', 'Likes', 'Comments', 'Score', 'Action'],
+  },
+  {
+    key: 'income',
+    label: 'Income Rank',
+    subtitle: 'Private admin-only author income ranking.',
+    empty: 'Income Rank will connect to your existing Income system later.',
+    columns: ['Rank', 'Author', 'Author ID', 'Username', 'Total Income', 'This Month', 'Pending', 'Paid', 'Status', 'Action'],
+  },
+  {
+    key: 'hidden',
+    label: 'Hidden Rank',
+    subtitle: 'Stories, authors, or episodes hidden from public ranking.',
+    empty: 'No hidden ranking records found.',
+    columns: ['Type', 'Name', 'ID', 'Hidden Reason', 'Hidden By', 'Hidden Date', 'Status', 'Action'],
+  },
+  {
+    key: 'settings',
+    label: 'Settings',
+    subtitle: 'Ranking rules, score formula, and safety settings.',
+    empty: '',
+    columns: [],
+  },
+]
 
 const settingItems = [
   ['Score Formula', 'Views + Likes × 5 + Comments × 10 + Episodes × 3.'],
@@ -1221,7 +1256,8 @@ export default function AdminRankingPage() {
     }
   }
 
-  const hasLiveData = activeTab === 'stories' || activeTab === 'genres' || activeTab === 'hidden'
+  const hasLiveData = activeTab === 'stories' || activeTab === 'hidden'
+  const isGenreData = activeTab === 'genres'
   const showToolbar = activeTab !== 'settings' && activeTab !== 'genres'
 
   return (
@@ -1232,7 +1268,7 @@ export default function AdminRankingPage() {
           <div>
             <div className="ranking-kicker">Admin Control Center</div>
             <h2>Ranking Management</h2>
-            <p>Control story, author, episode, income, hidden, and settings sections from one professional admin page. Public ranking does not show author income.</p>
+            <p>Control story, genre, author, episode, income, hidden, and settings sections from one professional admin page. Public ranking does not show author income.</p>
           </div>
           <div className="ranking-hero-badge">
             {activeTab === 'stories'
@@ -1292,8 +1328,8 @@ export default function AdminRankingPage() {
               <div className="ranking-panel-title">{activeConfig.label}</div>
               <div className="ranking-panel-subtitle">{activeConfig.subtitle}</div>
             </div>
-            <div className={`ranking-pill ${hasLiveData ? 'live' : activeTab === 'income' ? 'private' : ''}`}>
-              {hasLiveData ? `${formatNumber(pagination.total)} records` : activeTab === 'income' ? 'Admin only' : 'Prepared'}
+            <div className={`ranking-pill ${hasLiveData || isGenreData ? 'live' : activeTab === 'income' ? 'private' : ''}`}>
+              {isGenreData ? 'Real data · 15 min cache' : hasLiveData ? `${formatNumber(pagination.total)} records` : activeTab === 'income' ? 'Admin only' : 'Prepared'}
             </div>
           </div>
 
@@ -1306,9 +1342,8 @@ export default function AdminRankingPage() {
                 </div>
               ))}
             </div>
-      ) : activeTab === 'genres' ? (
-  <AdminGenreRankPanel />
-) : activeTab === 'stories' ? (
+          ) : activeTab === 'genres' ? (
+            <AdminGenreRankPanel />
           ) : activeTab === 'stories' ? (
             <>
               <div className="ranking-table-wrap">
