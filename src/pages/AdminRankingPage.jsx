@@ -1121,13 +1121,6 @@ export default function AdminRankingPage() {
           q: debouncedSearch,
         })
 
-        const itemType = modalStory.item_type || modalStory.type || 'story'
-const endpoint = itemType === 'author'
-  ? `authors/${modalStory.id}`
-  : itemType === 'episode'
-    ? `episodes/${modalStory.id}`
-    : `stories/${modalStory.id}`
-
         const response = await fetch(`${API_URL}/api/admin/ranking/stories?${params.toString()}`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -1240,6 +1233,13 @@ const endpoint = itemType === 'author'
       setSaving(true)
       setError('')
       const token = getAdminToken()
+      const itemType = modalStory.item_type || modalStory.type || 'story'
+      const endpoint = itemType === 'author'
+        ? `authors/${modalStory.id}`
+        : itemType === 'episode'
+          ? `episodes/${modalStory.id}`
+          : `stories/${modalStory.id}`
+
       const response = await fetch(`${API_URL}/api/admin/ranking/${endpoint}/visibility`, {
         method: 'PATCH',
         headers: {
