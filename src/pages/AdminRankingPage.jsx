@@ -1020,6 +1020,8 @@ function RankingVisibilityModal({ action, story, loading, onClose, onSubmit }) {
   if (!action || !story) return null
 
   const isHide = action === 'hide'
+  const itemType = story.item_type || story.type || 'story'
+  const itemLabel = itemType.charAt(0).toUpperCase() + itemType.slice(1)
 
   return (
     <div className="ranking-modal-layer" onMouseDown={onClose}>
@@ -1027,7 +1029,7 @@ function RankingVisibilityModal({ action, story, loading, onClose, onSubmit }) {
         <div className="ranking-modal-top">
           <div>
             <div className="ranking-kicker">Ranking Visibility</div>
-            <h3>{isHide ? 'Hide Story from Ranking' : 'Unhide Story from Ranking'}</h3>
+            <h3>{isHide ? `Hide ${itemLabel} from Ranking` : `Unhide ${itemLabel} from Ranking`}</h3>
           </div>
           <button type="button" className="ranking-modal-close" onClick={onClose}>×</button>
         </div>
@@ -1118,6 +1120,13 @@ export default function AdminRankingPage() {
           ranking_visibility: 'visible',
           q: debouncedSearch,
         })
+
+        const itemType = modalStory.item_type || modalStory.type || 'story'
+const endpoint = itemType === 'author'
+  ? `authors/${modalStory.id}`
+  : itemType === 'episode'
+    ? `episodes/${modalStory.id}`
+    : `stories/${modalStory.id}`
 
         const response = await fetch(`${API_URL}/api/admin/ranking/stories?${params.toString()}`, {
           headers: {
@@ -1231,7 +1240,7 @@ export default function AdminRankingPage() {
       setSaving(true)
       setError('')
       const token = getAdminToken()
-      const response = await fetch(`${API_URL}/api/admin/ranking/stories/${modalStory.id}/visibility`, {
+      const response = await fetch(`${API_URL}/api/admin/ranking/${endpoint}/visibility`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1441,15 +1450,21 @@ export default function AdminRankingPage() {
                   <tbody>
                     {!loading && hiddenItems.map((item) => (
                       <tr key={item.id}>
-                        <td>Story</td>
+                        <td style={{ textTransform: 'capitalize' }}>{item.item_type || item.type || 'story'}</td>
                         <td>
                           <div className="ranking-story-cell">
                             <div className="ranking-cover">
-                              {item.cover_url ? <img src={item.cover_url} alt={item.title} /> : '📖'}
+                              {item.cover_url ? <img src={item.cover_url} alt={item.title} /> : item.item_type === 'author' ? '👤' : item.item_type === 'episode' ? '📄' : '📖'}
                             </div>
                             <div>
                               <div className="ranking-title">{item.title || 'Untitled Story'}</div>
-                              <div className="ranking-muted">{item.author_page?.page_name || 'Unknown Author'} · @{item.author_page?.page_username || 'no_username'}</div>
+                              <div className="ranking-muted">
+  {item.item_type === 'author'
+    ? `@${item.page_username || 'no_username'}`
+    : item.item_type === 'episode'
+      ? `${item.story_title || 'Untitled Story'} · ${item.author_name || 'Unknown Author'}`
+      : `${item.author_page?.page_name || 'Unknown Author'} · @${item.author_page?.page_username || 'no_username'}`}
+</div>
                             </div>
                           </div>
                         </td>
