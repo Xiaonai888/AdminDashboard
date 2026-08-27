@@ -36,6 +36,7 @@ const PATH_PERMISSION = {
   '/payment': 'payment.view',
   '/income': 'income.view',
   '/withdraw': 'withdraw.view',
+  '/event': 'monthly_vote.view',
   '/ranking': 'ranking.view',
   '/monthly-vote': 'monthly_vote.view',
   '/history': 'history.view',
