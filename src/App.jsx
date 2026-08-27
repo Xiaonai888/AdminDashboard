@@ -167,7 +167,7 @@ export default function App() {
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
         <Route path="/withdraw" element={<ProtectedPage><AdminWithdrawalPage /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><AdminRankingPage /></ProtectedPage>} />
-        <Route path="/event" element={<ProtectedPage><AdminEventPage /></ProtectedPage>} />
+        <Route path="/event" element={<ProtectedPage permission="monthly_vote.view"><AdminEventPage /></ProtectedPage>} />
         <Route path="/monthly-vote" element={<ProtectedPage><AdminMonthlyVotePage /></ProtectedPage>} />
         <Route path="/admin/activity-logs" element={<ProtectedPage><AdminActivityLogsPage /></ProtectedPage>} />
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
