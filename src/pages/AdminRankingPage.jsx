@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminGenreRankPanel from '../components/AdminGenreRankPanel'
+import AdminAuthorRankPanel from '../components/AdminAuthorRankPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -1258,7 +1259,8 @@ export default function AdminRankingPage() {
 
   const hasLiveData = activeTab === 'stories' || activeTab === 'hidden'
   const isGenreData = activeTab === 'genres'
-  const showToolbar = activeTab !== 'settings' && activeTab !== 'genres'
+  const isAuthorData = activeTab === 'authors'
+  const showToolbar = !['settings', 'genres', 'authors'].includes(activeTab)
 
   return (
     <AdminLayout title="Ranking" subtitle="Ranking Control Center for public ranking, private income ranking, and ranking safety.">
@@ -1275,8 +1277,10 @@ export default function AdminRankingPage() {
   ? 'Story Rank · Live Data'
   : activeTab === 'genres'
     ? 'Genre Rank · Real Data'
-    : activeTab === 'hidden'
-      ? 'Hidden Rank · Live Data'
+    : activeTab === 'authors'
+  ? 'Author Rank · Real Data'
+  : activeTab === 'hidden'
+    ? 'Hidden Rank · Live Data'
       : 'Prepared Section'}
           </div>
         </section>
@@ -1328,8 +1332,8 @@ export default function AdminRankingPage() {
               <div className="ranking-panel-title">{activeConfig.label}</div>
               <div className="ranking-panel-subtitle">{activeConfig.subtitle}</div>
             </div>
-            <div className={`ranking-pill ${hasLiveData || isGenreData ? 'live' : activeTab === 'income' ? 'private' : ''}`}>
-              {isGenreData ? 'Real data · 15 min cache' : hasLiveData ? `${formatNumber(pagination.total)} records` : activeTab === 'income' ? 'Admin only' : 'Prepared'}
+            <div className={`ranking-pill ${hasLiveData || isGenreData || isAuthorData ? 'live' : activeTab === 'income' ? 'private' : ''}`}>
+              {isGenreData || isAuthorData ? 'Real data · 15 min cache' : hasLiveData ? `${formatNumber(pagination.total)} records` : activeTab === 'income' ? 'Admin only' : 'Prepared'}
             </div>
           </div>
 
@@ -1344,6 +1348,9 @@ export default function AdminRankingPage() {
             </div>
           ) : activeTab === 'genres' ? (
             <AdminGenreRankPanel />
+      ) : activeTab === 'authors' ? (
+  <AdminAuthorRankPanel />
+) : activeTab === 'stories' ? (
           ) : activeTab === 'stories' ? (
             <>
               <div className="ranking-table-wrap">
