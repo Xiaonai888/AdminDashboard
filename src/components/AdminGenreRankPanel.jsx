@@ -25,6 +25,7 @@ export default function AdminGenreRankPanel() {
   const [genres, setGenres] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [enabled, setEnabled] = useState(true)
   const [meta, setMeta] = useState({ generated_at: null, cached: false, cache_ttl_seconds: 900 })
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -51,6 +52,7 @@ export default function AdminGenreRankPanel() {
         if (!alive) return
 
         setGenres(data.genres || data.rankings || [])
+        setEnabled(data.enabled !== false)
         setMeta({
           generated_at: data.generated_at || null,
           cached: Boolean(data.cached),
@@ -88,9 +90,13 @@ export default function AdminGenreRankPanel() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #E2E8F0', flexWrap: 'wrap' }}>
         <div>
-          <div className="ranking-title">Main Genre popularity by total story views</div>
+          <div className="ranking-title">
+            {enabled ? 'Main Genre popularity by total story views' : 'Genre Rank is disabled'}
+          </div>
           <div className="ranking-muted">
-            Updated {formatDateTime(meta.generated_at)} · Cache {Math.round(meta.cache_ttl_seconds / 60)} min · {meta.cached ? 'Cached data' : 'Fresh data'}
+            {enabled
+              ? `Updated ${formatDateTime(meta.generated_at)} · Cache ${Math.round(meta.cache_ttl_seconds / 60)} min · ${meta.cached ? 'Cached data' : 'Fresh data'}`
+              : 'Enable Genre Rank from Ranking Settings to show results.'}
           </div>
         </div>
         <button type="button" className="ranking-btn" style={{ padding: '0 16px' }} onClick={() => setRefreshKey((value) => value + 1)}>
@@ -134,8 +140,12 @@ export default function AdminGenreRankPanel() {
         {!genres.length && !error ? (
           <div className="ranking-empty">
             <div className="ranking-empty-icon">🏆</div>
-            <div className="ranking-empty-title">No Genre Rank data</div>
-            <div className="ranking-empty-text">No published Main Genre data was found.</div>
+            <div className="ranking-empty-title">{enabled ? 'No Genre Rank data' : 'Genre Rank is disabled'}</div>
+            <div className="ranking-empty-text">
+              {enabled
+                ? 'No published Main Genre data was found.'
+                : 'Enable Genre Rank from Ranking Settings to show results.'}
+            </div>
           </div>
         ) : null}
       </div>
