@@ -4,6 +4,7 @@ import AdminGenreRankPanel from '../components/AdminGenreRankPanel'
 import AdminAuthorRankPanel from '../components/AdminAuthorRankPanel'
 import AdminEpisodeRankPanel from '../components/AdminEpisodeRankPanel'
 import AdminIncomeRankPanel from '../components/AdminIncomeRankPanel'
+import AdminRankingSettingsPanel from '../components/AdminRankingSettingsPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -1355,15 +1356,8 @@ export default function AdminRankingPage() {
           </div>
 
           {activeTab === 'settings' ? (
-            <div className="ranking-settings-grid">
-              {settingItems.map(([title, text]) => (
-                <div key={title} className="ranking-setting-card">
-                  <strong>{title}</strong>
-                  <span>{text}</span>
-                </div>
-              ))}
-            </div>
-          ) : activeTab === 'genres' ? (
+  <AdminRankingSettingsPanel />
+) : activeTab === 'genres' ? (
             <AdminGenreRankPanel />
       ) : activeTab === 'authors' ? (
   <AdminAuthorRankPanel />
