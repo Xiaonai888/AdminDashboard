@@ -12,6 +12,13 @@ function formatNumber(value) {
   return Number(value || 0).toLocaleString()
 }
 
+function formatCacheTtl(seconds) {
+  const value = Number(seconds || 0)
+  if (value >= 3600 && value % 3600 === 0) return `${value / 3600} hr cache`
+  if (value >= 60) return `${Math.round(value / 60)} min cache`
+  return `${Math.max(0, Math.round(value))} sec cache`
+}
+
 function shortId(value) {
   const text = String(value || '')
   if (text.length <= 10) return text
@@ -38,6 +45,7 @@ export default function AdminEpisodeRankPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cached, setCached] = useState(false)
+  const [cacheTtlSeconds, setCacheTtlSeconds] = useState(21600)
   const [enabled, setEnabled] = useState(true)
   const [formula, setFormula] = useState(DEFAULT_FORMULA)
   const [minimumActivity, setMinimumActivity] = useState({ views: 0, likes: 0, comments: 0 })
@@ -86,6 +94,7 @@ export default function AdminEpisodeRankPanel() {
 
         setEpisodes(data.episodes || data.rankings || [])
         setCached(Boolean(data.cached))
+        setCacheTtlSeconds(Number(data.cache_ttl_seconds || 21600))
         setEnabled(data.enabled !== false)
         setFormula(data.formula || DEFAULT_FORMULA)
         setMinimumActivity({
@@ -211,7 +220,7 @@ export default function AdminEpisodeRankPanel() {
       <div style={{ padding: '10px 18px', borderBottom: '1px solid #E2E8F0' }}>
         <div className="ranking-muted">
           {enabled
-            ? `All-time real data · 15 min cache · ${cached ? 'Cached data' : 'Fresh data'} · ${formula} · Min: ${formatNumber(minimumActivity.views)} views / ${formatNumber(minimumActivity.likes)} likes / ${formatNumber(minimumActivity.comments)} comments`
+            ? `All-time real data · ${formatCacheTtl(cacheTtlSeconds)} · ${cached ? 'Cached data' : 'Fresh data'} · ${formula} · Min: ${formatNumber(minimumActivity.views)} views / ${formatNumber(minimumActivity.likes)} likes / ${formatNumber(minimumActivity.comments)} comments`
             : 'Episode Rank is disabled in Ranking Settings.'}
         </div>
       </div>
