@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
+const DEFAULT_FORMULA = 'score = views*1 + likes*5 + comments*10'
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -37,6 +38,9 @@ export default function AdminEpisodeRankPanel() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cached, setCached] = useState(false)
+  const [enabled, setEnabled] = useState(true)
+  const [formula, setFormula] = useState(DEFAULT_FORMULA)
+  const [minimumActivity, setMinimumActivity] = useState({ views: 0, likes: 0, comments: 0 })
   const [refreshKey, setRefreshKey] = useState(0)
   const [hideEpisode, setHideEpisode] = useState(null)
   const [hideReason, setHideReason] = useState('')
@@ -82,6 +86,13 @@ export default function AdminEpisodeRankPanel() {
 
         setEpisodes(data.episodes || data.rankings || [])
         setCached(Boolean(data.cached))
+        setEnabled(data.enabled !== false)
+        setFormula(data.formula || DEFAULT_FORMULA)
+        setMinimumActivity({
+          views: Number(data.minimum_activity?.views ?? 0),
+          likes: Number(data.minimum_activity?.likes ?? 0),
+          comments: Number(data.minimum_activity?.comments ?? 0),
+        })
         setPagination({
           page: data.page || 1,
           total: data.total || 0,
@@ -199,7 +210,9 @@ export default function AdminEpisodeRankPanel() {
 
       <div style={{ padding: '10px 18px', borderBottom: '1px solid #E2E8F0' }}>
         <div className="ranking-muted">
-          All-time real data · 15 min cache · {cached ? 'Cached data' : 'Fresh data'} · Score = Views + Likes × 5 + Comments × 10
+          {enabled
+            ? `All-time real data · 15 min cache · ${cached ? 'Cached data' : 'Fresh data'} · ${formula} · Min: ${formatNumber(minimumActivity.views)} views / ${formatNumber(minimumActivity.likes)} likes / ${formatNumber(minimumActivity.comments)} comments`
+            : 'Episode Rank is disabled in Ranking Settings.'}
         </div>
       </div>
 
@@ -266,8 +279,12 @@ export default function AdminEpisodeRankPanel() {
         ) : !episodes.length && !error ? (
           <div className="ranking-empty">
             <div className="ranking-empty-icon">🏆</div>
-            <div className="ranking-empty-title">No Episode Rank data</div>
-            <div className="ranking-empty-text">No published visible episodes from visible ranking stories were found.</div>
+            <div className="ranking-empty-title">{enabled ? 'No Episode Rank data' : 'Episode Rank is disabled'}</div>
+            <div className="ranking-empty-text">
+              {enabled
+                ? 'No published visible episodes matched the current ranking settings.'
+                : 'Enable Episode Rank from Ranking Settings to show results.'}
+            </div>
           </div>
         ) : null}
       </div>
