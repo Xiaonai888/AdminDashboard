@@ -414,7 +414,7 @@ export default function AdminRankingSettingsPanel() {
       </div>
 
       <div style={{ marginTop: 10, color: '#64748B', fontSize: 11, fontWeight: 750, lineHeight: 1.6 }}>
-        These values are stored in the Ranking Settings table. The ranking engine must read these saved values before score and minimum-activity changes affect live rank calculations.
+        Saved changes are used by the live ranking engine for score, minimum activity, and rank availability.
       </div>
     </div>
   )
