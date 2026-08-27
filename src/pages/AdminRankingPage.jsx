@@ -1350,7 +1350,6 @@ export default function AdminRankingPage() {
             <AdminGenreRankPanel />
       ) : activeTab === 'authors' ? (
   <AdminAuthorRankPanel />
-) : activeTab === 'stories' ? (
           ) : activeTab === 'stories' ? (
             <>
               <div className="ranking-table-wrap">
