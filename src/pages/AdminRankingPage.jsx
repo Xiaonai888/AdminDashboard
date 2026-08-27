@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminGenreRankPanel from '../components/AdminGenreRankPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -895,6 +896,13 @@ const tabs = [
   {
     key: 'stories',
     label: 'Story Rank',
+    {
+  key: 'genres',
+  label: 'Genre Rank',
+  subtitle: 'See which Main Genres readers view the most.',
+  empty: '',
+  columns: [],
+},
     subtitle: 'Public story ranking control and monitoring.',
     empty: 'No story ranking data found. Try changing filters or search.',
     columns: ['Rank', 'Cover', 'Story', 'Story ID', 'Author', 'Genre', 'Views', 'Likes', 'Comments', 'Score', 'Status', 'Action'],
@@ -1248,8 +1256,8 @@ export default function AdminRankingPage() {
     }
   }
 
-  const hasLiveData = activeTab === 'stories' || activeTab === 'hidden'
-  const showToolbar = activeTab !== 'settings'
+  const hasLiveData = activeTab === 'stories' || activeTab === 'genres' || activeTab === 'hidden'
+  const showToolbar = activeTab !== 'settings' && activeTab !== 'genres'
 
   return (
     <AdminLayout title="Ranking" subtitle="Ranking Control Center for public ranking, private income ranking, and ranking safety.">
@@ -1262,7 +1270,13 @@ export default function AdminRankingPage() {
             <p>Control story, author, episode, income, hidden, and settings sections from one professional admin page. Public ranking does not show author income.</p>
           </div>
           <div className="ranking-hero-badge">
-            {activeTab === 'stories' ? 'Story Rank · Live Data' : activeTab === 'hidden' ? 'Hidden Rank · Live Data' : 'Prepared Section'}
+            {activeTab === 'stories'
+  ? 'Story Rank · Live Data'
+  : activeTab === 'genres'
+    ? 'Genre Rank · Real Data'
+    : activeTab === 'hidden'
+      ? 'Hidden Rank · Live Data'
+      : 'Prepared Section'}
           </div>
         </section>
 
@@ -1327,6 +1341,9 @@ export default function AdminRankingPage() {
                 </div>
               ))}
             </div>
+      ) : activeTab === 'genres' ? (
+  <AdminGenreRankPanel />
+) : activeTab === 'stories' ? (
           ) : activeTab === 'stories' ? (
             <>
               <div className="ranking-table-wrap">
