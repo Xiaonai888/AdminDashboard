@@ -38,6 +38,10 @@ export default function AdminEpisodeRankPanel() {
   const [error, setError] = useState('')
   const [cached, setCached] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [hideEpisode, setHideEpisode] = useState(null)
+  const [hideReason, setHideReason] = useState('')
+  const [hideNote, setHideNote] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -108,6 +112,57 @@ export default function AdminEpisodeRankPanel() {
     }
   }, [page, debouncedSearch, refreshKey])
 
+  function openHideModal(episode) {
+    setHideEpisode(episode)
+    setHideReason('')
+    setHideNote('')
+    setError('')
+  }
+
+  function closeHideModal() {
+    if (saving) return
+    setHideEpisode(null)
+    setHideReason('')
+    setHideNote('')
+  }
+
+  async function submitHideEpisode() {
+    if (!hideEpisode?.id || hideReason.trim().length < 5) return
+
+    try {
+      setSaving(true)
+      setError('')
+
+      const response = await fetch(`${API_URL}/api/admin/ranking/episodes/${hideEpisode.id}/visibility`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+        body: JSON.stringify({
+          ranking_visibility_status: 'hidden',
+          reason: hideReason.trim(),
+          note: hideNote.trim(),
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to hide episode from ranking')
+      }
+
+      setHideEpisode(null)
+      setHideReason('')
+      setHideNote('')
+      setRefreshKey((value) => value + 1)
+    } catch (err) {
+      setError(err.message || 'Failed to hide episode from ranking')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <>
       {error ? <div className="ranking-alert" style={{ margin: 16 }}>{error}</div> : null}
@@ -149,7 +204,7 @@ export default function AdminEpisodeRankPanel() {
       </div>
 
       <div className="ranking-table-wrap">
-        <table className="ranking-table" style={{ minWidth: 1120 }}>
+        <table className="ranking-table" style={{ minWidth: 1180 }}>
           <thead>
             <tr>
               <th>Rank</th>
@@ -194,6 +249,7 @@ export default function AdminEpisodeRankPanel() {
                     <button type="button" onClick={() => copyText(episode.id)}>Copy ID</button>
                     <button type="button" onClick={() => copyText(episode.story_id)}>Story ID</button>
                     <button type="button" onClick={() => copyText(episode.author_id)}>Author ID</button>
+                    <button type="button" className="ranking-danger-btn" onClick={() => openHideModal(episode)}>Hide</button>
                   </div>
                 </td>
               </tr>
@@ -211,7 +267,7 @@ export default function AdminEpisodeRankPanel() {
           <div className="ranking-empty">
             <div className="ranking-empty-icon">🏆</div>
             <div className="ranking-empty-title">No Episode Rank data</div>
-            <div className="ranking-empty-text">No published episodes from visible ranking stories were found.</div>
+            <div className="ranking-empty-text">No published visible episodes from visible ranking stories were found.</div>
           </div>
         ) : null}
       </div>
@@ -233,6 +289,58 @@ export default function AdminEpisodeRankPanel() {
           Next
         </button>
       </div>
+
+      {hideEpisode ? (
+        <div className="ranking-modal-layer" onMouseDown={closeHideModal}>
+          <div className="ranking-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="ranking-modal-top">
+              <div>
+                <div className="ranking-kicker">Ranking Visibility</div>
+                <h3>Hide Episode from Ranking</h3>
+              </div>
+              <button type="button" className="ranking-modal-close" onClick={closeHideModal}>×</button>
+            </div>
+
+            <div className="ranking-modal-story">
+              <div className="ranking-cover">{hideEpisode.cover_url ? <img src={hideEpisode.cover_url} alt={hideEpisode.title || 'Episode'} /> : '📖'}</div>
+              <div>
+                <div className="ranking-title">{hideEpisode.title || 'Untitled Episode'}</div>
+                <div className="ranking-muted">{hideEpisode.story_title || 'Untitled Story'} · Episode {formatNumber(hideEpisode.episode_number)}</div>
+              </div>
+            </div>
+
+            <label className="ranking-modal-field">
+              <span>Hidden Reason</span>
+              <textarea
+                value={hideReason}
+                onChange={(event) => setHideReason(event.target.value)}
+                placeholder="Write why this episode should be hidden from ranking..."
+              />
+            </label>
+
+            <label className="ranking-modal-field">
+              <span>Admin Note</span>
+              <textarea
+                value={hideNote}
+                onChange={(event) => setHideNote(event.target.value)}
+                placeholder="Optional internal note..."
+              />
+            </label>
+
+            <div className="ranking-modal-actions">
+              <button type="button" className="ranking-btn light" disabled={saving} onClick={closeHideModal}>Cancel</button>
+              <button
+                type="button"
+                className="ranking-danger-btn"
+                disabled={saving || hideReason.trim().length < 5}
+                onClick={submitHideEpisode}
+              >
+                {saving ? 'Saving...' : 'Hide from Ranking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   )
 }
