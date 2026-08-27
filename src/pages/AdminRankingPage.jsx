@@ -896,53 +896,18 @@ const tabs = [
   {
     key: 'stories',
     label: 'Story Rank',
-    {
-  key: 'genres',
-  label: 'Genre Rank',
-  subtitle: 'See which Main Genres readers view the most.',
-  empty: '',
-  columns: [],
-},
     subtitle: 'Public story ranking control and monitoring.',
     empty: 'No story ranking data found. Try changing filters or search.',
     columns: ['Rank', 'Cover', 'Story', 'Story ID', 'Author', 'Genre', 'Views', 'Likes', 'Comments', 'Score', 'Status', 'Action'],
   },
   {
-    key: 'authors',
-    label: 'Author Rank',
-    subtitle: 'Track top authors by engagement and growth.',
-    empty: 'Author ranking data will connect after Story Rank.',
-    columns: ['Rank', 'Author', 'Author ID', 'Username', 'Stories', 'Followers', 'Views', 'Likes', 'Score', 'Action'],
-  },
-  {
-    key: 'episodes',
-    label: 'Episode Rank',
-    subtitle: 'Monitor top performing episodes.',
-    empty: 'Episode ranking data will connect after Author Rank.',
-    columns: ['Rank', 'Episode', 'Episode ID', 'Story', 'Author', 'Views', 'Likes', 'Comments', 'Score', 'Action'],
-  },
-  {
-    key: 'income',
-    label: 'Income Rank',
-    subtitle: 'Private admin-only author income ranking.',
-    empty: 'Income Rank will connect to your existing Income system later.',
-    columns: ['Rank', 'Author', 'Author ID', 'Username', 'Total Income', 'This Month', 'Pending', 'Paid', 'Status', 'Action'],
-  },
-  {
-    key: 'hidden',
-    label: 'Hidden Rank',
-    subtitle: 'Stories, authors, or episodes hidden from public ranking.',
-    empty: 'No hidden ranking records found.',
-    columns: ['Type', 'Name', 'ID', 'Hidden Reason', 'Hidden By', 'Hidden Date', 'Status', 'Action'],
-  },
-  {
-    key: 'settings',
-    label: 'Settings',
-    subtitle: 'Ranking rules, score formula, and safety settings.',
+    key: 'genres',
+    label: 'Genre Rank',
+    subtitle: 'See which Main Genres readers view the most.',
     empty: '',
     columns: [],
   },
-]
+
 
 const settingItems = [
   ['Score Formula', 'Views + Likes × 5 + Comments × 10 + Episodes × 3.'],
