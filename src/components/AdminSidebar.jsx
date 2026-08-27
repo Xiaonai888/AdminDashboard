@@ -200,8 +200,9 @@ const navSections = [
   },
 
   {
-    label: 'Event',
-    items: [
+  label: 'Event',
+  alwaysVisible: true,
+  items: [
       { path: '/event', label: 'Event', icon: 'M3 5h18v16H3z M7 3v4 M17 3v4 M3 9h18' },
       { path: '/monthly-vote', label: 'Monthly', icon: 'M12 21s-7-4.35-7-10a4 4 0 0 1 7-2.65A4 4 0 0 1 19 11c0 5.65-7 10-7 10z' },
       { path: '/ranking', label: 'Ranking', icon: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6 M18 9h1.5a2.5 2.5 0 0 0 0-5H18 M18 2H6v7a6 6 0 0 0 12 0V2z' },
