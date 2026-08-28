@@ -5,6 +5,7 @@ import AdminAuthorRankPanel from '../components/AdminAuthorRankPanel'
 import AdminEpisodeRankPanel from '../components/AdminEpisodeRankPanel'
 import AdminIncomeRankPanel from '../components/AdminIncomeRankPanel'
 import AdminRankingSettingsPanel from '../components/AdminRankingSettingsPanel'
+import AdminSectionRankPanel from '../components/AdminSectionRankPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
