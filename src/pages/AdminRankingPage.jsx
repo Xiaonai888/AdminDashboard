@@ -906,6 +906,13 @@ const tabs = [
     columns: ['Rank', 'Cover', 'Story', 'Story ID', 'Author', 'Genre', 'Views', 'Likes', 'Comments', 'Score', 'Status', 'Action'],
   },
   {
+    key: 'sections',
+    label: 'Section Rank',
+    subtitle: 'Track qualified Story-section clicks and reads for today.',
+    empty: '',
+    columns: [],
+  },
+  {
     key: 'genres',
     label: 'Genre Rank',
     subtitle: 'See which Main Genres readers view the most.',
@@ -1287,11 +1294,12 @@ export default function AdminRankingPage() {
   }
 
   const hasLiveData = activeTab === 'stories' || activeTab === 'hidden'
+  const isSectionData = activeTab === 'sections'
   const isGenreData = activeTab === 'genres'
   const isAuthorData = activeTab === 'authors'
   const isEpisodeData = activeTab === 'episodes'
   const isIncomeData = activeTab === 'income'
-  const showToolbar = !['settings', 'genres', 'authors', 'episodes', 'income'].includes(activeTab)
+  const showToolbar = !['settings', 'sections', 'genres', 'authors', 'episodes', 'income'].includes(activeTab)
 
   return (
     <AdminLayout title="Ranking" subtitle="Ranking Control Center for public ranking, private income ranking, and ranking safety.">
@@ -1306,6 +1314,8 @@ export default function AdminRankingPage() {
           <div className="ranking-hero-badge">
             {activeTab === 'stories'
   ? 'Story Rank · Live Data'
+  : activeTab === 'sections'
+    ? 'Section Rank · Today'
   : activeTab === 'genres'
     ? 'Genre Rank · Real Data'
     : activeTab === 'authors'
@@ -1363,13 +1373,15 @@ export default function AdminRankingPage() {
               <div className="ranking-panel-title">{activeConfig.label}</div>
               <div className="ranking-panel-subtitle">{activeConfig.subtitle}</div>
             </div>
-            <div className={`ranking-pill ${isIncomeData ? 'private' : hasLiveData || isGenreData || isAuthorData || isEpisodeData ? 'live' : ''}`}>
-  {isIncomeData ? 'Private data · 15 min cache' : isGenreData || isAuthorData || isEpisodeData ? 'Real data · 15 min cache' : hasLiveData ? `${formatNumber(pagination.total)} records` : 'Prepared'}
+            <div className={`ranking-pill ${isIncomeData ? 'private' : hasLiveData || isSectionData || isGenreData || isAuthorData || isEpisodeData ? 'live' : ''}`}>
+  {isIncomeData ? 'Private data · 15 min cache' : isSectionData ? 'Today · Qualified traffic' : isGenreData || isAuthorData || isEpisodeData ? 'Real data · 15 min cache' : hasLiveData ? `${formatNumber(pagination.total)} records` : 'Prepared'}
             </div>
           </div>
 
           {activeTab === 'settings' ? (
   <AdminRankingSettingsPanel />
+) : activeTab === 'sections' ? (
+  <AdminSectionRankPanel apiUrl={API_URL} token={getAdminToken()} />
 ) : activeTab === 'genres' ? (
             <AdminGenreRankPanel />
       ) : activeTab === 'authors' ? (
