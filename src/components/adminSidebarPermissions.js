@@ -2,6 +2,7 @@ const PATH_PERMISSION = {
   '/admin': 'dashboard.view',
   '/task-center': 'task_center.view',
   '/search-insights': 'task_center.view',
+  '/music': 'task_center.view',
 
   '/shadow-mall': 'mall_products.view',
   '/shadow-mall/orders': 'mall_orders.view',
