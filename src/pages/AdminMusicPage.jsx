@@ -1,10 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
-const initialArtists = [
-  { id: 1, name: 'Skye Hart', albums: 2, singles: 8, songs: 31 },
-  { id: 2, name: 'Becki Alexander', albums: 1, singles: 12, songs: 28 },
-]
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 const styles = `
   .admin-music-page {
@@ -69,6 +66,13 @@ const styles = `
     border-color: var(--am-primary-hover);
   }
 
+  .am-primary-btn:disabled,
+  .am-secondary-btn:disabled,
+  .am-manage-btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+  }
+
   .am-secondary-btn,
   .am-manage-btn {
     border: 1px solid var(--am-border);
@@ -96,7 +100,8 @@ const styles = `
     font-weight: 850;
   }
 
-  .am-input {
+  .am-input,
+  .am-select {
     width: 100%;
     min-height: 42px;
     border: 1px solid var(--am-border);
@@ -115,7 +120,8 @@ const styles = `
     color: var(--am-soft);
   }
 
-  .am-input:focus {
+  .am-input:focus,
+  .am-select:focus {
     border-color: var(--am-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
   }
@@ -130,7 +136,9 @@ const styles = `
     background: var(--am-card);
   }
 
-  .am-create-card {
+  .am-create-card,
+  .am-song-card,
+  .am-release-card {
     padding: 16px;
     margin-bottom: 20px;
   }
@@ -150,6 +158,13 @@ const styles = `
 
   .am-form-space {
     margin-top: 14px;
+  }
+
+  .am-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
   }
 
   .am-form-actions {
@@ -212,6 +227,13 @@ const styles = `
     background: linear-gradient(145deg, #4B5563, #17191B);
     color: #FFFFFF;
     flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .am-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .am-artist-name {
@@ -284,6 +306,53 @@ const styles = `
     font-weight: 950;
   }
 
+  .am-release-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .am-release-row {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #DBEAFE;
+    border-radius: 12px;
+    background: #FFFFFF;
+    padding: 8px;
+  }
+
+  .am-release-cover {
+    width: 42px;
+    height: 42px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #334155, #0F172A);
+    color: #FFFFFF;
+    overflow: hidden;
+  }
+
+  .am-release-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .am-release-title {
+    font-size: 11px;
+    font-weight: 950;
+  }
+
+  .am-release-meta {
+    margin-top: 3px;
+    color: var(--am-muted);
+    font-size: 9px;
+    font-weight: 700;
+  }
+
   .am-song-card {
     padding: 16px;
   }
@@ -343,13 +412,22 @@ const styles = `
 
   .am-notice {
     margin-top: 12px;
+    border-radius: 11px;
+    padding: 10px 12px;
+    background: #F8FAFC;
     color: var(--am-muted);
     font-size: 10px;
     font-weight: 700;
     line-height: 1.5;
   }
 
-  .am-empty {
+  .am-notice.error {
+    background: #FEF2F2;
+    color: #B91C1C;
+  }
+
+  .am-empty,
+  .am-loading {
     border: 1px dashed var(--am-border);
     border-radius: 14px;
     padding: 22px;
@@ -376,7 +454,8 @@ const styles = `
     }
 
     .am-create-card,
-    .am-song-card {
+    .am-song-card,
+    .am-release-card {
       padding: 13px;
     }
 
@@ -395,22 +474,37 @@ const styles = `
       font-size: 10px;
       padding: 0 11px;
     }
-  }
 
-  @media (max-width: 390px) {
-    .am-toolbar {
-      align-items: stretch;
-    }
-
-    .am-intro-text {
-      max-width: 210px;
-    }
-
-    .am-mini-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+    .am-form-grid {
+      grid-template-columns: 1fr;
     }
   }
 `
+
+function getAdminToken() {
+  return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
+}
+
+async function musicRequest(path, options = {}) {
+  const token = getAdminToken()
+  if (!token) throw new Error('Admin login required')
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) {
+    throw new Error(data.message || 'Music request failed')
+  }
+
+  return data
+}
 
 function MusicIcon({ size = 23 }) {
   return (
@@ -431,51 +525,198 @@ function PlayIcon() {
 }
 
 export default function AdminMusicPage() {
-  const [artists, setArtists] = useState(initialArtists)
+  const [artists, setArtists] = useState([])
   const [query, setQuery] = useState('')
-  const [showArtistForm, setShowArtistForm] = useState(true)
+  const [showArtistForm, setShowArtistForm] = useState(false)
   const [artistName, setArtistName] = useState('')
-  const [selectedArtistId, setSelectedArtistId] = useState(null)
+  const [selectedArtistId, setSelectedArtistId] = useState('')
+  const [selectedArtistDetail, setSelectedArtistDetail] = useState(null)
+  const [releaseTitle, setReleaseTitle] = useState('')
+  const [releaseType, setReleaseType] = useState('single')
+  const [releaseCoverUrl, setReleaseCoverUrl] = useState('')
+  const [releaseYear, setReleaseYear] = useState(String(new Date().getFullYear()))
+  const [songReleaseId, setSongReleaseId] = useState('')
+  const [songTitle, setSongTitle] = useState('')
   const [youtubeLink, setYoutubeLink] = useState('')
+  const [youtubeViews, setYoutubeViews] = useState('0')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
+  const [error, setError] = useState('')
+
+  const loadOverview = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await musicRequest('/api/music/admin/artists')
+      setArtists(Array.isArray(data.artists) ? data.artists : [])
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const loadArtist = useCallback(async (artistId) => {
+    if (!artistId) {
+      setSelectedArtistDetail(null)
+      setSongReleaseId('')
+      return
+    }
+
+    setError('')
+
+    try {
+      const data = await musicRequest(`/api/music/admin/artists/${encodeURIComponent(artistId)}`)
+      setSelectedArtistDetail(data)
+      const releases = Array.isArray(data.releases) ? data.releases : []
+      setSongReleaseId((current) => releases.some((release) => release.id === current) ? current : releases[0]?.id || '')
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadOverview()
+  }, [loadOverview])
 
   const filteredArtists = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     if (!keyword) return artists
-    return artists.filter((artist) => artist.name.toLowerCase().includes(keyword))
+    return artists.filter((artist) => String(artist.name || '').toLowerCase().includes(keyword))
   }, [artists, query])
 
   const selectedArtist = artists.find((artist) => artist.id === selectedArtistId) || null
+  const releases = Array.isArray(selectedArtistDetail?.releases) ? selectedArtistDetail.releases : []
 
-  function addArtist() {
+  async function addArtist() {
     const name = artistName.trim()
     if (!name) {
-      setNotice('Enter an artist name first.')
+      setError('Enter an artist name first.')
       return
     }
 
-    const newArtist = {
-      id: Date.now(),
-      name,
-      albums: 0,
-      singles: 0,
-      songs: 0,
-    }
+    setSaving(true)
+    setError('')
+    setNotice('')
 
-    setArtists((current) => [newArtist, ...current])
-    setArtistName('')
-    setShowArtistForm(false)
-    setNotice(`${name} is ready in this UI preview.`)
+    try {
+      const data = await musicRequest('/api/music/admin/artists', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+      setArtistName('')
+      setShowArtistForm(false)
+      setNotice(`${data.artist?.name || name} created.`)
+      await loadOverview()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function previewSong() {
-    const link = youtubeLink.trim()
-    if (!link) {
-      setNotice('Paste a YouTube link first.')
+  async function manageArtist(artistId) {
+    if (selectedArtistId === artistId) {
+      setSelectedArtistId('')
+      setSelectedArtistDetail(null)
+      setSongReleaseId('')
       return
     }
 
-    setNotice('YouTube preview is ready for the next backend stage.')
+    setSelectedArtistId(artistId)
+    await loadArtist(artistId)
+  }
+
+  async function createRelease() {
+    if (!selectedArtistId) {
+      setError('Choose an artist first.')
+      return
+    }
+
+    const title = releaseTitle.trim()
+    if (!title) {
+      setError('Enter an album or single title first.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const data = await musicRequest('/api/music/admin/releases', {
+        method: 'POST',
+        body: JSON.stringify({
+          artist_id: selectedArtistId,
+          title,
+          release_type: releaseType,
+          cover_url: releaseCoverUrl.trim(),
+          release_year: Number(releaseYear) || new Date().getFullYear(),
+        }),
+      })
+
+      setReleaseTitle('')
+      setReleaseCoverUrl('')
+      setSongReleaseId(data.release?.id || '')
+      setNotice(`${data.release?.title || title} created.`)
+      await Promise.all([loadOverview(), loadArtist(selectedArtistId)])
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function addSong() {
+    const title = songTitle.trim()
+    const youtubeUrl = youtubeLink.trim()
+
+    if (!songReleaseId) {
+      setError('Create or choose an Album/Single first.')
+      return
+    }
+
+    if (!title) {
+      setError('Enter the song title first.')
+      return
+    }
+
+    if (!youtubeUrl) {
+      setError('Paste a YouTube link first.')
+      return
+    }
+
+    const selectedRelease = releases.find((release) => release.id === songReleaseId)
+    const nextTrack = (selectedRelease?.songs?.length || 0) + 1
+
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const data = await musicRequest('/api/music/admin/songs', {
+        method: 'POST',
+        body: JSON.stringify({
+          release_id: songReleaseId,
+          title,
+          youtube_url: youtubeUrl,
+          youtube_view_count: Math.max(0, Number.parseInt(youtubeViews, 10) || 0),
+          track_number: nextTrack,
+        }),
+      })
+
+      setSongTitle('')
+      setYoutubeLink('')
+      setYoutubeViews('0')
+      setNotice(`${data.song?.title || title} added.`)
+      await Promise.all([loadOverview(), loadArtist(selectedArtistId)])
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -492,11 +733,7 @@ export default function AdminMusicPage() {
             <div className="am-intro-text">Create artists, albums, singles and connect YouTube songs.</div>
           </div>
 
-          <button
-            type="button"
-            className="am-primary-btn"
-            onClick={() => setShowArtistForm(true)}
-          >
+          <button type="button" className="am-primary-btn" onClick={() => setShowArtistForm(true)}>
             + Artist
           </button>
         </div>
@@ -509,14 +746,13 @@ export default function AdminMusicPage() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search Skye Hart..."
+            placeholder="Search artist..."
           />
         </div>
 
         {showArtistForm ? (
           <div className="am-card am-create-card">
             <h3 className="am-card-title">New Artist</h3>
-
             <div className="am-form-space">
               <label className="am-label" htmlFor="admin-music-artist-name">Artist name</label>
               <input
@@ -527,10 +763,9 @@ export default function AdminMusicPage() {
                 placeholder="Artist name"
               />
             </div>
-
             <div className="am-form-actions">
-              <button type="button" className="am-primary-btn" onClick={addArtist}>Save</button>
-              <button type="button" className="am-secondary-btn" onClick={() => setShowArtistForm(false)}>Cancel</button>
+              <button type="button" className="am-primary-btn" disabled={saving} onClick={addArtist}>Save</button>
+              <button type="button" className="am-secondary-btn" disabled={saving} onClick={() => setShowArtistForm(false)}>Cancel</button>
             </div>
           </div>
         ) : null}
@@ -541,19 +776,21 @@ export default function AdminMusicPage() {
         </div>
 
         <div className="am-artist-list">
-          {filteredArtists.length ? filteredArtists.map((artist) => (
+          {loading ? (
+            <div className="am-loading">Loading music...</div>
+          ) : filteredArtists.length ? filteredArtists.map((artist) => (
             <div className="am-artist-row" key={artist.id}>
-              <div className="am-avatar"><MusicIcon /></div>
+              <div className="am-avatar">
+                {artist.avatar_url ? <img src={artist.avatar_url} alt="" /> : <MusicIcon />}
+              </div>
               <div>
                 <h4 className="am-artist-name">{artist.name}</h4>
-                <div className="am-artist-meta">{artist.albums} Albums • {artist.singles} Singles • {artist.songs} Songs</div>
+                <div className="am-artist-meta">
+                  {Number(artist.album_count || 0)} Albums • {Number(artist.single_count || 0)} Singles • {Number(artist.song_count || 0)} Songs
+                </div>
               </div>
-              <button
-                type="button"
-                className="am-manage-btn"
-                onClick={() => setSelectedArtistId((current) => current === artist.id ? null : artist.id)}
-              >
-                Manage
+              <button type="button" className="am-manage-btn" onClick={() => manageArtist(artist.id)}>
+                {selectedArtistId === artist.id ? 'Close' : 'Manage'}
               </button>
             </div>
           )) : (
@@ -562,68 +799,181 @@ export default function AdminMusicPage() {
         </div>
 
         {selectedArtist ? (
-          <div className="am-manage-card">
-            <div className="am-manage-top">
-              <div>
-                <div className="am-manage-name">Manage Artist → {selectedArtist.name}</div>
-                <div className="am-manage-meta">Albums / Singles / Songs</div>
+          <>
+            <div className="am-manage-card">
+              <div className="am-manage-top">
+                <div>
+                  <div className="am-manage-name">Manage Artist → {selectedArtist.name}</div>
+                  <div className="am-manage-meta">Albums / Singles / Songs</div>
+                </div>
+                <button type="button" className="am-secondary-btn" onClick={() => manageArtist(selectedArtist.id)}>Close</button>
               </div>
-              <button type="button" className="am-secondary-btn" onClick={() => setSelectedArtistId(null)}>Close</button>
+
+              <div className="am-mini-grid">
+                <div className="am-mini-card">
+                  <div className="am-mini-label">Albums</div>
+                  <div className="am-mini-value">{Number(selectedArtist.album_count || 0)}</div>
+                </div>
+                <div className="am-mini-card">
+                  <div className="am-mini-label">Singles</div>
+                  <div className="am-mini-value">{Number(selectedArtist.single_count || 0)}</div>
+                </div>
+                <div className="am-mini-card">
+                  <div className="am-mini-label">Songs</div>
+                  <div className="am-mini-value">{Number(selectedArtist.song_count || 0)}</div>
+                </div>
+              </div>
+
+              {releases.length ? (
+                <div className="am-release-list">
+                  {releases.map((release) => (
+                    <div className="am-release-row" key={release.id}>
+                      <div className="am-release-cover">
+                        {release.cover_url ? <img src={release.cover_url} alt="" /> : <MusicIcon size={18} />}
+                      </div>
+                      <div>
+                        <div className="am-release-title">{release.title}</div>
+                        <div className="am-release-meta">
+                          {release.release_type === 'album' ? 'Album' : 'Single'} • {release.release_year || ''} • {release.songs?.length || 0} Songs
+                        </div>
+                      </div>
+                      <button type="button" className="am-manage-btn" onClick={() => setSongReleaseId(release.id)}>Use</button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
-            <div className="am-mini-grid">
-              <div className="am-mini-card">
-                <div className="am-mini-label">Albums</div>
-                <div className="am-mini-value">{selectedArtist.albums}</div>
+            <div className="am-card am-release-card">
+              <h3 className="am-card-title">New Album / Single</h3>
+              <div className="am-card-subtitle">Create the release before adding its YouTube song.</div>
+
+              <div className="am-form-space">
+                <label className="am-label" htmlFor="admin-music-release-title">Title</label>
+                <input
+                  id="admin-music-release-title"
+                  className="am-input"
+                  value={releaseTitle}
+                  onChange={(event) => setReleaseTitle(event.target.value)}
+                  placeholder="Album or single title"
+                />
               </div>
-              <div className="am-mini-card">
-                <div className="am-mini-label">Singles</div>
-                <div className="am-mini-value">{selectedArtist.singles}</div>
+
+              <div className="am-form-grid">
+                <div>
+                  <label className="am-label" htmlFor="admin-music-release-type">Type</label>
+                  <select id="admin-music-release-type" className="am-select" value={releaseType} onChange={(event) => setReleaseType(event.target.value)}>
+                    <option value="single">Single</option>
+                    <option value="album">Album</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="am-label" htmlFor="admin-music-release-year">Year</label>
+                  <input
+                    id="admin-music-release-year"
+                    className="am-input"
+                    inputMode="numeric"
+                    value={releaseYear}
+                    onChange={(event) => setReleaseYear(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="2026"
+                  />
+                </div>
               </div>
-              <div className="am-mini-card">
-                <div className="am-mini-label">Songs</div>
-                <div className="am-mini-value">{selectedArtist.songs}</div>
+
+              <div className="am-form-space">
+                <label className="am-label" htmlFor="admin-music-cover-url">Square Cover URL</label>
+                <input
+                  id="admin-music-cover-url"
+                  className="am-input"
+                  type="url"
+                  value={releaseCoverUrl}
+                  onChange={(event) => setReleaseCoverUrl(event.target.value)}
+                  placeholder="https://..."
+                />
               </div>
+
+              <button type="button" className="am-primary-btn am-preview-btn" disabled={saving} onClick={createRelease}>Create Release</button>
             </div>
-          </div>
+
+            <div className="am-card am-song-card">
+              <div className="am-song-head">
+                <div>
+                  <h3 className="am-card-title">Add Song</h3>
+                  <div className="am-card-subtitle">YouTube is the media source</div>
+                </div>
+                <div className="am-play-icon"><PlayIcon /></div>
+              </div>
+
+              <div className="am-form-space">
+                <label className="am-label" htmlFor="admin-music-song-release">Album / Single</label>
+                <select
+                  id="admin-music-song-release"
+                  className="am-select"
+                  value={songReleaseId}
+                  onChange={(event) => setSongReleaseId(event.target.value)}
+                  disabled={!releases.length}
+                >
+                  {!releases.length ? <option value="">Create Album/Single first</option> : null}
+                  {releases.map((release) => (
+                    <option key={release.id} value={release.id}>{release.title} — {release.release_type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="am-form-space">
+                <label className="am-label" htmlFor="admin-music-song-title">Song title</label>
+                <input
+                  id="admin-music-song-title"
+                  className="am-input"
+                  value={songTitle}
+                  onChange={(event) => setSongTitle(event.target.value)}
+                  placeholder="Song title"
+                />
+              </div>
+
+              <div className="am-form-space">
+                <label className="am-label" htmlFor="admin-music-youtube-link">YouTube Link</label>
+                <input
+                  id="admin-music-youtube-link"
+                  className="am-input"
+                  type="url"
+                  value={youtubeLink}
+                  onChange={(event) => setYoutubeLink(event.target.value)}
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+              </div>
+
+              <div className="am-form-space">
+                <label className="am-label" htmlFor="admin-music-youtube-views">YouTube Views</label>
+                <input
+                  id="admin-music-youtube-views"
+                  className="am-input"
+                  inputMode="numeric"
+                  value={youtubeViews}
+                  onChange={(event) => setYoutubeViews(event.target.value.replace(/\D/g, '').slice(0, 12))}
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="am-song-grid">
+                <div className="am-field-card">
+                  <div className="am-field-label">Popular</div>
+                  <div className="am-field-value">1K+ Views</div>
+                </div>
+                <div className="am-field-card">
+                  <div className="am-field-label">Player</div>
+                  <div className="am-field-value">YouTube Embed</div>
+                </div>
+              </div>
+
+              <button type="button" className="am-primary-btn am-preview-btn" disabled={saving || !releases.length} onClick={addSong}>Save Song</button>
+            </div>
+          </>
         ) : null}
 
-        <div className="am-card am-song-card">
-          <div className="am-song-head">
-            <div>
-              <h3 className="am-card-title">Add Song</h3>
-              <div className="am-card-subtitle">YouTube is the media source</div>
-            </div>
-            <div className="am-play-icon"><PlayIcon /></div>
-          </div>
-
-          <div className="am-form-space">
-            <label className="am-label" htmlFor="admin-music-youtube-link">YouTube Link</label>
-            <input
-              id="admin-music-youtube-link"
-              className="am-input"
-              type="url"
-              value={youtubeLink}
-              onChange={(event) => setYoutubeLink(event.target.value)}
-              placeholder="https://youtube.com/watch?v=..."
-            />
-          </div>
-
-          <div className="am-song-grid">
-            <div className="am-field-card">
-              <div className="am-field-label">Type</div>
-              <div className="am-field-value">Single</div>
-            </div>
-            <div className="am-field-card">
-              <div className="am-field-label">Cover</div>
-              <div className="am-field-value">1:1 Square</div>
-            </div>
-          </div>
-
-          <button type="button" className="am-secondary-btn am-preview-btn" onClick={previewSong}>Preview Song</button>
+        <div className={`am-notice${error ? ' error' : ''}`}>
+          {error || notice || 'Music data is connected to Shadow Backend.'}
         </div>
-
-        <div className="am-notice">{notice || 'UI only. No backend data is saved in this stage.'}</div>
       </div>
     </AdminLayout>
   )
