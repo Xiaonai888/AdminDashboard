@@ -19,7 +19,7 @@ export default function AdminSectionRankPanel({ apiUrl, token }) {
     setError('')
 
     try {
-      const response = await fetch(`${apiUrl}/api/admin/rankings/sections?range=today`, {
+      const response = await fetch(`${apiUrl}/api/admin/ranking/sections?range=today`, {
         method: 'GET',
         credentials: 'include',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
