@@ -36,6 +36,7 @@ import AdminIncomePage from './pages/AdminIncomePage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
+import AdminMusicPage from './pages/AdminMusicPage';
 import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 import AdminReportCenterPage from './pages/AdminReportCenterPage';
 import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
@@ -188,6 +189,7 @@ export default function App() {
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
         <Route path="/search-insights" element={<ProtectedPage><AdminSearchInsightsPage /></ProtectedPage>} />
+        <Route path="/music" element={<ProtectedPage><AdminMusicPage /></ProtectedPage>} />
         <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
 
 <Route
