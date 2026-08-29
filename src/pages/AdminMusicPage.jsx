@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminMusicManager from '../components/AdminMusicManager'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -845,6 +846,11 @@ export default function AdminMusicPage() {
             </div>
 
             <div className="am-card am-release-card">
+              <AdminMusicManager
+  data={selectedArtistDetail}
+  onRefresh={() => Promise.all([loadOverview(), loadArtist(selectedArtistId)])}
+  onArtistDeleted={() => { setSelectedArtistId(''); setSelectedArtistDetail(null); setSongReleaseId(''); return loadOverview() }}
+/>
               <h3 className="am-card-title">New Album / Single</h3>
               <div className="am-card-subtitle">Create the release before adding its YouTube song.</div>
 
