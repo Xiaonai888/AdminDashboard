@@ -845,13 +845,14 @@ export default function AdminMusicPage() {
               ) : null}
             </div>
 
-            <div className="am-card am-release-card">
-              <AdminMusicManager
+            <AdminMusicManager
   data={selectedArtistDetail}
   onRefresh={() => Promise.all([loadOverview(), loadArtist(selectedArtistId)])}
   onArtistDeleted={() => { setSelectedArtistId(''); setSelectedArtistDetail(null); setSongReleaseId(''); return loadOverview() }}
 />
-              <h3 className="am-card-title">New Album / Single</h3>
+
+<div className="am-card am-release-card">
+  <h3 className="am-card-title">New Album / Single</h3>
               <div className="am-card-subtitle">Create the release before adding its YouTube song.</div>
 
               <div className="am-form-space">
