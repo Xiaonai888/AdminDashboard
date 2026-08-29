@@ -56,28 +56,25 @@ export default function AdminSectionRankPanel({ apiUrl, token }) {
   }, [rows])
 
   return (
-    <div className="ranking-panel">
-      <div className="ranking-panel-top">
-        <div>
-          <div className="ranking-panel-title">Section Rank</div>
-          <div className="ranking-panel-subtitle">
-            Qualified clicks from Story sections today.
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="ranking-pill live">Today</span>
-          <button
-            type="button"
-            className="ranking-btn light"
-            onClick={load}
-            disabled={loading}
-            style={{ padding: '0 14px' }}
-          >
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
-        </div>
-      </div>
+  <div>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        padding: '12px 16px',
+        borderBottom: '1px solid #E2E8F0',
+      }}
+    >
+      <button
+        type="button"
+        className="ranking-btn light"
+        onClick={load}
+        disabled={loading}
+        style={{ padding: '0 14px' }}
+      >
+        {loading ? 'Loading...' : 'Refresh'}
+      </button>
+    </div>
 
       {error ? (
         <div style={{ padding: 16 }}>
