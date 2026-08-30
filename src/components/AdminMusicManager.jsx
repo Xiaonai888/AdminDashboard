@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import MusicImageUpload from './MusicImageUpload'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -383,7 +384,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
 
   const [songTitle, setSongTitle] = useState(selectedSong?.title || '')
   const [songYoutubeUrl, setSongYoutubeUrl] = useState(selectedSong?.youtube_url || '')
-  const [songViews, setSongViews] = useState(String(selectedSong?.youtube_view_count || 0))
   const [songTrack, setSongTrack] = useState(String(selectedSong?.track_number || 1))
   const [songDuration, setSongDuration] = useState(String(selectedSong?.duration_seconds || 0))
   const [songActive, setSongActive] = useState(selectedSong?.is_active !== false)
@@ -429,7 +429,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
 
     setSongTitle(song?.title || '')
     setSongYoutubeUrl(song?.youtube_url || '')
-    setSongViews(String(song?.youtube_view_count || 0))
     setSongTrack(String(song?.track_number || 1))
     setSongDuration(String(song?.duration_seconds || 0))
     setSongActive(song?.is_active !== false)
@@ -587,7 +586,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
         body: JSON.stringify({
           title,
           youtube_url: youtubeUrl,
-          youtube_view_count: Math.max(0, Number.parseInt(songViews, 10) || 0),
           track_number: Math.max(1, Number.parseInt(songTrack, 10) || 1),
           duration_seconds: Math.max(0, Number.parseInt(songDuration, 10) || 0),
           is_active: songActive,
@@ -695,14 +693,12 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
             </div>
 
             <div className="amm-field">
-              <label className="amm-label" htmlFor="amm-artist-avatar">Avatar URL</label>
-              <input
-                id="amm-artist-avatar"
-                className="amm-input"
-                type="url"
+              <MusicImageUpload
                 value={artistAvatarUrl}
-                onChange={(event) => setArtistAvatarUrl(event.target.value)}
-                placeholder="https://..."
+                onChange={setArtistAvatarUrl}
+                shape="circle"
+                label="Artist Profile"
+                disabled={saving}
               />
             </div>
 
@@ -820,14 +816,12 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
                 </div>
 
                 <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-release-cover">Square Cover URL</label>
-                  <input
-                    id="amm-release-cover"
-                    className="amm-input"
-                    type="url"
+                  <MusicImageUpload
                     value={releaseCoverUrl}
-                    onChange={(event) => setReleaseCoverUrl(event.target.value)}
-                    placeholder="https://..."
+                    onChange={setReleaseCoverUrl}
+                    shape="square"
+                    label="Album / Single Cover"
+                    disabled={saving}
                   />
                 </div>
 
@@ -871,7 +865,7 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
           <div className="amm-head">
             <div>
               <h3 className="amm-title">Edit Song</h3>
-              <div className="amm-subtitle">Update YouTube link, views, track number and visibility.</div>
+              <div className="amm-subtitle">Update YouTube link, track number and visibility. Shadow Views are counted automatically.</div>
             </div>
           </div>
 
@@ -916,13 +910,13 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
                 </div>
 
                 <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-views">YouTube Views</label>
+                  <label className="amm-label" htmlFor="amm-song-shadow-views">Shadow Views</label>
                   <input
-                    id="amm-song-views"
+                    id="amm-song-shadow-views"
                     className="amm-input"
-                    inputMode="numeric"
-                    value={songViews}
-                    onChange={(event) => setSongViews(event.target.value.replace(/\D/g, '').slice(0, 12))}
+                    value={String(selectedSong?.view_count || 0)}
+                    readOnly
+                    disabled
                   />
                 </div>
 
