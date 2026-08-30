@@ -537,21 +537,24 @@ function sourceName(source) {
   return String(source || '-').replace(/_/g, ' ')
 }
 
+function formatDateInput(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 function getTodayInputValue() {
-  return new Date().toISOString().slice(0, 10)
+  return formatDateInput(new Date())
 }
 
 function getMonthStartInputValue() {
   const date = new Date()
-  return new Date(
-    Date.UTC(
-      date.getFullYear(),
-      date.getMonth(),
-      1
-    )
+
+  return formatDateInput(
+    new Date(date.getFullYear(), date.getMonth(), 1)
   )
-    .toISOString()
-    .slice(0, 10)
 }
 
 function getPreviousMonthValue() {
