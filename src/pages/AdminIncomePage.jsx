@@ -537,38 +537,48 @@ function sourceName(source) {
   return String(source || '-').replace(/_/g, ' ')
 }
 
-function formatDateInput(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+function getCambodiaDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Phnom_Penh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
 
-  return `${year}-${month}-${day}`
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  )
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+  }
 }
 
 function getTodayInputValue() {
-  return formatDateInput(new Date())
+  const { year, month, day } = getCambodiaDateParts()
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
 function getMonthStartInputValue() {
-  const date = new Date()
+  const { year, month } = getCambodiaDateParts()
 
-  return formatDateInput(
-    new Date(date.getFullYear(), date.getMonth(), 1)
-  )
+  return `${year}-${String(month).padStart(2, '0')}-01`
 }
 
 function getPreviousMonthValue() {
-  const date = new Date()
-
-  return new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth() - 1,
-      1
-    )
+  const { year, month } = getCambodiaDateParts()
+  const previousMonth = new Date(
+    Date.UTC(year, month - 2, 1)
   )
-    .toISOString()
-    .slice(0, 7)
+
+  return `${previousMonth.getUTCFullYear()}-${String(
+    previousMonth.getUTCMonth() + 1
+  ).padStart(2, '0')}`
 }
 
 function findSource(sources, name) {
@@ -651,7 +661,7 @@ export default function AdminIncomePage() {
         value: formatUsd(
           summary.gross_sales_usd
         ),
-        sub: `${summary.total_orders || 0} paid records`,
+        sub: 'Across all tracked income sources',
       },
       {
         label: 'Pending Author Payout',
@@ -676,11 +686,11 @@ export default function AdminIncomePage() {
         )}`,
       },
       {
-        label: 'Author Page 10%',
+        label: 'Author Page Platform',
         value: formatUsd(
           summary.author_store_income_usd
         ),
-        sub: `${authorStore.order_count || 0} paid records`,
+        sub: `Stored platform fee · ${authorStore.order_count || 0} paid records`,
       },
       {
         label: 'Episode Author Payout',
@@ -694,14 +704,14 @@ export default function AdminIncomePage() {
         value: formatUsd(
           summary.diamond_gift_author_payout_usd
         ),
-        sub: 'Author 100% · Platform $0',
+        sub: 'Actual stored author payout',
       },
       {
         label: 'Diamond Gift Platform',
         value: formatUsd(
           summary.diamond_gift_platform_income_usd
         ),
-        sub: 'Should stay $0',
+        sub: 'Actual stored platform income',
       },
     ],
     [summary, authorStore.order_count]
@@ -980,7 +990,7 @@ export default function AdminIncomePage() {
                   Diamond Gifts
                 </div>
                 <div className="income-rule-value">
-                  Author 100% · Platform $0
+                  Stored author/platform split
                 </div>
               </div>
               <div className="income-rule">
@@ -988,7 +998,7 @@ export default function AdminIncomePage() {
                   Author Page
                 </div>
                 <div className="income-rule-value">
-                  Platform 10% · Author 90%
+                  Stored fee/income split
                 </div>
               </div>
               <div className="income-rule">
@@ -996,7 +1006,7 @@ export default function AdminIncomePage() {
                   Shadow Mall
                 </div>
                 <div className="income-rule-value">
-                  Admin 100% · Shipping excluded
+                  Product sales · Shipping excluded
                 </div>
               </div>
             </div>
@@ -1115,11 +1125,11 @@ export default function AdminIncomePage() {
                                     )}`
                                   : source.source ===
                                       'diamond_gifts'
-                                    ? 'Author 100% · Platform $0'
+                                    ? 'Stored author/platform split'
                                     : source.source ===
                                         'episode_sales'
-                                      ? 'Reading earnings'
-                                      : 'Platform 10% fee'}
+                                      ? 'Stored reading revenue split'
+                                      : 'Stored platform fee and author income'}
                               </div>
                             </td>
                             <td>
