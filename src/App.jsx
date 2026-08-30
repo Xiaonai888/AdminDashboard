@@ -34,6 +34,7 @@ import AdminBlockListPage from './pages/AdminBlockListPage';
 import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 import AdminIncomePage from './pages/AdminIncomePage';
 import AdminEpisodeSalesPage from './pages/AdminEpisodeSalesPage';
+import AdminDiamondGiftsPage from './pages/AdminDiamondGiftsPage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
@@ -166,6 +167,7 @@ export default function App() {
         <Route path="/block-list" element={<ProtectedPage><AdminBlockListPage /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><AdminIncomePage /></ProtectedPage>} />
         <Route path="/income/episode-sales" element={<ProtectedPage><AdminEpisodeSalesPage /></ProtectedPage>} />
+        <Route path="/income/diamond-gifts" element={<ProtectedPage><AdminDiamondGiftsPage /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
