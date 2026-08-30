@@ -1088,15 +1088,15 @@ export default function AdminIncomePage() {
                       </thead>
                       <tbody>
                         {sources.map((source) => (
-                         <tr
+                        <tr
   key={source.source}
   onClick={() => {
-  onClick={() => {
-  if (source.source === 'episode_sales') navigate('/income/episode-sales')
-  if (source.source === 'diamond_gifts') navigate('/income/diamond-gifts')
-  if (source.source === 'author_store') navigate('/income/author-page')
-}}
-style={{ cursor: ['episode_sales', 'diamond_gifts', 'author_store'].includes(source.source) ? 'pointer' : 'default' }}
+    if (source.source === 'episode_sales') navigate('/income/episode-sales')
+    if (source.source === 'diamond_gifts') navigate('/income/diamond-gifts')
+    if (source.source === 'author_store') navigate('/income/author-page')
+    if (source.source === 'shadow_mall') navigate('/income/shadow-mall')
+  }}
+  style={{ cursor: ['episode_sales', 'diamond_gifts', 'author_store', 'shadow_mall'].includes(source.source) ? 'pointer' : 'default' }}
 >
                             <td>
                               <div className="income-source-name">
