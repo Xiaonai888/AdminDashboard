@@ -128,7 +128,6 @@ const styles = `
     border-color: var(--am-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
   }
-<AdminMusicListenHistory />
   .am-search-wrap {
     margin-bottom: 14px;
   }
@@ -742,6 +741,8 @@ export default function AdminMusicPage() {
             + Artist
           </button>
         </div>
+
+        <AdminMusicListenHistory />
 
         <div className="am-search-wrap">
           <label className="am-label" htmlFor="admin-music-search">Search artist</label>
