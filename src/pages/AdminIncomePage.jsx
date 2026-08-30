@@ -1088,7 +1088,13 @@ export default function AdminIncomePage() {
                       </thead>
                       <tbody>
                         {sources.map((source) => (
-                          <tr key={source.source}>
+                          <tr
+  key={source.source}
+  onClick={() => {
+    if (source.source === 'episode_sales') navigate('/income/episode-sales')
+  }}
+  style={{ cursor: source.source === 'episode_sales' ? 'pointer' : 'default' }}
+>
                             <td>
                               <div className="income-source-name">
                                 {sourceName(
