@@ -1091,10 +1091,12 @@ export default function AdminIncomePage() {
                          <tr
   key={source.source}
   onClick={() => {
-    if (source.source === 'episode_sales') navigate('/income/episode-sales')
-    if (source.source === 'diamond_gifts') navigate('/income/diamond-gifts')
-  }}
-  style={{ cursor: ['episode_sales', 'diamond_gifts'].includes(source.source) ? 'pointer' : 'default' }}
+  onClick={() => {
+  if (source.source === 'episode_sales') navigate('/income/episode-sales')
+  if (source.source === 'diamond_gifts') navigate('/income/diamond-gifts')
+  if (source.source === 'author_store') navigate('/income/author-page')
+}}
+style={{ cursor: ['episode_sales', 'diamond_gifts', 'author_store'].includes(source.source) ? 'pointer' : 'default' }}
 >
                             <td>
                               <div className="income-source-name">
