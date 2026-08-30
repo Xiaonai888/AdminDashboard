@@ -33,6 +33,7 @@ import AdminReaderMailsPage from './pages/AdminReaderMailsPage';
 import AdminBlockListPage from './pages/AdminBlockListPage';
 import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 import AdminIncomePage from './pages/AdminIncomePage';
+import AdminEpisodeSalesPage from './pages/AdminEpisodeSalesPage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
@@ -48,6 +49,7 @@ import AdminMonthlyVotePage from './pages/AdminMonthlyVotePage'
 import AdminEventPage from './pages/AdminEventPage'
 import AdminRolesPage from './pages/AdminRolesPage'
 import AdminStaffAccountsPage from './pages/AdminStaffAccountsPage'
+
 
 function ComingSoon({ title }) {
   return (
@@ -163,6 +165,7 @@ export default function App() {
         <Route path="/account" element={<ProtectedPage permission="accounts.view"><AdminStaffAccountsPage /></ProtectedPage>} />
         <Route path="/block-list" element={<ProtectedPage><AdminBlockListPage /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><AdminIncomePage /></ProtectedPage>} />
+        <Route path="/income/episode-sales" element={<ProtectedPage><AdminEpisodeSalesPage /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
