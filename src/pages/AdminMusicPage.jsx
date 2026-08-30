@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminMusicManager from '../components/AdminMusicManager'
+import MusicImageUpload from '../components/MusicImageUpload'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -530,6 +531,7 @@ export default function AdminMusicPage() {
   const [query, setQuery] = useState('')
   const [showArtistForm, setShowArtistForm] = useState(false)
   const [artistName, setArtistName] = useState('')
+  const [artistAvatarUrl, setArtistAvatarUrl] = useState('')
   const [selectedArtistId, setSelectedArtistId] = useState('')
   const [selectedArtistDetail, setSelectedArtistDetail] = useState(null)
   const [releaseTitle, setReleaseTitle] = useState('')
@@ -539,7 +541,6 @@ export default function AdminMusicPage() {
   const [songReleaseId, setSongReleaseId] = useState('')
   const [songTitle, setSongTitle] = useState('')
   const [youtubeLink, setYoutubeLink] = useState('')
-  const [youtubeViews, setYoutubeViews] = useState('0')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
@@ -605,9 +606,13 @@ export default function AdminMusicPage() {
     try {
       const data = await musicRequest('/api/music/admin/artists', {
         method: 'POST',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({
+          name,
+          avatar_url: artistAvatarUrl.trim(),
+        }),
       })
       setArtistName('')
+      setArtistAvatarUrl('')
       setShowArtistForm(false)
       setNotice(`${data.artist?.name || name} created.`)
       await loadOverview()
@@ -703,14 +708,12 @@ export default function AdminMusicPage() {
           release_id: songReleaseId,
           title,
           youtube_url: youtubeUrl,
-          youtube_view_count: Math.max(0, Number.parseInt(youtubeViews, 10) || 0),
           track_number: nextTrack,
         }),
       })
 
       setSongTitle('')
       setYoutubeLink('')
-      setYoutubeViews('0')
       setNotice(`${data.song?.title || title} added.`)
       await Promise.all([loadOverview(), loadArtist(selectedArtistId)])
     } catch (requestError) {
@@ -764,6 +767,15 @@ export default function AdminMusicPage() {
                 placeholder="Artist name"
               />
             </div>
+
+            <MusicImageUpload
+              value={artistAvatarUrl}
+              onChange={setArtistAvatarUrl}
+              shape="circle"
+              label="Artist Profile"
+              disabled={saving}
+            />
+
             <div className="am-form-actions">
               <button type="button" className="am-primary-btn" disabled={saving} onClick={addArtist}>Save</button>
               <button type="button" className="am-secondary-btn" disabled={saving} onClick={() => setShowArtistForm(false)}>Cancel</button>
@@ -887,17 +899,13 @@ export default function AdminMusicPage() {
                 </div>
               </div>
 
-              <div className="am-form-space">
-                <label className="am-label" htmlFor="admin-music-cover-url">Square Cover URL</label>
-                <input
-                  id="admin-music-cover-url"
-                  className="am-input"
-                  type="url"
-                  value={releaseCoverUrl}
-                  onChange={(event) => setReleaseCoverUrl(event.target.value)}
-                  placeholder="https://..."
-                />
-              </div>
+              <MusicImageUpload
+                value={releaseCoverUrl}
+                onChange={setReleaseCoverUrl}
+                shape="square"
+                label="Album / Single Cover"
+                disabled={saving}
+              />
 
               <button type="button" className="am-primary-btn am-preview-btn" disabled={saving} onClick={createRelease}>Create Release</button>
             </div>
@@ -950,22 +958,10 @@ export default function AdminMusicPage() {
                 />
               </div>
 
-              <div className="am-form-space">
-                <label className="am-label" htmlFor="admin-music-youtube-views">YouTube Views</label>
-                <input
-                  id="admin-music-youtube-views"
-                  className="am-input"
-                  inputMode="numeric"
-                  value={youtubeViews}
-                  onChange={(event) => setYoutubeViews(event.target.value.replace(/\D/g, '').slice(0, 12))}
-                  placeholder="0"
-                />
-              </div>
-
               <div className="am-song-grid">
                 <div className="am-field-card">
                   <div className="am-field-label">Popular</div>
-                  <div className="am-field-value">1K+ Views</div>
+                  <div className="am-field-value">1K+ Shadow Views</div>
                 </div>
                 <div className="am-field-card">
                   <div className="am-field-label">Player</div>
