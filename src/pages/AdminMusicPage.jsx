@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminMusicManager from '../components/AdminMusicManager'
 import MusicImageUpload from '../components/MusicImageUpload'
+import AdminMusicListenHistory from '../components/AdminMusicListenHistory'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -127,7 +128,7 @@ const styles = `
     border-color: var(--am-primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
   }
-
+<AdminMusicListenHistory />
   .am-search-wrap {
     margin-bottom: 14px;
   }
