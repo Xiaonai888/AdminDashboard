@@ -1,5 +1,15 @@
-import React, { useMemo, useState } from 'react'
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
 import AdminLayout from '../components/AdminLayout'
+
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  'https://shadow-backend-kucw.onrender.com'
+
+const PAGE_SIZE = 20
 
 const styles = `
   .author-income-page {
@@ -70,6 +80,11 @@ const styles = `
     border: 0;
     background: linear-gradient(135deg, #4F46E5, #312E81);
     color: #FFFFFF;
+  }
+
+  .author-income-button:disabled {
+    opacity: .55;
+    cursor: not-allowed;
   }
 
   .author-income-summary {
@@ -164,31 +179,19 @@ const styles = `
     color: #4338CA;
   }
 
-  .author-income-tabs {
-    display: flex;
-    gap: 6px;
-    border-bottom: 1px solid #E2E8F0;
-  }
-
-  .author-income-tab {
-    border: 0;
-    background: transparent;
-    color: #64748B;
-    padding: 13px 18px;
-    font-size: 13px;
-    font-weight: 950;
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-  }
-
-  .author-income-tab.active {
-    color: #4F46E5;
-    border-bottom-color: #4F46E5;
+  .author-income-message {
+    border: 1px solid #FDE68A;
+    background: #FFFBEB;
+    color: #92400E;
+    border-radius: 16px;
+    padding: 13px 15px;
+    font-size: 12px;
+    font-weight: 850;
   }
 
   .author-income-main {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) 360px;
+    grid-template-columns: minmax(0, 1.7fr) 380px;
     gap: 16px;
     align-items: start;
   }
@@ -219,6 +222,29 @@ const styles = `
     font-weight: 800;
   }
 
+  .author-income-tabs {
+    display: flex;
+    gap: 6px;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 0 12px;
+  }
+
+  .author-income-tab {
+    border: 0;
+    background: transparent;
+    color: #64748B;
+    padding: 13px 18px;
+    font-size: 13px;
+    font-weight: 950;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+
+  .author-income-tab.active {
+    color: #4F46E5;
+    border-bottom-color: #4F46E5;
+  }
+
   .author-income-table-wrap {
     overflow-x: auto;
   }
@@ -226,7 +252,7 @@ const styles = `
   .author-income-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1050px;
+    min-width: 1120px;
   }
 
   .author-income-table th {
@@ -270,6 +296,7 @@ const styles = `
     color: #64748B;
     font-size: 12px;
     font-weight: 750;
+    line-height: 1.45;
   }
 
   .author-income-money {
@@ -281,7 +308,8 @@ const styles = `
     color: #16A34A;
   }
 
-  .author-income-type {
+  .author-income-type,
+  .author-income-status {
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
@@ -289,6 +317,9 @@ const styles = `
     font-size: 11px;
     font-weight: 950;
     white-space: nowrap;
+  }
+
+  .author-income-type {
     background: #EEF2FF;
     color: #4F46E5;
   }
@@ -298,16 +329,22 @@ const styles = `
     color: #2563EB;
   }
 
+  .author-income-type.mixed {
+    background: #F3E8FF;
+    color: #7E22CE;
+  }
+
   .author-income-status {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 950;
-    white-space: nowrap;
     background: #DCFCE7;
     color: #15803D;
+  }
+
+  .author-income-empty {
+    padding: 54px 20px;
+    text-align: center;
+    color: #94A3B8;
+    font-size: 13px;
+    font-weight: 900;
   }
 
   .author-income-detail {
@@ -332,7 +369,7 @@ const styles = `
 
   .author-income-kv {
     display: grid;
-    grid-template-columns: 120px 1fr;
+    grid-template-columns: 125px 1fr;
     gap: 10px;
     margin-bottom: 10px;
   }
@@ -352,16 +389,23 @@ const styles = `
     font-size: 12px;
     font-weight: 900;
     text-align: right;
+    overflow-wrap: anywhere;
   }
 
   .author-income-v.good {
     color: #16A34A;
   }
 
-  .author-income-detail-actions {
+  .author-income-list {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 9px;
+  }
+
+  .author-income-list-item {
+    padding: 10px 11px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 13px;
   }
 
   .author-income-pagination {
@@ -379,21 +423,21 @@ const styles = `
   }
 
   .author-income-page-btn {
-    width: 36px;
     height: 36px;
+    min-width: 36px;
     border-radius: 12px;
     border: 1px solid #E2E8F0;
     background: #FFFFFF;
     color: #475569;
+    padding: 0 11px;
     font-size: 12px;
     font-weight: 900;
     cursor: pointer;
   }
 
-  .author-income-page-btn.active {
-    background: #EEF2FF;
-    border-color: #C7D2FE;
-    color: #4338CA;
+  .author-income-page-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
   }
 
   @media (max-width: 1380px) {
@@ -432,180 +476,415 @@ const styles = `
     .author-income-tabs {
       overflow-x: auto;
     }
-
-    .author-income-tab {
-      min-width: 92px;
-    }
-
-    .author-income-detail-actions {
-      grid-template-columns: 1fr;
-    }
   }
 `
+
+function getAdminToken() {
+  return (
+    sessionStorage.getItem(
+      'shadow_admin_token'
+    ) ||
+    localStorage.getItem(
+      'shadow_admin_token'
+    )
+  )
+}
+
+function authHeaders() {
+  const token = getAdminToken()
+
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+      }
+    : {}
+}
 
 function formatUsd(value) {
   return `$${Number(value || 0).toFixed(2)}`
 }
 
-const rows = [
-  {
-    id: 1,
-    date: 'Aug 29, 2026',
-    time: '22:14',
-    buyer: 'Luna Star',
-    username: '@lunastar',
-    userId: 'USR-100552',
-    product: 'The Heiress Returns',
-    type: 'book',
-    author: 'Author A',
-    authorUsername: '@author.a',
-    authorId: 'AUT-100012',
-    originalPrice: 3,
-    discount: 0,
-    finalPrice: 3,
-    platformFee: 0.3,
-    authorIncome: 2.7,
-    paymentStatus: 'Paid',
-    orderId: 'APB-20260829-842',
-    accessType: 'Full Access',
-    refund: 0,
-  },
-  {
-    id: 2,
-    date: 'Aug 29, 2026',
-    time: '21:52',
-    buyer: 'Night Owl',
-    username: '@nightowl',
-    userId: 'USR-100551',
-    product: 'Rebirth of the Phoenix',
-    type: 'pdf',
-    author: 'Author B',
-    authorUsername: '@author.b',
-    authorId: 'AUT-100014',
-    originalPrice: 1,
-    discount: 0,
-    finalPrice: 1,
-    platformFee: 0.1,
-    authorIncome: 0.9,
-    paymentStatus: 'Paid',
-    orderId: 'APP-20260829-841',
-    accessType: 'PDF Download',
-    refund: 0,
-  },
-  {
-    id: 3,
-    date: 'Aug 29, 2026',
-    time: '21:36',
-    buyer: 'Sweet Reader',
-    username: '@sweetreader',
-    userId: 'USR-100550',
-    product: 'Silent Vows',
-    type: 'book',
-    author: 'Author C',
-    authorUsername: '@author.c',
-    authorId: 'AUT-100021',
-    originalPrice: 2.5,
-    discount: 0,
-    finalPrice: 2.5,
-    platformFee: 0.25,
-    authorIncome: 2.25,
-    paymentStatus: 'Paid',
-    orderId: 'APB-20260829-840',
-    accessType: 'Full Access',
-    refund: 0,
-  },
-  {
-    id: 4,
-    date: 'Aug 29, 2026',
-    time: '20:58',
-    buyer: 'Book Lover',
-    username: '@booklover',
-    userId: 'USR-100549',
-    product: 'Love After the Storm',
-    type: 'book',
-    author: 'Author C',
-    authorUsername: '@author.c',
-    authorId: 'AUT-100021',
-    originalPrice: 2,
-    discount: 0,
-    finalPrice: 2,
-    platformFee: 0.2,
-    authorIncome: 1.8,
-    paymentStatus: 'Paid',
-    orderId: 'APB-20260829-839',
-    accessType: 'Full Access',
-    refund: 0,
-  },
-  {
-    id: 5,
-    date: 'Aug 29, 2026',
-    time: '20:41',
-    buyer: 'Starlight',
-    username: '@starlight',
-    userId: 'USR-100548',
-    product: 'Bound by Fate',
-    type: 'pdf',
-    author: 'Author D',
-    authorUsername: '@author.d',
-    authorId: 'AUT-100028',
-    originalPrice: 0.5,
-    discount: 0,
-    finalPrice: 0.5,
-    platformFee: 0.05,
-    authorIncome: 0.45,
-    paymentStatus: 'Paid',
-    orderId: 'APP-20260829-838',
-    accessType: 'PDF Download',
-    refund: 0,
-  },
-]
+function inputDate(date) {
+  const year = date.getFullYear()
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, '0')
+  const day = String(
+    date.getDate()
+  ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function todayInput() {
+  return inputDate(new Date())
+}
+
+function monthStartInput() {
+  const date = new Date()
+
+  return inputDate(
+    new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      1
+    )
+  )
+}
+
+function daysAgoInput(days) {
+  const date = new Date()
+
+  date.setDate(
+    date.getDate() - Math.max(0, days)
+  )
+
+  return inputDate(date)
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return '-'
+  }
+
+  return date.toLocaleString('en-US', {
+    timeZone: 'Asia/Phnom_Penh',
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function buyerName(item) {
+  return (
+    item?.buyer?.name ||
+    item?.buyer?.username ||
+    'Reader'
+  )
+}
+
+function buyerUsername(item) {
+  const username =
+    item?.buyer?.username || ''
+
+  return username
+    ? `@${username.replace(/^@/, '')}`
+    : item?.buyer?.email || '-'
+}
+
+function authorName(item) {
+  return (
+    item?.author?.page_name ||
+    item?.author?.page_username ||
+    'Author'
+  )
+}
+
+function authorUsername(item) {
+  const username =
+    item?.author?.page_username || ''
+
+  return username
+    ? `@${username.replace(/^@/, '')}`
+    : '-'
+}
+
+function typeLabel(type) {
+  if (type === 'pdf') return 'PDF'
+  if (type === 'book') return 'Book'
+  if (type === 'mixed') return 'Mixed'
+
+  return 'Order'
+}
+
+function csvCell(value) {
+  const text = String(value ?? '')
+
+  return `"${text.replace(/"/g, '""')}"`
+}
 
 export default function AdminAuthorPageIncomePage() {
-  const [search, setSearch] = useState('')
-  const [range, setRange] = useState('30d')
-  const [tab, setTab] = useState('all')
-  const [selectedId, setSelectedId] = useState(rows[0].id)
+  const [from, setFrom] =
+    useState(monthStartInput())
+  const [to, setTo] =
+    useState(todayInput())
+  const [search, setSearch] =
+    useState('')
+  const [type, setType] =
+    useState('all')
+  const [page, setPage] =
+    useState(1)
+  const [data, setData] =
+    useState(null)
+  const [loading, setLoading] =
+    useState(true)
+  const [message, setMessage] =
+    useState('')
+  const [selectedId, setSelectedId] =
+    useState('')
 
-  const filteredRows = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-
-    return rows.filter((row) => {
-      if (tab !== 'all' && row.type !== tab) return false
-      if (!keyword) return true
-
-      return [
-        row.buyer,
-        row.username,
-        row.product,
-        row.author,
-        row.authorUsername,
-        row.orderId,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(keyword)
-    })
-  }, [search, tab])
-
-  const selected =
-    filteredRows.find((row) => row.id === selectedId) ||
-    filteredRows[0] ||
-    rows[0]
-
-  const summary = useMemo(() => {
-    const gross = filteredRows.reduce((sum, row) => sum + row.finalPrice, 0)
-    const platform = filteredRows.reduce((sum, row) => sum + row.platformFee, 0)
-    const author = filteredRows.reduce((sum, row) => sum + row.authorIncome, 0)
-
-    return {
-      gross,
-      platform,
-      author,
-      paidOrders: filteredRows.length,
-      pendingPayout: author,
-      paidOut: 0,
+  const transactions =
+    data?.transactions || []
+  const summary = data?.summary || {}
+  const pagination =
+    data?.pagination || {
+      page: 1,
+      total: 0,
+      total_pages: 1,
+      has_prev: false,
+      has_next: false,
     }
-  }, [filteredRows])
+
+  const selected = useMemo(
+    () =>
+      transactions.find(
+        (item) => item.id === selectedId
+      ) ||
+      transactions[0] ||
+      null,
+    [transactions, selectedId]
+  )
+
+  async function fetchIncome(signal) {
+    try {
+      setLoading(true)
+      setMessage('')
+
+      const params =
+        new URLSearchParams()
+
+      if (from) params.set('from', from)
+      if (to) params.set('to', to)
+      if (search.trim()) {
+        params.set('q', search.trim())
+      }
+      if (type !== 'all') {
+        params.set('type', type)
+      }
+
+      params.set(
+        'page',
+        String(page)
+      )
+      params.set(
+        'limit',
+        String(PAGE_SIZE)
+      )
+
+      const response = await fetch(
+        `${API_URL}/api/admin/income/author-page?${params.toString()}`,
+        {
+          headers: authHeaders(),
+          signal,
+        }
+      )
+
+      const result =
+        await response.json().catch(
+          () => ({})
+        )
+
+      if (
+        !response.ok ||
+        result.ok === false
+      ) {
+        throw new Error(
+          result.message ||
+            'Failed to load Author Page income'
+        )
+      }
+
+      setData(result)
+
+      const nextTransactions =
+        result.transactions || []
+
+      if (
+        !nextTransactions.some(
+          (item) =>
+            item.id === selectedId
+        )
+      ) {
+        setSelectedId(
+          nextTransactions[0]?.id || ''
+        )
+      }
+
+      if (
+        result.truncated_source_scan
+      ) {
+        setMessage(
+          'This date range is very large. Narrow the date filter if older records are missing.'
+        )
+      }
+    } catch (error) {
+      if (
+        error.name === 'AbortError'
+      ) {
+        return
+      }
+
+      setData(null)
+      setMessage(
+        error.message ||
+          'Failed to load Author Page income'
+      )
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false)
+      }
+    }
+  }
+
+  useEffect(() => {
+    const controller =
+      new AbortController()
+    const timer = setTimeout(
+      () =>
+        fetchIncome(
+          controller.signal
+        ),
+      search.trim() ? 300 : 0
+    )
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [
+    from,
+    to,
+    search,
+    type,
+    page,
+  ])
+
+  function applyRange(key) {
+    if (key === 'today') {
+      const today = todayInput()
+      setFrom(today)
+      setTo(today)
+    } else if (key === '7d') {
+      setFrom(daysAgoInput(6))
+      setTo(todayInput())
+    } else if (key === '30d') {
+      setFrom(daysAgoInput(29))
+      setTo(todayInput())
+    } else if (key === 'month') {
+      setFrom(monthStartInput())
+      setTo(todayInput())
+    }
+
+    setPage(1)
+  }
+
+  const rangeKey = useMemo(() => {
+    const today = todayInput()
+
+    if (
+      from === today &&
+      to === today
+    ) {
+      return 'today'
+    }
+
+    if (
+      from === daysAgoInput(6) &&
+      to === today
+    ) {
+      return '7d'
+    }
+
+    if (
+      from === daysAgoInput(29) &&
+      to === today
+    ) {
+      return '30d'
+    }
+
+    if (
+      from === monthStartInput() &&
+      to === today
+    ) {
+      return 'month'
+    }
+
+    return ''
+  }, [from, to])
+
+  function exportCsv() {
+    if (!transactions.length) return
+
+    const rows = [
+      [
+        'Purchased At',
+        'Buyer',
+        'Buyer Username',
+        'Product',
+        'Type',
+        'Author',
+        'Product Total USD',
+        'Delivery USD',
+        'Total Paid USD',
+        'Platform Fee USD',
+        'Author Income USD',
+        'Payment',
+        'Order ID',
+        'ABA Transaction ID',
+      ],
+      ...transactions.map(
+        (item) => [
+          formatDateTime(
+            item.created_at
+          ),
+          buyerName(item),
+          buyerUsername(item),
+          item.product_title || '',
+          typeLabel(
+            item.order_type
+          ),
+          authorName(item),
+          item.product_subtotal_usd ||
+            0,
+          item.delivery_fee_usd || 0,
+          item.total_paid_usd || 0,
+          item.platform_fee_usd || 0,
+          item.author_income_usd || 0,
+          item.payment_status || '',
+          item.order_id || '',
+          item.aba_transaction_id ||
+            '',
+        ]
+      ),
+    ]
+
+    const csv = rows
+      .map((row) =>
+        row.map(csvCell).join(',')
+      )
+      .join('\n')
+    const blob = new Blob([csv], {
+      type: 'text/csv;charset=utf-8',
+    })
+    const url =
+      URL.createObjectURL(blob)
+    const anchor =
+      document.createElement('a')
+
+    anchor.href = url
+    anchor.download =
+      `author-page-income-${from}-to-${to}.csv`
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <AdminLayout>
@@ -615,307 +894,665 @@ export default function AdminAuthorPageIncomePage() {
         <div className="author-income-wrap">
           <div className="author-income-header">
             <div>
-              <h1 className="author-income-title">Author Page Book/PDF</h1>
+              <h1 className="author-income-title">
+                Author Page Book/PDF
+              </h1>
               <div className="author-income-subtitle">
-                Track all paid Book and PDF orders from Author Pages.
+                Real paid Book and PDF orders from Author Pages.
               </div>
             </div>
 
             <div className="author-income-actions">
-              <input className="author-income-input" type="date" defaultValue="2026-08-01" />
-              <input className="author-income-input" type="date" defaultValue="2026-08-29" />
-              <button className="author-income-button">Export</button>
+              <input
+                className="author-income-input"
+                type="date"
+                value={from}
+                onChange={(event) => {
+                  setFrom(
+                    event.target.value
+                  )
+                  setPage(1)
+                }}
+              />
+              <input
+                className="author-income-input"
+                type="date"
+                value={to}
+                onChange={(event) => {
+                  setTo(
+                    event.target.value
+                  )
+                  setPage(1)
+                }}
+              />
+              <button
+                className="author-income-button"
+                type="button"
+                onClick={exportCsv}
+                disabled={
+                  !transactions.length
+                }
+              >
+                Export
+              </button>
+              <button
+                className="author-income-button primary"
+                type="button"
+                onClick={() =>
+                  fetchIncome()
+                }
+                disabled={loading}
+              >
+                {loading
+                  ? 'Loading...'
+                  : 'Refresh'}
+              </button>
             </div>
           </div>
 
           <div className="author-income-summary">
             <div className="author-income-card">
-              <div className="author-income-card-label">Gross Sales</div>
-              <div className="author-income-card-value">{formatUsd(summary.gross)}</div>
-              <div className="author-income-card-sub">Total paid by readers</div>
+              <div className="author-income-card-label">
+                Gross Sales
+              </div>
+              <div className="author-income-card-value">
+                {formatUsd(
+                  summary.gross_sales_usd
+                )}
+              </div>
+              <div className="author-income-card-sub">
+                Paid product subtotal
+              </div>
             </div>
 
             <div className="author-income-card">
-              <div className="author-income-card-label">Platform Income 10%</div>
-              <div className="author-income-card-value">{formatUsd(summary.platform)}</div>
-              <div className="author-income-card-sub">Shadow platform fee</div>
+              <div className="author-income-card-label">
+                Platform Income
+              </div>
+              <div className="author-income-card-value">
+                {formatUsd(
+                  summary.platform_income_usd
+                )}
+              </div>
+              <div className="author-income-card-sub">
+                Actual stored platform fee
+              </div>
             </div>
 
             <div className="author-income-card">
-              <div className="author-income-card-label">Author Earnings 90%</div>
-              <div className="author-income-card-value">{formatUsd(summary.author)}</div>
-              <div className="author-income-card-sub good">Income to authors</div>
+              <div className="author-income-card-label">
+                Author Earnings
+              </div>
+              <div className="author-income-card-value">
+                {formatUsd(
+                  summary.author_earnings_usd
+                )}
+              </div>
+              <div className="author-income-card-sub good">
+                Actual stored author income
+              </div>
             </div>
 
             <div className="author-income-card">
-              <div className="author-income-card-label">Paid Orders</div>
-              <div className="author-income-card-value">{summary.paidOrders}</div>
-              <div className="author-income-card-sub">Completed payments</div>
+              <div className="author-income-card-label">
+                Paid Orders
+              </div>
+              <div className="author-income-card-value">
+                {summary.paid_orders || 0}
+              </div>
+              <div className="author-income-card-sub">
+                Payment status paid
+              </div>
             </div>
 
             <div className="author-income-card">
-              <div className="author-income-card-label">Pending Author Payout</div>
-              <div className="author-income-card-value">{formatUsd(summary.pendingPayout)}</div>
-              <div className="author-income-card-sub warn">Awaiting payout</div>
+              <div className="author-income-card-label">
+                Pending Author Payout
+              </div>
+              <div className="author-income-card-value">
+                {formatUsd(
+                  summary.pending_payout_usd
+                )}
+              </div>
+              <div className="author-income-card-sub warn">
+                In review + approved withdrawals
+              </div>
             </div>
 
             <div className="author-income-card">
-              <div className="author-income-card-label">Paid Out</div>
-              <div className="author-income-card-value">{formatUsd(summary.paidOut)}</div>
-              <div className="author-income-card-sub good">Already paid to authors</div>
+              <div className="author-income-card-label">
+                Paid Out
+              </div>
+              <div className="author-income-card-value">
+                {formatUsd(
+                  summary.paid_out_usd
+                )}
+              </div>
+              <div className="author-income-card-sub good">
+                Paid withdrawals
+              </div>
             </div>
           </div>
 
           <div className="author-income-tools">
             <input
               className="author-income-search"
-              placeholder="Search by buyer, product, author, or order ID..."
+              placeholder="Search buyer, product, author, order ID, or transaction ID..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(
+                  event.target.value
+                )
+                setPage(1)
+              }}
             />
 
             <div className="author-income-filters">
               <button
-                className={`author-income-chip ${range === 'today' ? 'active' : ''}`}
-                onClick={() => setRange('today')}
+                type="button"
+                className={`author-income-chip ${rangeKey === 'today' ? 'active' : ''}`}
+                onClick={() =>
+                  applyRange('today')
+                }
               >
                 Today
               </button>
               <button
-                className={`author-income-chip ${range === '7d' ? 'active' : ''}`}
-                onClick={() => setRange('7d')}
+                type="button"
+                className={`author-income-chip ${rangeKey === '7d' ? 'active' : ''}`}
+                onClick={() =>
+                  applyRange('7d')
+                }
               >
                 7D
               </button>
               <button
-                className={`author-income-chip ${range === '30d' ? 'active' : ''}`}
-                onClick={() => setRange('30d')}
+                type="button"
+                className={`author-income-chip ${rangeKey === '30d' ? 'active' : ''}`}
+                onClick={() =>
+                  applyRange('30d')
+                }
               >
                 30D
               </button>
               <button
-                className={`author-income-chip ${range === 'month' ? 'active' : ''}`}
-                onClick={() => setRange('month')}
+                type="button"
+                className={`author-income-chip ${rangeKey === 'month' ? 'active' : ''}`}
+                onClick={() =>
+                  applyRange('month')
+                }
               >
                 This Month
               </button>
-              <button className="author-income-chip">Filters</button>
             </div>
           </div>
 
-          <div className="author-income-tabs">
-            <button
-              className={`author-income-tab ${tab === 'all' ? 'active' : ''}`}
-              onClick={() => setTab('all')}
-            >
-              All
-            </button>
-            <button
-              className={`author-income-tab ${tab === 'book' ? 'active' : ''}`}
-              onClick={() => setTab('book')}
-            >
-              Book
-            </button>
-            <button
-              className={`author-income-tab ${tab === 'pdf' ? 'active' : ''}`}
-              onClick={() => setTab('pdf')}
-            >
-              PDF
-            </button>
-          </div>
+          {message ? (
+            <div className="author-income-message">
+              {message}
+            </div>
+          ) : null}
 
           <div className="author-income-main">
             <section className="author-income-panel">
               <div className="author-income-panel-head">
-                <div className="author-income-panel-title">Author Page Orders</div>
+                <div className="author-income-panel-title">
+                  Author Page Orders
+                </div>
                 <div className="author-income-panel-sub">
-                  Showing {filteredRows.length} records
+                  {pagination.total || 0}{' '}
+                  paid order(s)
                 </div>
               </div>
 
-              <div className="author-income-table-wrap">
-                <table className="author-income-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Buyer</th>
-                      <th>Product</th>
-                      <th>Type</th>
-                      <th>Author</th>
-                      <th>Price</th>
-                      <th>Platform 10%</th>
-                      <th>Author 90%</th>
-                      <th>Payment</th>
-                    </tr>
-                  </thead>
+              <div className="author-income-tabs">
+                {[
+                  ['all', 'All'],
+                  ['book', 'Book'],
+                  ['pdf', 'PDF'],
+                ].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`author-income-tab ${type === key ? 'active' : ''}`}
+                    onClick={() => {
+                      setType(key)
+                      setPage(1)
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-                  <tbody>
-                    {filteredRows.map((row) => (
-                      <tr
-                        key={row.id}
-                        className={selected?.id === row.id ? 'active' : ''}
-                        onClick={() => setSelectedId(row.id)}
+              {loading &&
+              !transactions.length ? (
+                <div className="author-income-empty">
+                  Loading Author Page orders...
+                </div>
+              ) : !transactions.length ? (
+                <div className="author-income-empty">
+                  No paid Author Page orders found.
+                </div>
+              ) : (
+                <>
+                  <div className="author-income-table-wrap">
+                    <table className="author-income-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Buyer</th>
+                          <th>Product</th>
+                          <th>Type</th>
+                          <th>Author</th>
+                          <th>Product Total</th>
+                          <th>Platform Fee</th>
+                          <th>Author Income</th>
+                          <th>Payment</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {transactions.map(
+                          (item) => (
+                            <tr
+                              key={item.id}
+                              className={
+                                selected?.id ===
+                                item.id
+                                  ? 'active'
+                                  : ''
+                              }
+                              onClick={() =>
+                                setSelectedId(
+                                  item.id
+                                )
+                              }
+                            >
+                              <td>
+                                <div className="author-income-name">
+                                  {formatDateTime(
+                                    item.created_at
+                                  )}
+                                </div>
+                                <div className="author-income-small">
+                                  {item.order_id ||
+                                    '-'}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="author-income-name">
+                                  {buyerName(
+                                    item
+                                  )}
+                                </div>
+                                <div className="author-income-small">
+                                  {buyerUsername(
+                                    item
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                <div className="author-income-name">
+                                  {item.product_title ||
+                                    'Order'}
+                                </div>
+                                <div className="author-income-small">
+                                  {item.item_count ||
+                                    0}{' '}
+                                  item(s)
+                                </div>
+                              </td>
+                              <td>
+                                <span
+                                  className={`author-income-type ${item.order_type || ''}`}
+                                >
+                                  {typeLabel(
+                                    item.order_type
+                                  )}
+                                </span>
+                              </td>
+                              <td>
+                                <div className="author-income-name">
+                                  {authorName(
+                                    item
+                                  )}
+                                </div>
+                                <div className="author-income-small">
+                                  {authorUsername(
+                                    item
+                                  )}
+                                </div>
+                              </td>
+                              <td className="author-income-money">
+                                {formatUsd(
+                                  item.product_subtotal_usd
+                                )}
+                              </td>
+                              <td className="author-income-money">
+                                {formatUsd(
+                                  item.platform_fee_usd
+                                )}
+                              </td>
+                              <td className="author-income-money good">
+                                {formatUsd(
+                                  item.author_income_usd
+                                )}
+                              </td>
+                              <td>
+                                <span className="author-income-status">
+                                  {String(
+                                    item.payment_status ||
+                                      'paid'
+                                  ).toUpperCase()}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="author-income-pagination">
+                    <div className="author-income-small">
+                      Page{' '}
+                      {pagination.page || 1}{' '}
+                      of{' '}
+                      {pagination.total_pages ||
+                        1}
+                    </div>
+
+                    <div className="author-income-pages">
+                      <button
+                        className="author-income-page-btn"
+                        type="button"
+                        disabled={
+                          !pagination.has_prev
+                        }
+                        onClick={() =>
+                          setPage((value) =>
+                            Math.max(
+                              1,
+                              value - 1
+                            )
+                          )
+                        }
                       >
-                        <td>
-                          <div className="author-income-name">{row.date}</div>
-                          <div className="author-income-small">{row.time}</div>
-                        </td>
-                        <td>
-                          <div className="author-income-name">{row.buyer}</div>
-                          <div className="author-income-small">{row.username}</div>
-                        </td>
-                        <td>
-                          <div className="author-income-name">{row.product}</div>
-                          <div className="author-income-small">
-                            {row.type === 'book' ? 'Book' : 'PDF'}
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`author-income-type ${row.type === 'pdf' ? 'pdf' : ''}`}>
-                            {row.type === 'book' ? 'Book' : 'PDF'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="author-income-name">{row.author}</div>
-                          <div className="author-income-small">{row.authorUsername}</div>
-                        </td>
-                        <td className="author-income-money">{formatUsd(row.finalPrice)}</td>
-                        <td className="author-income-money">{formatUsd(row.platformFee)}</td>
-                        <td className="author-income-money good">{formatUsd(row.authorIncome)}</td>
-                        <td>
-                          <span className="author-income-status">{row.paymentStatus}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        Previous
+                      </button>
 
-              <div className="author-income-pagination">
-                <div className="author-income-small">Rows per page: 20</div>
-
-                <div className="author-income-pages">
-                  <button className="author-income-page-btn active">1</button>
-                  <button className="author-income-page-btn">2</button>
-                  <button className="author-income-page-btn">3</button>
-                </div>
-              </div>
+                      <button
+                        className="author-income-page-btn"
+                        type="button"
+                        disabled={
+                          !pagination.has_next
+                        }
+                        onClick={() =>
+                          setPage((value) =>
+                            value + 1
+                          )
+                        }
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </section>
 
             <aside className="author-income-panel">
               <div className="author-income-panel-head">
-                <div className="author-income-panel-title">Order Detail</div>
-                <div className="author-income-panel-sub">Order ID: {selected.orderId}</div>
+                <div className="author-income-panel-title">
+                  Order Detail
+                </div>
+                <div className="author-income-panel-sub">
+                  {selected
+                    ? selected.order_id
+                    : 'No order selected'}
+                </div>
               </div>
 
-              <div className="author-income-detail">
-                <div className="author-income-section">
-                  <div className="author-income-section-title">Overview</div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Purchased At</div>
-                    <div className="author-income-v">{selected.date} {selected.time}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Payment</div>
-                    <div className="author-income-v good">{selected.paymentStatus}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Order ID</div>
-                    <div className="author-income-v">{selected.orderId}</div>
-                  </div>
+              {!selected ? (
+                <div className="author-income-empty">
+                  Select an order.
                 </div>
-
-                <div className="author-income-section">
-                  <div className="author-income-section-title">Buyer</div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Name</div>
-                    <div className="author-income-v">{selected.buyer}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Username</div>
-                    <div className="author-income-v">{selected.username}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">User ID</div>
-                    <div className="author-income-v">{selected.userId}</div>
-                  </div>
-                </div>
-
-                <div className="author-income-section">
-                  <div className="author-income-section-title">Product</div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Title</div>
-                    <div className="author-income-v">{selected.product}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Type</div>
-                    <div className="author-income-v">
-                      {selected.type === 'book' ? 'Book' : 'PDF'}
+              ) : (
+                <div className="author-income-detail">
+                  <div className="author-income-section">
+                    <div className="author-income-section-title">
+                      Overview
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Purchased At
+                      </div>
+                      <div className="author-income-v">
+                        {formatDateTime(
+                          selected.created_at
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Payment
+                      </div>
+                      <div className="author-income-v">
+                        {String(
+                          selected.payment_status ||
+                            'paid'
+                        ).toUpperCase()}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Order Status
+                      </div>
+                      <div className="author-income-v">
+                        {selected.order_status ||
+                          '-'}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Order ID
+                      </div>
+                      <div className="author-income-v">
+                        {selected.order_id ||
+                          '-'}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Transaction
+                      </div>
+                      <div className="author-income-v">
+                        {selected.aba_transaction_id ||
+                          '-'}
+                      </div>
                     </div>
                   </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Access</div>
-                    <div className="author-income-v">{selected.accessType}</div>
-                  </div>
-                </div>
 
-                <div className="author-income-section">
-                  <div className="author-income-section-title">Author</div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Name</div>
-                    <div className="author-income-v">{selected.author}</div>
+                  <div className="author-income-section">
+                    <div className="author-income-section-title">
+                      Buyer
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Name
+                      </div>
+                      <div className="author-income-v">
+                        {buyerName(
+                          selected
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Username
+                      </div>
+                      <div className="author-income-v">
+                        {buyerUsername(
+                          selected
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        User ID
+                      </div>
+                      <div className="author-income-v">
+                        {selected.buyer?.id ||
+                          '-'}
+                      </div>
+                    </div>
                   </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Username</div>
-                    <div className="author-income-v">{selected.authorUsername}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Author ID</div>
-                    <div className="author-income-v">{selected.authorId}</div>
-                  </div>
-                </div>
 
-                <div className="author-income-section">
-                  <div className="author-income-section-title">Payment & Amount</div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Original Price</div>
-                    <div className="author-income-v">{formatUsd(selected.originalPrice)}</div>
+                  <div className="author-income-section">
+                    <div className="author-income-section-title">
+                      Products
+                    </div>
+                    <div className="author-income-list">
+                      {(selected.items || [])
+                        .length ? (
+                        selected.items.map(
+                          (item) => (
+                            <div
+                              className="author-income-list-item"
+                              key={
+                                item.id ||
+                                item.product_id ||
+                                item.title
+                              }
+                            >
+                              <div className="author-income-name">
+                                {item.title}
+                              </div>
+                              <div className="author-income-small">
+                                {typeLabel(
+                                  item.product_type
+                                )}{' '}
+                                × {item.quantity}
+                              </div>
+                              <div className="author-income-small">
+                                {formatUsd(
+                                  item.unit_price_usd
+                                )}{' '}
+                                each ·{' '}
+                                {formatUsd(
+                                  item.total_usd
+                                )}
+                              </div>
+                            </div>
+                          )
+                        )
+                      ) : (
+                        <div className="author-income-small">
+                          No item detail.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Discount</div>
-                    <div className="author-income-v">{formatUsd(selected.discount)}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Final Price</div>
-                    <div className="author-income-v">{formatUsd(selected.finalPrice)}</div>
-                  </div>
-                </div>
 
-                <div className="author-income-section">
-                  <div className="author-income-section-title">Revenue Breakdown</div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Platform Fee 10%</div>
-                    <div className="author-income-v">{formatUsd(selected.platformFee)}</div>
+                  <div className="author-income-section">
+                    <div className="author-income-section-title">
+                      Author
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Name
+                      </div>
+                      <div className="author-income-v">
+                        {authorName(
+                          selected
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Username
+                      </div>
+                      <div className="author-income-v">
+                        {authorUsername(
+                          selected
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Author ID
+                      </div>
+                      <div className="author-income-v">
+                        {selected.author?.id ||
+                          '-'}
+                      </div>
+                    </div>
                   </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Author Income 90%</div>
-                    <div className="author-income-v good">{formatUsd(selected.authorIncome)}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Refund</div>
-                    <div className="author-income-v">{formatUsd(selected.refund)}</div>
-                  </div>
-                  <div className="author-income-kv">
-                    <div className="author-income-k">Net Author Payout</div>
-                    <div className="author-income-v good">{formatUsd(selected.authorIncome - selected.refund)}</div>
-                  </div>
-                </div>
 
-                <div className="author-income-detail-actions">
-                  <button className="author-income-button">View User</button>
-                  <button className="author-income-button primary">View Author</button>
+                  <div className="author-income-section">
+                    <div className="author-income-section-title">
+                      Payment & Amount
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Product Subtotal
+                      </div>
+                      <div className="author-income-v">
+                        {formatUsd(
+                          selected.product_subtotal_usd
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Delivery
+                      </div>
+                      <div className="author-income-v">
+                        {formatUsd(
+                          selected.delivery_fee_usd
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Total Paid
+                      </div>
+                      <div className="author-income-v">
+                        {formatUsd(
+                          selected.total_paid_usd
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="author-income-section">
+                    <div className="author-income-section-title">
+                      Revenue Breakdown
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Platform Fee
+                      </div>
+                      <div className="author-income-v">
+                        {formatUsd(
+                          selected.platform_fee_usd
+                        )}
+                      </div>
+                    </div>
+                    <div className="author-income-kv">
+                      <div className="author-income-k">
+                        Author Income
+                      </div>
+                      <div className="author-income-v good">
+                        {formatUsd(
+                          selected.author_income_usd
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </aside>
           </div>
         </div>
