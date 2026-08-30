@@ -35,6 +35,7 @@ import AdminWithdrawalPage from './pages/AdminWithdrawalPage';
 import AdminIncomePage from './pages/AdminIncomePage';
 import AdminEpisodeSalesPage from './pages/AdminEpisodeSalesPage';
 import AdminDiamondGiftsPage from './pages/AdminDiamondGiftsPage';
+import AdminAuthorPageIncomePage from './pages/AdminAuthorPageIncomePage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
@@ -168,6 +169,7 @@ export default function App() {
         <Route path="/income" element={<ProtectedPage><AdminIncomePage /></ProtectedPage>} />
         <Route path="/income/episode-sales" element={<ProtectedPage><AdminEpisodeSalesPage /></ProtectedPage>} />
         <Route path="/income/diamond-gifts" element={<ProtectedPage><AdminDiamondGiftsPage /></ProtectedPage>} />
+        <Route path="/income/author-page" element={<ProtectedPage><AdminAuthorPageIncomePage /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
