@@ -3,6 +3,7 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -28,6 +29,17 @@ const styles = `
     gap: 16px;
     align-items: flex-start;
   }
+
+  .diamond-gifts-back {
+  border: 0;
+  background: transparent;
+  color: #4F46E5;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
 
   .diamond-gifts-title {
     margin: 0;
@@ -578,6 +590,7 @@ function csvCell(value) {
 }
 
 export default function AdminDiamondGiftsPage() {
+  const navigate = useNavigate()
   const [from, setFrom] =
     useState(monthStartInput())
   const [to, setTo] =
@@ -862,10 +875,17 @@ export default function AdminDiamondGiftsPage() {
       <div className="diamond-gifts-page">
         <div className="diamond-gifts-wrap">
           <div className="diamond-gifts-header">
-            <div>
-              <h1 className="diamond-gifts-title">
-                Diamond Gifts
-              </h1>
+  <div>
+    <button
+      className="diamond-gifts-back"
+      type="button"
+      onClick={() => navigate('/income')}
+    >
+      ← Back to Income
+    </button>
+    <h1 className="diamond-gifts-title">
+      Diamond Gifts
+    </h1>
               <div className="diamond-gifts-subtitle">
                 Real Diamond gift income from author earnings records.
               </div>
