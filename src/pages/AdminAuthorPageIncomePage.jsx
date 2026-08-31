@@ -3,6 +3,7 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -28,6 +29,17 @@ const styles = `
     gap: 16px;
     align-items: flex-start;
   }
+
+  .author-income-back {
+  border: 0;
+  background: transparent;
+  color: #4F46E5;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
 
   .author-income-title {
     margin: 0;
@@ -610,6 +622,7 @@ function csvCell(value) {
 }
 
 export default function AdminAuthorPageIncomePage() {
+  const navigate = useNavigate()
   const [from, setFrom] =
     useState(monthStartInput())
   const [to, setTo] =
@@ -893,10 +906,17 @@ export default function AdminAuthorPageIncomePage() {
       <div className="author-income-page">
         <div className="author-income-wrap">
           <div className="author-income-header">
-            <div>
-              <h1 className="author-income-title">
-                Author Page Book/PDF
-              </h1>
+  <div>
+    <button
+      className="author-income-back"
+      type="button"
+      onClick={() => navigate('/income')}
+    >
+      ← Back to Income
+    </button>
+    <h1 className="author-income-title">
+      Author Page Book/PDF
+    </h1>
               <div className="author-income-subtitle">
                 Real paid Book and PDF orders from Author Pages.
               </div>
