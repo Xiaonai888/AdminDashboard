@@ -947,11 +947,11 @@ writeCache(cacheKey, result)
                   setPage(1)
                 }}
               />
-              <input
-                className="diamond-gifts-input"
-                type="date"
-                value={to}
-                onChange={(event) =>
+             <input
+  className="diamond-gifts-input"
+  type="date"
+  value={to}
+  onChange={(event) =>
   setSearch(event.target.value)
 }
 onKeyDown={(event) => {
@@ -967,7 +967,7 @@ onKeyDown={(event) => {
     { force: true }
   )
 }}
-              />
+/>
               <button
                 className="diamond-gifts-button"
                 type="button"
