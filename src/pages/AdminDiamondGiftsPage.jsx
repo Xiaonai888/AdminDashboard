@@ -70,15 +70,15 @@ const styles = `
   }
 
   .diamond-gifts-back {
-  border: 0;
-  background: transparent;
-  color: #4F46E5;
-  padding: 0;
-  margin-bottom: 10px;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-}
+    border: 0;
+    background: transparent;
+    color: #4F46E5;
+    padding: 0;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+  }
 
   .diamond-gifts-title {
     margin: 0;
@@ -636,6 +636,8 @@ export default function AdminDiamondGiftsPage() {
     useState(todayInput())
   const [search, setSearch] =
     useState('')
+  const [searchQuery, setSearchQuery] =
+    useState('')
   const [status, setStatus] =
     useState('all')
   const [page, setPage] =
@@ -673,24 +675,24 @@ export default function AdminDiamondGiftsPage() {
   )
 
   function applyResult(result) {
-  setData(result)
+    setData(result)
 
-  const nextTransactions =
-    result?.transactions || []
+    const nextTransactions =
+      result?.transactions || []
 
-  setSelectedId((current) =>
-    nextTransactions.some(
-      (item) => item.id === current
+    setSelectedId((current) =>
+      nextTransactions.some(
+        (item) => item.id === current
+      )
+        ? current
+        : nextTransactions[0]?.id || ''
     )
-      ? current
-      : nextTransactions[0]?.id || ''
-  )
-}
+  }
 
   async function fetchDiamondGifts(
-  signal,
-  { force = false } = {}
-) {
+    signal,
+    { force = false } = {}
+  ) {
     try {
       setLoading(true)
       setMessage('')
@@ -700,8 +702,8 @@ export default function AdminDiamondGiftsPage() {
 
       if (from) params.set('from', from)
       if (to) params.set('to', to)
-      if (search.trim()) {
-        params.set('q', search.trim())
+      if (searchQuery) {
+        params.set('q', searchQuery)
       }
       if (status !== 'all') {
         params.set('status', status)
@@ -717,16 +719,16 @@ export default function AdminDiamondGiftsPage() {
       )
 
       const cacheKey =
-  `${CACHE_PREFIX}${params.toString()}`
+        `${CACHE_PREFIX}${params.toString()}`
 
-if (!force) {
-  const cached = readCache(cacheKey)
+      if (!force) {
+        const cached = readCache(cacheKey)
 
-  if (cached) {
-    applyResult(cached)
-    return
-  }
-}
+        if (cached) {
+          applyResult(cached)
+          return
+        }
+      }
 
       const response = await fetch(
         `${API_URL}/api/admin/income/diamond-gifts?${params.toString()}`,
@@ -752,7 +754,7 @@ if (!force) {
       }
 
       applyResult(result)
-writeCache(cacheKey, result)
+      writeCache(cacheKey, result)
 
       if (
         result.truncated_source_scan
@@ -780,18 +782,18 @@ writeCache(cacheKey, result)
     }
   }
 
- useEffect(() => {
-  const controller =
-    new AbortController()
+  useEffect(() => {
+    const controller =
+      new AbortController()
 
-  fetchDiamondGifts(
-    controller.signal
-  )
+    fetchDiamondGifts(
+      controller.signal
+    )
 
-  return () => {
-    controller.abort()
-  }
-}, [from, to, status, page])
+    return () => {
+      controller.abort()
+    }
+  }, [from, to, searchQuery, status, page])
 
   function applyRange(key) {
     if (key === 'today') {
@@ -947,27 +949,15 @@ writeCache(cacheKey, result)
                   setPage(1)
                 }}
               />
-             <input
-  className="diamond-gifts-input"
-  type="date"
-  value={to}
-  onChange={(event) =>
-  setSearch(event.target.value)
-}
-onKeyDown={(event) => {
-  if (event.key !== 'Enter') return
-
-  if (page !== 1) {
-    setPage(1)
-    return
-  }
-
-  fetchDiamondGifts(
-    undefined,
-    { force: true }
-  )
-}}
-/>
+              <input
+                className="diamond-gifts-input"
+                type="date"
+                value={to}
+                onChange={(event) => {
+                  setTo(event.target.value)
+                  setPage(1)
+                }}
+              />
               <button
                 className="diamond-gifts-button"
                 type="button"
@@ -1090,10 +1080,27 @@ onKeyDown={(event) => {
               className="diamond-gifts-search"
               placeholder="Search sender, receiver, story, gift, or transaction ID..."
               value={search}
-              onChange={(event) => {
-                setSearch(
-                  event.target.value
-                )
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+
+                const nextSearch =
+                  search.trim()
+
+                if (
+                  nextSearch === searchQuery &&
+                  page === 1
+                ) {
+                  fetchDiamondGifts(
+                    undefined,
+                    { force: true }
+                  )
+                  return
+                }
+
+                setSearchQuery(nextSearch)
                 setPage(1)
               }}
             />
