@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminMusicManager from '../components/AdminMusicManager'
 import MusicImageUpload from '../components/MusicImageUpload'
@@ -481,6 +481,482 @@ const styles = `
       grid-template-columns: 1fr;
     }
   }
+
+  .mv2-page {
+    --mv2-blue: #3B82F6;
+    --mv2-blue-dark: #2563EB;
+    --mv2-text: #0F172A;
+    --mv2-muted: #64748B;
+    --mv2-border: #E2E8F0;
+    color: var(--mv2-text);
+  }
+
+  .mv2-topbar,
+  .mv2-section-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .mv2-topbar {
+    margin-bottom: 18px;
+  }
+
+  .mv2-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 950;
+    letter-spacing: -.035em;
+  }
+
+  .mv2-copy {
+    margin-top: 4px;
+    color: var(--mv2-muted);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .mv2-btn {
+    min-height: 40px;
+    border: 1px solid var(--mv2-border);
+    border-radius: 11px;
+    background: #FFFFFF;
+    color: var(--mv2-text);
+    padding: 0 14px;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: background .16s ease, border-color .16s ease, transform .16s ease;
+  }
+
+  .mv2-btn:hover {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+  }
+
+  .mv2-btn.primary {
+    border-color: var(--mv2-blue);
+    background: var(--mv2-blue);
+    color: #FFFFFF;
+  }
+
+  .mv2-btn.primary:hover {
+    border-color: var(--mv2-blue-dark);
+    background: var(--mv2-blue-dark);
+  }
+
+  .mv2-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  .mv2-section {
+    margin-bottom: 18px;
+  }
+
+  .mv2-section-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .mv2-search,
+  .mv2-input,
+  .mv2-select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--mv2-border);
+    border-radius: 11px;
+    background: #FFFFFF;
+    color: var(--mv2-text);
+    padding: 0 12px;
+    outline: none;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .mv2-search {
+    width: min(270px, 100%);
+    min-height: 38px;
+  }
+
+  .mv2-search:focus,
+  .mv2-input:focus,
+  .mv2-select:focus {
+    border-color: var(--mv2-blue);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.08);
+  }
+
+  .mv2-artists {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 3px 2px 9px;
+    scrollbar-width: thin;
+  }
+
+  .mv2-artist-card {
+    width: 114px;
+    min-width: 114px;
+    border: 1px solid var(--mv2-border);
+    border-radius: 15px;
+    background: #FFFFFF;
+    padding: 10px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform .16s ease, border-color .16s ease, background .16s ease, box-shadow .16s ease;
+  }
+
+  .mv2-artist-card:hover {
+    transform: translateY(-2px);
+    border-color: #BFDBFE;
+    box-shadow: 0 7px 20px rgba(15,23,42,.06);
+  }
+
+  .mv2-artist-card.active {
+    border-color: var(--mv2-blue);
+    background: #EFF6FF;
+    box-shadow: 0 0 0 2px rgba(59,130,246,.08);
+  }
+
+  .mv2-avatar {
+    width: 66px;
+    height: 66px;
+    margin: 0 auto;
+    border-radius: 999px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg,#475569,#111827);
+    color: #FFFFFF;
+  }
+
+  .mv2-avatar img,
+  .mv2-profile img,
+  .mv2-release-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .mv2-artist-name {
+    margin-top: 8px;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mv2-artist-meta {
+    margin-top: 3px;
+    color: var(--mv2-muted);
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .mv2-add-card {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    min-height: 114px;
+    border-style: dashed;
+    border-color: #BFDBFE;
+    background: #F8FBFF;
+    color: #2563EB;
+  }
+
+  .mv2-add-plus {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .mv2-new-artist {
+    margin-top: 12px;
+    border: 1px solid #DBEAFE;
+    border-radius: 16px;
+    background: #F8FBFF;
+    padding: 14px;
+  }
+
+  .mv2-new-artist-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .mv2-field {
+    margin-top: 12px;
+  }
+
+  .mv2-label {
+    display: block;
+    margin-bottom: 6px;
+    color: #334155;
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .mv2-workspace {
+    display: grid;
+    grid-template-columns: minmax(330px,.82fr) minmax(0,1.18fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .mv2-card {
+    border: 1px solid var(--mv2-border);
+    border-radius: 17px;
+    background: #FFFFFF;
+    overflow: hidden;
+  }
+
+  .mv2-card-pad {
+    padding: 15px;
+  }
+
+  .mv2-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 14px;
+    border-radius: 12px;
+    background: #F1F5F9;
+    padding: 4px;
+  }
+
+  .mv2-tab {
+    min-height: 39px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #475569;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .mv2-tab.active {
+    background: #FFFFFF;
+    color: #2563EB;
+    box-shadow: 0 2px 8px rgba(15,23,42,.08);
+  }
+
+  .mv2-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 13px;
+  }
+
+  .mv2-actions .primary {
+    flex: 1;
+  }
+
+  .mv2-album-song {
+    margin-top: 16px;
+    border: 1px solid #DBEAFE;
+    border-radius: 13px;
+    background: #F8FBFF;
+    padding: 12px;
+  }
+
+  .mv2-profile-head {
+    display: grid;
+    grid-template-columns: 62px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 15px;
+    border-bottom: 1px solid var(--mv2-border);
+  }
+
+  .mv2-profile {
+    width: 62px;
+    height: 62px;
+    border-radius: 999px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg,#475569,#111827);
+    color: #FFFFFF;
+  }
+
+  .mv2-profile-name {
+    font-size: 16px;
+    font-weight: 950;
+  }
+
+  .mv2-listener-value {
+    margin-top: 5px;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .mv2-listener-label {
+    color: var(--mv2-muted);
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .mv2-metrics {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 8px;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--mv2-border);
+  }
+
+  .mv2-metric {
+    border: 1px solid var(--mv2-border);
+    border-radius: 11px;
+    background: #F8FAFC;
+    padding: 9px;
+  }
+
+  .mv2-metric-label {
+    color: var(--mv2-muted);
+    font-size: 8px;
+    font-weight: 850;
+    text-transform: uppercase;
+  }
+
+  .mv2-metric-value {
+    margin-top: 3px;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .mv2-release-section {
+    padding: 13px 15px;
+    border-bottom: 1px solid var(--mv2-border);
+  }
+
+  .mv2-release-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+
+  .mv2-release-title {
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .mv2-release-list {
+    display: grid;
+    gap: 7px;
+  }
+
+  .mv2-release-row {
+    display: grid;
+    grid-template-columns: 48px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #EEF2F7;
+    border-radius: 11px;
+    background: #FFFFFF;
+    padding: 7px;
+  }
+
+  .mv2-release-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 9px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg,#475569,#111827);
+    color: #FFFFFF;
+  }
+
+  .mv2-release-name {
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mv2-release-meta {
+    margin-top: 3px;
+    color: var(--mv2-muted);
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .mv2-views {
+    color: #475569;
+    font-size: 9px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .mv2-empty {
+    border: 1px dashed var(--mv2-border);
+    border-radius: 11px;
+    padding: 16px;
+    color: var(--mv2-muted);
+    text-align: center;
+    font-size: 9px;
+    font-weight: 750;
+  }
+
+  .mv2-manager {
+    margin-top: 15px;
+  }
+
+  .mv2-status {
+    margin-top: 14px;
+    border-radius: 11px;
+    background: #F8FAFC;
+    padding: 10px 12px;
+    color: var(--mv2-muted);
+    font-size: 10px;
+    font-weight: 750;
+  }
+
+  .mv2-status.error {
+    background: #FEF2F2;
+    color: #B91C1C;
+  }
+
+  .mv2-history {
+    margin-top: 18px;
+  }
+
+  @media (max-width: 980px) {
+    .mv2-workspace,
+    .mv2-new-artist-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .mv2-topbar,
+    .mv2-section-head {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .mv2-search {
+      width: 100%;
+    }
+
+    .mv2-profile-head {
+      grid-template-columns: 54px minmax(0,1fr);
+    }
+
+    .mv2-profile-head > .mv2-btn {
+      grid-column: 1 / -1;
+      width: 100%;
+    }
+  }
+
 `
 
 function getAdminToken() {
@@ -527,11 +1003,24 @@ function PlayIcon() {
 }
 
 export default function AdminMusicPage() {
+  const artistDetailCache = useRef({})
   const [artists, setArtists] = useState([])
   const [query, setQuery] = useState('')
   const [showArtistForm, setShowArtistForm] = useState(false)
   const [artistName, setArtistName] = useState('')
   const [artistAvatarUrl, setArtistAvatarUrl] = useState('')
+  const [artistBannerUrl, setArtistBannerUrl] = useState('')
+  const [createMode, setCreateMode] = useState('single')
+  const [soloTitle, setSoloTitle] = useState('')
+  const [soloCoverUrl, setSoloCoverUrl] = useState('')
+  const [soloYoutubeUrl, setSoloYoutubeUrl] = useState('')
+  const [albumTitleNew, setAlbumTitleNew] = useState('')
+  const [albumCoverUrlNew, setAlbumCoverUrlNew] = useState('')
+  const [albumYearNew, setAlbumYearNew] = useState(String(new Date().getFullYear()))
+  const [selectedAlbumId, setSelectedAlbumId] = useState('')
+  const [albumSongTitle, setAlbumSongTitle] = useState('')
+  const [albumSongYoutubeUrl, setAlbumSongYoutubeUrl] = useState('')
+  const [showAdvancedManager, setShowAdvancedManager] = useState(false)
   const [selectedArtistId, setSelectedArtistId] = useState('')
   const [selectedArtistDetail, setSelectedArtistDetail] = useState(null)
   const [releaseTitle, setReleaseTitle] = useState('')
@@ -560,20 +1049,36 @@ export default function AdminMusicPage() {
     }
   }, [])
 
-  const loadArtist = useCallback(async (artistId) => {
+  const loadArtist = useCallback(async (artistId, force = false) => {
     if (!artistId) {
       setSelectedArtistDetail(null)
       setSongReleaseId('')
+      setSelectedAlbumId('')
       return
     }
 
     setError('')
 
+    if (!force && artistDetailCache.current[artistId]) {
+      const cached = artistDetailCache.current[artistId]
+      setSelectedArtistDetail(cached)
+      const cachedReleases = Array.isArray(cached.releases) ? cached.releases : []
+      const cachedAlbums = cachedReleases.filter((release) => release.release_type === 'album')
+      setSongReleaseId((current) => cachedReleases.some((release) => release.id === current) ? current : cachedReleases[0]?.id || '')
+      setSelectedAlbumId((current) => cachedAlbums.some((album) => album.id === current) ? current : cachedAlbums[0]?.id || '')
+      return
+    }
+
     try {
       const data = await musicRequest(`/api/music/admin/artists/${encodeURIComponent(artistId)}`)
+      artistDetailCache.current[artistId] = data
       setSelectedArtistDetail(data)
+
       const releases = Array.isArray(data.releases) ? data.releases : []
+      const albums = releases.filter((release) => release.release_type === 'album')
+
       setSongReleaseId((current) => releases.some((release) => release.id === current) ? current : releases[0]?.id || '')
+      setSelectedAlbumId((current) => albums.some((album) => album.id === current) ? current : albums[0]?.id || '')
     } catch (requestError) {
       setError(requestError.message)
     }
@@ -583,6 +1088,18 @@ export default function AdminMusicPage() {
     loadOverview()
   }, [loadOverview])
 
+  useEffect(() => {
+    if (!selectedArtistId && artists.length) {
+      setSelectedArtistId(artists[0].id)
+    }
+  }, [artists, selectedArtistId])
+
+  useEffect(() => {
+    if (selectedArtistId) {
+      loadArtist(selectedArtistId)
+    }
+  }, [selectedArtistId, loadArtist])
+
   const filteredArtists = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     if (!keyword) return artists
@@ -591,6 +1108,8 @@ export default function AdminMusicPage() {
 
   const selectedArtist = artists.find((artist) => artist.id === selectedArtistId) || null
   const releases = Array.isArray(selectedArtistDetail?.releases) ? selectedArtistDetail.releases : []
+  const singles = useMemo(() => releases.filter((release) => release.release_type === 'single'), [releases])
+  const albums = useMemo(() => releases.filter((release) => release.release_type === 'album'), [releases])
 
   async function addArtist() {
     const name = artistName.trim()
@@ -609,10 +1128,12 @@ export default function AdminMusicPage() {
         body: JSON.stringify({
           name,
           avatar_url: artistAvatarUrl.trim(),
+          banner_url: artistBannerUrl.trim(),
         }),
       })
       setArtistName('')
       setArtistAvatarUrl('')
+      setArtistBannerUrl('')
       setShowArtistForm(false)
       setNotice(`${data.artist?.name || name} created.`)
       await loadOverview()
@@ -723,263 +1244,699 @@ export default function AdminMusicPage() {
     }
   }
 
+  async function refreshSelectedArtist() {
+    if (!selectedArtistId) return
+    delete artistDetailCache.current[selectedArtistId]
+    await Promise.all([
+      loadOverview(),
+      loadArtist(selectedArtistId, true),
+    ])
+  }
+
+  function selectArtistQuick(artistId) {
+    if (!artistId || artistId === selectedArtistId) return
+    setSelectedArtistId(artistId)
+    setShowAdvancedManager(false)
+    setNotice('')
+    setError('')
+  }
+
+  async function createSoloRelease() {
+    if (!selectedArtistId) {
+      setError('Choose an artist first.')
+      return
+    }
+
+    const title = soloTitle.trim()
+    const youtubeUrl = soloYoutubeUrl.trim()
+
+    if (!title || !youtubeUrl) {
+      setError('Solo title and YouTube link are required.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    let createdReleaseId = ''
+
+    try {
+      const releaseData = await musicRequest('/api/music/admin/releases', {
+        method: 'POST',
+        body: JSON.stringify({
+          artist_id: selectedArtistId,
+          title,
+          release_type: 'single',
+          cover_url: soloCoverUrl.trim(),
+          release_year: new Date().getFullYear(),
+        }),
+      })
+
+      createdReleaseId = releaseData.release?.id || ''
+      if (!createdReleaseId) throw new Error('Single release was not created')
+
+      await musicRequest('/api/music/admin/songs', {
+        method: 'POST',
+        body: JSON.stringify({
+          release_id: createdReleaseId,
+          title,
+          youtube_url: youtubeUrl,
+          track_number: 1,
+        }),
+      })
+
+      setSoloTitle('')
+      setSoloCoverUrl('')
+      setSoloYoutubeUrl('')
+      setNotice(`${title} created as Solo.`)
+
+      await refreshSelectedArtist()
+    } catch (requestError) {
+      if (createdReleaseId) {
+        try {
+          await musicRequest(`/api/music/admin/releases/${encodeURIComponent(createdReleaseId)}`, {
+            method: 'DELETE',
+          })
+        } catch {
+          void 0
+        }
+      }
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function createAlbumOnly() {
+    if (!selectedArtistId) {
+      setError('Choose an artist first.')
+      return
+    }
+
+    const title = albumTitleNew.trim()
+
+    if (!title) {
+      setError('Album title is required.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const data = await musicRequest('/api/music/admin/releases', {
+        method: 'POST',
+        body: JSON.stringify({
+          artist_id: selectedArtistId,
+          title,
+          release_type: 'album',
+          cover_url: albumCoverUrlNew.trim(),
+          release_year: Number(albumYearNew) || new Date().getFullYear(),
+        }),
+      })
+
+      setAlbumTitleNew('')
+      setAlbumCoverUrlNew('')
+      setSelectedAlbumId(data.release?.id || '')
+      setNotice(`${data.release?.title || title} album created.`)
+
+      await refreshSelectedArtist()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function addSongToSelectedAlbum() {
+    if (!selectedAlbumId) {
+      setError('Choose or create an album first.')
+      return
+    }
+
+    const title = albumSongTitle.trim()
+    const youtubeUrl = albumSongYoutubeUrl.trim()
+
+    if (!title || !youtubeUrl) {
+      setError('Song title and YouTube link are required.')
+      return
+    }
+
+    const album = albums.find((item) => item.id === selectedAlbumId)
+    const nextTrack = (album?.songs?.length || 0) + 1
+
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    try {
+      await musicRequest('/api/music/admin/songs', {
+        method: 'POST',
+        body: JSON.stringify({
+          release_id: selectedAlbumId,
+          title,
+          youtube_url: youtubeUrl,
+          track_number: nextTrack,
+        }),
+      })
+
+      setAlbumSongTitle('')
+      setAlbumSongYoutubeUrl('')
+      setNotice(`${title} added to ${album?.title || 'album'}.`)
+
+      await refreshSelectedArtist()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function totalReleaseViews(release) {
+    return (release?.songs || []).reduce(
+      (total, song) => total + Number(song.view_count || 0),
+      0
+    )
+  }
+
+  function formatShadowViews(value) {
+    const count = Number(value || 0)
+    if (count >= 1000000) return `${(count / 1000000).toFixed(count >= 10000000 ? 0 : 1)}M`
+    if (count >= 1000) return `${(count / 1000).toFixed(count >= 10000 ? 0 : 1)}K`
+    return String(count)
+  }
+
   return (
     <AdminLayout
       title="Music"
-      subtitle="Create artists, albums, singles and connect YouTube songs."
+      subtitle="Create and manage Shadow artists, solos and albums."
     >
       <style>{styles}</style>
 
-      <div className="admin-music-page">
-        <div className="am-toolbar">
-          <div className="am-intro">
-            <h2 className="am-intro-title">Music</h2>
-            <div className="am-intro-text">Create artists, albums, singles and connect YouTube songs.</div>
+      <div className="mv2-page">
+        <div className="mv2-topbar">
+          <div>
+            <h2 className="mv2-title">Shadow Music</h2>
+            <div className="mv2-copy">
+              Select an artist, then create a Solo or Album.
+            </div>
           </div>
 
-          <button type="button" className="am-primary-btn" onClick={() => setShowArtistForm(true)}>
-            + Artist
+          <button
+            type="button"
+            className="mv2-btn primary"
+            onClick={() => setShowArtistForm((current) => !current)}
+          >
+            + New Artist
           </button>
         </div>
 
-        <AdminMusicListenHistory />
-
-        <div className="am-search-wrap">
-          <label className="am-label" htmlFor="admin-music-search">Search artist</label>
-          <input
-            id="admin-music-search"
-            className="am-input"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search artist..."
-          />
-        </div>
-
-        {showArtistForm ? (
-          <div className="am-card am-create-card">
-            <h3 className="am-card-title">New Artist</h3>
-            <div className="am-form-space">
-              <label className="am-label" htmlFor="admin-music-artist-name">Artist name</label>
-              <input
-                id="admin-music-artist-name"
-                className="am-input"
-                value={artistName}
-                onChange={(event) => setArtistName(event.target.value)}
-                placeholder="Artist name"
-              />
+        <section className="mv2-section">
+          <div className="mv2-section-head">
+            <div>
+              <h3 className="mv2-section-title">Select Artist</h3>
+              <div className="mv2-copy">
+                Hover or click an artist to switch the workspace below.
+              </div>
             </div>
 
-            <MusicImageUpload
-              value={artistAvatarUrl}
-              onChange={setArtistAvatarUrl}
-              shape="circle"
-              label="Artist Profile"
-              disabled={saving}
+            <input
+              className="mv2-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search artist..."
             />
+          </div>
 
-            <div className="am-form-actions">
-              <button type="button" className="am-primary-btn" disabled={saving} onClick={addArtist}>Save</button>
-              <button type="button" className="am-secondary-btn" disabled={saving} onClick={() => setShowArtistForm(false)}>Cancel</button>
+          <div className="mv2-artists">
+            {loading ? (
+              <div className="mv2-empty" style={{ minWidth: 220 }}>
+                Loading artists...
+              </div>
+            ) : filteredArtists.map((artist) => (
+              <button
+                type="button"
+                key={artist.id}
+                className={`mv2-artist-card${artist.id === selectedArtistId ? ' active' : ''}`}
+                onMouseEnter={() => selectArtistQuick(artist.id)}
+                onClick={() => selectArtistQuick(artist.id)}
+              >
+                <div className="mv2-avatar">
+                  {artist.avatar_url ? (
+                    <img src={artist.avatar_url} alt="" />
+                  ) : (
+                    <MusicIcon size={23} />
+                  )}
+                </div>
+
+                <div className="mv2-artist-name">{artist.name}</div>
+                <div className="mv2-artist-meta">
+                  {Number(artist.song_count || 0)} songs
+                </div>
+              </button>
+            ))}
+
+            <button
+              type="button"
+              className="mv2-artist-card mv2-add-card"
+              onClick={() => setShowArtistForm(true)}
+            >
+              <span className="mv2-add-plus">+</span>
+              <span className="mv2-artist-name">Add Artist</span>
+            </button>
+          </div>
+
+          {showArtistForm ? (
+            <div className="mv2-new-artist">
+              <div className="mv2-section-head">
+                <div>
+                  <h3 className="mv2-section-title">Create Artist</h3>
+                  <div className="mv2-copy">
+                    Profile recommended. Artist Cover is optional.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="mv2-btn"
+                  onClick={() => setShowArtistForm(false)}
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="mv2-new-artist-grid">
+                <div>
+                  <div className="mv2-field">
+                    <label className="mv2-label" htmlFor="mv2-artist-name">
+                      Artist Name
+                    </label>
+                    <input
+                      id="mv2-artist-name"
+                      className="mv2-input"
+                      value={artistName}
+                      onChange={(event) => setArtistName(event.target.value)}
+                      placeholder="Artist name"
+                    />
+                  </div>
+
+                  <MusicImageUpload
+                    value={artistAvatarUrl}
+                    onChange={setArtistAvatarUrl}
+                    shape="circle"
+                    label="Artist Profile"
+                    disabled={saving}
+                  />
+                </div>
+
+                <div>
+                  <MusicImageUpload
+                    value={artistBannerUrl}
+                    onChange={setArtistBannerUrl}
+                    shape="banner"
+                    label="Artist Cover (Optional)"
+                    disabled={saving}
+                  />
+
+                  <div className="mv2-actions">
+                    <button
+                      type="button"
+                      className="mv2-btn primary"
+                      disabled={saving}
+                      onClick={addArtist}
+                    >
+                      Create Artist
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
+          ) : null}
+        </section>
+
+        {selectedArtist ? (
+          <div className="mv2-workspace">
+            <section className="mv2-card">
+              <div className="mv2-card-pad">
+                <h3 className="mv2-section-title">Create New Release</h3>
+                <div className="mv2-copy">
+                  Selected artist: {selectedArtist.name}
+                </div>
+
+                <div className="mv2-tabs">
+                  <button
+                    type="button"
+                    className={`mv2-tab${createMode === 'single' ? ' active' : ''}`}
+                    onClick={() => setCreateMode('single')}
+                  >
+                    Solo / Single
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`mv2-tab${createMode === 'album' ? ' active' : ''}`}
+                    onClick={() => setCreateMode('album')}
+                  >
+                    Album
+                  </button>
+                </div>
+
+                {createMode === 'single' ? (
+                  <>
+                    <div className="mv2-field">
+                      <label className="mv2-label" htmlFor="mv2-solo-title">
+                        Title
+                      </label>
+                      <input
+                        id="mv2-solo-title"
+                        className="mv2-input"
+                        value={soloTitle}
+                        onChange={(event) => setSoloTitle(event.target.value)}
+                        placeholder="Song title"
+                      />
+                    </div>
+
+                    <MusicImageUpload
+                      value={soloCoverUrl}
+                      onChange={setSoloCoverUrl}
+                      shape="square"
+                      label="Solo Cover"
+                      disabled={saving}
+                    />
+
+                    <div className="mv2-field">
+                      <label className="mv2-label" htmlFor="mv2-solo-youtube">
+                        YouTube Link
+                      </label>
+                      <input
+                        id="mv2-solo-youtube"
+                        className="mv2-input"
+                        type="url"
+                        value={soloYoutubeUrl}
+                        onChange={(event) => setSoloYoutubeUrl(event.target.value)}
+                        placeholder="https://youtube.com/watch?v=..."
+                      />
+                    </div>
+
+                    <div className="mv2-actions">
+                      <button
+                        type="button"
+                        className="mv2-btn primary"
+                        disabled={saving}
+                        onClick={createSoloRelease}
+                      >
+                        Create Solo
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mv2-field">
+                      <label className="mv2-label" htmlFor="mv2-album-title">
+                        Album Title
+                      </label>
+                      <input
+                        id="mv2-album-title"
+                        className="mv2-input"
+                        value={albumTitleNew}
+                        onChange={(event) => setAlbumTitleNew(event.target.value)}
+                        placeholder="Album title"
+                      />
+                    </div>
+
+                    <div className="mv2-field">
+                      <label className="mv2-label" htmlFor="mv2-album-year">
+                        Year
+                      </label>
+                      <input
+                        id="mv2-album-year"
+                        className="mv2-input"
+                        inputMode="numeric"
+                        value={albumYearNew}
+                        onChange={(event) =>
+                          setAlbumYearNew(event.target.value.replace(/\D/g, '').slice(0, 4))
+                        }
+                        placeholder="2026"
+                      />
+                    </div>
+
+                    <MusicImageUpload
+                      value={albumCoverUrlNew}
+                      onChange={setAlbumCoverUrlNew}
+                      shape="square"
+                      label="Album Cover"
+                      disabled={saving}
+                    />
+
+                    <div className="mv2-actions">
+                      <button
+                        type="button"
+                        className="mv2-btn primary"
+                        disabled={saving}
+                        onClick={createAlbumOnly}
+                      >
+                        Create Album
+                      </button>
+                    </div>
+
+                    <div className="mv2-album-song">
+                      <h3 className="mv2-section-title">Add Song to Album</h3>
+                      <div className="mv2-copy">
+                        Every song uses the selected Album Cover.
+                      </div>
+
+                      <div className="mv2-field">
+                        <label className="mv2-label" htmlFor="mv2-album-select">
+                          Album
+                        </label>
+                        <select
+                          id="mv2-album-select"
+                          className="mv2-select"
+                          value={selectedAlbumId}
+                          onChange={(event) => setSelectedAlbumId(event.target.value)}
+                          disabled={!albums.length}
+                        >
+                          {!albums.length ? (
+                            <option value="">Create an album first</option>
+                          ) : null}
+                          {albums.map((album) => (
+                            <option key={album.id} value={album.id}>
+                              {album.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="mv2-field">
+                        <label className="mv2-label" htmlFor="mv2-album-song-title">
+                          Song Title
+                        </label>
+                        <input
+                          id="mv2-album-song-title"
+                          className="mv2-input"
+                          value={albumSongTitle}
+                          onChange={(event) => setAlbumSongTitle(event.target.value)}
+                          placeholder="Song title"
+                        />
+                      </div>
+
+                      <div className="mv2-field">
+                        <label className="mv2-label" htmlFor="mv2-album-song-youtube">
+                          YouTube Link
+                        </label>
+                        <input
+                          id="mv2-album-song-youtube"
+                          className="mv2-input"
+                          type="url"
+                          value={albumSongYoutubeUrl}
+                          onChange={(event) => setAlbumSongYoutubeUrl(event.target.value)}
+                          placeholder="https://youtube.com/watch?v=..."
+                        />
+                      </div>
+
+                      <div className="mv2-actions">
+                        <button
+                          type="button"
+                          className="mv2-btn primary"
+                          disabled={saving || !albums.length}
+                          onClick={addSongToSelectedAlbum}
+                        >
+                          Add Song
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="mv2-card">
+              <div className="mv2-profile-head">
+                <div className="mv2-profile">
+                  {selectedArtist.avatar_url ? (
+                    <img src={selectedArtist.avatar_url} alt="" />
+                  ) : (
+                    <MusicIcon size={23} />
+                  )}
+                </div>
+
+                <div>
+                  <div className="mv2-profile-name">{selectedArtist.name}</div>
+                  <div className="mv2-listener-value">—</div>
+                  <div className="mv2-listener-label">
+                    Total Listeners (All Time)
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="mv2-btn"
+                  onClick={() => setShowAdvancedManager((current) => !current)}
+                >
+                  {showAdvancedManager ? 'Close Edit' : 'Edit Artist'}
+                </button>
+              </div>
+
+              <div className="mv2-metrics">
+                <div className="mv2-metric">
+                  <div className="mv2-metric-label">Singles</div>
+                  <div className="mv2-metric-value">{singles.length}</div>
+                </div>
+
+                <div className="mv2-metric">
+                  <div className="mv2-metric-label">Albums</div>
+                  <div className="mv2-metric-value">{albums.length}</div>
+                </div>
+
+                <div className="mv2-metric">
+                  <div className="mv2-metric-label">Songs</div>
+                  <div className="mv2-metric-value">
+                    {releases.reduce(
+                      (total, release) => total + (release.songs?.length || 0),
+                      0
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mv2-release-section">
+                <div className="mv2-release-head">
+                  <div className="mv2-release-title">Singles / Solo</div>
+                  <div className="mv2-copy">{singles.length}</div>
+                </div>
+
+                {singles.length ? (
+                  <div className="mv2-release-list">
+                    {singles.map((release) => (
+                      <div className="mv2-release-row" key={release.id}>
+                        <div className="mv2-release-cover">
+                          {release.cover_url ? (
+                            <img src={release.cover_url} alt="" />
+                          ) : (
+                            <MusicIcon size={18} />
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="mv2-release-name">{release.title}</div>
+                          <div className="mv2-release-meta">
+                            {release.release_year || ''} • Solo
+                          </div>
+                        </div>
+
+                        <div className="mv2-views">
+                          {formatShadowViews(totalReleaseViews(release))} Views
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mv2-empty">No Solo releases yet.</div>
+                )}
+              </div>
+
+              <div className="mv2-release-section">
+                <div className="mv2-release-head">
+                  <div className="mv2-release-title">Albums</div>
+                  <div className="mv2-copy">{albums.length}</div>
+                </div>
+
+                {albums.length ? (
+                  <div className="mv2-release-list">
+                    {albums.map((release) => (
+                      <button
+                        type="button"
+                        className="mv2-release-row"
+                        key={release.id}
+                        style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                        onClick={() => {
+                          setCreateMode('album')
+                          setSelectedAlbumId(release.id)
+                        }}
+                      >
+                        <div className="mv2-release-cover">
+                          {release.cover_url ? (
+                            <img src={release.cover_url} alt="" />
+                          ) : (
+                            <MusicIcon size={18} />
+                          )}
+                        </div>
+
+                        <div>
+                          <div className="mv2-release-name">{release.title}</div>
+                          <div className="mv2-release-meta">
+                            {release.release_year || ''} • {release.songs?.length || 0} songs
+                          </div>
+                        </div>
+
+                        <div className="mv2-views">
+                          {formatShadowViews(totalReleaseViews(release))} Views
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mv2-empty">No Albums yet.</div>
+                )}
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="mv2-empty">
+            Create or select an artist to begin.
+          </div>
+        )}
+
+        {selectedArtist && showAdvancedManager ? (
+          <div className="mv2-manager">
+            <AdminMusicManager
+              data={selectedArtistDetail}
+              onRefresh={refreshSelectedArtist}
+              onArtistDeleted={() => {
+                artistDetailCache.current = {}
+                setSelectedArtistId('')
+                setSelectedArtistDetail(null)
+                setSongReleaseId('')
+                setSelectedAlbumId('')
+                setShowAdvancedManager(false)
+                return loadOverview()
+              }}
+            />
           </div>
         ) : null}
 
-        <div className="am-section-head">
-          <h3 className="am-section-title">Artists</h3>
-          <div className="am-section-count">{artists.length} artists</div>
-        </div>
-
-        <div className="am-artist-list">
-          {loading ? (
-            <div className="am-loading">Loading music...</div>
-          ) : filteredArtists.length ? filteredArtists.map((artist) => (
-            <div className="am-artist-row" key={artist.id}>
-              <div className="am-avatar">
-                {artist.avatar_url ? <img src={artist.avatar_url} alt="" /> : <MusicIcon />}
-              </div>
-              <div>
-                <h4 className="am-artist-name">{artist.name}</h4>
-                <div className="am-artist-meta">
-                  {Number(artist.album_count || 0)} Albums • {Number(artist.single_count || 0)} Singles • {Number(artist.song_count || 0)} Songs
-                </div>
-              </div>
-              <button type="button" className="am-manage-btn" onClick={() => manageArtist(artist.id)}>
-                {selectedArtistId === artist.id ? 'Close' : 'Manage'}
-              </button>
-            </div>
-          )) : (
-            <div className="am-empty">No artist found.</div>
-          )}
-        </div>
-
-        {selectedArtist ? (
-          <>
-            <div className="am-manage-card">
-              <div className="am-manage-top">
-                <div>
-                  <div className="am-manage-name">Manage Artist → {selectedArtist.name}</div>
-                  <div className="am-manage-meta">Albums / Singles / Songs</div>
-                </div>
-                <button type="button" className="am-secondary-btn" onClick={() => manageArtist(selectedArtist.id)}>Close</button>
-              </div>
-
-              <div className="am-mini-grid">
-                <div className="am-mini-card">
-                  <div className="am-mini-label">Albums</div>
-                  <div className="am-mini-value">{Number(selectedArtist.album_count || 0)}</div>
-                </div>
-                <div className="am-mini-card">
-                  <div className="am-mini-label">Singles</div>
-                  <div className="am-mini-value">{Number(selectedArtist.single_count || 0)}</div>
-                </div>
-                <div className="am-mini-card">
-                  <div className="am-mini-label">Songs</div>
-                  <div className="am-mini-value">{Number(selectedArtist.song_count || 0)}</div>
-                </div>
-              </div>
-
-              {releases.length ? (
-                <div className="am-release-list">
-                  {releases.map((release) => (
-                    <div className="am-release-row" key={release.id}>
-                      <div className="am-release-cover">
-                        {release.cover_url ? <img src={release.cover_url} alt="" /> : <MusicIcon size={18} />}
-                      </div>
-                      <div>
-                        <div className="am-release-title">{release.title}</div>
-                        <div className="am-release-meta">
-                          {release.release_type === 'album' ? 'Album' : 'Single'} • {release.release_year || ''} • {release.songs?.length || 0} Songs
-                        </div>
-                      </div>
-                      <button type="button" className="am-manage-btn" onClick={() => setSongReleaseId(release.id)}>Use</button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-
-            <AdminMusicManager
-  data={selectedArtistDetail}
-  onRefresh={() => Promise.all([loadOverview(), loadArtist(selectedArtistId)])}
-  onArtistDeleted={() => { setSelectedArtistId(''); setSelectedArtistDetail(null); setSongReleaseId(''); return loadOverview() }}
-/>
-
-<div className="am-card am-release-card">
-  <h3 className="am-card-title">New Album / Single</h3>
-              <div className="am-card-subtitle">Create the release before adding its YouTube song.</div>
-
-              <div className="am-form-space">
-                <label className="am-label" htmlFor="admin-music-release-title">Title</label>
-                <input
-                  id="admin-music-release-title"
-                  className="am-input"
-                  value={releaseTitle}
-                  onChange={(event) => setReleaseTitle(event.target.value)}
-                  placeholder="Album or single title"
-                />
-              </div>
-
-              <div className="am-form-grid">
-                <div>
-                  <label className="am-label" htmlFor="admin-music-release-type">Type</label>
-                  <select id="admin-music-release-type" className="am-select" value={releaseType} onChange={(event) => setReleaseType(event.target.value)}>
-                    <option value="single">Single</option>
-                    <option value="album">Album</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="am-label" htmlFor="admin-music-release-year">Year</label>
-                  <input
-                    id="admin-music-release-year"
-                    className="am-input"
-                    inputMode="numeric"
-                    value={releaseYear}
-                    onChange={(event) => setReleaseYear(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                    placeholder="2026"
-                  />
-                </div>
-              </div>
-
-              <MusicImageUpload
-                value={releaseCoverUrl}
-                onChange={setReleaseCoverUrl}
-                shape="square"
-                label="Album / Single Cover"
-                disabled={saving}
-              />
-
-              <button type="button" className="am-primary-btn am-preview-btn" disabled={saving} onClick={createRelease}>Create Release</button>
-            </div>
-
-            <div className="am-card am-song-card">
-              <div className="am-song-head">
-                <div>
-                  <h3 className="am-card-title">Add Song</h3>
-                  <div className="am-card-subtitle">YouTube is the media source</div>
-                </div>
-                <div className="am-play-icon"><PlayIcon /></div>
-              </div>
-
-              <div className="am-form-space">
-                <label className="am-label" htmlFor="admin-music-song-release">Album / Single</label>
-                <select
-                  id="admin-music-song-release"
-                  className="am-select"
-                  value={songReleaseId}
-                  onChange={(event) => setSongReleaseId(event.target.value)}
-                  disabled={!releases.length}
-                >
-                  {!releases.length ? <option value="">Create Album/Single first</option> : null}
-                  {releases.map((release) => (
-                    <option key={release.id} value={release.id}>{release.title} — {release.release_type}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="am-form-space">
-                <label className="am-label" htmlFor="admin-music-song-title">Song title</label>
-                <input
-                  id="admin-music-song-title"
-                  className="am-input"
-                  value={songTitle}
-                  onChange={(event) => setSongTitle(event.target.value)}
-                  placeholder="Song title"
-                />
-              </div>
-
-              <div className="am-form-space">
-                <label className="am-label" htmlFor="admin-music-youtube-link">YouTube Link</label>
-                <input
-                  id="admin-music-youtube-link"
-                  className="am-input"
-                  type="url"
-                  value={youtubeLink}
-                  onChange={(event) => setYoutubeLink(event.target.value)}
-                  placeholder="https://youtube.com/watch?v=..."
-                />
-              </div>
-
-              <div className="am-song-grid">
-                <div className="am-field-card">
-                  <div className="am-field-label">Popular</div>
-                  <div className="am-field-value">1K+ Shadow Views</div>
-                </div>
-                <div className="am-field-card">
-                  <div className="am-field-label">Player</div>
-                  <div className="am-field-value">YouTube Embed</div>
-                </div>
-              </div>
-
-              <button type="button" className="am-primary-btn am-preview-btn" disabled={saving || !releases.length} onClick={addSong}>Save Song</button>
-            </div>
-          </>
-        ) : null}
-
-        <div className={`am-notice${error ? ' error' : ''}`}>
+        <div className={`mv2-status${error ? ' error' : ''}`}>
           {error || notice || 'Music data is connected to Shadow Backend.'}
+        </div>
+
+        <div className="mv2-history">
+          <AdminMusicListenHistory />
         </div>
       </div>
     </AdminLayout>
   )
+
 }
