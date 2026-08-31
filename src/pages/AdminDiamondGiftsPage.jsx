@@ -12,6 +12,45 @@ const API_URL =
 
 const PAGE_SIZE = 20
 
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000
+const CACHE_PREFIX =
+  'shadow_admin_income_diamond_gifts:'
+
+function readCache(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+
+    const cached = JSON.parse(raw)
+    if (
+      !cached?.saved_at ||
+      Date.now() - cached.saved_at >=
+        CACHE_TTL_MS
+    ) {
+      localStorage.removeItem(key)
+      return null
+    }
+
+    return cached.data || null
+  } catch {
+    return null
+  }
+}
+
+function writeCache(key, data) {
+  try {
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        saved_at: Date.now(),
+        data,
+      })
+    )
+  } catch {
+    return
+  }
+}
+
 const styles = `
   .diamond-gifts-page {
     min-height: 100vh;
@@ -633,9 +672,25 @@ export default function AdminDiamondGiftsPage() {
     [transactions, selectedId]
   )
 
+  function applyResult(result) {
+  setData(result)
+
+  const nextTransactions =
+    result?.transactions || []
+
+  setSelectedId((current) =>
+    nextTransactions.some(
+      (item) => item.id === current
+    )
+      ? current
+      : nextTransactions[0]?.id || ''
+  )
+}
+
   async function fetchDiamondGifts(
-    signal
-  ) {
+  signal,
+  { force = false } = {}
+) {
     try {
       setLoading(true)
       setMessage('')
@@ -661,6 +716,18 @@ export default function AdminDiamondGiftsPage() {
         String(PAGE_SIZE)
       )
 
+      const cacheKey =
+  `${CACHE_PREFIX}${params.toString()}`
+
+if (!force) {
+  const cached = readCache(cacheKey)
+
+  if (cached) {
+    applyResult(cached)
+    return
+  }
+}
+
       const response = await fetch(
         `${API_URL}/api/admin/income/diamond-gifts?${params.toString()}`,
         {
@@ -684,21 +751,8 @@ export default function AdminDiamondGiftsPage() {
         )
       }
 
-      setData(result)
-
-      const nextTransactions =
-        result.transactions || []
-
-      if (
-        !nextTransactions.some(
-          (item) =>
-            item.id === selectedId
-        )
-      ) {
-        setSelectedId(
-          nextTransactions[0]?.id || ''
-        )
-      }
+      applyResult(result)
+writeCache(cacheKey, result)
 
       if (
         result.truncated_source_scan
@@ -726,28 +780,18 @@ export default function AdminDiamondGiftsPage() {
     }
   }
 
-  useEffect(() => {
-    const controller =
-      new AbortController()
-    const timer = setTimeout(
-      () =>
-        fetchDiamondGifts(
-          controller.signal
-        ),
-      search.trim() ? 300 : 0
-    )
+ useEffect(() => {
+  const controller =
+    new AbortController()
 
-    return () => {
-      clearTimeout(timer)
-      controller.abort()
-    }
-  }, [
-    from,
-    to,
-    search,
-    status,
-    page,
-  ])
+  fetchDiamondGifts(
+    controller.signal
+  )
+
+  return () => {
+    controller.abort()
+  }
+}, [from, to, status, page])
 
   function applyRange(key) {
     if (key === 'today') {
@@ -907,12 +951,22 @@ export default function AdminDiamondGiftsPage() {
                 className="diamond-gifts-input"
                 type="date"
                 value={to}
-                onChange={(event) => {
-                  setTo(
-                    event.target.value
-                  )
-                  setPage(1)
-                }}
+                onChange={(event) =>
+  setSearch(event.target.value)
+}
+onKeyDown={(event) => {
+  if (event.key !== 'Enter') return
+
+  if (page !== 1) {
+    setPage(1)
+    return
+  }
+
+  fetchDiamondGifts(
+    undefined,
+    { force: true }
+  )
+}}
               />
               <button
                 className="diamond-gifts-button"
@@ -928,8 +982,11 @@ export default function AdminDiamondGiftsPage() {
                 className="diamond-gifts-button primary"
                 type="button"
                 onClick={() =>
-                  fetchDiamondGifts()
-                }
+  fetchDiamondGifts(
+    undefined,
+    { force: true }
+  )
+}
                 disabled={loading}
               >
                 {loading
