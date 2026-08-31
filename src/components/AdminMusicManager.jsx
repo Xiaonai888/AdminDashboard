@@ -703,16 +703,14 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
             </div>
 
             <div className="amm-field">
-              <label className="amm-label" htmlFor="amm-artist-banner">Banner URL</label>
-              <input
-                id="amm-artist-banner"
-                className="amm-input"
-                type="url"
-                value={artistBannerUrl}
-                onChange={(event) => setArtistBannerUrl(event.target.value)}
-                placeholder="https://..."
-              />
-            </div>
+  <MusicImageUpload
+    value={artistBannerUrl}
+    onChange={setArtistBannerUrl}
+    shape="banner"
+    label="Artist Banner"
+    disabled={saving}
+  />
+</div>
 
             <div className="amm-field full">
               <label className="amm-label" htmlFor="amm-artist-bio">Bio</label>
