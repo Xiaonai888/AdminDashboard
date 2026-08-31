@@ -3,6 +3,7 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -28,6 +29,17 @@ const styles = `
     gap: 16px;
     align-items: flex-start;
   }
+
+  .mall-income-back {
+  border: 0;
+  background: transparent;
+  color: #4F46E5;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
 
   .mall-income-title {
     margin: 0;
@@ -585,6 +597,7 @@ function csvCell(value) {
 }
 
 export default function AdminShadowMallIncomePage() {
+  const navigate = useNavigate()
   const [from, setFrom] =
     useState(monthStartInput())
   const [to, setTo] =
@@ -866,10 +879,17 @@ export default function AdminShadowMallIncomePage() {
       <div className="mall-income-page">
         <div className="mall-income-wrap">
           <div className="mall-income-header">
-            <div>
-              <h1 className="mall-income-title">
-                Shadow Mall
-              </h1>
+  <div>
+    <button
+      className="mall-income-back"
+      type="button"
+      onClick={() => navigate('/income')}
+    >
+      ← Back to Income
+    </button>
+    <h1 className="mall-income-title">
+      Shadow Mall
+    </h1>
               <div className="mall-income-subtitle">
                 Real paid product orders. Shipping is excluded from platform income.
               </div>
