@@ -3,6 +3,7 @@ import React, {
   useMemo,
   useState,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -28,6 +29,17 @@ const styles = `
     gap: 16px;
     align-items: flex-start;
   }
+
+  .episode-sales-back {
+  border: 0;
+  background: transparent;
+  color: #4F46E5;
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
 
   .episode-sales-title {
     margin: 0;
@@ -624,6 +636,7 @@ function csvCell(value) {
 }
 
 export default function AdminEpisodeSalesPage() {
+  const navigate = useNavigate()
   const [from, setFrom] =
     useState(monthStartInput())
   const [to, setTo] =
@@ -879,10 +892,17 @@ export default function AdminEpisodeSalesPage() {
       <div className="episode-sales-page">
         <div className="episode-sales-wrap">
           <div className="episode-sales-header">
-            <div>
-              <h1 className="episode-sales-title">
-                Episode Sales
-              </h1>
+  <div>
+    <button
+      className="episode-sales-back"
+      type="button"
+      onClick={() => navigate('/income')}
+    >
+      ← Back to Income
+    </button>
+    <h1 className="episode-sales-title">
+      Episode Sales
+    </h1>
               <div className="episode-sales-subtitle">
                 Real Diamond episode unlock income from the backend.
               </div>
