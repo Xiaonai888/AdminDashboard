@@ -84,6 +84,11 @@ export default function MusicImageUpload({
 
   return (
     <div style={{ marginTop: 14 }}>
+      <style>{`
+  .image-drop-zone{position:relative;border-radius:inherit}
+  .image-drop-zone.dragging{outline:2px solid #4F46E5;outline-offset:3px}
+  .image-drop-zone-overlay{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;border-radius:inherit;background:rgba(15,23,42,.82);padding:16px;color:#fff;font-size:13px;font-weight:900;text-align:center;backdrop-filter:blur(4px);pointer-events:none}
+`}</style>
       <div style={{ marginBottom: 7, color: '#334155', fontSize: 10, fontWeight: 850 }}>
         {label}
       </div>
