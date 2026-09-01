@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -635,6 +636,76 @@ function csvCell(value) {
   return `"${text.replace(/"/g, '""')}"`
 }
 
+function waitForReconnect(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+
+    let finished = false
+
+    const finish = () => {
+      if (finished) return
+      finished = true
+      clearTimeout(timer)
+      signal.removeEventListener(
+        'abort',
+        finish
+      )
+      resolve()
+    }
+
+    const timer = setTimeout(
+      finish,
+      ms
+    )
+
+    signal.addEventListener(
+      'abort',
+      finish,
+      { once: true }
+    )
+  })
+}
+
+function parseSseBlock(block) {
+  const lines = String(block || '')
+    .split('\n')
+  let eventName = 'message'
+  const dataLines = []
+
+  for (const line of lines) {
+    if (!line || line.startsWith(':')) {
+      continue
+    }
+
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim()
+      continue
+    }
+
+    if (line.startsWith('data:')) {
+      dataLines.push(
+        line.slice(5).trimStart()
+      )
+    }
+  }
+
+  if (!dataLines.length) return null
+
+  try {
+    return {
+      event: eventName,
+      data: JSON.parse(
+        dataLines.join('\n')
+      ),
+    }
+  } catch {
+    return null
+  }
+}
+
 export default function AdminEpisodeSalesPage() {
   const navigate = useNavigate()
   const [from, setFrom] =
@@ -655,6 +726,10 @@ export default function AdminEpisodeSalesPage() {
     useState('')
   const [selectedKey, setSelectedKey] =
     useState('')
+  const [eventRefreshKey, setEventRefreshKey] =
+    useState(0)
+  const eventRefreshTimerRef =
+    useRef(null)
 
   const transactions =
     data?.transactions || []
@@ -782,7 +857,157 @@ export default function AdminEpisodeSalesPage() {
     searchQuery,
     status,
     page,
+    eventRefreshKey,
   ])
+
+  useEffect(() => {
+    const controller =
+      new AbortController()
+    let reconnectDelay = 2000
+    let hasConnected = false
+
+    const scheduleRefresh = () => {
+      if (eventRefreshTimerRef.current) {
+        clearTimeout(
+          eventRefreshTimerRef.current
+        )
+      }
+
+      eventRefreshTimerRef.current =
+        setTimeout(() => {
+          eventRefreshTimerRef.current =
+            null
+          setEventRefreshKey(
+            (value) => value + 1
+          )
+        }, 500)
+    }
+
+    const connect = async () => {
+      while (!controller.signal.aborted) {
+        try {
+          const response = await fetch(
+            `${API_URL}/api/admin/income/events`,
+            {
+              headers: {
+                ...authHeaders(),
+                Accept: 'text/event-stream',
+              },
+              signal: controller.signal,
+            }
+          )
+
+          if (
+            response.status === 401 ||
+            response.status === 403
+          ) {
+            return
+          }
+
+          if (
+            !response.ok ||
+            !response.body
+          ) {
+            throw new Error(
+              'Income event stream unavailable'
+            )
+          }
+
+          if (hasConnected) {
+            scheduleRefresh()
+          }
+
+          hasConnected = true
+          reconnectDelay = 2000
+
+          const reader =
+            response.body.getReader()
+          const decoder =
+            new TextDecoder()
+          let buffer = ''
+
+          while (
+            !controller.signal.aborted
+          ) {
+            const { value, done } =
+              await reader.read()
+
+            if (done) break
+
+            buffer += decoder.decode(
+              value,
+              { stream: true }
+            )
+            buffer = buffer.replace(
+              /\r\n/g,
+              '\n'
+            )
+
+            let boundary =
+              buffer.indexOf('\n\n')
+
+            while (boundary !== -1) {
+              const block =
+                buffer.slice(0, boundary)
+              buffer = buffer.slice(
+                boundary + 2
+              )
+
+              const message =
+                parseSseBlock(block)
+
+              if (
+                message?.event ===
+                  'income-change' &&
+                message.data?.source ===
+                  'episode_sales'
+              ) {
+                scheduleRefresh()
+              }
+
+              boundary =
+                buffer.indexOf('\n\n')
+            }
+          }
+        } catch (error) {
+          if (
+            controller.signal.aborted ||
+            error?.name === 'AbortError'
+          ) {
+            return
+          }
+        }
+
+        if (controller.signal.aborted) {
+          return
+        }
+
+        await waitForReconnect(
+          reconnectDelay,
+          controller.signal
+        )
+
+        reconnectDelay = Math.min(
+          reconnectDelay * 2,
+          30000
+        )
+      }
+    }
+
+    connect()
+
+    return () => {
+      controller.abort()
+
+      if (eventRefreshTimerRef.current) {
+        clearTimeout(
+          eventRefreshTimerRef.current
+        )
+        eventRefreshTimerRef.current =
+          null
+      }
+    }
+  }, [])
 
   function applyRange(key) {
     if (key === 'today') {
