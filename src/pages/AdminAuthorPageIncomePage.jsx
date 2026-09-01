@@ -5,6 +5,7 @@ import React, {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import useAdminIncomeEventRefreshKey from '../hooks/useAdminIncomeEventRefreshKey'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -629,6 +630,8 @@ export default function AdminAuthorPageIncomePage() {
     useState(todayInput())
   const [search, setSearch] =
     useState('')
+  const [searchQuery, setSearchQuery] =
+    useState('')
   const [type, setType] =
     useState('all')
   const [page, setPage] =
@@ -641,6 +644,11 @@ export default function AdminAuthorPageIncomePage() {
     useState('')
   const [selectedId, setSelectedId] =
     useState('')
+  const eventRefreshKey =
+    useAdminIncomeEventRefreshKey(
+      API_URL,
+      'author_page'
+    )
 
   const transactions =
     data?.transactions || []
@@ -674,8 +682,8 @@ export default function AdminAuthorPageIncomePage() {
 
       if (from) params.set('from', from)
       if (to) params.set('to', to)
-      if (search.trim()) {
-        params.set('q', search.trim())
+      if (searchQuery) {
+        params.set('q', searchQuery)
       }
       if (type !== 'all') {
         params.set('type', type)
@@ -758,24 +766,21 @@ export default function AdminAuthorPageIncomePage() {
   useEffect(() => {
     const controller =
       new AbortController()
-    const timer = setTimeout(
-      () =>
-        fetchIncome(
-          controller.signal
-        ),
-      search.trim() ? 300 : 0
+
+    fetchIncome(
+      controller.signal
     )
 
     return () => {
-      clearTimeout(timer)
       controller.abort()
     }
   }, [
     from,
     to,
-    search,
+    searchQuery,
     type,
     page,
+    eventRefreshKey,
   ])
 
   function applyRange(key) {
@@ -1059,10 +1064,26 @@ export default function AdminAuthorPageIncomePage() {
               className="author-income-search"
               placeholder="Search buyer, product, author, order ID, or transaction ID..."
               value={search}
-              onChange={(event) => {
+              onChange={(event) =>
                 setSearch(
                   event.target.value
                 )
+              }
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+
+                const nextSearch =
+                  search.trim()
+
+                if (
+                  nextSearch === searchQuery &&
+                  page === 1
+                ) {
+                  fetchIncome()
+                  return
+                }
+
+                setSearchQuery(nextSearch)
                 setPage(1)
               }}
             />
