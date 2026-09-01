@@ -1002,6 +1002,14 @@ function PlayIcon() {
   )
 }
 
+function createAlbumTrackDraft() {
+  return {
+    key: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    title: '',
+    youtube_url: '',
+  }
+}
+
 export default function AdminMusicPage() {
   const artistDetailCache = useRef({})
   const [artists, setArtists] = useState([])
@@ -1017,9 +1025,7 @@ export default function AdminMusicPage() {
   const [albumTitleNew, setAlbumTitleNew] = useState('')
   const [albumCoverUrlNew, setAlbumCoverUrlNew] = useState('')
   const [albumYearNew, setAlbumYearNew] = useState(String(new Date().getFullYear()))
-  const [selectedAlbumId, setSelectedAlbumId] = useState('')
-  const [albumSongTitle, setAlbumSongTitle] = useState('')
-  const [albumSongYoutubeUrl, setAlbumSongYoutubeUrl] = useState('')
+  const [albumTracks, setAlbumTracks] = useState(() => [createAlbumTrackDraft()])
   const [showAdvancedManager, setShowAdvancedManager] = useState(false)
   const [selectedArtistId, setSelectedArtistId] = useState('')
   const [selectedArtistDetail, setSelectedArtistDetail] = useState(null)
@@ -1053,7 +1059,6 @@ export default function AdminMusicPage() {
     if (!artistId) {
       setSelectedArtistDetail(null)
       setSongReleaseId('')
-      setSelectedAlbumId('')
       return
     }
 
@@ -1063,9 +1068,7 @@ export default function AdminMusicPage() {
       const cached = artistDetailCache.current[artistId]
       setSelectedArtistDetail(cached)
       const cachedReleases = Array.isArray(cached.releases) ? cached.releases : []
-      const cachedAlbums = cachedReleases.filter((release) => release.release_type === 'album')
       setSongReleaseId((current) => cachedReleases.some((release) => release.id === current) ? current : cachedReleases[0]?.id || '')
-      setSelectedAlbumId((current) => cachedAlbums.some((album) => album.id === current) ? current : cachedAlbums[0]?.id || '')
       return
     }
 
@@ -1075,10 +1078,7 @@ export default function AdminMusicPage() {
       setSelectedArtistDetail(data)
 
       const releases = Array.isArray(data.releases) ? data.releases : []
-      const albums = releases.filter((release) => release.release_type === 'album')
-
       setSongReleaseId((current) => releases.some((release) => release.id === current) ? current : releases[0]?.id || '')
-      setSelectedAlbumId((current) => albums.some((album) => album.id === current) ? current : albums[0]?.id || '')
     } catch (requestError) {
       setError(requestError.message)
     }
@@ -1328,16 +1328,44 @@ export default function AdminMusicPage() {
     }
   }
 
-  async function createAlbumOnly() {
+  function addAlbumTrackRow() {
+    setAlbumTracks((current) => [...current, createAlbumTrackDraft()])
+  }
+
+  function updateAlbumTrackRow(index, field, value) {
+    setAlbumTracks((current) =>
+      current.map((track, trackIndex) =>
+        trackIndex === index ? { ...track, [field]: value } : track
+      )
+    )
+  }
+
+  function removeAlbumTrackRow(index) {
+    setAlbumTracks((current) => {
+      if (current.length <= 1) return [createAlbumTrackDraft()]
+      return current.filter((_, trackIndex) => trackIndex !== index)
+    })
+  }
+
+  async function createAlbumWithTracks() {
     if (!selectedArtistId) {
       setError('Choose an artist first.')
       return
     }
 
     const title = albumTitleNew.trim()
+    const tracks = albumTracks.map((track) => ({
+      title: track.title.trim(),
+      youtube_url: track.youtube_url.trim(),
+    }))
 
     if (!title) {
       setError('Album title is required.')
+      return
+    }
+
+    if (!tracks.length || tracks.some((track) => !track.title || !track.youtube_url)) {
+      setError('Every Album track needs a Song Title and YouTube Link.')
       return
     }
 
@@ -1345,8 +1373,10 @@ export default function AdminMusicPage() {
     setError('')
     setNotice('')
 
+    let createdReleaseId = ''
+
     try {
-      const data = await musicRequest('/api/music/admin/releases', {
+      const releaseData = await musicRequest('/api/music/admin/releases', {
         method: 'POST',
         body: JSON.stringify({
           artist_id: selectedArtistId,
@@ -1357,57 +1387,40 @@ export default function AdminMusicPage() {
         }),
       })
 
+      createdReleaseId = releaseData.release?.id || ''
+      if (!createdReleaseId) throw new Error('Album was not created')
+
+      for (let index = 0; index < tracks.length; index += 1) {
+        const track = tracks[index]
+        await musicRequest('/api/music/admin/songs', {
+          method: 'POST',
+          body: JSON.stringify({
+            release_id: createdReleaseId,
+            title: track.title,
+            youtube_url: track.youtube_url,
+            track_number: index + 1,
+          }),
+        })
+      }
+
       setAlbumTitleNew('')
       setAlbumCoverUrlNew('')
-      setSelectedAlbumId(data.release?.id || '')
-      setNotice(`${data.release?.title || title} album created.`)
+      setAlbumYearNew(String(new Date().getFullYear()))
+      setAlbumTracks([createAlbumTrackDraft()])
+      setNotice(`${title} created with ${tracks.length} track${tracks.length === 1 ? '' : 's'}.`)
 
       await refreshSelectedArtist()
     } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setSaving(false)
-    }
-  }
+      if (createdReleaseId) {
+        try {
+          await musicRequest(`/api/music/admin/releases/${encodeURIComponent(createdReleaseId)}`, {
+            method: 'DELETE',
+          })
+        } catch {
+          void 0
+        }
+      }
 
-  async function addSongToSelectedAlbum() {
-    if (!selectedAlbumId) {
-      setError('Choose or create an album first.')
-      return
-    }
-
-    const title = albumSongTitle.trim()
-    const youtubeUrl = albumSongYoutubeUrl.trim()
-
-    if (!title || !youtubeUrl) {
-      setError('Song title and YouTube link are required.')
-      return
-    }
-
-    const album = albums.find((item) => item.id === selectedAlbumId)
-    const nextTrack = (album?.songs?.length || 0) + 1
-
-    setSaving(true)
-    setError('')
-    setNotice('')
-
-    try {
-      await musicRequest('/api/music/admin/songs', {
-        method: 'POST',
-        body: JSON.stringify({
-          release_id: selectedAlbumId,
-          title,
-          youtube_url: youtubeUrl,
-          track_number: nextTrack,
-        }),
-      })
-
-      setAlbumSongTitle('')
-      setAlbumSongYoutubeUrl('')
-      setNotice(`${title} added to ${album?.title || 'album'}.`)
-
-      await refreshSelectedArtist()
-    } catch (requestError) {
       setError(requestError.message)
     } finally {
       setSaving(false)
@@ -1494,7 +1507,7 @@ export default function AdminMusicPage() {
 
                 <div className="mv2-artist-name">{artist.name}</div>
                 <div className="mv2-artist-meta">
-                  {Number(artist.song_count || 0)} songs
+                  {Number(artist.total_listeners || 0).toLocaleString()} listeners
                 </div>
               </button>
             ))}
@@ -1691,82 +1704,91 @@ export default function AdminMusicPage() {
                       disabled={saving}
                     />
 
+                    <div className="mv2-album-song">
+                      <div className="mv2-section-head">
+                        <div>
+                          <h3 className="mv2-section-title">Album Tracks</h3>
+                          <div className="mv2-copy">
+                            One Album Cover is used for every track.
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="mv2-btn"
+                          disabled={saving}
+                          onClick={addAlbumTrackRow}
+                        >
+                          + Add Track
+                        </button>
+                      </div>
+
+                      {albumTracks.map((track, index) => (
+                        <div
+                          key={track.key}
+                          style={{
+                            marginTop: 10,
+                            border: '1px solid #E2E8F0',
+                            borderRadius: 12,
+                            background: '#FFFFFF',
+                            padding: 10,
+                          }}
+                        >
+                          <div className="mv2-section-head">
+                            <div className="mv2-release-title">Track {index + 1}</div>
+                            <button
+                              type="button"
+                              className="mv2-btn"
+                              disabled={saving}
+                              onClick={() => removeAlbumTrackRow(index)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+
+                          <div className="mv2-field">
+                            <label className="mv2-label" htmlFor={`mv2-album-track-title-${index}`}>
+                              Song Title
+                            </label>
+                            <input
+                              id={`mv2-album-track-title-${index}`}
+                              className="mv2-input"
+                              value={track.title}
+                              onChange={(event) =>
+                                updateAlbumTrackRow(index, 'title', event.target.value)
+                              }
+                              placeholder="Song title"
+                            />
+                          </div>
+
+                          <div className="mv2-field">
+                            <label className="mv2-label" htmlFor={`mv2-album-track-youtube-${index}`}>
+                              YouTube Link
+                            </label>
+                            <input
+                              id={`mv2-album-track-youtube-${index}`}
+                              className="mv2-input"
+                              type="url"
+                              value={track.youtube_url}
+                              onChange={(event) =>
+                                updateAlbumTrackRow(index, 'youtube_url', event.target.value)
+                              }
+                              placeholder="https://youtube.com/watch?v=..."
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
                     <div className="mv2-actions">
                       <button
                         type="button"
                         className="mv2-btn primary"
                         disabled={saving}
-                        onClick={createAlbumOnly}
+                        onClick={createAlbumWithTracks}
                       >
                         Create Album
                       </button>
-                    </div>
-
-                    <div className="mv2-album-song">
-                      <h3 className="mv2-section-title">Add Song to Album</h3>
-                      <div className="mv2-copy">
-                        Every song uses the selected Album Cover.
-                      </div>
-
-                      <div className="mv2-field">
-                        <label className="mv2-label" htmlFor="mv2-album-select">
-                          Album
-                        </label>
-                        <select
-                          id="mv2-album-select"
-                          className="mv2-select"
-                          value={selectedAlbumId}
-                          onChange={(event) => setSelectedAlbumId(event.target.value)}
-                          disabled={!albums.length}
-                        >
-                          {!albums.length ? (
-                            <option value="">Create an album first</option>
-                          ) : null}
-                          {albums.map((album) => (
-                            <option key={album.id} value={album.id}>
-                              {album.title}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="mv2-field">
-                        <label className="mv2-label" htmlFor="mv2-album-song-title">
-                          Song Title
-                        </label>
-                        <input
-                          id="mv2-album-song-title"
-                          className="mv2-input"
-                          value={albumSongTitle}
-                          onChange={(event) => setAlbumSongTitle(event.target.value)}
-                          placeholder="Song title"
-                        />
-                      </div>
-
-                      <div className="mv2-field">
-                        <label className="mv2-label" htmlFor="mv2-album-song-youtube">
-                          YouTube Link
-                        </label>
-                        <input
-                          id="mv2-album-song-youtube"
-                          className="mv2-input"
-                          type="url"
-                          value={albumSongYoutubeUrl}
-                          onChange={(event) => setAlbumSongYoutubeUrl(event.target.value)}
-                          placeholder="https://youtube.com/watch?v=..."
-                        />
-                      </div>
-
-                      <div className="mv2-actions">
-                        <button
-                          type="button"
-                          className="mv2-btn primary"
-                          disabled={saving || !albums.length}
-                          onClick={addSongToSelectedAlbum}
-                        >
-                          Add Song
-                        </button>
-                      </div>
                     </div>
                   </>
                 )}
@@ -1786,8 +1808,8 @@ export default function AdminMusicPage() {
                 <div>
                   <div className="mv2-profile-name">{selectedArtist.name}</div>
                   <div className="mv2-listener-value">
-  {Number(selectedArtistDetail?.artist?.total_listeners ?? selectedArtist.total_listeners ?? 0).toLocaleString()}
-</div>
+                    {Number(selectedArtistDetail?.artist?.total_listeners ?? selectedArtist.total_listeners ?? 0).toLocaleString()}
+                  </div>
                   <div className="mv2-listener-label">
                     Total Listeners (All Time)
                   </div>
@@ -1869,15 +1891,9 @@ export default function AdminMusicPage() {
                 {albums.length ? (
                   <div className="mv2-release-list">
                     {albums.map((release) => (
-                      <button
-                        type="button"
+                      <div
                         className="mv2-release-row"
                         key={release.id}
-                        style={{ width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                        onClick={() => {
-                          setCreateMode('album')
-                          setSelectedAlbumId(release.id)
-                        }}
                       >
                         <div className="mv2-release-cover">
                           {release.cover_url ? (
@@ -1897,7 +1913,7 @@ export default function AdminMusicPage() {
                         <div className="mv2-views">
                           {formatShadowViews(totalReleaseViews(release))} Views
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 ) : (
@@ -1922,7 +1938,6 @@ export default function AdminMusicPage() {
                 setSelectedArtistId('')
                 setSelectedArtistDetail(null)
                 setSongReleaseId('')
-                setSelectedAlbumId('')
                 setShowAdvancedManager(false)
                 return loadOverview()
               }}
