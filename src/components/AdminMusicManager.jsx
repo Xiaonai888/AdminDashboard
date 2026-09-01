@@ -357,7 +357,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
   const [artist, setArtist] = useState(sourceArtist)
   const [releases, setReleases] = useState(sourceReleases)
   const [artistName, setArtistName] = useState(sourceArtist?.name || '')
-  const [artistSubtitle, setArtistSubtitle] = useState(sourceArtist?.subtitle || '')
   const [artistBio, setArtistBio] = useState(sourceArtist?.bio || '')
   const [artistAvatarUrl, setArtistAvatarUrl] = useState(sourceArtist?.avatar_url || '')
   const [artistBannerUrl, setArtistBannerUrl] = useState(sourceArtist?.banner_url || '')
@@ -396,7 +395,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     setArtist(sourceArtist)
     setReleases(sourceReleases)
     setArtistName(sourceArtist?.name || '')
-    setArtistSubtitle(sourceArtist?.subtitle || '')
     setArtistBio(sourceArtist?.bio || '')
     setArtistAvatarUrl(sourceArtist?.avatar_url || '')
     setArtistBannerUrl(sourceArtist?.banner_url || '')
@@ -451,7 +449,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
         method: 'PATCH',
         body: JSON.stringify({
           name,
-          subtitle: artistSubtitle.trim(),
           bio: artistBio.trim(),
           avatar_url: artistAvatarUrl.trim(),
           banner_url: artistBannerUrl.trim(),
@@ -666,7 +663,7 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
           <div className="amm-head">
             <div>
               <h3 className="amm-title">Edit Artist</h3>
-              <div className="amm-subtitle">Profile, banner and public artist information.</div>
+              <div className="amm-subtitle">Profile, cover and artist information.</div>
             </div>
           </div>
 
@@ -682,17 +679,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
             </div>
 
             <div className="amm-field">
-              <label className="amm-label" htmlFor="amm-artist-subtitle">Subtitle</label>
-              <input
-                id="amm-artist-subtitle"
-                className="amm-input"
-                value={artistSubtitle}
-                onChange={(event) => setArtistSubtitle(event.target.value)}
-                placeholder="Shadow Music Artist"
-              />
-            </div>
-
-            <div className="amm-field">
               <MusicImageUpload
                 value={artistAvatarUrl}
                 onChange={setArtistAvatarUrl}
@@ -703,14 +689,14 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
             </div>
 
             <div className="amm-field">
-  <MusicImageUpload
-    value={artistBannerUrl}
-    onChange={setArtistBannerUrl}
-    shape="banner"
-    label="Artist Banner"
-    disabled={saving}
-  />
-</div>
+              <MusicImageUpload
+                value={artistBannerUrl}
+                onChange={setArtistBannerUrl}
+                shape="banner"
+                label="Artist Cover (Optional)"
+                disabled={saving}
+              />
+            </div>
 
             <div className="amm-field full">
               <label className="amm-label" htmlFor="amm-artist-bio">Bio</label>
@@ -738,7 +724,9 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
             </div>
             <div>
               <div className="amm-preview-name">{artistName || artist.name}</div>
-              <div className="amm-preview-subtitle">{artistSubtitle || 'Shadow Music Artist'}</div>
+              <div className="amm-preview-subtitle">
+                {Number(sourceArtist?.total_listeners || 0).toLocaleString()} Total Listeners
+              </div>
             </div>
           </div>
 
