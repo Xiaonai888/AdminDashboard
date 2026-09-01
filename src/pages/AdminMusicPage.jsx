@@ -1785,7 +1785,9 @@ export default function AdminMusicPage() {
 
                 <div>
                   <div className="mv2-profile-name">{selectedArtist.name}</div>
-                  <div className="mv2-listener-value">—</div>
+                  <div className="mv2-listener-value">
+  {Number(selectedArtistDetail?.artist?.total_listeners ?? selectedArtist.total_listeners ?? 0).toLocaleString()}
+</div>
                   <div className="mv2-listener-label">
                     Total Listeners (All Time)
                   </div>
