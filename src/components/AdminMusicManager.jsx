@@ -490,14 +490,21 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
 
   async function saveRelease() {
     if (!selectedRelease?.id) {
-      setError('Choose an Album/Single first.')
+      setError('Choose a Solo or Album first.')
       return
     }
 
     const title = releaseTitle.trim()
+    const isSingle = selectedRelease.release_type === 'single'
+    const youtubeUrl = songYoutubeUrl.trim()
 
     if (!title) {
-      setError('Release title is required.')
+      setError(isSingle ? 'Solo title is required.' : 'Album title is required.')
+      return
+    }
+
+    if (isSingle && (!selectedSong?.id || !youtubeUrl)) {
+      setError('Solo YouTube link is required.')
       return
     }
 
@@ -505,27 +512,73 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     setError('')
     setNotice('')
 
+    const originalRelease = selectedRelease
+    let releaseUpdated = false
+
     try {
-      const result = await request(`/api/music/admin/releases/${encodeURIComponent(selectedRelease.id)}`, {
+      const releaseResult = await request(`/api/music/admin/releases/${encodeURIComponent(selectedRelease.id)}`, {
         method: 'PATCH',
         body: JSON.stringify({
           title,
-          release_type: releaseType,
+          release_type: selectedRelease.release_type,
           cover_url: releaseCoverUrl.trim(),
-          release_year: Number.parseInt(releaseYear, 10) || new Date().getFullYear(),
+          release_year: isSingle
+            ? Number(selectedRelease.release_year || new Date().getFullYear())
+            : Number.parseInt(releaseYear, 10) || new Date().getFullYear(),
           is_active: releaseActive,
         }),
       })
 
+      releaseUpdated = true
+      let updatedSongs = selectedRelease.songs || []
+
+      if (isSingle) {
+        try {
+          const songResult = await request(`/api/music/admin/songs/${encodeURIComponent(selectedSong.id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({
+              title,
+              youtube_url: youtubeUrl,
+              track_number: 1,
+              duration_seconds: Number(selectedSong.duration_seconds || 0),
+              is_active: releaseActive,
+            }),
+          })
+
+          updatedSongs = [songResult.song]
+          setSongTitle(title)
+          setSongActive(releaseActive)
+        } catch (songError) {
+          if (releaseUpdated) {
+            try {
+              await request(`/api/music/admin/releases/${encodeURIComponent(originalRelease.id)}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                  title: originalRelease.title,
+                  release_type: originalRelease.release_type,
+                  cover_url: originalRelease.cover_url || '',
+                  release_year: Number(originalRelease.release_year || new Date().getFullYear()),
+                  is_active: originalRelease.is_active !== false,
+                }),
+              })
+            } catch {
+              void 0
+            }
+          }
+
+          throw songError
+        }
+      }
+
       setReleases((current) =>
         current.map((release) =>
           release.id === selectedRelease.id
-            ? { ...release, ...result.release, songs: release.songs || [] }
+            ? { ...release, ...releaseResult.release, songs: updatedSongs }
             : release
         )
       )
 
-      setNotice('Album/Single updated.')
+      setNotice(isSingle ? 'Solo updated.' : 'Album updated.')
       await onRefresh?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -743,15 +796,21 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
         <section className="amm-card">
           <div className="amm-head">
             <div>
-              <h3 className="amm-title">Edit Album / Single</h3>
-              <div className="amm-subtitle">Change cover, title, type, year or visibility.</div>
+              <h3 className="amm-title">
+                {selectedRelease?.release_type === 'single' ? 'Edit Solo / Single' : 'Edit Album'}
+              </h3>
+              <div className="amm-subtitle">
+                {selectedRelease?.release_type === 'single'
+                  ? 'Edit title, cover and YouTube link together.'
+                  : 'Edit album information, cover and visibility.'}
+              </div>
             </div>
           </div>
 
           {releases.length ? (
             <>
               <div className="amm-field">
-                <label className="amm-label" htmlFor="amm-release-select">Album / Single</label>
+                <label className="amm-label" htmlFor="amm-release-select">Solo / Album</label>
                 <select
                   id="amm-release-select"
                   className="amm-select"
@@ -760,208 +819,291 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
                 >
                   {releases.map((release) => (
                     <option key={release.id} value={release.id}>
-                      {release.title} — {release.release_type}
+                      {release.title} — {release.release_type === 'single' ? 'Solo' : 'Album'}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="amm-grid" style={{ marginTop: 10 }}>
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-release-title">Title</label>
-                  <input
-                    id="amm-release-title"
-                    className="amm-input"
-                    value={releaseTitle}
-                    onChange={(event) => setReleaseTitle(event.target.value)}
-                  />
-                </div>
+              {selectedRelease?.release_type === 'single' ? (
+                <>
+                  <div className="amm-grid" style={{ marginTop: 10 }}>
+                    <div className="amm-field">
+                      <label className="amm-label" htmlFor="amm-single-title">Title</label>
+                      <input
+                        id="amm-single-title"
+                        className="amm-input"
+                        value={releaseTitle}
+                        onChange={(event) => {
+                          setReleaseTitle(event.target.value)
+                          setSongTitle(event.target.value)
+                        }}
+                      />
+                    </div>
 
+                    <div className="amm-field">
+                      <label className="amm-label" htmlFor="amm-single-youtube">YouTube Link</label>
+                      <input
+                        id="amm-single-youtube"
+                        className="amm-input"
+                        type="url"
+                        value={songYoutubeUrl}
+                        onChange={(event) => setSongYoutubeUrl(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="amm-field">
+                      <MusicImageUpload
+                        value={releaseCoverUrl}
+                        onChange={setReleaseCoverUrl}
+                        shape="square"
+                        label="Solo Cover"
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="amm-field">
+                      <label className="amm-label" htmlFor="amm-single-shadow-views">Shadow Views</label>
+                      <input
+                        id="amm-single-shadow-views"
+                        className="amm-input"
+                        value={String(selectedSong?.view_count || 0)}
+                        readOnly
+                        disabled
+                      />
+                    </div>
+
+                    <label className="amm-check">
+                      <input
+                        type="checkbox"
+                        checked={releaseActive}
+                        onChange={(event) => setReleaseActive(event.target.checked)}
+                      />
+                      Active
+                    </label>
+                  </div>
+
+                  {videoId ? (
+                    <div className="amm-video">
+                      <iframe
+                        src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`}
+                        title={releaseTitle || 'Solo preview'}
+                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="amm-preview">
+                    <div className="amm-release-preview">
+                      {releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}
+                    </div>
+                    <div>
+                      <div className="amm-preview-name">{releaseTitle || selectedRelease?.title}</div>
+                      <div className="amm-preview-subtitle">Solo / Single</div>
+                    </div>
+                  </div>
+
+                  <div className="amm-actions">
+                    <button type="button" className="amm-btn primary" disabled={saving} onClick={saveRelease}>
+                      Save Solo
+                    </button>
+                    <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteRelease}>
+                      Delete Solo
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="amm-grid" style={{ marginTop: 10 }}>
+                    <div className="amm-field">
+                      <label className="amm-label" htmlFor="amm-album-title">Album Title</label>
+                      <input
+                        id="amm-album-title"
+                        className="amm-input"
+                        value={releaseTitle}
+                        onChange={(event) => setReleaseTitle(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="amm-field">
+                      <label className="amm-label" htmlFor="amm-album-year">Year</label>
+                      <input
+                        id="amm-album-year"
+                        className="amm-input"
+                        inputMode="numeric"
+                        value={releaseYear}
+                        onChange={(event) => setReleaseYear(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                      />
+                    </div>
+
+                    <div className="amm-field">
+                      <MusicImageUpload
+                        value={releaseCoverUrl}
+                        onChange={setReleaseCoverUrl}
+                        shape="square"
+                        label="Album Cover"
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <label className="amm-check">
+                      <input
+                        type="checkbox"
+                        checked={releaseActive}
+                        onChange={(event) => setReleaseActive(event.target.checked)}
+                      />
+                      Active
+                    </label>
+                  </div>
+
+                  <div className="amm-preview">
+                    <div className="amm-release-preview">
+                      {releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}
+                    </div>
+                    <div>
+                      <div className="amm-preview-name">{releaseTitle || selectedRelease?.title}</div>
+                      <div className="amm-preview-subtitle">
+                        Album • {releaseYear || ''} • {songs.length} songs
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="amm-actions">
+                    <button type="button" className="amm-btn primary" disabled={saving} onClick={saveRelease}>
+                      Save Album
+                    </button>
+                    <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteRelease}>
+                      Delete Album
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          ) : (
+            <div className="amm-empty">No Solo or Album to edit yet.</div>
+          )}
+        </section>
+
+        {selectedRelease?.release_type === 'album' ? (
+          <section className="amm-card">
+            <div className="amm-head">
+              <div>
+                <h3 className="amm-title">Album Tracks</h3>
+                <div className="amm-subtitle">
+                  Edit song title, YouTube link, track order and visibility.
+                </div>
+              </div>
+            </div>
+
+            {songs.length ? (
+              <>
                 <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-release-type">Type</label>
+                  <label className="amm-label" htmlFor="amm-song-select">Song</label>
                   <select
-                    id="amm-release-type"
+                    id="amm-song-select"
                     className="amm-select"
-                    value={releaseType}
-                    onChange={(event) => setReleaseType(event.target.value)}
+                    value={songId}
+                    onChange={(event) => setSongId(event.target.value)}
                   >
-                    <option value="single">Single</option>
-                    <option value="album">Album</option>
+                    {songs.map((song) => (
+                      <option key={song.id} value={song.id}>
+                        {song.track_number || 1}. {song.title}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-release-year">Year</label>
-                  <input
-                    id="amm-release-year"
-                    className="amm-input"
-                    inputMode="numeric"
-                    value={releaseYear}
-                    onChange={(event) => setReleaseYear(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                  />
-                </div>
-
-                <div className="amm-field">
-                  <MusicImageUpload
-                    value={releaseCoverUrl}
-                    onChange={setReleaseCoverUrl}
-                    shape="square"
-                    label="Album / Single Cover"
-                    disabled={saving}
-                  />
-                </div>
-
-                <label className="amm-check">
-                  <input
-                    type="checkbox"
-                    checked={releaseActive}
-                    onChange={(event) => setReleaseActive(event.target.checked)}
-                  />
-                  Active
-                </label>
-              </div>
-
-              <div className="amm-preview">
-                <div className="amm-release-preview">
-                  {releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}
-                </div>
-                <div>
-                  <div className="amm-preview-name">{releaseTitle || selectedRelease?.title}</div>
-                  <div className="amm-preview-subtitle">
-                    {releaseType === 'album' ? 'Album' : 'Single'} • {releaseYear || ''}
+                <div className="amm-grid" style={{ marginTop: 10 }}>
+                  <div className="amm-field">
+                    <label className="amm-label" htmlFor="amm-song-title">Song Title</label>
+                    <input
+                      id="amm-song-title"
+                      className="amm-input"
+                      value={songTitle}
+                      onChange={(event) => setSongTitle(event.target.value)}
+                    />
                   </div>
-                </div>
-              </div>
 
-              <div className="amm-actions">
-                <button type="button" className="amm-btn primary" disabled={saving} onClick={saveRelease}>
-                  Save Album/Single
-                </button>
-                <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteRelease}>
-                  Delete Album/Single
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="amm-empty">No Album/Single to edit yet.</div>
-          )}
-        </section>
+                  <div className="amm-field">
+                    <label className="amm-label" htmlFor="amm-song-youtube">YouTube Link</label>
+                    <input
+                      id="amm-song-youtube"
+                      className="amm-input"
+                      type="url"
+                      value={songYoutubeUrl}
+                      onChange={(event) => setSongYoutubeUrl(event.target.value)}
+                    />
+                  </div>
 
-        <section className="amm-card">
-          <div className="amm-head">
-            <div>
-              <h3 className="amm-title">Edit Song</h3>
-              <div className="amm-subtitle">Update YouTube link, track number and visibility. Shadow Views are counted automatically.</div>
-            </div>
-          </div>
+                  <div className="amm-field">
+                    <label className="amm-label" htmlFor="amm-song-shadow-views">Shadow Views</label>
+                    <input
+                      id="amm-song-shadow-views"
+                      className="amm-input"
+                      value={String(selectedSong?.view_count || 0)}
+                      readOnly
+                      disabled
+                    />
+                  </div>
 
-          {songs.length ? (
-            <>
-              <div className="amm-field">
-                <label className="amm-label" htmlFor="amm-song-select">Song</label>
-                <select
-                  id="amm-song-select"
-                  className="amm-select"
-                  value={songId}
-                  onChange={(event) => setSongId(event.target.value)}
-                >
-                  {songs.map((song) => (
-                    <option key={song.id} value={song.id}>
-                      {song.track_number || 1}. {song.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="amm-field">
+                    <label className="amm-label" htmlFor="amm-song-track">Track Number</label>
+                    <input
+                      id="amm-song-track"
+                      className="amm-input"
+                      inputMode="numeric"
+                      value={songTrack}
+                      onChange={(event) => setSongTrack(event.target.value.replace(/\D/g, '').slice(0, 4))}
+                    />
+                  </div>
 
-              <div className="amm-grid" style={{ marginTop: 10 }}>
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-title">Song title</label>
-                  <input
-                    id="amm-song-title"
-                    className="amm-input"
-                    value={songTitle}
-                    onChange={(event) => setSongTitle(event.target.value)}
-                  />
-                </div>
+                  <div className="amm-field">
+                    <label className="amm-label" htmlFor="amm-song-duration">Duration Seconds</label>
+                    <input
+                      id="amm-song-duration"
+                      className="amm-input"
+                      inputMode="numeric"
+                      value={songDuration}
+                      onChange={(event) => setSongDuration(event.target.value.replace(/\D/g, '').slice(0, 5))}
+                    />
+                  </div>
 
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-youtube">YouTube Link</label>
-                  <input
-                    id="amm-song-youtube"
-                    className="amm-input"
-                    type="url"
-                    value={songYoutubeUrl}
-                    onChange={(event) => setSongYoutubeUrl(event.target.value)}
-                  />
+                  <label className="amm-check">
+                    <input
+                      type="checkbox"
+                      checked={songActive}
+                      onChange={(event) => setSongActive(event.target.checked)}
+                    />
+                    Active
+                  </label>
                 </div>
 
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-shadow-views">Shadow Views</label>
-                  <input
-                    id="amm-song-shadow-views"
-                    className="amm-input"
-                    value={String(selectedSong?.view_count || 0)}
-                    readOnly
-                    disabled
-                  />
+                {videoId ? (
+                  <div className="amm-video">
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`}
+                      title={songTitle || 'Music preview'}
+                      allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : null}
+
+                <div className="amm-actions">
+                  <button type="button" className="amm-btn primary" disabled={saving} onClick={saveSong}>
+                    Save Track
+                  </button>
+                  <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteSong}>
+                    Delete Track
+                  </button>
                 </div>
-
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-track">Track Number</label>
-                  <input
-                    id="amm-song-track"
-                    className="amm-input"
-                    inputMode="numeric"
-                    value={songTrack}
-                    onChange={(event) => setSongTrack(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                  />
-                </div>
-
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-duration">Duration Seconds</label>
-                  <input
-                    id="amm-song-duration"
-                    className="amm-input"
-                    inputMode="numeric"
-                    value={songDuration}
-                    onChange={(event) => setSongDuration(event.target.value.replace(/\D/g, '').slice(0, 5))}
-                  />
-                </div>
-
-                <label className="amm-check">
-                  <input
-                    type="checkbox"
-                    checked={songActive}
-                    onChange={(event) => setSongActive(event.target.checked)}
-                  />
-                  Active
-                </label>
-              </div>
-
-              {videoId ? (
-                <div className="amm-video">
-                  <iframe
-                    src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`}
-                    title={songTitle || 'Music preview'}
-                    allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-              ) : null}
-
-              <div className="amm-actions">
-                <button type="button" className="amm-btn primary" disabled={saving} onClick={saveSong}>
-                  Save Song
-                </button>
-                <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteSong}>
-                  Delete Song
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="amm-empty">No song to edit in this Album/Single.</div>
-          )}
-        </section>
+              </>
+            ) : (
+              <div className="amm-empty">No songs in this Album yet.</div>
+            )}
+          </section>
+        ) : null}
 
         {(notice || error) ? (
           <div className={`amm-status${error ? ' error' : ''}`}>
