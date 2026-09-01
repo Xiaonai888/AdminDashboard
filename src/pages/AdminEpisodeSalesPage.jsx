@@ -642,11 +642,11 @@ export default function AdminEpisodeSalesPage() {
   const [to, setTo] =
     useState(todayInput())
   const [search, setSearch] =
-  useState('')
-const [searchQuery, setSearchQuery] =
-  useState('')
-const [status, setStatus] =
-  useState('all')
+    useState('')
+  const [searchQuery, setSearchQuery] =
+    useState('')
+  const [status, setStatus] =
+    useState('all')
   const [page, setPage] = useState(1)
   const [data, setData] = useState(null)
   const [loading, setLoading] =
@@ -691,8 +691,8 @@ const [status, setStatus] =
       if (from) params.set('from', from)
       if (to) params.set('to', to)
       if (searchQuery) {
-  params.set('q', searchQuery)
-}
+        params.set('q', searchQuery)
+      }
       if (status !== 'all') {
         params.set('status', status)
       }
@@ -765,24 +765,24 @@ const [status, setStatus] =
     }
   }
 
- useEffect(() => {
-  const controller =
-    new AbortController()
+  useEffect(() => {
+    const controller =
+      new AbortController()
 
-  fetchEpisodeSales(
-    controller.signal
-  )
+    fetchEpisodeSales(
+      controller.signal
+    )
 
-  return () => {
-    controller.abort()
-  }
-}, [
-  from,
-  to,
-  searchQuery,
-  status,
-  page,
-])
+    return () => {
+      controller.abort()
+    }
+  }, [
+    from,
+    to,
+    searchQuery,
+    status,
+    page,
+  ])
 
   function applyRange(key) {
     if (key === 'today') {
@@ -917,26 +917,10 @@ const [status, setStatus] =
                 className="episode-sales-input"
                 type="date"
                 value={from}
-                onChange={(event) =>
-  setSearch(event.target.value)
-}
-onKeyDown={(event) => {
-  if (event.key !== 'Enter') return
-
-  const nextSearch =
-    search.trim()
-
-  if (
-    nextSearch === searchQuery &&
-    page === 1
-  ) {
-    fetchEpisodeSales()
-    return
-  }
-
-  setSearchQuery(nextSearch)
-  setPage(1)
-}}
+                onChange={(event) => {
+                  setFrom(event.target.value)
+                  setPage(1)
+                }}
               />
               <input
                 className="episode-sales-input"
@@ -1059,8 +1043,24 @@ onKeyDown={(event) => {
               className="episode-sales-search"
               placeholder="Search buyer, story, author, episode, package, or purchase key..."
               value={search}
-              onChange={(event) => {
+              onChange={(event) =>
                 setSearch(event.target.value)
+              }
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return
+
+                const nextSearch =
+                  search.trim()
+
+                if (
+                  nextSearch === searchQuery &&
+                  page === 1
+                ) {
+                  fetchEpisodeSales()
+                  return
+                }
+
+                setSearchQuery(nextSearch)
                 setPage(1)
               }}
             />
