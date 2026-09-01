@@ -7,7 +7,6 @@ const styles = `
   .amm-wrap {
     display: grid;
     gap: 12px;
-    margin: -8px 0 20px;
   }
 
   .amm-card {
@@ -28,7 +27,7 @@ const styles = `
   .amm-title {
     margin: 0;
     color: #0F172A;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 950;
   }
 
@@ -63,7 +62,6 @@ const styles = `
   }
 
   .amm-input,
-  .amm-select,
   .amm-textarea {
     width: 100%;
     border: 1px solid #E2E8F0;
@@ -78,8 +76,7 @@ const styles = `
     transition: border-color .16s ease, box-shadow .16s ease;
   }
 
-  .amm-input,
-  .amm-select {
+  .amm-input {
     min-height: 42px;
   }
 
@@ -91,7 +88,6 @@ const styles = `
   }
 
   .amm-input:focus,
-  .amm-select:focus,
   .amm-textarea:focus {
     border-color: #3B82F6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
@@ -192,7 +188,22 @@ const styles = `
     font-weight: 900;
   }
 
-  .amm-avatar img {
+  .amm-release-preview {
+    width: 74px;
+    height: 74px;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #334155, #0F172A);
+    color: #FFFFFF;
+    font-size: 22px;
+  }
+
+  .amm-avatar img,
+  .amm-release-preview img,
+  .amm-track-cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -211,27 +222,98 @@ const styles = `
     font-weight: 700;
   }
 
-  .amm-release-preview {
-    width: 74px;
-    height: 74px;
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(145deg, #334155, #0F172A);
-    color: #FFFFFF;
-    font-size: 22px;
+  .amm-track-list {
+    display: grid;
+    gap: 7px;
+    margin-top: 12px;
   }
 
-  .amm-release-preview img {
+  .amm-track-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 42px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid #E2E8F0;
+    border-radius: 11px;
+    background: #FFFFFF;
+    padding: 7px;
+    color: #0F172A;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+
+  .amm-track-row:hover {
+    border-color: #BFDBFE;
+    background: #F8FBFF;
+  }
+
+  .amm-track-row.active {
+    border-color: #3B82F6;
+    background: #EFF6FF;
+  }
+
+  .amm-track-cover {
+    width: 42px;
+    height: 42px;
+    overflow: hidden;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, #475569, #111827);
+    color: #FFFFFF;
+    font-size: 15px;
+  }
+
+  .amm-track-name {
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .amm-track-meta {
+    margin-top: 3px;
+    color: #64748B;
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .amm-track-number {
+    color: #64748B;
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .amm-add-track {
+    margin-top: 14px;
+    border: 1px solid #DBEAFE;
+    border-radius: 13px;
+    background: #F8FBFF;
+    padding: 12px;
+  }
+
+  .amm-video {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    margin-top: 12px;
+    overflow: hidden;
+    border-radius: 13px;
+    background: #000000;
+  }
+
+  .amm-video iframe {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    border: 0;
   }
 
   .amm-status {
-    margin-top: 10px;
     border-radius: 10px;
     padding: 9px 11px;
     background: #F8FAFC;
@@ -254,23 +336,6 @@ const styles = `
     text-align: center;
     font-size: 10px;
     font-weight: 750;
-  }
-
-  .amm-video {
-    position: relative;
-    aspect-ratio: 16 / 9;
-    margin-top: 12px;
-    overflow: hidden;
-    border-radius: 13px;
-    background: #000000;
-  }
-
-  .amm-video iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
   }
 
   @media (max-width: 640px) {
@@ -316,7 +381,6 @@ async function request(path, options = {}) {
   })
 
   const data = await response.json().catch(() => ({}))
-
   if (!response.ok || data.ok === false) {
     throw new Error(data.message || 'Music request failed')
   }
@@ -350,42 +414,48 @@ function youtubeVideoId(value) {
   }
 }
 
-export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) {
+export default function AdminMusicManager({
+  data,
+  mode = 'artist',
+  selectedReleaseId = '',
+  onClose,
+  onRefresh,
+  onArtistDeleted,
+  onReleaseDeleted,
+}) {
   const sourceArtist = data?.artist || null
   const sourceReleases = Array.isArray(data?.releases) ? data.releases : []
+  const sourceRelease = useMemo(
+    () => sourceReleases.find((release) => release.id === selectedReleaseId) || null,
+    [sourceReleases, selectedReleaseId]
+  )
 
   const [artist, setArtist] = useState(sourceArtist)
-  const [releases, setReleases] = useState(sourceReleases)
   const [artistName, setArtistName] = useState(sourceArtist?.name || '')
   const [artistBio, setArtistBio] = useState(sourceArtist?.bio || '')
   const [artistAvatarUrl, setArtistAvatarUrl] = useState(sourceArtist?.avatar_url || '')
   const [artistBannerUrl, setArtistBannerUrl] = useState(sourceArtist?.banner_url || '')
   const [artistActive, setArtistActive] = useState(sourceArtist?.is_active !== false)
 
-  const [releaseId, setReleaseId] = useState(sourceReleases[0]?.id || '')
-  const selectedRelease = useMemo(
-    () => releases.find((release) => release.id === releaseId) || null,
-    [releases, releaseId]
+  const [release, setRelease] = useState(sourceRelease)
+  const [releaseTitle, setReleaseTitle] = useState(sourceRelease?.title || '')
+  const [releaseYear, setReleaseYear] = useState(String(sourceRelease?.release_year || new Date().getFullYear()))
+  const [releaseCoverUrl, setReleaseCoverUrl] = useState(sourceRelease?.cover_url || '')
+  const [releaseActive, setReleaseActive] = useState(sourceRelease?.is_active !== false)
+
+  const releaseSongs = Array.isArray(release?.songs) ? release.songs : []
+  const singleSong = release?.release_type === 'single' ? releaseSongs[0] || null : null
+  const [singleYoutubeUrl, setSingleYoutubeUrl] = useState(singleSong?.youtube_url || '')
+
+  const [selectedTrackId, setSelectedTrackId] = useState('')
+  const selectedTrack = useMemo(
+    () => releaseSongs.find((song) => song.id === selectedTrackId) || null,
+    [releaseSongs, selectedTrackId]
   )
-
-  const [releaseTitle, setReleaseTitle] = useState(selectedRelease?.title || '')
-  const [releaseType, setReleaseType] = useState(selectedRelease?.release_type || 'single')
-  const [releaseYear, setReleaseYear] = useState(String(selectedRelease?.release_year || new Date().getFullYear()))
-  const [releaseCoverUrl, setReleaseCoverUrl] = useState(selectedRelease?.cover_url || '')
-  const [releaseActive, setReleaseActive] = useState(selectedRelease?.is_active !== false)
-
-  const songs = Array.isArray(selectedRelease?.songs) ? selectedRelease.songs : []
-  const [songId, setSongId] = useState(songs[0]?.id || '')
-  const selectedSong = useMemo(
-    () => songs.find((song) => song.id === songId) || null,
-    [songs, songId]
-  )
-
-  const [songTitle, setSongTitle] = useState(selectedSong?.title || '')
-  const [songYoutubeUrl, setSongYoutubeUrl] = useState(selectedSong?.youtube_url || '')
-  const [songTrack, setSongTrack] = useState(String(selectedSong?.track_number || 1))
-  const [songDuration, setSongDuration] = useState(String(selectedSong?.duration_seconds || 0))
-  const [songActive, setSongActive] = useState(selectedSong?.is_active !== false)
+  const [trackTitle, setTrackTitle] = useState('')
+  const [trackYoutubeUrl, setTrackYoutubeUrl] = useState('')
+  const [trackNumber, setTrackNumber] = useState('1')
+  const [trackActive, setTrackActive] = useState(true)
   const [newTrackTitle, setNewTrackTitle] = useState('')
   const [newTrackYoutubeUrl, setNewTrackYoutubeUrl] = useState('')
 
@@ -395,48 +465,36 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
 
   useEffect(() => {
     setArtist(sourceArtist)
-    setReleases(sourceReleases)
     setArtistName(sourceArtist?.name || '')
     setArtistBio(sourceArtist?.bio || '')
     setArtistAvatarUrl(sourceArtist?.avatar_url || '')
     setArtistBannerUrl(sourceArtist?.banner_url || '')
     setArtistActive(sourceArtist?.is_active !== false)
-
-    const nextReleaseId = sourceReleases.some((release) => release.id === releaseId)
-      ? releaseId
-      : sourceReleases[0]?.id || ''
-
-    setReleaseId(nextReleaseId)
-  }, [data])
+  }, [sourceArtist])
 
   useEffect(() => {
-    const release = releases.find((item) => item.id === releaseId) || null
-
-    setReleaseTitle(release?.title || '')
-    setReleaseType(release?.release_type || 'single')
-    setReleaseYear(String(release?.release_year || new Date().getFullYear()))
-    setReleaseCoverUrl(release?.cover_url || '')
-    setReleaseActive(release?.is_active !== false)
-
-    const releaseSongs = Array.isArray(release?.songs) ? release.songs : []
-    setSongId(releaseSongs[0]?.id || '')
-  }, [releaseId, releases])
+    setRelease(sourceRelease)
+    setReleaseTitle(sourceRelease?.title || '')
+    setReleaseYear(String(sourceRelease?.release_year || new Date().getFullYear()))
+    setReleaseCoverUrl(sourceRelease?.cover_url || '')
+    setReleaseActive(sourceRelease?.is_active !== false)
+    setSingleYoutubeUrl(sourceRelease?.release_type === 'single' ? sourceRelease?.songs?.[0]?.youtube_url || '' : '')
+    setSelectedTrackId((current) => sourceRelease?.songs?.some((song) => song.id === current) ? current : '')
+    setNewTrackTitle('')
+    setNewTrackYoutubeUrl('')
+    setNotice('')
+    setError('')
+  }, [sourceRelease, selectedReleaseId])
 
   useEffect(() => {
-    const release = releases.find((item) => item.id === releaseId) || null
-    const releaseSongs = Array.isArray(release?.songs) ? release.songs : []
-    const song = releaseSongs.find((item) => item.id === songId) || null
-
-    setSongTitle(song?.title || '')
-    setSongYoutubeUrl(song?.youtube_url || '')
-    setSongTrack(String(song?.track_number || 1))
-    setSongDuration(String(song?.duration_seconds || 0))
-    setSongActive(song?.is_active !== false)
-  }, [songId, releaseId, releases])
+    setTrackTitle(selectedTrack?.title || '')
+    setTrackYoutubeUrl(selectedTrack?.youtube_url || '')
+    setTrackNumber(String(selectedTrack?.track_number || 1))
+    setTrackActive(selectedTrack?.is_active !== false)
+  }, [selectedTrack])
 
   async function saveArtist() {
     const name = artistName.trim()
-
     if (!artist?.id || !name) {
       setError('Artist name is required.')
       return
@@ -480,8 +538,6 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
       await request(`/api/music/admin/artists/${encodeURIComponent(artist.id)}`, {
         method: 'DELETE',
       })
-
-      setNotice('Artist deleted.')
       await onArtistDeleted?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -491,21 +547,18 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
   }
 
   async function saveRelease() {
-    if (!selectedRelease?.id) {
-      setError('Choose a Solo or Album first.')
-      return
-    }
+    if (!release?.id) return
 
     const title = releaseTitle.trim()
-    const isSingle = selectedRelease.release_type === 'single'
-    const youtubeUrl = songYoutubeUrl.trim()
+    const isSingle = release.release_type === 'single'
+    const youtubeUrl = singleYoutubeUrl.trim()
 
     if (!title) {
       setError(isSingle ? 'Solo title is required.' : 'Album title is required.')
       return
     }
 
-    if (isSingle && (!selectedSong?.id || !youtubeUrl)) {
+    if (isSingle && (!singleSong?.id || !youtubeUrl)) {
       setError('Solo YouTube link is required.')
       return
     }
@@ -514,72 +567,57 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     setError('')
     setNotice('')
 
-    const originalRelease = selectedRelease
-    let releaseUpdated = false
+    const originalRelease = release
 
     try {
-      const releaseResult = await request(`/api/music/admin/releases/${encodeURIComponent(selectedRelease.id)}`, {
+      const releaseResult = await request(`/api/music/admin/releases/${encodeURIComponent(release.id)}`, {
         method: 'PATCH',
         body: JSON.stringify({
           title,
-          release_type: selectedRelease.release_type,
+          release_type: release.release_type,
           cover_url: releaseCoverUrl.trim(),
           release_year: isSingle
-            ? Number(selectedRelease.release_year || new Date().getFullYear())
+            ? Number(release.release_year || new Date().getFullYear())
             : Number.parseInt(releaseYear, 10) || new Date().getFullYear(),
           is_active: releaseActive,
         }),
       })
 
-      releaseUpdated = true
-      let updatedSongs = selectedRelease.songs || []
+      let updatedSongs = release.songs || []
 
       if (isSingle) {
         try {
-          const songResult = await request(`/api/music/admin/songs/${encodeURIComponent(selectedSong.id)}`, {
+          const songResult = await request(`/api/music/admin/songs/${encodeURIComponent(singleSong.id)}`, {
             method: 'PATCH',
             body: JSON.stringify({
               title,
               youtube_url: youtubeUrl,
               track_number: 1,
-              duration_seconds: Number(selectedSong.duration_seconds || 0),
+              duration_seconds: Number(singleSong.duration_seconds || 0),
               is_active: releaseActive,
             }),
           })
-
           updatedSongs = [songResult.song]
-          setSongTitle(title)
-          setSongActive(releaseActive)
         } catch (songError) {
-          if (releaseUpdated) {
-            try {
-              await request(`/api/music/admin/releases/${encodeURIComponent(originalRelease.id)}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                  title: originalRelease.title,
-                  release_type: originalRelease.release_type,
-                  cover_url: originalRelease.cover_url || '',
-                  release_year: Number(originalRelease.release_year || new Date().getFullYear()),
-                  is_active: originalRelease.is_active !== false,
-                }),
-              })
-            } catch {
-              void 0
-            }
+          try {
+            await request(`/api/music/admin/releases/${encodeURIComponent(originalRelease.id)}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                title: originalRelease.title,
+                release_type: originalRelease.release_type,
+                cover_url: originalRelease.cover_url || '',
+                release_year: Number(originalRelease.release_year || new Date().getFullYear()),
+                is_active: originalRelease.is_active !== false,
+              }),
+            })
+          } catch {
+            void 0
           }
-
           throw songError
         }
       }
 
-      setReleases((current) =>
-        current.map((release) =>
-          release.id === selectedRelease.id
-            ? { ...release, ...releaseResult.release, songs: updatedSongs }
-            : release
-        )
-      )
-
+      setRelease({ ...release, ...releaseResult.release, songs: updatedSongs })
       setNotice(isSingle ? 'Solo updated.' : 'Album updated.')
       await onRefresh?.()
     } catch (requestError) {
@@ -590,22 +628,18 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
   }
 
   async function deleteRelease() {
-    if (!selectedRelease?.id) return
-    if (!window.confirm(`Delete "${selectedRelease.title}" and all songs inside it?`)) return
+    if (!release?.id) return
+    if (!window.confirm(`Delete "${release.title}" and all songs inside it?`)) return
 
     setSaving(true)
     setError('')
     setNotice('')
 
     try {
-      await request(`/api/music/admin/releases/${encodeURIComponent(selectedRelease.id)}`, {
+      await request(`/api/music/admin/releases/${encodeURIComponent(release.id)}`, {
         method: 'DELETE',
       })
-
-      const next = releases.filter((release) => release.id !== selectedRelease.id)
-      setReleases(next)
-      setReleaseId(next[0]?.id || '')
-      setNotice('Album/Single deleted.')
+      await onReleaseDeleted?.(release.id)
       await onRefresh?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -615,14 +649,10 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
   }
 
   async function addTrackToAlbum() {
-    if (!selectedRelease?.id || selectedRelease.release_type !== 'album') {
-      setError('Choose an Album first.')
-      return
-    }
+    if (!release?.id || release.release_type !== 'album') return
 
     const title = newTrackTitle.trim()
     const youtubeUrl = newTrackYoutubeUrl.trim()
-
     if (!title || !youtubeUrl) {
       setError('New track needs a Song Title and YouTube Link.')
       return
@@ -636,24 +666,22 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
       const result = await request('/api/music/admin/songs', {
         method: 'POST',
         body: JSON.stringify({
-          release_id: selectedRelease.id,
+          release_id: release.id,
           title,
           youtube_url: youtubeUrl,
-          track_number: (selectedRelease.songs?.length || 0) + 1,
+          track_number: releaseSongs.length + 1,
         }),
       })
 
-      setReleases((current) =>
-        current.map((release) =>
-          release.id === selectedRelease.id
-            ? { ...release, songs: [...(release.songs || []), result.song] }
-            : release
-        )
-      )
-      setSongId(result.song?.id || '')
+      const nextRelease = {
+        ...release,
+        songs: [...releaseSongs, result.song],
+      }
+      setRelease(nextRelease)
       setNewTrackTitle('')
       setNewTrackYoutubeUrl('')
-      setNotice(`${result.song?.title || title} added to Album.`)
+      setSelectedTrackId(result.song?.id || '')
+      setNotice(`${result.song?.title || title} added.`)
       await onRefresh?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -662,15 +690,11 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     }
   }
 
-  async function saveSong() {
-    if (!selectedSong?.id) {
-      setError('Choose a song first.')
-      return
-    }
+  async function saveTrack() {
+    if (!selectedTrack?.id) return
 
-    const title = songTitle.trim()
-    const youtubeUrl = songYoutubeUrl.trim()
-
+    const title = trackTitle.trim()
+    const youtubeUrl = trackYoutubeUrl.trim()
     if (!title || !youtubeUrl) {
       setError('Song title and YouTube link are required.')
       return
@@ -681,31 +705,24 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     setNotice('')
 
     try {
-      const result = await request(`/api/music/admin/songs/${encodeURIComponent(selectedSong.id)}`, {
+      const result = await request(`/api/music/admin/songs/${encodeURIComponent(selectedTrack.id)}`, {
         method: 'PATCH',
         body: JSON.stringify({
           title,
           youtube_url: youtubeUrl,
-          track_number: Math.max(1, Number.parseInt(songTrack, 10) || 1),
-          duration_seconds: Math.max(0, Number.parseInt(songDuration, 10) || 0),
-          is_active: songActive,
+          track_number: Math.max(1, Number.parseInt(trackNumber, 10) || 1),
+          duration_seconds: Number(selectedTrack.duration_seconds || 0),
+          is_active: trackActive,
         }),
       })
 
-      setReleases((current) =>
-        current.map((release) => {
-          if (release.id !== releaseId) return release
-
-          return {
-            ...release,
-            songs: (release.songs || []).map((song) =>
-              song.id === selectedSong.id ? result.song : song
-            ),
-          }
-        })
-      )
-
-      setNotice('Song updated.')
+      setRelease((current) => ({
+        ...current,
+        songs: (current?.songs || []).map((song) =>
+          song.id === selectedTrack.id ? result.song : song
+        ),
+      }))
+      setNotice('Track updated.')
       await onRefresh?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -714,37 +731,24 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     }
   }
 
-  async function deleteSong() {
-    if (!selectedSong?.id) return
-    if (!window.confirm(`Delete song "${selectedSong.title}"?`)) return
+  async function deleteTrack() {
+    if (!selectedTrack?.id) return
+    if (!window.confirm(`Delete song "${selectedTrack.title}"?`)) return
 
     setSaving(true)
     setError('')
     setNotice('')
 
     try {
-      await request(`/api/music/admin/songs/${encodeURIComponent(selectedSong.id)}`, {
+      await request(`/api/music/admin/songs/${encodeURIComponent(selectedTrack.id)}`, {
         method: 'DELETE',
       })
-
-      let nextSongId = ''
-
-      setReleases((current) =>
-        current.map((release) => {
-          if (release.id !== releaseId) return release
-
-          const nextSongs = (release.songs || []).filter((song) => song.id !== selectedSong.id)
-          nextSongId = nextSongs[0]?.id || ''
-
-          return {
-            ...release,
-            songs: nextSongs,
-          }
-        })
-      )
-
-      setSongId(nextSongId)
-      setNotice('Song deleted.')
+      setRelease((current) => ({
+        ...current,
+        songs: (current?.songs || []).filter((song) => song.id !== selectedTrack.id),
+      }))
+      setSelectedTrackId('')
+      setNotice('Track deleted.')
       await onRefresh?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -753,462 +757,238 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
     }
   }
 
-  if (!artist) return null
+  if (!sourceArtist) return null
 
-  const videoId = youtubeVideoId(songYoutubeUrl)
+  if (mode === 'artist') {
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="amm-wrap">
+          <section className="amm-card">
+            <div className="amm-head">
+              <div>
+                <h3 className="amm-title">Edit Artist Profile</h3>
+                <div className="amm-subtitle">Only artist profile information is edited here.</div>
+              </div>
+              <button type="button" className="amm-btn" onClick={onClose}>Close</button>
+            </div>
+
+            <div className="amm-grid">
+              <div className="amm-field">
+                <label className="amm-label" htmlFor="amm-artist-name">Artist Name</label>
+                <input id="amm-artist-name" className="amm-input" value={artistName} onChange={(event) => setArtistName(event.target.value)} />
+              </div>
+
+              <div className="amm-field">
+                <MusicImageUpload value={artistAvatarUrl} onChange={setArtistAvatarUrl} shape="circle" label="Artist Profile" disabled={saving} />
+              </div>
+
+              <div className="amm-field full">
+                <MusicImageUpload value={artistBannerUrl} onChange={setArtistBannerUrl} shape="banner" label="Artist Cover (Optional)" disabled={saving} />
+              </div>
+
+              <div className="amm-field full">
+                <label className="amm-label" htmlFor="amm-artist-bio">Bio</label>
+                <textarea id="amm-artist-bio" className="amm-textarea" value={artistBio} onChange={(event) => setArtistBio(event.target.value)} />
+              </div>
+
+              <label className="amm-check">
+                <input type="checkbox" checked={artistActive} onChange={(event) => setArtistActive(event.target.checked)} />
+                Active on Shadow Music
+              </label>
+            </div>
+
+            <div className="amm-preview">
+              <div className="amm-avatar">{artistAvatarUrl ? <img src={artistAvatarUrl} alt="" /> : '♫'}</div>
+              <div>
+                <div className="amm-preview-name">{artistName || sourceArtist.name}</div>
+                <div className="amm-preview-subtitle">{Number(sourceArtist.total_listeners || 0).toLocaleString()} Listeners</div>
+              </div>
+            </div>
+
+            <div className="amm-actions">
+              <button type="button" className="amm-btn primary" disabled={saving} onClick={saveArtist}>Save Artist</button>
+              <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteArtist}>Delete Artist</button>
+            </div>
+          </section>
+
+          {(notice || error) ? <div className={`amm-status${error ? ' error' : ''}`}>{error || notice}</div> : null}
+        </div>
+      </>
+    )
+  }
+
+  if (!release) {
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="amm-empty">The selected Solo or Album could not be found.</div>
+      </>
+    )
+  }
+
+  const isSingle = release.release_type === 'single'
+  const singleVideoId = youtubeVideoId(singleYoutubeUrl)
+  const trackVideoId = youtubeVideoId(trackYoutubeUrl)
 
   return (
     <>
       <style>{styles}</style>
-
       <div className="amm-wrap">
         <section className="amm-card">
           <div className="amm-head">
             <div>
-              <h3 className="amm-title">Edit Artist</h3>
-              <div className="amm-subtitle">Profile, cover and artist information.</div>
+              <h3 className="amm-title">{isSingle ? 'Edit Solo / Single' : 'Edit Album'}</h3>
+              <div className="amm-subtitle">Editing only: {release.title}</div>
             </div>
+            <button type="button" className="amm-btn" onClick={onClose}>Close</button>
           </div>
 
           <div className="amm-grid">
             <div className="amm-field">
-              <label className="amm-label" htmlFor="amm-artist-name">Artist name</label>
-              <input
-                id="amm-artist-name"
-                className="amm-input"
-                value={artistName}
-                onChange={(event) => setArtistName(event.target.value)}
-              />
+              <label className="amm-label" htmlFor="amm-release-title">{isSingle ? 'Title' : 'Album Title'}</label>
+              <input id="amm-release-title" className="amm-input" value={releaseTitle} onChange={(event) => setReleaseTitle(event.target.value)} />
             </div>
 
-            <div className="amm-field">
-              <MusicImageUpload
-                value={artistAvatarUrl}
-                onChange={setArtistAvatarUrl}
-                shape="circle"
-                label="Artist Profile"
-                disabled={saving}
-              />
-            </div>
-
-            <div className="amm-field">
-              <MusicImageUpload
-                value={artistBannerUrl}
-                onChange={setArtistBannerUrl}
-                shape="banner"
-                label="Artist Cover (Optional)"
-                disabled={saving}
-              />
-            </div>
+            {isSingle ? (
+              <div className="amm-field">
+                <label className="amm-label" htmlFor="amm-single-youtube">YouTube Link</label>
+                <input id="amm-single-youtube" className="amm-input" type="url" value={singleYoutubeUrl} onChange={(event) => setSingleYoutubeUrl(event.target.value)} />
+              </div>
+            ) : (
+              <div className="amm-field">
+                <label className="amm-label" htmlFor="amm-album-year">Year</label>
+                <input id="amm-album-year" className="amm-input" inputMode="numeric" value={releaseYear} onChange={(event) => setReleaseYear(event.target.value.replace(/\D/g, '').slice(0, 4))} />
+              </div>
+            )}
 
             <div className="amm-field full">
-              <label className="amm-label" htmlFor="amm-artist-bio">Bio</label>
-              <textarea
-                id="amm-artist-bio"
-                className="amm-textarea"
-                value={artistBio}
-                onChange={(event) => setArtistBio(event.target.value)}
-              />
+              <MusicImageUpload value={releaseCoverUrl} onChange={setReleaseCoverUrl} shape="square" label={isSingle ? 'Solo Cover' : 'Album Cover'} disabled={saving} />
             </div>
 
             <label className="amm-check">
-              <input
-                type="checkbox"
-                checked={artistActive}
-                onChange={(event) => setArtistActive(event.target.checked)}
-              />
-              Active on Shadow Music
+              <input type="checkbox" checked={releaseActive} onChange={(event) => setReleaseActive(event.target.checked)} />
+              Active
             </label>
           </div>
 
           <div className="amm-preview">
-            <div className="amm-avatar">
-              {artistAvatarUrl ? <img src={artistAvatarUrl} alt="" /> : '♫'}
-            </div>
+            <div className="amm-release-preview">{releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}</div>
             <div>
-              <div className="amm-preview-name">{artistName || artist.name}</div>
+              <div className="amm-preview-name">{releaseTitle || release.title}</div>
               <div className="amm-preview-subtitle">
-                {Number(sourceArtist?.total_listeners || 0).toLocaleString()} Total Listeners
+                {isSingle ? `${Number(singleSong?.view_count || 0).toLocaleString()} Views • Solo` : `${releaseSongs.length} songs • Album`}
               </div>
             </div>
           </div>
+
+          {isSingle && singleVideoId ? (
+            <div className="amm-video">
+              <iframe src={`https://www.youtube-nocookie.com/embed/${singleVideoId}?rel=0&playsinline=1`} title={releaseTitle || 'Solo preview'} allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+            </div>
+          ) : null}
 
           <div className="amm-actions">
-            <button type="button" className="amm-btn primary" disabled={saving} onClick={saveArtist}>
-              Save Artist
-            </button>
-            <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteArtist}>
-              Delete Artist
-            </button>
+            <button type="button" className="amm-btn primary" disabled={saving} onClick={saveRelease}>{isSingle ? 'Save Solo' : 'Save Album'}</button>
+            <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteRelease}>{isSingle ? 'Delete Solo' : 'Delete Album'}</button>
           </div>
         </section>
 
-        <section className="amm-card">
-          <div className="amm-head">
-            <div>
-              <h3 className="amm-title">
-                {selectedRelease?.release_type === 'single' ? 'Edit Solo / Single' : 'Edit Album'}
-              </h3>
-              <div className="amm-subtitle">
-                {selectedRelease?.release_type === 'single'
-                  ? 'Edit title, cover and YouTube link together.'
-                  : 'Edit album information, cover and visibility.'}
-              </div>
-            </div>
-          </div>
-
-          {releases.length ? (
-            <>
-              <div className="amm-field">
-                <label className="amm-label" htmlFor="amm-release-select">Solo / Album</label>
-                <select
-                  id="amm-release-select"
-                  className="amm-select"
-                  value={releaseId}
-                  onChange={(event) => setReleaseId(event.target.value)}
-                >
-                  {releases.map((release) => (
-                    <option key={release.id} value={release.id}>
-                      {release.title} — {release.release_type === 'single' ? 'Solo' : 'Album'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedRelease?.release_type === 'single' ? (
-                <>
-                  <div className="amm-grid" style={{ marginTop: 10 }}>
-                    <div className="amm-field">
-                      <label className="amm-label" htmlFor="amm-single-title">Title</label>
-                      <input
-                        id="amm-single-title"
-                        className="amm-input"
-                        value={releaseTitle}
-                        onChange={(event) => {
-                          setReleaseTitle(event.target.value)
-                          setSongTitle(event.target.value)
-                        }}
-                      />
-                    </div>
-
-                    <div className="amm-field">
-                      <label className="amm-label" htmlFor="amm-single-youtube">YouTube Link</label>
-                      <input
-                        id="amm-single-youtube"
-                        className="amm-input"
-                        type="url"
-                        value={songYoutubeUrl}
-                        onChange={(event) => setSongYoutubeUrl(event.target.value)}
-                      />
-                    </div>
-
-                    <div className="amm-field">
-                      <MusicImageUpload
-                        value={releaseCoverUrl}
-                        onChange={setReleaseCoverUrl}
-                        shape="square"
-                        label="Solo Cover"
-                        disabled={saving}
-                      />
-                    </div>
-
-                    <div className="amm-field">
-                      <label className="amm-label" htmlFor="amm-single-shadow-views">Shadow Views</label>
-                      <input
-                        id="amm-single-shadow-views"
-                        className="amm-input"
-                        value={String(selectedSong?.view_count || 0)}
-                        readOnly
-                        disabled
-                      />
-                    </div>
-
-                    <label className="amm-check">
-                      <input
-                        type="checkbox"
-                        checked={releaseActive}
-                        onChange={(event) => setReleaseActive(event.target.checked)}
-                      />
-                      Active
-                    </label>
-                  </div>
-
-                  {videoId ? (
-                    <div className="amm-video">
-                      <iframe
-                        src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`}
-                        title={releaseTitle || 'Solo preview'}
-                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : null}
-
-                  <div className="amm-preview">
-                    <div className="amm-release-preview">
-                      {releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}
-                    </div>
-                    <div>
-                      <div className="amm-preview-name">{releaseTitle || selectedRelease?.title}</div>
-                      <div className="amm-preview-subtitle">Solo / Single</div>
-                    </div>
-                  </div>
-
-                  <div className="amm-actions">
-                    <button type="button" className="amm-btn primary" disabled={saving} onClick={saveRelease}>
-                      Save Solo
-                    </button>
-                    <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteRelease}>
-                      Delete Solo
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="amm-grid" style={{ marginTop: 10 }}>
-                    <div className="amm-field">
-                      <label className="amm-label" htmlFor="amm-album-title">Album Title</label>
-                      <input
-                        id="amm-album-title"
-                        className="amm-input"
-                        value={releaseTitle}
-                        onChange={(event) => setReleaseTitle(event.target.value)}
-                      />
-                    </div>
-
-                    <div className="amm-field">
-                      <label className="amm-label" htmlFor="amm-album-year">Year</label>
-                      <input
-                        id="amm-album-year"
-                        className="amm-input"
-                        inputMode="numeric"
-                        value={releaseYear}
-                        onChange={(event) => setReleaseYear(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                      />
-                    </div>
-
-                    <div className="amm-field">
-                      <MusicImageUpload
-                        value={releaseCoverUrl}
-                        onChange={setReleaseCoverUrl}
-                        shape="square"
-                        label="Album Cover"
-                        disabled={saving}
-                      />
-                    </div>
-
-                    <label className="amm-check">
-                      <input
-                        type="checkbox"
-                        checked={releaseActive}
-                        onChange={(event) => setReleaseActive(event.target.checked)}
-                      />
-                      Active
-                    </label>
-                  </div>
-
-                  <div className="amm-preview">
-                    <div className="amm-release-preview">
-                      {releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}
-                    </div>
-                    <div>
-                      <div className="amm-preview-name">{releaseTitle || selectedRelease?.title}</div>
-                      <div className="amm-preview-subtitle">
-                        Album • {releaseYear || ''} • {songs.length} songs
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="amm-actions">
-                    <button type="button" className="amm-btn primary" disabled={saving} onClick={saveRelease}>
-                      Save Album
-                    </button>
-                    <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteRelease}>
-                      Delete Album
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="amm-empty">No Solo or Album to edit yet.</div>
-          )}
-        </section>
-
-        {selectedRelease?.release_type === 'album' ? (
+        {!isSingle ? (
           <section className="amm-card">
             <div className="amm-head">
               <div>
                 <h3 className="amm-title">Album Tracks</h3>
-                <div className="amm-subtitle">
-                  Edit song title, YouTube link, track order and visibility.
-                </div>
+                <div className="amm-subtitle">Click one track below to edit only that track.</div>
               </div>
             </div>
 
-            <div
-              style={{
-                marginBottom: 14,
-                border: '1px solid #DBEAFE',
-                borderRadius: 13,
-                background: '#F8FBFF',
-                padding: 12,
-              }}
-            >
-              <div className="amm-title">Add Track</div>
-              <div className="amm-subtitle">Add another song to this Album.</div>
-
-              <div className="amm-grid" style={{ marginTop: 10 }}>
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-new-track-title">Song Title</label>
-                  <input
-                    id="amm-new-track-title"
-                    className="amm-input"
-                    value={newTrackTitle}
-                    onChange={(event) => setNewTrackTitle(event.target.value)}
-                    placeholder="Song title"
-                  />
-                </div>
-
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-new-track-youtube">YouTube Link</label>
-                  <input
-                    id="amm-new-track-youtube"
-                    className="amm-input"
-                    type="url"
-                    value={newTrackYoutubeUrl}
-                    onChange={(event) => setNewTrackYoutubeUrl(event.target.value)}
-                    placeholder="https://youtube.com/watch?v=..."
-                  />
-                </div>
-              </div>
-
-              <div className="amm-actions">
-                <button
-                  type="button"
-                  className="amm-btn primary"
-                  disabled={saving}
-                  onClick={addTrackToAlbum}
-                >
-                  Add Track
-                </button>
-              </div>
-            </div>
-
-            {songs.length ? (
-              <>
-                <div className="amm-field">
-                  <label className="amm-label" htmlFor="amm-song-select">Song</label>
-                  <select
-                    id="amm-song-select"
-                    className="amm-select"
-                    value={songId}
-                    onChange={(event) => setSongId(event.target.value)}
+            {releaseSongs.length ? (
+              <div className="amm-track-list">
+                {releaseSongs.map((song, index) => (
+                  <button
+                    type="button"
+                    key={song.id}
+                    className={`amm-track-row${song.id === selectedTrackId ? ' active' : ''}`}
+                    onClick={() => setSelectedTrackId(song.id)}
                   >
-                    {songs.map((song) => (
-                      <option key={song.id} value={song.id}>
-                        {song.track_number || 1}. {song.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <span className="amm-track-cover">{releaseCoverUrl ? <img src={releaseCoverUrl} alt="" /> : '♫'}</span>
+                    <span>
+                      <span className="amm-track-name">{song.title}</span>
+                      <span className="amm-track-meta">{Number(song.view_count || 0).toLocaleString()} Views</span>
+                    </span>
+                    <span className="amm-track-number">#{song.track_number || index + 1}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="amm-empty">No songs in this Album yet.</div>
+            )}
 
+            {selectedTrack ? (
+              <div className="amm-add-track">
+                <div className="amm-title">Edit Track: {selectedTrack.title}</div>
                 <div className="amm-grid" style={{ marginTop: 10 }}>
                   <div className="amm-field">
-                    <label className="amm-label" htmlFor="amm-song-title">Song Title</label>
-                    <input
-                      id="amm-song-title"
-                      className="amm-input"
-                      value={songTitle}
-                      onChange={(event) => setSongTitle(event.target.value)}
-                    />
+                    <label className="amm-label" htmlFor="amm-track-title">Song Title</label>
+                    <input id="amm-track-title" className="amm-input" value={trackTitle} onChange={(event) => setTrackTitle(event.target.value)} />
                   </div>
 
                   <div className="amm-field">
-                    <label className="amm-label" htmlFor="amm-song-youtube">YouTube Link</label>
-                    <input
-                      id="amm-song-youtube"
-                      className="amm-input"
-                      type="url"
-                      value={songYoutubeUrl}
-                      onChange={(event) => setSongYoutubeUrl(event.target.value)}
-                    />
+                    <label className="amm-label" htmlFor="amm-track-youtube">YouTube Link</label>
+                    <input id="amm-track-youtube" className="amm-input" type="url" value={trackYoutubeUrl} onChange={(event) => setTrackYoutubeUrl(event.target.value)} />
                   </div>
 
                   <div className="amm-field">
-                    <label className="amm-label" htmlFor="amm-song-shadow-views">Shadow Views</label>
-                    <input
-                      id="amm-song-shadow-views"
-                      className="amm-input"
-                      value={String(selectedSong?.view_count || 0)}
-                      readOnly
-                      disabled
-                    />
+                    <label className="amm-label" htmlFor="amm-track-number">Track Number</label>
+                    <input id="amm-track-number" className="amm-input" inputMode="numeric" value={trackNumber} onChange={(event) => setTrackNumber(event.target.value.replace(/\D/g, '').slice(0, 4))} />
                   </div>
 
                   <div className="amm-field">
-                    <label className="amm-label" htmlFor="amm-song-track">Track Number</label>
-                    <input
-                      id="amm-song-track"
-                      className="amm-input"
-                      inputMode="numeric"
-                      value={songTrack}
-                      onChange={(event) => setSongTrack(event.target.value.replace(/\D/g, '').slice(0, 4))}
-                    />
-                  </div>
-
-                  <div className="amm-field">
-                    <label className="amm-label" htmlFor="amm-song-duration">Duration Seconds</label>
-                    <input
-                      id="amm-song-duration"
-                      className="amm-input"
-                      inputMode="numeric"
-                      value={songDuration}
-                      onChange={(event) => setSongDuration(event.target.value.replace(/\D/g, '').slice(0, 5))}
-                    />
+                    <label className="amm-label">Shadow Views</label>
+                    <input className="amm-input" value={String(selectedTrack.view_count || 0)} readOnly disabled />
                   </div>
 
                   <label className="amm-check">
-                    <input
-                      type="checkbox"
-                      checked={songActive}
-                      onChange={(event) => setSongActive(event.target.checked)}
-                    />
+                    <input type="checkbox" checked={trackActive} onChange={(event) => setTrackActive(event.target.checked)} />
                     Active
                   </label>
                 </div>
 
-                {videoId ? (
+                {trackVideoId ? (
                   <div className="amm-video">
-                    <iframe
-                      src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`}
-                      title={songTitle || 'Music preview'}
-                      allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
+                    <iframe src={`https://www.youtube-nocookie.com/embed/${trackVideoId}?rel=0&playsinline=1`} title={trackTitle || 'Track preview'} allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
                   </div>
                 ) : null}
 
                 <div className="amm-actions">
-                  <button type="button" className="amm-btn primary" disabled={saving} onClick={saveSong}>
-                    Save Track
-                  </button>
-                  <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteSong}>
-                    Delete Track
-                  </button>
+                  <button type="button" className="amm-btn primary" disabled={saving} onClick={saveTrack}>Save Track</button>
+                  <button type="button" className="amm-btn danger" disabled={saving} onClick={deleteTrack}>Delete Track</button>
                 </div>
-              </>
-            ) : (
-              <div className="amm-empty">No songs in this Album yet.</div>
-            )}
+              </div>
+            ) : null}
+
+            <div className="amm-add-track">
+              <div className="amm-title">Add Track</div>
+              <div className="amm-subtitle">Add another song to this Album.</div>
+              <div className="amm-grid" style={{ marginTop: 10 }}>
+                <div className="amm-field">
+                  <label className="amm-label" htmlFor="amm-new-track-title">Song Title</label>
+                  <input id="amm-new-track-title" className="amm-input" value={newTrackTitle} onChange={(event) => setNewTrackTitle(event.target.value)} placeholder="Song title" />
+                </div>
+                <div className="amm-field">
+                  <label className="amm-label" htmlFor="amm-new-track-youtube">YouTube Link</label>
+                  <input id="amm-new-track-youtube" className="amm-input" type="url" value={newTrackYoutubeUrl} onChange={(event) => setNewTrackYoutubeUrl(event.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                </div>
+              </div>
+              <div className="amm-actions">
+                <button type="button" className="amm-btn primary" disabled={saving} onClick={addTrackToAlbum}>Add Track</button>
+              </div>
+            </div>
           </section>
         ) : null}
 
-        {(notice || error) ? (
-          <div className={`amm-status${error ? ' error' : ''}`}>
-            {error || notice}
-          </div>
-        ) : null}
+        {(notice || error) ? <div className={`amm-status${error ? ' error' : ''}`}>{error || notice}</div> : null}
       </div>
     </>
   )
