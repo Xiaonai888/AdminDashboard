@@ -642,9 +642,11 @@ export default function AdminEpisodeSalesPage() {
   const [to, setTo] =
     useState(todayInput())
   const [search, setSearch] =
-    useState('')
-  const [status, setStatus] =
-    useState('all')
+  useState('')
+const [searchQuery, setSearchQuery] =
+  useState('')
+const [status, setStatus] =
+  useState('all')
   const [page, setPage] = useState(1)
   const [data, setData] = useState(null)
   const [loading, setLoading] =
@@ -688,9 +690,9 @@ export default function AdminEpisodeSalesPage() {
 
       if (from) params.set('from', from)
       if (to) params.set('to', to)
-      if (search.trim()) {
-        params.set('q', search.trim())
-      }
+      if (searchQuery) {
+  params.set('q', searchQuery)
+}
       if (status !== 'all') {
         params.set('status', status)
       }
@@ -763,22 +765,24 @@ export default function AdminEpisodeSalesPage() {
     }
   }
 
-  useEffect(() => {
-    const controller =
-      new AbortController()
-    const timer = setTimeout(
-      () =>
-        fetchEpisodeSales(
-          controller.signal
-        ),
-      search.trim() ? 300 : 0
-    )
+ useEffect(() => {
+  const controller =
+    new AbortController()
 
-    return () => {
-      clearTimeout(timer)
-      controller.abort()
-    }
-  }, [from, to, search, status, page])
+  fetchEpisodeSales(
+    controller.signal
+  )
+
+  return () => {
+    controller.abort()
+  }
+}, [
+  from,
+  to,
+  searchQuery,
+  status,
+  page,
+])
 
   function applyRange(key) {
     if (key === 'today') {
@@ -913,10 +917,26 @@ export default function AdminEpisodeSalesPage() {
                 className="episode-sales-input"
                 type="date"
                 value={from}
-                onChange={(event) => {
-                  setFrom(event.target.value)
-                  setPage(1)
-                }}
+                onChange={(event) =>
+  setSearch(event.target.value)
+}
+onKeyDown={(event) => {
+  if (event.key !== 'Enter') return
+
+  const nextSearch =
+    search.trim()
+
+  if (
+    nextSearch === searchQuery &&
+    page === 1
+  ) {
+    fetchEpisodeSales()
+    return
+  }
+
+  setSearchQuery(nextSearch)
+  setPage(1)
+}}
               />
               <input
                 className="episode-sales-input"
