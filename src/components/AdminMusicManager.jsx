@@ -386,6 +386,8 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
   const [songTrack, setSongTrack] = useState(String(selectedSong?.track_number || 1))
   const [songDuration, setSongDuration] = useState(String(selectedSong?.duration_seconds || 0))
   const [songActive, setSongActive] = useState(selectedSong?.is_active !== false)
+  const [newTrackTitle, setNewTrackTitle] = useState('')
+  const [newTrackYoutubeUrl, setNewTrackYoutubeUrl] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
@@ -604,6 +606,54 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
       setReleases(next)
       setReleaseId(next[0]?.id || '')
       setNotice('Album/Single deleted.')
+      await onRefresh?.()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function addTrackToAlbum() {
+    if (!selectedRelease?.id || selectedRelease.release_type !== 'album') {
+      setError('Choose an Album first.')
+      return
+    }
+
+    const title = newTrackTitle.trim()
+    const youtubeUrl = newTrackYoutubeUrl.trim()
+
+    if (!title || !youtubeUrl) {
+      setError('New track needs a Song Title and YouTube Link.')
+      return
+    }
+
+    setSaving(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const result = await request('/api/music/admin/songs', {
+        method: 'POST',
+        body: JSON.stringify({
+          release_id: selectedRelease.id,
+          title,
+          youtube_url: youtubeUrl,
+          track_number: (selectedRelease.songs?.length || 0) + 1,
+        }),
+      })
+
+      setReleases((current) =>
+        current.map((release) =>
+          release.id === selectedRelease.id
+            ? { ...release, songs: [...(release.songs || []), result.song] }
+            : release
+        )
+      )
+      setSongId(result.song?.id || '')
+      setNewTrackTitle('')
+      setNewTrackYoutubeUrl('')
+      setNotice(`${result.song?.title || title} added to Album.`)
       await onRefresh?.()
     } catch (requestError) {
       setError(requestError.message)
@@ -993,6 +1043,55 @@ export default function AdminMusicManager({ data, onRefresh, onArtistDeleted }) 
                 <div className="amm-subtitle">
                   Edit song title, YouTube link, track order and visibility.
                 </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginBottom: 14,
+                border: '1px solid #DBEAFE',
+                borderRadius: 13,
+                background: '#F8FBFF',
+                padding: 12,
+              }}
+            >
+              <div className="amm-title">Add Track</div>
+              <div className="amm-subtitle">Add another song to this Album.</div>
+
+              <div className="amm-grid" style={{ marginTop: 10 }}>
+                <div className="amm-field">
+                  <label className="amm-label" htmlFor="amm-new-track-title">Song Title</label>
+                  <input
+                    id="amm-new-track-title"
+                    className="amm-input"
+                    value={newTrackTitle}
+                    onChange={(event) => setNewTrackTitle(event.target.value)}
+                    placeholder="Song title"
+                  />
+                </div>
+
+                <div className="amm-field">
+                  <label className="amm-label" htmlFor="amm-new-track-youtube">YouTube Link</label>
+                  <input
+                    id="amm-new-track-youtube"
+                    className="amm-input"
+                    type="url"
+                    value={newTrackYoutubeUrl}
+                    onChange={(event) => setNewTrackYoutubeUrl(event.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                  />
+                </div>
+              </div>
+
+              <div className="amm-actions">
+                <button
+                  type="button"
+                  className="amm-btn primary"
+                  disabled={saving}
+                  onClick={addTrackToAlbum}
+                >
+                  Add Track
+                </button>
               </div>
             </div>
 
