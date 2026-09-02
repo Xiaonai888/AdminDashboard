@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
+import ImageDropZone from '../components/common/ImageDropZone';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SLOTS = [1, 2, 3, 4, 5, 6, 7];
@@ -227,6 +228,13 @@ export default function SlideSection() {
     setLocalPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleDroppedFiles = (files) => {
+  const file = files?.[0];
+  if (!file) return;
+  setSelectedFile(file);
+  setLocalPreviewUrl(URL.createObjectURL(file));
+};
+
   const handleSaveSlide = async () => {
     if (!selectedSlide && !selectedFile) {
       setMessage({ type: 'error', text: 'Choose an image first for this empty slide slot.' });
@@ -415,6 +423,8 @@ export default function SlideSection() {
                       <div className="selected-preview-empty">No image selected</div>
                     )}
                   </div>
+
+                  <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
 
                   <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
                     <div className="upload-title">Choose or replace image</div>
