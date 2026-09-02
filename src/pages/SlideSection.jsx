@@ -425,8 +425,6 @@ export default function SlideSection() {
                   </div>
 
                   <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
-
-                  <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
   <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
     <div className="upload-title">Choose or replace image</div>
     <div className="upload-help">Recommended: 1920×1080, JPG, PNG, or WEBP.</div>
