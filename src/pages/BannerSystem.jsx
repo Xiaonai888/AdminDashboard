@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
 import ImageDropZone from '../components/common/ImageDropZone';
-import ImageDropZone from '../components/common/ImageDropZone';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 const RECORDS_PER_PAGE = 20;
