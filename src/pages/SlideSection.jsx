@@ -426,18 +426,19 @@ export default function SlideSection() {
 
                   <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
 
-                  <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
-                    <div className="upload-title">Choose or replace image</div>
-                    <div className="upload-help">Recommended: 1920×1080, JPG, PNG, or WEBP.</div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleFileChange}
-                    />
-                  </div>
-
+                  <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
+  <div className="upload-box" onClick={() => fileInputRef.current?.click()}>
+    <div className="upload-title">Choose or replace image</div>
+    <div className="upload-help">Recommended: 1920×1080, JPG, PNG, or WEBP.</div>
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      style={{ display: 'none' }}
+      onChange={handleFileChange}
+    />
+  </div>
+</ImageDropZone>
                   <label className="field-label">Badge</label>
                   <select className="input" value={badge} onChange={(event) => setBadge(event.target.value)}>
                     <option value="">None</option>
