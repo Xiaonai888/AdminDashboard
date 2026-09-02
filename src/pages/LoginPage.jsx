@@ -89,7 +89,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState(rememberedEmail);
   const [password, setPassword] = useState('');
   const [rememberEmail, setRememberEmail] = useState(Boolean(rememberedEmail));
-  const [rememberLogin, setRememberLogin] = useState(Boolean(localStorage.getItem('shadow_admin_token')));
+  const [rememberLogin, setRememberLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [verifyCode, setVerifyCode] = useState(() => makeVerifyCode());
   const [verifyInput, setVerifyInput] = useState('');
