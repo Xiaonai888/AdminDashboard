@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminSidebar from '../components/AdminSidebar'
+import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropModal'
+import ImageDropZone from '../components/common/ImageDropZone'
 import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropModal'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -840,7 +841,6 @@ export default function AdminAdvertisementPage() {
   const [recordsLoading, setRecordsLoading] = useState(false)
   const [recordPage, setRecordPage] = useState(1)
   const [recordTotalPages, setRecordTotalPages] = useState(1)
-  const [dragging, setDragging] = useState(false)
   const [cropOpen, setCropOpen] = useState(false)
   const [cropImage, setCropImage] = useState('')
   const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -963,11 +963,7 @@ export default function AdminAdvertisementPage() {
     openCropForFile(event.target.files?.[0])
   }
 
-  function handleDrop(event) {
-    event.preventDefault()
-    setDragging(false)
-    openCropForFile(event.dataTransfer.files?.[0])
-  }
+  
 
   function closeCropEditor() {
     if (cropImage?.startsWith('blob:')) {
@@ -1163,34 +1159,24 @@ export default function AdminAdvertisementPage() {
                   onChange={(event) => updateCurrent('imageUrl', event.target.value)}
                   placeholder="Auto-filled after upload"
                 />
-                <label
-                  className={`upload-box ${dragging ? 'dragging' : ''}`}
-                  onDragEnter={(event) => {
-                    event.preventDefault()
-                    setDragging(true)
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    setDragging(true)
-                  }}
-                  onDragLeave={(event) => {
-                    event.preventDefault()
-                    setDragging(false)
-                  }}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleUpload}
-                    style={{ display: 'none' }}
-                  />
-                  <div className="upload-title">Drop image here or click to choose</div>
-                  <div className="upload-help">
-                    Auto crop: 9:16 · Output: 1080×1920 · Saved to R2 when you click Save.
-                  </div>
-                </label>
+                <ImageDropZone
+  label="Drop image here"
+  onFiles={(files) => openCropForFile(files[0])}
+>
+  <label className="upload-box">
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      onChange={handleUpload}
+      style={{ display: 'none' }}
+    />
+    <div className="upload-title">Drop image here or click to choose</div>
+    <div className="upload-help">
+      Auto crop: 9:16 · Output: 1080×1920 · Saved to R2 when you click Save.
+    </div>
+  </label>
+</ImageDropZone>
                 <label className="field-label">Badge</label>
                 <select
                   className="input"
