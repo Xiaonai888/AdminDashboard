@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AdminSidebar from '../components/AdminSidebar';
 import ImageDropZone from '../components/common/ImageDropZone';
+import ImageDropZone from '../components/common/ImageDropZone';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 const RECORDS_PER_PAGE = 20;
@@ -274,6 +275,13 @@ export default function BannerSystem() {
     setLocalPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleDroppedFiles = (files) => {
+  const file = files?.[0];
+  if (!file) return;
+  setSelectedFile(file);
+  setLocalPreviewUrl(URL.createObjectURL(file));
+};
+
   const handleSaveBanner = async () => {
     if (!selectedBanner && !selectedFile) {
       setMessage({ type: 'error', text: 'Choose an image first for this empty banner slot.' });
@@ -523,23 +531,25 @@ export default function BannerSystem() {
                     )}
                   </div>
 
-                  <div
-                    className="upload-box"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div className="upload-title">Choose or replace image</div>
-                    <div className="upload-help">
-                      Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.
-                    </div>
+                  <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
+  <div
+    className="upload-box"
+    onClick={() => fileInputRef.current?.click()}
+  >
+    <div className="upload-title">Choose or replace image</div>
+    <div className="upload-help">
+      Recommended: 3:1 banner ratio, JPG, PNG, or WEBP.
+    </div>
 
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleFileChange}
-                    />
-                  </div>
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      style={{ display: 'none' }}
+      onChange={handleFileChange}
+    />
+  </div>
+</ImageDropZone>
 
                   <label className="field-label">Badge</label>
                   <select
