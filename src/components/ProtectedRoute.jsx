@@ -30,12 +30,30 @@ function syncSessionToken(token) {
   }
 }
 
+function saveRenewedToken(token) {
+  if (!token) return '';
+
+  sessionStorage.setItem('shadow_admin_token', token);
+
+  if (localStorage.getItem('shadow_admin_token')) {
+    localStorage.setItem('shadow_admin_token', token);
+  }
+
+  return token;
+}
+
 function hasFreshVerification(token) {
   return Boolean(
     token &&
     token === verifiedToken &&
     Date.now() - verifiedAt < ADMIN_SESSION_VERIFY_TTL_MS
   );
+}
+
+function makeSessionError(message, authFailure = false) {
+  const error = new Error(message);
+  error.authFailure = authFailure;
+  return error;
 }
 
 function verifyAdminSessionRequest(token) {
@@ -59,15 +77,27 @@ function verifyAdminSessionRequest(token) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok || !data?.ok) {
-        throw new Error(data?.message || 'Admin session is invalid');
+        throw makeSessionError(
+          data?.message || 'Admin session verification failed',
+          [401, 403, 404].includes(response.status)
+        );
       }
+
+      const nextToken = saveRenewedToken(data.token || token);
 
       sessionStorage.setItem(
         'shadow_admin_user',
         JSON.stringify(data.admin || {})
       );
 
-      verifiedToken = token;
+      if (localStorage.getItem('shadow_admin_token')) {
+        localStorage.setItem(
+          'shadow_admin_user',
+          JSON.stringify(data.admin || {})
+        );
+      }
+
+      verifiedToken = nextToken;
       verifiedAt = Date.now();
 
       return data;
@@ -116,17 +146,91 @@ export default function ProtectedRoute({ children }) {
           setStatus('valid');
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
 
-        clearAdminSession();
-        setStatus('invalid');
+        if (error?.authFailure) {
+          clearAdminSession();
+          setStatus('invalid');
+          return;
+        }
+
+        setStatus('valid');
       });
 
     return () => {
       cancelled = true;
     };
   }, [location.pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const verifyOnActivity = () => {
+      const token = getStoredAdminToken();
+
+      if (
+        !token ||
+        hasFreshVerification(token)
+      ) {
+        return;
+      }
+
+      verifyAdminSessionRequest(token)
+        .then(() => {
+          if (!cancelled) {
+            setStatus('valid');
+          }
+        })
+        .catch((error) => {
+          if (
+            cancelled ||
+            !error?.authFailure
+          ) {
+            return;
+          }
+
+          clearAdminSession();
+          setStatus('invalid');
+        });
+    };
+
+    const activityEvents = [
+      'pointerdown',
+      'keydown',
+      'touchstart',
+      'scroll',
+    ];
+
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(
+        eventName,
+        verifyOnActivity,
+        { passive: true }
+      );
+    });
+
+    window.addEventListener(
+      'focus',
+      verifyOnActivity
+    );
+
+    return () => {
+      cancelled = true;
+
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(
+          eventName,
+          verifyOnActivity
+        );
+      });
+
+      window.removeEventListener(
+        'focus',
+        verifyOnActivity
+      );
+    };
+  }, []);
 
   if (status === 'checking') {
     return (
