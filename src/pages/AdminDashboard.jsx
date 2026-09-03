@@ -784,12 +784,13 @@ function formatExclusiveSections(value) {
     .join(' / ');
 }
 
-async function fetchAdminJson(path) {
+async function fetchAdminJson(path, { signal } = {}) {
   const token = getAdminToken();
   const response = await fetch(`${API_URL}${path}`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
+    ...(signal ? { signal } : {}),
   });
   const data = await response.json().catch(() => ({}));
 
@@ -856,7 +857,7 @@ const AdminDashboard = () => {
     navigate('/login', { replace: true });
   };
 
-  const fetchActivityLogs = async () => {
+  const fetchActivityLogs = async ({ signal } = {}) => {
     try {
       setActivityLogLoading(true);
       const token = getAdminToken();
@@ -865,6 +866,7 @@ const AdminDashboard = () => {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'X-Admin-Name': 'Admin',
         },
+        ...(signal ? { signal } : {}),
       });
       const data = await response.json().catch(() => ({}));
 
@@ -873,19 +875,29 @@ const AdminDashboard = () => {
       }
 
       setActivityLog(data.records || []);
-    } catch {
-      setActivityLog([]);
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        setActivityLog([]);
+      }
     } finally {
-      setActivityLogLoading(false);
+      if (!signal?.aborted) {
+        setActivityLogLoading(false);
+      }
     }
   };
 
-  const fetchExclusiveDashboard = async () => {
+  const fetchExclusiveDashboard = async ({ signal } = {}) => {
     try {
       setExclusiveLoading(true);
       const [pendingData, approvedData] = await Promise.all([
-        fetchAdminJson('/api/admin/exclusive/stories?status=pending&limit=3'),
-        fetchAdminJson('/api/admin/exclusive/stories?status=approved&limit=3'),
+        fetchAdminJson(
+          '/api/admin/exclusive/stories?status=pending&limit=3',
+          { signal }
+        ),
+        fetchAdminJson(
+          '/api/admin/exclusive/stories?status=approved&limit=3',
+          { signal }
+        ),
       ]);
 
       const summary = pendingData.summary || approvedData.summary || {};
@@ -904,29 +916,42 @@ const AdminDashboard = () => {
         pending_requests: Number(summary.pending_requests || 0),
       });
       setExclusiveStories(stories);
-    } catch {
-      setExclusiveSummary({ exclusive_stories: 0, pending_requests: 0 });
-      setExclusiveStories([]);
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        setExclusiveSummary({ exclusive_stories: 0, pending_requests: 0 });
+        setExclusiveStories([]);
+      }
     } finally {
-      setExclusiveLoading(false);
+      if (!signal?.aborted) {
+        setExclusiveLoading(false);
+      }
     }
   };
 
-  const fetchVisitorDashboard = async () => {
+  const fetchVisitorDashboard = async ({ signal } = {}) => {
     try {
-      const data = await fetchAdminJson('/api/admin/community/visitors/overview');
+      const data = await fetchAdminJson(
+        '/api/admin/community/visitors/overview',
+        { signal }
+      );
       setVisitorSummary((current) => ({ ...current, ...(data.summary || {}) }));
     } catch {
     }
   };
 
-  const fetchIncomeDashboard = async () => {
+  const fetchIncomeDashboard = async ({ signal } = {}) => {
     try {
       const today = getLocalDayRange(0);
       const yesterday = getLocalDayRange(-1);
       const [todayData, yesterdayData] = await Promise.all([
-        fetchAdminJson(`/api/admin/income/summary?from=${encodeURIComponent(today.from)}&to=${encodeURIComponent(today.to)}`),
-        fetchAdminJson(`/api/admin/income/summary?from=${encodeURIComponent(yesterday.from)}&to=${encodeURIComponent(yesterday.to)}`),
+        fetchAdminJson(
+          `/api/admin/income/summary?from=${encodeURIComponent(today.from)}&to=${encodeURIComponent(today.to)}`,
+          { signal }
+        ),
+        fetchAdminJson(
+          `/api/admin/income/summary?from=${encodeURIComponent(yesterday.from)}&to=${encodeURIComponent(yesterday.to)}`,
+          { signal }
+        ),
       ]);
 
       setIncomeSummary({
@@ -937,9 +962,12 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchGrowthSummary = async () => {
+  const fetchGrowthSummary = async ({ signal } = {}) => {
     try {
-      const data = await fetchAdminJson('/api/admin/community/dashboard/growth');
+      const data = await fetchAdminJson(
+        '/api/admin/community/dashboard/growth',
+        { signal }
+      );
       const { reader_online, ...summary } = data.summary || {};
 
       setGrowthSummary((current) => ({
@@ -950,9 +978,12 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchReaderOnline = async () => {
+  const fetchReaderOnline = async ({ signal } = {}) => {
     try {
-      const data = await fetchAdminJson('/api/admin/community/reader-presence?page=1&limit=1');
+      const data = await fetchAdminJson(
+        '/api/admin/community/reader-presence?page=1&limit=1',
+        { signal }
+      );
 
       setGrowthSummary((current) => ({
         ...current,
@@ -963,148 +994,208 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    let ignore = false;
-    let lastActivityAt = Date.now();
-    let activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
+    let ignore = false
+    let lastOnlineRefreshAt = 0
+    let lastGeneralRefreshAt = 0
+    let activeDayKey =
+      getCambodiaDate().toISOString().slice(0, 10)
 
-    const IDLE_LIMIT_MS = 15 * 60 * 1000;
-    const ONLINE_REFRESH_MS = 60 * 1000;
-    const GROWTH_REFRESH_MS = 5 * 60 * 1000;
-    const TODAY_REFRESH_MS = 10 * 60 * 1000;
-    const INCOME_REFRESH_MS = 5 * 60 * 1000;
+    const controller = new AbortController()
+    const ONLINE_STALE_MS = 60 * 1000
+    const GENERAL_STALE_MS = 5 * 60 * 1000
 
-  async function loadAdminProfile() {
-    const token = getAdminToken();
-    if (!token) return;
+    async function loadAdminProfile() {
+      const token = getAdminToken()
+      if (!token) return
 
-    try {
-      const response = await fetch(`${API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json().catch(() => ({}));
+      try {
+        const response = await fetch(
+          `${API_URL}/api/auth/me`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          }
+        )
+        const data = await response
+          .json()
+          .catch(() => ({}))
 
-      if (!ignore && response.ok && data.ok && data.admin) {
-        setAdminProfile(data.admin);
-        sessionStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
+        if (
+          !ignore &&
+          response.ok &&
+          data.ok &&
+          data.admin
+        ) {
+          setAdminProfile(data.admin)
+          sessionStorage.setItem(
+            'shadow_admin_user',
+            JSON.stringify(data.admin)
+          )
 
-        if (localStorage.getItem('shadow_admin_token')) {
-          localStorage.setItem('shadow_admin_user', JSON.stringify(data.admin));
+          if (
+            localStorage.getItem(
+              'shadow_admin_token'
+            )
+          ) {
+            localStorage.setItem(
+              'shadow_admin_user',
+              JSON.stringify(data.admin)
+            )
+          }
+        }
+      } catch (error) {
+        if (error?.name !== 'AbortError') {
+          return
         }
       }
-    } catch {
     }
-  }
 
-    const canAutoRefresh = () =>
-      !document.hidden &&
-      document.hasFocus() &&
-      Date.now() - lastActivityAt < IDLE_LIMIT_MS;
+    const refreshOnline = ({
+      force = false,
+    } = {}) => {
+      if (
+        controller.signal.aborted ||
+        document.hidden
+      ) {
+        return
+      }
 
-    const refreshDailyData = () => {
-      if (!canAutoRefresh()) return;
+      const now = Date.now()
 
-      fetchVisitorDashboard();
-      fetchIncomeDashboard();
-      fetchGrowthSummary();
-    };
+      if (
+        !force &&
+        lastOnlineRefreshAt &&
+        now - lastOnlineRefreshAt <
+          ONLINE_STALE_MS
+      ) {
+        return
+      }
+
+      lastOnlineRefreshAt = now
+
+      fetchReaderOnline({
+        signal: controller.signal,
+      })
+    }
+
+    const refreshGeneral = ({
+      force = false,
+    } = {}) => {
+      if (
+        controller.signal.aborted ||
+        document.hidden
+      ) {
+        return
+      }
+
+      const now = Date.now()
+
+      if (
+        !force &&
+        lastGeneralRefreshAt &&
+        now - lastGeneralRefreshAt <
+          GENERAL_STALE_MS
+      ) {
+        return
+      }
+
+      lastGeneralRefreshAt = now
+
+      fetchVisitorDashboard({
+        signal: controller.signal,
+      })
+      fetchIncomeDashboard({
+        signal: controller.signal,
+      })
+      fetchGrowthSummary({
+        signal: controller.signal,
+      })
+    }
 
     const refreshAfterResume = () => {
-      if (document.hidden || !document.hasFocus()) return;
+      if (
+        document.hidden ||
+        !document.hasFocus() ||
+        controller.signal.aborted
+      ) {
+        return
+      }
 
-    lastActivityAt = Date.now();
-    activeDayKey = getCambodiaDate().toISOString().slice(0, 10);
+      const currentDayKey =
+        getCambodiaDate()
+          .toISOString()
+          .slice(0, 10)
+      const dayChanged =
+        currentDayKey !== activeDayKey
 
-    fetchReaderOnline();
-    fetchVisitorDashboard();
-    fetchIncomeDashboard();
-    fetchGrowthSummary();
-  };
+      if (dayChanged) {
+        activeDayKey = currentDayKey
+      }
 
-  const handleActivity = () => {
-    const wasIdle = Date.now() - lastActivityAt >= IDLE_LIMIT_MS;
-    lastActivityAt = Date.now();
-
-    if (wasIdle && !document.hidden) {
-      refreshAfterResume();
-    }
-  };
-
-  const handleVisibilityChange = () => {
-    if (!document.hidden) {
-      refreshAfterResume();
-    }
-  };
-
-  const handleOnline = () => {
-    if (!document.hidden) {
-      refreshAfterResume();
-    }
-  };
-
-  fetchActivityLogs();
-  fetchExclusiveDashboard();
-  fetchVisitorDashboard();
-  fetchIncomeDashboard();
-  fetchGrowthSummary();
-  fetchReaderOnline();
-  loadAdminProfile();
-
-  const onlineRefreshTimer = window.setInterval(() => {
-    if (!canAutoRefresh()) return;
-
-    const currentDayKey = getCambodiaDate().toISOString().slice(0, 10);
-
-    if (currentDayKey !== activeDayKey) {
-      activeDayKey = currentDayKey;
-      refreshDailyData();
+      refreshOnline({
+        force: dayChanged,
+      })
+      refreshGeneral({
+        force: dayChanged,
+      })
     }
 
-    fetchReaderOnline();
-  }, ONLINE_REFRESH_MS);
-
-  const growthRefreshTimer = window.setInterval(() => {
-    if (canAutoRefresh()) {
-      fetchGrowthSummary();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshAfterResume()
+      }
     }
-  }, GROWTH_REFRESH_MS);
 
-  const todayRefreshTimer = window.setInterval(() => {
-    if (canAutoRefresh()) {
-      fetchVisitorDashboard();
+    const handleOnline = () => {
+      if (!document.hidden) {
+        refreshOnline({ force: true })
+        refreshGeneral({ force: true })
+      }
     }
-  }, TODAY_REFRESH_MS);
 
-  const incomeRefreshTimer = window.setInterval(() => {
-    if (canAutoRefresh()) {
-      fetchIncomeDashboard();
+    fetchActivityLogs({
+      signal: controller.signal,
+    })
+    fetchExclusiveDashboard({
+      signal: controller.signal,
+    })
+    refreshOnline({ force: true })
+    refreshGeneral({ force: true })
+    loadAdminProfile()
+
+    window.addEventListener(
+      'online',
+      handleOnline
+    )
+    window.addEventListener(
+      'focus',
+      refreshAfterResume
+    )
+    document.addEventListener(
+      'visibilitychange',
+      handleVisibilityChange
+    )
+
+    return () => {
+      ignore = true
+      controller.abort()
+
+      window.removeEventListener(
+        'online',
+        handleOnline
+      )
+      window.removeEventListener(
+        'focus',
+        refreshAfterResume
+      )
+      document.removeEventListener(
+        'visibilitychange',
+        handleVisibilityChange
+      )
     }
-  }, INCOME_REFRESH_MS);
-
-  window.addEventListener('pointerdown', handleActivity);
-  window.addEventListener('keydown', handleActivity);
-  window.addEventListener('touchstart', handleActivity, { passive: true });
-  window.addEventListener('scroll', handleActivity, { passive: true });
-  window.addEventListener('online', handleOnline);
-  window.addEventListener('focus', refreshAfterResume);
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-
-  return () => {
-    ignore = true;
-
-    window.clearInterval(onlineRefreshTimer);
-    window.clearInterval(growthRefreshTimer);
-    window.clearInterval(todayRefreshTimer);
-    window.clearInterval(incomeRefreshTimer);
-
-    window.removeEventListener('pointerdown', handleActivity);
-    window.removeEventListener('keydown', handleActivity);
-    window.removeEventListener('touchstart', handleActivity);
-    window.removeEventListener('scroll', handleActivity);
-    window.removeEventListener('online', handleOnline);
-    window.removeEventListener('focus', refreshAfterResume);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-}, []);
+  }, [])
 
   useEffect(() => {
     const query = searchQuery.trim();
@@ -1116,14 +1207,24 @@ const AdminDashboard = () => {
     }
 
     let ignore = false;
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
         setSearchLoading(true);
         const encoded = encodeURIComponent(query);
         const [pendingData, approvedData, authorsData] = await Promise.all([
-          fetchAdminJson(`/api/admin/exclusive/stories?status=pending&search=${encoded}&limit=5`),
-          fetchAdminJson(`/api/admin/exclusive/stories?status=approved&search=${encoded}&limit=5`),
-          fetchAdminJson(`/api/admin/community/authors?q=${encoded}&limit=5`),
+          fetchAdminJson(
+            `/api/admin/exclusive/stories?status=pending&search=${encoded}&limit=5`,
+            { signal: controller.signal }
+          ),
+          fetchAdminJson(
+            `/api/admin/exclusive/stories?status=approved&search=${encoded}&limit=5`,
+            { signal: controller.signal }
+          ),
+          fetchAdminJson(
+            `/api/admin/community/authors?q=${encoded}&limit=5`,
+            { signal: controller.signal }
+          ),
         ]);
 
         if (ignore) return;
@@ -1166,6 +1267,7 @@ const AdminDashboard = () => {
     return () => {
       ignore = true;
       window.clearTimeout(timer);
+      controller.abort();
     };
   }, [searchQuery]);
 
