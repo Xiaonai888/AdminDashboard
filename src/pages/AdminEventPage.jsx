@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -125,20 +125,27 @@ const styles = `
 .event-field textarea{min-height:105px;resize:vertical;padding:10px 12px;line-height:1.55}
 .event-field input:focus,.event-field select:focus,.event-field textarea:focus{background:#fff;border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
 .event-section{margin:18px 0 9px;color:#0f172a;font-size:12px;font-weight:950}
-.event-upload{border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc;padding:12px}
-.event-upload-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.event-upload input[type=file]{max-width:100%;font-size:11px;font-weight:750;color:#64748b}
-.event-note{color:#64748b;font-size:10px;font-weight:750;line-height:1.5}
-.event-preview-shell{margin-top:12px;border:1px solid #e2e8f0;border-radius:18px;background:#f8fafc;padding:14px}
-.event-preview{position:relative;width:min(380px,100%);aspect-ratio:1/1;margin:0 auto;overflow:hidden;border-radius:20px;background:linear-gradient(135deg,#e2e8f0,#cbd5e1);box-shadow:0 12px 28px rgba(15,23,42,.12)}
-.event-preview.banner{width:min(620px,100%);aspect-ratio:16/9;border-radius:16px}
-.event-preview img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.event-preview-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,.05) 30%,rgba(15,23,42,.82) 100%)}
-.event-preview-copy{position:absolute;left:0;right:0;bottom:0;padding:22px;color:#fff}
-.event-preview-badge{display:inline-flex;padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.18);backdrop-filter:blur(8px);font-size:9px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
-.event-preview-title{margin-top:8px;font-size:23px;font-weight:950;line-height:1.12}
-.event-preview-desc{margin-top:7px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:11px;font-weight:700;line-height:1.55;color:#e2e8f0}
-.event-preview-btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin-top:11px;padding:0 14px;border-radius:999px;background:#fff;color:#111827;font-size:10px;font-weight:950}
+.event-upload-zone{position:relative;display:flex;align-items:center;justify-content:center;width:100%;overflow:hidden;border:2px dashed #cbd5e1;border-radius:18px;background:#f8fafc;cursor:pointer;transition:border-color .18s ease,background .18s ease,box-shadow .18s ease}
+.event-upload-zone:hover{border-color:#818cf8;background:#f5f3ff}
+.event-upload-zone.dragging{border-color:#4f46e5;background:#eef2ff;box-shadow:0 0 0 4px rgba(79,70,229,.1)}
+.event-upload-zone.has-image{border-style:solid;border-color:#e2e8f0;background:#0f172a}
+.event-upload-zone.square{width:min(360px,100%);aspect-ratio:1/1;margin:0 auto}
+.event-upload-zone.banner{aspect-ratio:16/9}
+.event-upload-zone input[type=file]{display:none}
+.event-upload-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+.event-upload-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px;text-align:center;color:#64748b;pointer-events:none}
+.event-upload-icon{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;font-size:20px;font-weight:950}
+.event-upload-empty strong{color:#0f172a;font-size:13px;font-weight:950}
+.event-upload-empty span{max-width:360px;font-size:10px;font-weight:750;line-height:1.55}
+.event-upload-overlay{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:14px;background:linear-gradient(180deg,transparent 45%,rgba(15,23,42,.78) 100%);opacity:0;transition:opacity .18s ease}
+.event-upload-zone:hover .event-upload-overlay,.event-upload-zone:focus-within .event-upload-overlay{opacity:1}
+.event-upload-controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.event-upload-control{height:34px;border:0;border-radius:10px;padding:0 12px;cursor:pointer;font:inherit;font-size:10px;font-weight:950}
+.event-upload-control.replace{background:#fff;color:#111827}
+.event-upload-control.remove{background:#fee2e2;color:#b91c1c}
+.event-upload-control:disabled{opacity:.55;cursor:not-allowed}
+.event-upload-progress{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.62);color:#fff;font-size:12px;font-weight:950;letter-spacing:.02em}
+.event-upload-helper{margin-top:8px;color:#64748b;font-size:10px;font-weight:750;line-height:1.5;text-align:center}
 .event-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px}
 .event-btn{height:40px;border:0;border-radius:12px;padding:0 14px;cursor:pointer;font:inherit;font-size:11px;font-weight:950}
 .event-btn.primary{background:#4f46e5;color:#fff}
@@ -166,6 +173,10 @@ export default function AdminEventPage() {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [draggingSquare, setDraggingSquare] = useState(false)
+  const [draggingBanner, setDraggingBanner] = useState(false)
+  const squareInputRef = useRef(null)
+  const bannerInputRef = useRef(null)
 
   const selectedEvent = useMemo(
     () => events.find((item) => item.id === selectedId) || null,
@@ -233,13 +244,13 @@ export default function AdminEventPage() {
     setSuccess('')
   }
 
-  async function uploadImage(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-
+  async function uploadEventMedia(file, target) {
     if (!file) return
 
-    setUploading(true)
+    const isBanner = target === 'banner'
+    const setBusy = isBanner ? setUploadingBanner : setUploading
+
+    setBusy(true)
     setError('')
     setSuccess('')
 
@@ -264,68 +275,77 @@ export default function AdminEventPage() {
         : null
 
       if (!uploaded?.image_url) {
-        throw new Error('Image upload did not return a URL')
+        throw new Error(
+          isBanner
+            ? 'Banner upload did not return a URL'
+            : 'Image upload did not return a URL'
+        )
       }
 
       setForm((current) => ({
         ...current,
-        image_url: uploaded.image_url,
-        image_storage_key: uploaded.storage_key || '',
+        ...(isBanner
+          ? {
+              banner_url: uploaded.image_url,
+              banner_storage_key: uploaded.storage_key || '',
+            }
+          : {
+              image_url: uploaded.image_url,
+              image_storage_key: uploaded.storage_key || '',
+            }),
       }))
 
-      setSuccess('Image uploaded')
+      setSuccess(isBanner ? 'Banner uploaded' : 'Image uploaded')
     } catch (err) {
-      setError(err.message || 'Failed to upload image')
+      setError(
+        err.message ||
+          (isBanner
+            ? 'Failed to upload banner'
+            : 'Failed to upload image')
+      )
     } finally {
-      setUploading(false)
+      setBusy(false)
     }
   }
 
-  async function uploadBannerImage(event) {
+  function handleFileInput(event, target) {
     const file = event.target.files?.[0]
     event.target.value = ''
 
-    if (!file) return
+    if (file) {
+      uploadEventMedia(file, target)
+    }
+  }
 
-    setUploadingBanner(true)
-    setError('')
-    setSuccess('')
+  function handleDrop(event, target) {
+    event.preventDefault()
+    event.stopPropagation()
 
-    try {
-      const formData = new FormData()
-      formData.append('images', file)
+    if (target === 'banner') {
+      setDraggingBanner(false)
+      if (uploadingBanner) return
+    } else {
+      setDraggingSquare(false)
+      if (uploading) return
+    }
 
-      const response = await fetch(
-        `${API_URL}/api/admin/media-library/upload`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        }
-      )
+    const file = event.dataTransfer.files?.[0]
 
-      const data = await readResponse(response)
-      const uploaded = Array.isArray(data.images)
-        ? data.images[0]
-        : null
+    if (file) {
+      uploadEventMedia(file, target)
+    }
+  }
 
-      if (!uploaded?.image_url) {
-        throw new Error('Banner upload did not return a URL')
-      }
+  function openFilePicker(inputRef, disabled) {
+    if (!disabled) {
+      inputRef.current?.click()
+    }
+  }
 
-      setForm((current) => ({
-        ...current,
-        banner_url: uploaded.image_url,
-        banner_storage_key: uploaded.storage_key || '',
-      }))
-
-      setSuccess('Banner uploaded')
-    } catch (err) {
-      setError(err.message || 'Failed to upload banner')
-    } finally {
-      setUploadingBanner(false)
+  function handleUploadKeyDown(event, inputRef, disabled) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openFilePicker(inputRef, disabled)
     }
   }
 
@@ -641,76 +661,205 @@ if (!form.image_url) {
                 </div>
               </div>
 
-              <div className="event-section">Square Image</div>
+              <div className="event-section">Event Page Cover 1:1</div>
 
-              <div className="event-upload">
-                <div className="event-upload-row">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                    onChange={uploadImage}
-                    disabled={uploading}
-                  />
+              <div
+                className={`event-upload-zone square ${
+                  form.image_url ? 'has-image' : ''
+                } ${draggingSquare ? 'dragging' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  openFilePicker(squareInputRef, uploading)
+                }
+                onKeyDown={(event) =>
+                  handleUploadKeyDown(
+                    event,
+                    squareInputRef,
+                    uploading
+                  )
+                }
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  if (!uploading) {
+                    setDraggingSquare(true)
+                  }
+                }}
+                onDragLeave={() => setDraggingSquare(false)}
+                onDrop={(event) => handleDrop(event, 'square')}
+              >
+                <input
+                  ref={squareInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  onChange={(event) =>
+                    handleFileInput(event, 'square')
+                  }
+                  disabled={uploading}
+                />
 
-                  {form.image_url ? (
-                    <button
-                      type="button"
-                      className="event-btn danger"
-                      onClick={() =>
-                        setForm((current) => ({
-                          ...current,
-                          image_url: '',
-                          image_storage_key: '',
-                        }))
-                      }
-                    >
-                      Remove Image
-                    </button>
-                  ) : null}
+                {form.image_url ? (
+                  <>
+                    <img
+                      src={form.image_url}
+                      alt="Event Page cover"
+                    />
+                    <div className="event-upload-overlay">
+                      <div className="event-upload-controls">
+                        <button
+                          type="button"
+                          className="event-upload-control replace"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            openFilePicker(
+                              squareInputRef,
+                              uploading
+                            )
+                          }}
+                          disabled={uploading}
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          className="event-upload-control remove"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setForm((current) => ({
+                              ...current,
+                              image_url: '',
+                              image_storage_key: '',
+                            }))
+                          }}
+                          disabled={uploading}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="event-upload-empty">
+                    <div className="event-upload-icon">+</div>
+                    <strong>Drop image here or click to upload</strong>
+                    <span>
+                      Auto-fits to a square 1:1 preview for Event Page.
+                    </span>
+                  </div>
+                )}
 
-                  <span className="event-note">
-                    {uploading
-                      ? 'Uploading...'
-                      : 'Uses Admin Media Library. Display is cropped to 1:1.'}
-                  </span>
-                </div>
+                {uploading ? (
+                  <div className="event-upload-progress">
+                    Uploading...
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="event-upload-helper">
+                Event Page uses the square 1:1 cover.
               </div>
 
               <div className="event-section">
                 Author Dashboard Banner 16:9
               </div>
 
-              <div className="event-upload">
-                <div className="event-upload-row">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                    onChange={uploadBannerImage}
-                    disabled={uploadingBanner}
-                  />
+              <div
+                className={`event-upload-zone banner ${
+                  form.banner_url ? 'has-image' : ''
+                } ${draggingBanner ? 'dragging' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  openFilePicker(
+                    bannerInputRef,
+                    uploadingBanner
+                  )
+                }
+                onKeyDown={(event) =>
+                  handleUploadKeyDown(
+                    event,
+                    bannerInputRef,
+                    uploadingBanner
+                  )
+                }
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  if (!uploadingBanner) {
+                    setDraggingBanner(true)
+                  }
+                }}
+                onDragLeave={() => setDraggingBanner(false)}
+                onDrop={(event) => handleDrop(event, 'banner')}
+              >
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                  onChange={(event) =>
+                    handleFileInput(event, 'banner')
+                  }
+                  disabled={uploadingBanner}
+                />
 
-                  {form.banner_url ? (
-                    <button
-                      type="button"
-                      className="event-btn danger"
-                      onClick={() =>
-                        setForm((current) => ({
-                          ...current,
-                          banner_url: '',
-                          banner_storage_key: '',
-                        }))
-                      }
-                    >
-                      Remove Banner
-                    </button>
-                  ) : null}
+                {form.banner_url ? (
+                  <>
+                    <img
+                      src={form.banner_url}
+                      alt="Author Dashboard banner"
+                    />
+                    <div className="event-upload-overlay">
+                      <div className="event-upload-controls">
+                        <button
+                          type="button"
+                          className="event-upload-control replace"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            openFilePicker(
+                              bannerInputRef,
+                              uploadingBanner
+                            )
+                          }}
+                          disabled={uploadingBanner}
+                        >
+                          Replace
+                        </button>
+                        <button
+                          type="button"
+                          className="event-upload-control remove"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            setForm((current) => ({
+                              ...current,
+                              banner_url: '',
+                              banner_storage_key: '',
+                            }))
+                          }}
+                          disabled={uploadingBanner}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="event-upload-empty">
+                    <div className="event-upload-icon">+</div>
+                    <strong>Drop banner here or click to upload</strong>
+                    <span>
+                      Auto-fits to the same 16:9 ratio used by the 80% for 49 Days dashboard card.
+                    </span>
+                  </div>
+                )}
 
-                  <span className="event-note">
-                    {uploadingBanner
-                      ? 'Uploading...'
-                      : 'Uses Admin Media Library. Recommended 16:9 for Author Dashboard.'}
-                  </span>
-                </div>
+                {uploadingBanner ? (
+                  <div className="event-upload-progress">
+                    Uploading...
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="event-upload-helper">
+                Author Dashboard uses this separate 16:9 banner.
               </div>
 
               <div className="event-section">
@@ -811,60 +960,6 @@ if (!form.image_url) {
                       )
                     }
                   />
-                </div>
-              </div>
-
-              <div className="event-section">Preview</div>
-
-              <div className="event-preview-shell">
-                <div className="event-preview">
-                  {form.image_url ? (
-                    <img
-                      src={form.image_url}
-                      alt="Event preview"
-                    />
-                  ) : null}
-
-                  <div className="event-preview-shade" />
-
-                  <div className="event-preview-copy">
-                    {form.badge_text ? (
-                      <div className="event-preview-badge">
-                        {form.badge_text}
-                      </div>
-                    ) : null}
-
-                    <div className="event-preview-title">
-                      {form.title || 'Event Title'}
-                    </div>
-
-                    {form.description ? (
-                      <div className="event-preview-desc">
-                        {form.description}
-                      </div>
-                    ) : null}
-
-                    {form.button_text ? (
-                      <div className="event-preview-btn">
-                        {form.button_text}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="event-section">
-                Author Dashboard Banner Preview
-              </div>
-
-              <div className="event-preview-shell">
-                <div className="event-preview banner">
-                  {form.banner_url || form.image_url ? (
-                    <img
-                      src={form.banner_url || form.image_url}
-                      alt="Author Dashboard banner preview"
-                    />
-                  ) : null}
                 </div>
               </div>
 
