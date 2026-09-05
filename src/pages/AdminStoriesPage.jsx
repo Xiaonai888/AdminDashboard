@@ -672,6 +672,7 @@ export default function AdminStoriesPage() {
   const [status, setStatus] = useState('all')
   const [visibility, setVisibility] = useState('all')
   const [genre, setGenre] = useState('all')
+  const [storyType, setStoryType] = useState('all')
   const [page, setPage] = useState(1)
   const [summary, setSummary] = useState({})
   const [stories, setStories] = useState([])
@@ -744,6 +745,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
           status,
           visibility,
           genre,
+          story_type: storyType,
           q: debouncedSearch,
         })
 
@@ -775,7 +777,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     return () => {
       alive = false
     }
-  }, [activeTab, page, status, visibility, genre, debouncedSearch, refreshKey])
+  }, [activeTab, page, status, visibility, genre, storyType, debouncedSearch, refreshKey])
 
   useEffect(() => {
     if (!selectedStory?.id) return
@@ -813,6 +815,13 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     { key: 'warnings', label: 'Warnings', count: summary.warned_stories },
     { key: 'all', label: 'All Stories', count: summary.total_stories },
     { key: 'updates', label: 'Story Updates', count: null },
+  ]
+
+  const storyTypeTabs = [
+    { key: 'all', label: 'All' },
+    { key: 'novel', label: 'Novel' },
+    { key: 'manga', label: 'Manga' },
+    { key: 'chat_story', label: 'Chat Story' },
   ]
 
   const genreOptions = useMemo(() => {
@@ -895,7 +904,25 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
                 {tab.count === null ? null : <span>{formatNumber(tab.count || 0)}</span>}
               </button>
             ))}
-                    </div>
+          </div>
+
+          {activeTab !== 'updates' ? (
+            <div className="story-admin-type-tabs">
+              {storyTypeTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  className={storyType === tab.key ? 'active' : ''}
+                  onClick={() => {
+                    setStoryType(tab.key)
+                    setPage(1)
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {activeTab === 'updates' ? <StoryUpdateActivityPanel /> : null}
 
@@ -1056,6 +1083,9 @@ const styles = `
   .story-admin-tabs button { border: 0; background: #F8FAFC; color: #475569; border-radius: 999px; padding: 10px 14px; cursor: pointer; font-weight: 900; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
   .story-admin-tabs button.active { background: #EEF2FF; color: #4F46E5; }
   .story-admin-tabs span { background: rgba(255,255,255,0.75); padding: 2px 7px; border-radius: 999px; font-size: 11px; }
+  .story-admin-type-tabs { display: flex; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #E2E8F0; overflow-x: auto; background: #FCFCFF; }
+  .story-admin-type-tabs button { flex: 0 0 auto; border: 1px solid #E2E8F0; background: #FFFFFF; color: #475569; border-radius: 10px; padding: 8px 14px; cursor: pointer; font-weight: 900; white-space: nowrap; }
+  .story-admin-type-tabs button.active { border-color: #C7D2FE; background: #EEF2FF; color: #4F46E5; }
   .story-admin-toolbar { display: grid; grid-template-columns: 1fr 150px 160px 150px auto; gap: 10px; padding: 14px; border-bottom: 1px solid #E2E8F0; }
   .story-admin-toolbar input, .story-admin-toolbar select { border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 12px; padding: 11px 12px; color: #0F172A; font-weight: 750; outline: none; min-width: 0; }
   .story-admin-toolbar input:focus, .story-admin-toolbar select:focus { border-color: #4F46E5; background: #fff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
@@ -1173,8 +1203,14 @@ const styles = `
       scrollbar-width: none;
     }
 
-    .story-admin-tabs::-webkit-scrollbar {
+    .story-admin-tabs::-webkit-scrollbar,
+    .story-admin-type-tabs::-webkit-scrollbar {
       display: none;
+    }
+
+    .story-admin-type-tabs {
+      padding: 10px 12px;
+      scrollbar-width: none;
     }
 
     .story-admin-tabs button {
