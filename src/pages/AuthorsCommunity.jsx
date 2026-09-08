@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AuthorBooksModal from '../components/AuthorBooksModal'
 import { useSearchParams } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -285,7 +286,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function UserDetailDrawer({ item, type, onClose }) {
+function UserDetailDrawer({ item, type, onClose, onOpenBooks }) {
   if (!item) return null
 
   const isAuthor = type === 'author'
@@ -339,7 +340,19 @@ function UserDetailDrawer({ item, type, onClose }) {
           {!isAuthor ? <DetailItem label="Gender" value={formatGender(gender, customGender)} /> : null}
           {!isAuthor ? <DetailItem label="Age" value={formatAge(dateOfBirth)} /> : null}
           {isAuthor ? (
-            <DetailItem label="Books" value={`${formatNumber(item.books_count)} books`} />
+            <DetailItem
+              label="Books"
+              value={
+                <button
+                  type="button"
+                  className="community-book-link"
+                  disabled={!Number(item.books_count || 0)}
+                  onClick={() => onOpenBooks?.(item)}
+                >
+                  {formatNumber(item.books_count)} books
+                </button>
+              }
+            />
           ) : (
             <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
           )}
@@ -526,6 +539,7 @@ export default function AuthorsCommunity() {
   const [listLoading, setListLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
+  const [selectedBooksAuthor, setSelectedBooksAuthor] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const requestedFilter = searchParams.get('filter')
   const initialFilter =
@@ -750,6 +764,7 @@ const [filter, setFilter] = useState(initialFilter)
     setFilter('all')
     setError('')
     setSelectedItem(null)
+    setSelectedBooksAuthor(null)
     setPagination({
       page: 1,
       total: 0,
@@ -1177,7 +1192,19 @@ const [filter, setFilter] = useState(initialFilter)
                     <tr key={author.id} className="community-clickable-row" onClick={() => setSelectedItem(author)}>
                       <td><PersonCell name={author.author_name} username={author.username} email={author.email} avatarUrl={author.avatar_url} type="author" /></td>
                       <td><span className="community-email">{author.email || '-'}</span></td>
-                      <td><span className="community-book-badge">{formatNumber(author.books_count)} books</span></td>
+                      <td>
+                        <button
+                          type="button"
+                          className="community-book-badge community-book-button"
+                          disabled={!Number(author.books_count || 0)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            if (Number(author.books_count || 0) > 0) setSelectedBooksAuthor(author)
+                          }}
+                        >
+                          {formatNumber(author.books_count)} books
+                        </button>
+                      </td>
                       <td>{formatDate(author.joined_at)}</td>
                       <td><ActivityStatusCell item={author} type="author" /></td>
                       <td>
@@ -1206,8 +1233,20 @@ const [filter, setFilter] = useState(initialFilter)
       {activeTab === 'visitors' ? (
         <VisitorDetailDrawer visitor={selectedItem} onClose={() => setSelectedItem(null)} />
       ) : (
-        <UserDetailDrawer item={selectedItem} type={activeTab === 'authors' ? 'author' : 'reader'} onClose={() => setSelectedItem(null)} />
+        <UserDetailDrawer
+          item={selectedItem}
+          type={activeTab === 'authors' ? 'author' : 'reader'}
+          onClose={() => setSelectedItem(null)}
+          onOpenBooks={setSelectedBooksAuthor}
+        />
       )}
+
+      {selectedBooksAuthor ? (
+        <AuthorBooksModal
+          author={selectedBooksAuthor}
+          onClose={() => setSelectedBooksAuthor(null)}
+        />
+      ) : null}
     </AdminLayout>
   )
 }
@@ -1278,6 +1317,10 @@ const styles = `
   .community-status-badge.suspended { background: #FEE2E2; color: #DC2626; }
   .community-status-badge.pending { background: #FEF3C7; color: #B45309; }
   .community-book-badge { background: #EEF2FF; color: #4F46E5; }
+  .community-book-link { border: 0; background: transparent; padding: 0; color: #4F46E5; font: inherit; font-weight: 950; cursor: pointer; }
+  .community-book-link:disabled { color: #64748B; cursor: default; }
+  .community-book-button { border: 0; cursor: pointer; }
+  .community-book-button:disabled { cursor: default; opacity: 0.65; }
   .community-visitor-badge.human { background: #DCFCE7; color: #15803D; }
   .community-visitor-badge.bot { background: #FEE2E2; color: #DC2626; }
   .community-risk-badge.normal { background: #ECFDF5; color: #047857; }
