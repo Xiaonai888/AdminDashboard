@@ -357,12 +357,7 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks }) {
             <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
           )}
 
-          {isAuthor ? (
-  <DetailItem
-    label="Button Test"
-    value={<button type="button" onClick={(e) => { e.currentTarget.textContent = 'WORKING ✓' }}>TEST BUTTON</button>}
-  />
-) : null}
+      
           <DetailItem label="Joined Date" value={formatDate(joinedAt)} />
           <DetailItem
             label="Activity"
