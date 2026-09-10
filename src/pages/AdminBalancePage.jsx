@@ -9,6 +9,7 @@ const PAGE_SIZE = 20
 const CACHE_TTL_MS = 60 * 1000
 const CACHE_MAX_ENTRIES = 100
 const pageCache = new Map()
+const historyCache = new Map()
 
 const styles = `
   .balance-page {
@@ -138,6 +139,17 @@ const styles = `
     border-bottom: 0;
   }
 
+  .balance-row {
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+
+  .balance-row:hover,
+  .balance-row:focus {
+    background: #F8FAFF;
+    outline: none;
+  }
+
   .balance-rank {
     width: 62px;
     color: #94A3B8;
@@ -164,6 +176,13 @@ const styles = `
     color: #4338CA;
     font-size: 13px;
     font-weight: 950;
+  }
+
+  .balance-avatar.large {
+    width: 52px;
+    height: 52px;
+    flex-basis: 52px;
+    font-size: 17px;
   }
 
   .balance-avatar img {
@@ -240,6 +259,166 @@ const styles = `
     gap: 8px;
   }
 
+  .balance-drawer-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    justify-content: flex-end;
+    background: rgba(15, 23, 42, .42);
+  }
+
+  .balance-drawer {
+    width: min(560px, 94vw);
+    height: 100dvh;
+    overflow-y: auto;
+    background: #FFFFFF;
+    box-shadow: -20px 0 48px rgba(15, 23, 42, .18);
+  }
+
+  .balance-drawer-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 20px;
+    border-bottom: 1px solid #E2E8F0;
+    background: rgba(255, 255, 255, .96);
+    backdrop-filter: blur(14px);
+  }
+
+  .balance-drawer-reader {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .balance-drawer-title {
+    margin: 0;
+    color: #0F172A;
+    font-size: 18px;
+    font-weight: 950;
+  }
+
+  .balance-drawer-close {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    background: #FFFFFF;
+    color: #475569;
+    font-size: 22px;
+    cursor: pointer;
+  }
+
+  .balance-wallet-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    padding: 18px 20px;
+  }
+
+  .balance-wallet-card {
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    background: #F8FAFC;
+  }
+
+  .balance-wallet-label {
+    color: #64748B;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .balance-wallet-value {
+    margin-top: 6px;
+    color: #0F172A;
+    font-size: 16px;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+  }
+
+  .balance-history-head {
+    padding: 2px 20px 12px;
+  }
+
+  .balance-history-head h3 {
+    margin: 0;
+    color: #0F172A;
+    font-size: 15px;
+    font-weight: 950;
+  }
+
+  .balance-history-head p {
+    margin: 4px 0 0;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .balance-history-list {
+    display: grid;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+
+  .balance-history-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #E2E8F0;
+    border-radius: 15px;
+    background: #FFFFFF;
+  }
+
+  .balance-history-title {
+    color: #0F172A;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .balance-history-detail {
+    margin-top: 5px;
+    color: #64748B;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.45;
+  }
+
+  .balance-history-date {
+    margin-top: 6px;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .balance-history-amount {
+    align-self: start;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 950;
+  }
+
+  .balance-history-amount.credit {
+    color: #059669;
+  }
+
+  .balance-history-amount.debit {
+    color: #DC2626;
+  }
+
+  .balance-history-load {
+    width: 100%;
+  }
+
   @media (max-width: 760px) {
     .balance-toolbar {
       grid-template-columns: 1fr;
@@ -258,6 +437,10 @@ const styles = `
       display: grid;
       grid-template-columns: 1fr 1fr;
     }
+
+    .balance-wallet-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 `
 
@@ -270,6 +453,13 @@ function getAdminToken() {
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString()
+}
+
+function formatMoney(value) {
+  return Number(value || 0).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  })
 }
 
 function formatDateTime(value) {
@@ -297,37 +487,45 @@ function cacheKey({ page, search, sort }) {
   ])
 }
 
-function readCache(key) {
-  const cached = pageCache.get(key)
+function historyCacheKey(userId, cursor) {
+  return JSON.stringify([
+    userId,
+    cursor?.created_at || '',
+    cursor?.event_key || '',
+  ])
+}
+
+function readTimedCache(map, key) {
+  const cached = map.get(key)
 
   if (!cached) return null
 
   if (Date.now() >= cached.expiresAt) {
-    pageCache.delete(key)
+    map.delete(key)
     return null
   }
 
   return cached.data
 }
 
-function writeCache(key, data) {
+function writeTimedCache(map, key, data) {
   const now = Date.now()
 
-  for (const [entryKey, entry] of pageCache) {
+  for (const [entryKey, entry] of map) {
     if (now >= entry.expiresAt) {
-      pageCache.delete(entryKey)
+      map.delete(entryKey)
     }
   }
 
-  if (pageCache.size >= CACHE_MAX_ENTRIES) {
-    const oldestKey = pageCache.keys().next().value
+  if (map.size >= CACHE_MAX_ENTRIES) {
+    const oldestKey = map.keys().next().value
 
     if (oldestKey) {
-      pageCache.delete(oldestKey)
+      map.delete(oldestKey)
     }
   }
 
-  pageCache.set(key, {
+  map.set(key, {
     data,
     expiresAt: now + CACHE_TTL_MS,
   })
@@ -371,7 +569,7 @@ async function loadBalancePage({
   const key = cacheKey({ page, search, sort })
 
   if (!refresh) {
-    const cached = readCache(key)
+    const cached = readTimedCache(pageCache, key)
 
     if (cached) {
       return {
@@ -387,13 +585,8 @@ async function loadBalancePage({
     sort,
   })
 
-  if (search) {
-    params.set('q', search)
-  }
-
-  if (refresh) {
-    params.set('refresh', '1')
-  }
+  if (search) params.set('q', search)
+  if (refresh) params.set('refresh', '1')
 
   const token = getAdminToken()
   const response = await fetch(
@@ -408,7 +601,7 @@ async function loadBalancePage({
 
   const data = await readResponse(response)
 
-  writeCache(key, data)
+  writeTimedCache(pageCache, key, data)
 
   return {
     data,
@@ -416,7 +609,43 @@ async function loadBalancePage({
   }
 }
 
-function ReaderAvatar({ item }) {
+async function loadDiamondHistory({
+  userId,
+  cursor = null,
+  signal,
+}) {
+  const key = historyCacheKey(userId, cursor)
+  const cached = readTimedCache(historyCache, key)
+
+  if (cached) return cached
+
+  const params = new URLSearchParams({
+    limit: '20',
+  })
+
+  if (cursor?.created_at && cursor?.event_key) {
+    params.set('before', cursor.created_at)
+    params.set('before_key', cursor.event_key)
+  }
+
+  const token = getAdminToken()
+  const response = await fetch(
+    `${API_URL}/api/admin/balance/${encodeURIComponent(userId)}/diamond-history?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal,
+    }
+  )
+
+  const data = await readResponse(response)
+  writeTimedCache(historyCache, key, data)
+
+  return data
+}
+
+function ReaderAvatar({ item, large = false }) {
   const [failed, setFailed] = useState(false)
   const imageUrl = item?.avatar_url || ''
   const showImage = imageUrl && !failed
@@ -430,7 +659,7 @@ function ReaderAvatar({ item }) {
     .toUpperCase()
 
   return (
-    <div className="balance-avatar">
+    <div className={`balance-avatar ${large ? 'large' : ''}`}>
       {showImage ? (
         <img
           src={imageUrl}
@@ -440,6 +669,202 @@ function ReaderAvatar({ item }) {
       ) : (
         initial
       )}
+    </div>
+  )
+}
+
+function historyDetail(item) {
+  const parts = []
+
+  if (item.author_name) {
+    parts.push(`Author: ${item.author_name}`)
+  }
+
+  if (item.story_title) {
+    parts.push(`Story: ${item.story_title}`)
+  }
+
+  if (item.episode_number) {
+    parts.push(
+      `EP ${item.episode_number}${
+        item.episode_title
+          ? ` — ${item.episode_title}`
+          : ''
+      }`
+    )
+  }
+
+  if (
+    item.event_type === 'purchase' &&
+    Number(item.amount_usd || 0) > 0
+  ) {
+    parts.push(formatMoney(item.amount_usd))
+  }
+
+  if (item.order_id) {
+    parts.push(`Order: ${item.order_id}`)
+  }
+
+  if (!parts.length && item.detail) {
+    parts.push(item.detail)
+  }
+
+  return parts.join(' • ')
+}
+
+function DiamondHistoryDrawer({
+  reader,
+  items,
+  pagination,
+  loading,
+  loadingMore,
+  error,
+  onClose,
+  onLoadMore,
+}) {
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  if (!reader) return null
+
+  return (
+    <div
+      className="balance-drawer-layer"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <aside
+        className="balance-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Reader Diamond history"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="balance-drawer-header">
+          <div className="balance-drawer-reader">
+            <ReaderAvatar item={reader} large />
+            <div>
+              <h2 className="balance-drawer-title">
+                {reader.name || reader.username || 'Reader'}
+              </h2>
+              <div className="balance-username">
+                {reader.username
+                  ? `@${reader.username}`
+                  : 'No username'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="balance-drawer-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="balance-wallet-grid">
+          <div className="balance-wallet-card">
+            <div className="balance-wallet-label">Diamond</div>
+            <div className="balance-wallet-value">
+              💎 {formatNumber(reader.diamond_balance)}
+            </div>
+          </div>
+
+          <div className="balance-wallet-card">
+            <div className="balance-wallet-label">Coin</div>
+            <div className="balance-wallet-value">
+              {formatNumber(reader.coin_balance)}
+            </div>
+          </div>
+
+          <div className="balance-wallet-card">
+            <div className="balance-wallet-label">Voucher</div>
+            <div className="balance-wallet-value">
+              {formatNumber(reader.voucher_balance)}
+            </div>
+          </div>
+
+          <div className="balance-wallet-card">
+            <div className="balance-wallet-label">Story Card</div>
+            <div className="balance-wallet-value">
+              {formatNumber(reader.story_card_balance)}
+            </div>
+          </div>
+        </div>
+
+        <div className="balance-history-head">
+          <h3>Diamond History</h3>
+          <p>Loads 20 transactions at a time.</p>
+        </div>
+
+        <div className="balance-history-list">
+          {error ? (
+            <div className="balance-error">{error}</div>
+          ) : null}
+
+          {loading ? (
+            <div className="balance-state">
+              Loading Diamond history…
+            </div>
+          ) : items.length ? (
+            items.map((item) => (
+              <div
+                className="balance-history-item"
+                key={item.event_key}
+              >
+                <div>
+                  <div className="balance-history-title">
+                    {item.title || 'Diamond Transaction'}
+                  </div>
+                  <div className="balance-history-detail">
+                    {historyDetail(item) || '-'}
+                  </div>
+                  <div className="balance-history-date">
+                    {formatDateTime(item.created_at)}
+                  </div>
+                </div>
+
+                <div
+                  className={`balance-history-amount ${
+                    item.direction === 'credit'
+                      ? 'credit'
+                      : 'debit'
+                  }`}
+                >
+                  {item.direction === 'credit' ? '+' : '-'}
+                  {formatNumber(item.amount_diamonds)} 💎
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="balance-state">
+              No Diamond history found.
+            </div>
+          )}
+
+          {pagination?.has_next ? (
+            <button
+              type="button"
+              className="balance-button balance-history-load"
+              onClick={onLoadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore
+                ? 'Loading…'
+                : 'Load 20 more'}
+            </button>
+          ) : null}
+        </div>
+      </aside>
     </div>
   )
 }
@@ -460,7 +885,17 @@ export default function AdminBalancePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [source, setSource] = useState('')
+  const [selectedReader, setSelectedReader] = useState(null)
+  const [historyItems, setHistoryItems] = useState([])
+  const [historyPagination, setHistoryPagination] = useState({
+    has_next: false,
+    next_cursor: null,
+  })
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
+  const [historyError, setHistoryError] = useState('')
   const requestIdRef = useRef(0)
+  const historyRequestIdRef = useRef(0)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -516,7 +951,8 @@ export default function AdminBalancePage() {
 
         setItems([])
         setError(
-          loadError?.status === 429 && loadError?.retryAfter
+          loadError?.status === 429 &&
+          loadError?.retryAfter
             ? `Too many requests. Try again in ${loadError.retryAfter}s.`
             : loadError?.message || 'Failed to load balances'
         )
@@ -595,6 +1031,128 @@ export default function AdminBalancePage() {
     }
   }
 
+  async function openReaderHistory(reader) {
+    const requestId = ++historyRequestIdRef.current
+    const controller = new AbortController()
+
+    setSelectedReader(reader)
+    setHistoryItems([])
+    setHistoryPagination({
+      has_next: false,
+      next_cursor: null,
+    })
+    setHistoryError('')
+    setHistoryLoading(true)
+
+    try {
+      const data = await loadDiamondHistory({
+        userId: reader.user_id,
+        signal: controller.signal,
+      })
+
+      if (requestId !== historyRequestIdRef.current) return
+
+      setHistoryItems(
+        Array.isArray(data?.items) ? data.items : []
+      )
+      setHistoryPagination(
+        data?.pagination || {
+          has_next: false,
+          next_cursor: null,
+        }
+      )
+    } catch (historyLoadError) {
+      if (historyLoadError?.name === 'AbortError') return
+      if (requestId !== historyRequestIdRef.current) return
+
+      setHistoryError(
+        historyLoadError?.status === 429 &&
+        historyLoadError?.retryAfter
+          ? `Too many requests. Try again in ${historyLoadError.retryAfter}s.`
+          : historyLoadError?.message ||
+            'Failed to load Diamond history'
+      )
+    } finally {
+      if (requestId === historyRequestIdRef.current) {
+        setHistoryLoading(false)
+      }
+    }
+  }
+
+  async function loadMoreHistory() {
+    if (
+      !selectedReader?.user_id ||
+      !historyPagination?.has_next ||
+      !historyPagination?.next_cursor ||
+      historyLoadingMore
+    ) {
+      return
+    }
+
+    const requestId = ++historyRequestIdRef.current
+    const controller = new AbortController()
+
+    try {
+      setHistoryLoadingMore(true)
+      setHistoryError('')
+
+      const data = await loadDiamondHistory({
+        userId: selectedReader.user_id,
+        cursor: historyPagination.next_cursor,
+        signal: controller.signal,
+      })
+
+      if (requestId !== historyRequestIdRef.current) return
+
+      const nextItems = Array.isArray(data?.items)
+        ? data.items
+        : []
+
+      setHistoryItems((current) => {
+        const map = new Map(
+          current.map((item) => [item.event_key, item])
+        )
+
+        for (const item of nextItems) {
+          map.set(item.event_key, item)
+        }
+
+        return [...map.values()]
+      })
+
+      setHistoryPagination(
+        data?.pagination || {
+          has_next: false,
+          next_cursor: null,
+        }
+      )
+    } catch (historyLoadError) {
+      if (historyLoadError?.name === 'AbortError') return
+      if (requestId !== historyRequestIdRef.current) return
+
+      setHistoryError(
+        historyLoadError?.status === 429 &&
+        historyLoadError?.retryAfter
+          ? `Too many requests. Try again in ${historyLoadError.retryAfter}s.`
+          : historyLoadError?.message ||
+            'Failed to load more history'
+      )
+    } finally {
+      if (requestId === historyRequestIdRef.current) {
+        setHistoryLoadingMore(false)
+      }
+    }
+  }
+
+  function closeReaderHistory() {
+    historyRequestIdRef.current += 1
+    setSelectedReader(null)
+    setHistoryItems([])
+    setHistoryError('')
+    setHistoryLoading(false)
+    setHistoryLoadingMore(false)
+  }
+
   function toggleSort() {
     setSort((current) =>
       current === 'desc' ? 'asc' : 'desc'
@@ -615,7 +1173,9 @@ export default function AdminBalancePage() {
             className="balance-search"
             type="search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
             placeholder="Search name or username"
             autoComplete="off"
           />
@@ -683,9 +1243,25 @@ export default function AdminBalancePage() {
                   </tr>
                 ) : items.length ? (
                   items.map((item, index) => (
-                    <tr key={item.user_id}>
+                    <tr
+                      className="balance-row"
+                      key={item.user_id}
+                      tabIndex={0}
+                      onClick={() => openReaderHistory(item)}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === 'Enter' ||
+                          event.key === ' '
+                        ) {
+                          event.preventDefault()
+                          openReaderHistory(item)
+                        }
+                      }}
+                    >
                       <td className="balance-rank">
-                        {(page - 1) * PAGE_SIZE + index + 1}
+                        {(page - 1) * PAGE_SIZE +
+                          index +
+                          1}
                       </td>
                       <td>
                         <div className="balance-reader">
@@ -717,7 +1293,9 @@ export default function AdminBalancePage() {
                         {formatNumber(item.story_card_balance)}
                       </td>
                       <td className="balance-muted">
-                        {formatDateTime(item.wallet_updated_at)}
+                        {formatDateTime(
+                          item.wallet_updated_at
+                        )}
                       </td>
                     </tr>
                   ))
@@ -773,6 +1351,17 @@ export default function AdminBalancePage() {
           </div>
         </section>
       </div>
+
+      <DiamondHistoryDrawer
+        reader={selectedReader}
+        items={historyItems}
+        pagination={historyPagination}
+        loading={historyLoading}
+        loadingMore={historyLoadingMore}
+        error={historyError}
+        onClose={closeReaderHistory}
+        onLoadMore={loadMoreHistory}
+      />
     </AdminLayout>
   )
 }
