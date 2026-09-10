@@ -195,6 +195,7 @@ const navSections = [
     items: [
       { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
       { path: '/task-center', label: 'Task Center', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' },
+      { path: '/balance', label: 'Balance', icon: 'M20 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2z M16 13h4 M4 7V5a2 2 0 0 1 2-2h12v4' },
       { path: '/search-insights', label: 'Search Insights', icon: 'M11 3a8 8 0 1 0 4.9 14.3L21 22l1-1-4.7-5.1A8 8 0 0 0 11 3z' },
       { path: '/music', label: 'Music', icon: 'M9 18V5l10-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M16 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6' },
         ],
