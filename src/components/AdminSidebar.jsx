@@ -198,6 +198,7 @@ const navSections = [
       { path: '/balance', label: 'Balance', icon: 'M20 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2z M16 13h4 M4 7V5a2 2 0 0 1 2-2h12v4' },
       { path: '/search-insights', label: 'Search Insights', icon: 'M11 3a8 8 0 1 0 4.9 14.3L21 22l1-1-4.7-5.1A8 8 0 0 0 11 3z' },
       { path: '/music', label: 'Music', icon: 'M9 18V5l10-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M16 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6' },
+      { path: '/game', label: 'Game', icon: 'M6 12h12 M8 9v6 M16 10h.01 M18 14h.01 M7 5h10a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5v-4a5 5 0 0 1 5-5z' },
         ],
   },
 
