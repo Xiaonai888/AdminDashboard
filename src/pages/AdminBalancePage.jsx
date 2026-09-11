@@ -6,6 +6,7 @@ const API_URL =
   'https://shadow-backend-kucw.onrender.com'
 
 const PAGE_SIZE = 20
+const DORMANT_DAYS = 90
 const CACHE_TTL_MS = 60 * 1000
 const CACHE_MAX_ENTRIES = 100
 const pageCache = new Map()
@@ -19,7 +20,7 @@ const styles = `
 
   .balance-toolbar {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) auto auto;
+    grid-template-columns: minmax(260px, 1fr) auto auto auto;
     gap: 10px;
     align-items: center;
   }
@@ -69,6 +70,38 @@ const styles = `
     border-color: #C7D2FE;
   }
 
+  .balance-dormant-toggle.active {
+    color: #B45309;
+    background: #FFFBEB;
+    border-color: #FDE68A;
+  }
+
+  .balance-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 27px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+
+  .balance-status.dormant {
+    color: #B45309;
+    background: #FFFBEB;
+  }
+
+  .balance-status.active {
+    color: #047857;
+    background: #ECFDF5;
+  }
+
+  .balance-status.empty {
+    color: #64748B;
+    background: #F1F5F9;
+  }
+
   .balance-meta {
     display: flex;
     gap: 10px;
@@ -109,7 +142,7 @@ const styles = `
 
   .balance-table {
     width: 100%;
-    min-width: 980px;
+    min-width: 1210px;
     border-collapse: collapse;
   }
 
@@ -479,11 +512,17 @@ function formatDateTime(value) {
   })
 }
 
-function cacheKey({ page, search, sort }) {
+function cacheKey({
+  page,
+  search,
+  sort,
+  dormantOnly,
+}) {
   return JSON.stringify([
     page,
     search.trim().toLowerCase(),
     sort,
+    Boolean(dormantOnly),
   ])
 }
 
@@ -563,10 +602,16 @@ async function loadBalancePage({
   page,
   search,
   sort,
+  dormantOnly,
   refresh = false,
   signal,
 }) {
-  const key = cacheKey({ page, search, sort })
+  const key = cacheKey({
+    page,
+    search,
+    sort,
+    dormantOnly,
+  })
 
   if (!refresh) {
     const cached = readTimedCache(pageCache, key)
@@ -583,6 +628,8 @@ async function loadBalancePage({
     page: String(page),
     limit: String(PAGE_SIZE),
     sort,
+    dormant: dormantOnly ? '1' : '0',
+    dormant_days: String(DORMANT_DAYS),
   })
 
   if (search) params.set('q', search)
@@ -873,6 +920,7 @@ export default function AdminBalancePage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sort, setSort] = useState('desc')
+  const [dormantOnly, setDormantOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [items, setItems] = useState([])
   const [pagination, setPagination] = useState({
@@ -919,6 +967,7 @@ export default function AdminBalancePage() {
           page,
           search: debouncedSearch,
           sort,
+          dormantOnly,
           signal: controller.signal,
         })
 
@@ -942,6 +991,7 @@ export default function AdminBalancePage() {
             page: page + 1,
             search: debouncedSearch,
             sort,
+            dormantOnly,
             signal: controller.signal,
           }).catch(() => {})
         }
@@ -966,7 +1016,7 @@ export default function AdminBalancePage() {
     run()
 
     return () => controller.abort()
-  }, [page, debouncedSearch, sort])
+  }, [page, debouncedSearch, sort, dormantOnly])
 
   const orderLabel = useMemo(
     () =>
@@ -988,6 +1038,7 @@ export default function AdminBalancePage() {
         page,
         search: debouncedSearch,
         sort,
+        dormantOnly,
       })
 
       pageCache.delete(key)
@@ -996,6 +1047,7 @@ export default function AdminBalancePage() {
         page,
         search: debouncedSearch,
         sort,
+        dormantOnly,
         refresh: true,
         signal: controller.signal,
       })
@@ -1160,6 +1212,11 @@ export default function AdminBalancePage() {
     setPage(1)
   }
 
+  function toggleDormantOnly() {
+    setDormantOnly((current) => !current)
+    setPage(1)
+  }
+
   return (
     <AdminLayout
       title="Balance"
@@ -1191,6 +1248,19 @@ export default function AdminBalancePage() {
 
           <button
             type="button"
+            className={`balance-button balance-dormant-toggle ${
+              dormantOnly ? 'active' : ''
+            }`}
+            onClick={toggleDormantOnly}
+            disabled={loading}
+          >
+            {dormantOnly
+              ? `Dormant ${DORMANT_DAYS}d: ON`
+              : `Dormant ${DORMANT_DAYS}d`}
+          </button>
+
+          <button
+            type="button"
             className="balance-button"
             onClick={refreshCurrentPage}
             disabled={loading || refreshing}
@@ -1206,6 +1276,11 @@ export default function AdminBalancePage() {
           <span className="balance-chip">
             Page {pagination.page || page}
           </span>
+          {dormantOnly ? (
+            <span className="balance-chip">
+              Showing readers with Diamonds and no spend for {DORMANT_DAYS}+ days
+            </span>
+          ) : null}
           {source ? (
             <span className="balance-chip">
               Source: {source}
@@ -1228,6 +1303,8 @@ export default function AdminBalancePage() {
                   <th>Coin</th>
                   <th>Voucher</th>
                   <th>Story Card</th>
+                  <th>Last Diamond Spend</th>
+                  <th>Status</th>
                   <th>Wallet Updated</th>
                 </tr>
               </thead>
@@ -1235,7 +1312,7 @@ export default function AdminBalancePage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="7">
+                    <td colSpan="9">
                       <div className="balance-state">
                         Loading balances…
                       </div>
@@ -1293,6 +1370,28 @@ export default function AdminBalancePage() {
                         {formatNumber(item.story_card_balance)}
                       </td>
                       <td className="balance-muted">
+                        {item.last_diamond_spent_at
+                          ? formatDateTime(item.last_diamond_spent_at)
+                          : 'Never'}
+                      </td>
+                      <td>
+                        <span
+                          className={`balance-status ${
+                            Number(item.diamond_balance || 0) <= 0
+                              ? 'empty'
+                              : item.dormant_diamonds
+                                ? 'dormant'
+                                : 'active'
+                          }`}
+                        >
+                          {Number(item.diamond_balance || 0) <= 0
+                            ? 'No Diamonds'
+                            : item.dormant_diamonds
+                              ? 'Dormant'
+                              : 'Active'}
+                        </span>
+                      </td>
+                      <td className="balance-muted">
                         {formatDateTime(
                           item.wallet_updated_at
                         )}
@@ -1301,7 +1400,7 @@ export default function AdminBalancePage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7">
+                    <td colSpan="9">
                       <div className="balance-state">
                         No readers found.
                       </div>
