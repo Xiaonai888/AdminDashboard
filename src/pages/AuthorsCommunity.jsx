@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AuthorBooksModal from '../components/AuthorBooksModal'
+import ReaderCountryWorldMap from '../components/ReaderCountryWorldMap'
 import { useSearchParams } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -517,6 +518,1354 @@ function VisitorDetailDrawer({ visitor, onClose }) {
   )
 }
 
+function CountryReadersDrawer({ country, onClose }) {
+  const [page, setPage] = useState(1)
+  const [payload, setPayload] = useState({
+    rows: [],
+    total: 0,
+    total_pages: 0,
+  })
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!country?.country_code) return undefined
+
+    let alive = true
+    const controller = new AbortController()
+
+    async function loadReaders() {
+      try {
+        setLoading(true)
+        setError('')
+
+        const token = getAdminToken()
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: '25',
+        })
+        const response = await fetch(
+          `${API_URL}/api/admin/community/reader-countries/${encodeURIComponent(country.country_code)}/readers?${params.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
+          }
+        )
+        const data = await readApiResponse(response)
+
+        if (!alive) return
+
+        setPayload({
+          rows: Array.isArray(data.rows) ? data.rows : [],
+          total: Number(data.total || 0),
+          total_pages: Number(data.total_pages || 0),
+        })
+      } catch (err) {
+        if (!alive || err.name === 'AbortError') return
+        setError(err.message || 'Failed to load readers')
+        setPayload({
+          rows: [],
+          total: 0,
+          total_pages: 0,
+        })
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    loadReaders()
+
+    return () => {
+      alive = false
+      controller.abort()
+    }
+  }, [country, page])
+
+  useEffect(() => {
+    setPage(1)
+  }, [country?.country_code])
+
+  if (!country) return null
+
+  const totalPages = Math.max(1, Number(payload.total_pages || 1))
+
+  return (
+    <div className="country-readers-layer" role="presentation" onMouseDown={onClose}>
+      <aside
+        className="country-readers-drawer"
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="country-readers-head">
+          <div>
+            <div className="country-readers-kicker">Readers by Country</div>
+            <h3>{country.country_name || country.country_code}</h3>
+            <p>{formatNumber(payload.total || country.total_readers)} registered readers with this latest country.</p>
+          </div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+
+        {error ? <div className="country-inline-error">{error}</div> : null}
+
+        <div className="country-readers-list">
+          {loading ? (
+            <div className="country-reader-state">Loading readers...</div>
+          ) : payload.rows.length ? (
+            payload.rows.map((reader) => (
+              <div className="country-reader-row" key={reader.id}>
+                <PersonCell
+                  name={reader.name}
+                  username={reader.username}
+                  email={reader.email}
+                  avatarUrl={reader.avatar_url}
+                  type="reader"
+                />
+                <div className="country-reader-meta">
+                  <span>{reader.email || '-'}</span>
+                  <span>
+                    {reader.last_activity_at
+                      ? `Last active ${formatRelativeActivity(reader.last_activity_at)}`
+                      : 'No activity data'}
+                  </span>
+                </div>
+                <div className="country-reader-status">
+                  <PresenceBadge status={reader.presence_status} />
+                  <span className={`country-activity-chip ${reader.activity_status || 'no_activity_data'}`}>
+                    {reader.activity_status === 'active_recently'
+                      ? 'Active Recently'
+                      : reader.activity_status === 'dormant'
+                        ? 'Dormant'
+                        : reader.activity_status === 'inactive'
+                          ? 'Inactive'
+                          : 'No Activity'}
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="country-reader-state">No readers found.</div>
+          )}
+        </div>
+
+        <div className="country-readers-pagination">
+          <button
+            type="button"
+            disabled={loading || page <= 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+          >
+            Previous
+          </button>
+          <span>Page {page} of {totalPages}</span>
+          <button
+            type="button"
+            disabled={loading || page >= totalPages}
+            onClick={() => setPage((value) => value + 1)}
+          >
+            Next
+          </button>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
+function CountriesSection() {
+  const [analytics, setAnalytics] = useState({
+    generated_at: null,
+    source_updated_at: null,
+    totals: {
+      total_readers: 0,
+      countries_reached: 0,
+      readers_with_country: 0,
+      unknown_country: 0,
+      top_country: null,
+    },
+    rows: [],
+  })
+  const [meta, setMeta] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [search, setSearch] = useState('')
+  const [selectedCountryCode, setSelectedCountryCode] = useState('')
+  const [readerCountry, setReaderCountry] = useState(null)
+
+  async function requestAnalytics(force = false, signal) {
+    const token = getAdminToken()
+    const suffix = force ? '?refresh=true' : ''
+    const response = await fetch(
+      `${API_URL}/api/admin/community/reader-countries${suffix}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        signal,
+      }
+    )
+
+    return readApiResponse(response)
+  }
+
+  useEffect(() => {
+    let alive = true
+    const controller = new AbortController()
+
+    async function loadAnalytics() {
+      try {
+        setLoading(true)
+        setError('')
+
+        const data = await requestAnalytics(false, controller.signal)
+
+        if (!alive) return
+
+        setAnalytics(data.data || {})
+        setMeta(data.meta || {})
+      } catch (err) {
+        if (!alive || err.name === 'AbortError') return
+        setError(err.message || 'Failed to load country analytics')
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+
+    loadAnalytics()
+
+    return () => {
+      alive = false
+      controller.abort()
+    }
+  }, [])
+
+  async function checkForUpdates() {
+    if (refreshing) return
+
+    const availableAt = new Date(meta.manual_refresh_available_at || 0).getTime()
+
+    if (Number.isFinite(availableAt) && availableAt > Date.now()) {
+      setNotice(`Next manual check is available ${formatDateTime(meta.manual_refresh_available_at)}.`)
+      return
+    }
+
+    try {
+      setRefreshing(true)
+      setError('')
+      setNotice('')
+
+      const data = await requestAnalytics(true)
+
+      setAnalytics(data.data || {})
+      setMeta(data.meta || {})
+
+      if (data.meta?.refreshed) {
+        setNotice('Country analytics snapshot was updated.')
+      } else {
+        setNotice('No refresh was needed. The cached snapshot is still current.')
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to check for updates')
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const rows = Array.isArray(analytics.rows) ? analytics.rows : []
+  const totals = analytics.totals || {}
+  const topCountry = totals.top_country || null
+
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase()
+
+    return rows.filter((row) => {
+      const code = String(row.country_code || '').toUpperCase()
+
+      if (selectedCountryCode && code !== selectedCountryCode) return false
+      if (!q) return true
+
+      return (
+        String(row.country_name || '').toLowerCase().includes(q)
+        || code.toLowerCase().includes(q)
+      )
+    })
+  }, [rows, search, selectedCountryCode])
+
+  const topRows = useMemo(() => rows.slice(0, 6), [rows])
+
+  const summaryCards = [
+    {
+      label: 'Countries Reached',
+      value: formatNumber(totals.countries_reached),
+      note: 'Countries with known reader location',
+      icon: '🌍',
+      tone: 'purple',
+    },
+    {
+      label: 'Top Country',
+      value: topCountry?.country_code || '-',
+      note: topCountry
+        ? `${topCountry.country_name || topCountry.country_code} · ${formatNumber(topCountry.total_readers)} readers`
+        : 'No country data yet',
+      icon: '★',
+      tone: 'blue',
+    },
+    {
+      label: 'Readers with Location',
+      value: formatNumber(totals.readers_with_country),
+      note: 'Known latest country',
+      icon: '◎',
+      tone: 'green',
+    },
+    {
+      label: 'Unknown Location',
+      value: formatNumber(totals.unknown_country),
+      note: 'No country captured yet',
+      icon: '?',
+      tone: 'dark',
+    },
+  ]
+
+  return (
+    <>
+      <div className="country-section">
+        <div className="country-section-head">
+          <div>
+            <div className="country-section-kicker">Reader Geography</div>
+            <h3>Country Analytics</h3>
+            <p>
+              Cached analytics snapshot. It refreshes only when needed and does not request raw reader data for the map.
+            </p>
+          </div>
+
+          <div className="country-section-actions">
+            <div className="country-snapshot-time">
+              <span>Last snapshot</span>
+              <strong>{formatDateTime(meta.generated_at || analytics.generated_at)}</strong>
+            </div>
+            <button
+              type="button"
+              className="country-refresh-button"
+              disabled={loading || refreshing}
+              onClick={checkForUpdates}
+            >
+              {refreshing ? 'Checking...' : 'Check for updates'}
+            </button>
+          </div>
+        </div>
+
+        <div className="country-summary-grid">
+          {summaryCards.map((card) => (
+            <div className="country-summary-card" key={card.label}>
+              <div className={`country-summary-icon ${card.tone}`}>{card.icon}</div>
+              <div>
+                <span>{card.label}</span>
+                <strong>{loading ? '...' : card.value}</strong>
+                <small>{card.note}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {notice ? <div className="country-inline-notice">{notice}</div> : null}
+        {error ? <div className="country-inline-error">{error}</div> : null}
+
+        <div className="country-tools">
+          <div className="country-local-search">
+            <span>⌕</span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search country name or code..."
+            />
+          </div>
+
+          <select
+            value={selectedCountryCode}
+            onChange={(event) => setSelectedCountryCode(event.target.value)}
+          >
+            <option value="">All Countries</option>
+            {rows.map((row) => (
+              <option key={row.country_code} value={row.country_code}>
+                {row.country_name || row.country_code} ({formatNumber(row.total_readers)})
+              </option>
+            ))}
+          </select>
+
+          {selectedCountryCode ? (
+            <button
+              type="button"
+              className="country-clear-button"
+              onClick={() => setSelectedCountryCode('')}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+
+        {loading ? (
+          <div className="country-loading-state">
+            <span className="community-spinner" />
+            <strong>Loading country snapshot...</strong>
+          </div>
+        ) : (
+          <>
+            <div className="country-map-grid">
+              <ReaderCountryWorldMap
+                rows={rows}
+                selectedCountryCode={selectedCountryCode}
+                onSelectCountry={setSelectedCountryCode}
+              />
+
+              <div className="country-top-card">
+                <div className="country-top-head">
+                  <div>
+                    <span>Top Countries</span>
+                    <strong>By registered readers</strong>
+                  </div>
+                  <small>{formatNumber(totals.readers_with_country)} located</small>
+                </div>
+
+                <div className="country-ranking-list">
+                  {topRows.length ? topRows.map((row, index) => {
+                    const percentage = Number(row.percentage_of_known_readers || 0)
+
+                    return (
+                      <button
+                        type="button"
+                        className={selectedCountryCode === row.country_code ? 'active' : ''}
+                        key={row.country_code}
+                        onClick={() => setSelectedCountryCode(row.country_code)}
+                      >
+                        <b>{index + 1}</b>
+                        <div className="country-ranking-copy">
+                          <div>
+                            <strong>{row.country_name || row.country_code}</strong>
+                            <span>{row.country_code}</span>
+                          </div>
+                          <div className="country-ranking-bar">
+                            <i style={{ width: `${Math.max(3, Math.min(100, percentage))}%` }} />
+                          </div>
+                        </div>
+                        <div className="country-ranking-value">
+                          <strong>{formatNumber(row.total_readers)}</strong>
+                          <span>{percentage.toFixed(1)}%</span>
+                        </div>
+                      </button>
+                    )
+                  }) : (
+                    <div className="country-empty-ranking">No country data yet.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="country-table-card">
+              <div className="country-table-head">
+                <div>
+                  <strong>Reader Activity by Country</strong>
+                  <span>
+                    Snapshot activity, not live data. Search and filtering are local and do not create new API requests.
+                  </span>
+                </div>
+                <small>{formatNumber(filteredRows.length)} countries shown</small>
+              </div>
+
+              <div className="community-table-wrap">
+                <table className="community-table country-table">
+                  <thead>
+                    <tr>
+                      <th>Country</th>
+                      <th>Readers</th>
+                      <th>Online at Snapshot</th>
+                      <th>Active Recently</th>
+                      <th>Inactive 8–30d</th>
+                      <th>Dormant 30+d</th>
+                      <th>No Activity</th>
+                      <th>% of Readers</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRows.length ? filteredRows.map((row, index) => (
+                      <tr key={row.country_code}>
+                        <td>
+                          <div className="country-name-cell">
+                            <b>{index + 1}</b>
+                            <div>
+                              <strong>{row.country_name || row.country_code}</strong>
+                              <span>{row.country_code}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td><strong>{formatNumber(row.total_readers)}</strong></td>
+                        <td>{formatNumber(row.online_at_snapshot)}</td>
+                        <td><span className="country-metric active">{formatNumber(row.active_recently)}</span></td>
+                        <td><span className="country-metric inactive">{formatNumber(row.inactive_8_30_days)}</span></td>
+                        <td><span className="country-metric dormant">{formatNumber(row.dormant_30_plus_days)}</span></td>
+                        <td><span className="country-metric unknown">{formatNumber(row.no_activity_data)}</span></td>
+                        <td>{Number(row.percentage_of_all_readers || 0).toFixed(1)}%</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="country-view-readers"
+                            onClick={() => setReaderCountry(row)}
+                          >
+                            View Readers
+                          </button>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="9">
+                          <div className="country-reader-state">No countries match this filter.</div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="country-snapshot-note">
+              <div>
+                <strong>Snapshot policy</strong>
+                <span>
+                  Automatic recomputation is limited to a 12-hour window. Manual checks use a cooldown and the backend cache.
+                </span>
+              </div>
+              <div>
+                <strong>Source updated</strong>
+                <span>{formatDateTime(analytics.source_updated_at)}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      <CountryReadersDrawer
+        country={readerCountry}
+        onClose={() => setReaderCountry(null)}
+      />
+
+      <style>{`
+        .country-section {
+          padding: 16px;
+          background: #F8FAFC;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .country-section-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 4px 2px;
+        }
+
+        .country-section-kicker {
+          color: #4F46E5;
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .country-section-head h3 {
+          margin: 4px 0 0;
+          color: #0F172A;
+          font-size: 21px;
+          font-weight: 950;
+          letter-spacing: -0.035em;
+        }
+
+        .country-section-head p {
+          max-width: 690px;
+          margin: 6px 0 0;
+          color: #64748B;
+          font-size: 11px;
+          line-height: 1.55;
+          font-weight: 750;
+        }
+
+        .country-section-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        .country-snapshot-time {
+          text-align: right;
+        }
+
+        .country-snapshot-time span,
+        .country-snapshot-time strong {
+          display: block;
+        }
+
+        .country-snapshot-time span {
+          color: #94A3B8;
+          font-size: 9px;
+          font-weight: 850;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .country-snapshot-time strong {
+          margin-top: 3px;
+          color: #475569;
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .country-refresh-button,
+        .country-clear-button,
+        .country-view-readers {
+          border: 1px solid #C7D2FE;
+          background: #EEF2FF;
+          color: #4338CA;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .country-refresh-button {
+          height: 38px;
+          padding: 0 15px;
+          border-radius: 12px;
+          font-size: 11px;
+        }
+
+        .country-refresh-button:hover:not(:disabled),
+        .country-clear-button:hover,
+        .country-view-readers:hover {
+          background: #4F46E5;
+          border-color: #4F46E5;
+          color: #FFFFFF;
+        }
+
+        .country-refresh-button:disabled {
+          opacity: 0.55;
+          cursor: default;
+        }
+
+        .country-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .country-summary-card {
+          min-width: 0;
+          padding: 15px;
+          border: 1px solid #E2E8F0;
+          border-radius: 16px;
+          background: #FFFFFF;
+          display: flex;
+          align-items: flex-start;
+          gap: 11px;
+          box-shadow: 0 7px 20px rgba(15, 23, 42, 0.035);
+        }
+
+        .country-summary-icon {
+          width: 38px;
+          height: 38px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          font-size: 14px;
+          font-weight: 950;
+        }
+
+        .country-summary-icon.purple { background: #EEF2FF; color: #4F46E5; }
+        .country-summary-icon.blue { background: #EFF6FF; color: #2563EB; }
+        .country-summary-icon.green { background: #ECFDF5; color: #059669; }
+        .country-summary-icon.dark { background: #F1F5F9; color: #334155; }
+
+        .country-summary-card > div:last-child {
+          min-width: 0;
+        }
+
+        .country-summary-card span,
+        .country-summary-card strong,
+        .country-summary-card small {
+          display: block;
+        }
+
+        .country-summary-card span {
+          color: #64748B;
+          font-size: 10px;
+          font-weight: 900;
+        }
+
+        .country-summary-card strong {
+          margin-top: 4px;
+          color: #0F172A;
+          font-size: 22px;
+          line-height: 1;
+          font-weight: 950;
+          letter-spacing: -0.03em;
+        }
+
+        .country-summary-card small {
+          margin-top: 6px;
+          color: #94A3B8;
+          font-size: 9px;
+          line-height: 1.4;
+          font-weight: 750;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .country-inline-notice,
+        .country-inline-error {
+          padding: 11px 13px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .country-inline-notice {
+          border: 1px solid #A7F3D0;
+          background: #ECFDF5;
+          color: #047857;
+        }
+
+        .country-inline-error {
+          border: 1px solid #FECACA;
+          background: #FEF2F2;
+          color: #B91C1C;
+        }
+
+        .country-tools {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+        }
+
+        .country-local-search {
+          flex: 1;
+          min-width: 240px;
+          height: 39px;
+          padding: 0 12px;
+          border: 1px solid #D8E2EF;
+          border-radius: 12px;
+          background: #FFFFFF;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #94A3B8;
+        }
+
+        .country-local-search:focus-within {
+          border-color: #818CF8;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+        }
+
+        .country-local-search input {
+          width: 100%;
+          min-width: 0;
+          border: 0;
+          outline: 0;
+          background: transparent;
+          color: #0F172A;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .country-tools select {
+          height: 39px;
+          min-width: 190px;
+          padding: 0 10px;
+          border: 1px solid #D8E2EF;
+          border-radius: 12px;
+          background: #FFFFFF;
+          color: #334155;
+          outline: 0;
+          font-size: 11px;
+          font-weight: 850;
+        }
+
+        .country-clear-button {
+          height: 39px;
+          padding: 0 12px;
+          border-radius: 12px;
+          font-size: 10px;
+        }
+
+        .country-loading-state {
+          min-height: 420px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          border: 1px solid #E2E8F0;
+          border-radius: 18px;
+          background: #FFFFFF;
+          color: #64748B;
+          font-size: 12px;
+        }
+
+        .country-map-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.7fr) minmax(290px, 0.72fr);
+          gap: 14px;
+          align-items: stretch;
+        }
+
+        .country-top-card {
+          min-width: 0;
+          border: 1px solid #E2E8F0;
+          border-radius: 18px;
+          background: #FFFFFF;
+          overflow: hidden;
+        }
+
+        .country-top-head {
+          min-height: 64px;
+          padding: 13px 14px;
+          border-bottom: 1px solid #E2E8F0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .country-top-head span,
+        .country-top-head strong {
+          display: block;
+        }
+
+        .country-top-head span {
+          color: #64748B;
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .country-top-head strong {
+          margin-top: 3px;
+          color: #0F172A;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .country-top-head small {
+          color: #4F46E5;
+          font-size: 9px;
+          font-weight: 950;
+        }
+
+        .country-ranking-list {
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .country-ranking-list button {
+          width: 100%;
+          padding: 9px 8px;
+          border: 1px solid transparent;
+          border-radius: 11px;
+          background: transparent;
+          display: grid;
+          grid-template-columns: 24px minmax(0, 1fr) auto;
+          gap: 8px;
+          align-items: center;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .country-ranking-list button:hover,
+        .country-ranking-list button.active {
+          border-color: #C7D2FE;
+          background: #F5F6FF;
+        }
+
+        .country-ranking-list button > b {
+          width: 24px;
+          height: 24px;
+          border-radius: 8px;
+          background: #F1F5F9;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #64748B;
+          font-size: 9px;
+          font-weight: 950;
+        }
+
+        .country-ranking-copy {
+          min-width: 0;
+        }
+
+        .country-ranking-copy > div:first-child {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .country-ranking-copy strong {
+          min-width: 0;
+          color: #0F172A;
+          font-size: 10px;
+          font-weight: 950;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .country-ranking-copy span {
+          color: #94A3B8;
+          font-size: 8px;
+          font-weight: 950;
+        }
+
+        .country-ranking-bar {
+          height: 4px;
+          margin-top: 5px;
+          border-radius: 999px;
+          background: #EEF2F7;
+          overflow: hidden;
+        }
+
+        .country-ranking-bar i {
+          display: block;
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #A5B4FC, #4F46E5);
+        }
+
+        .country-ranking-value {
+          text-align: right;
+        }
+
+        .country-ranking-value strong,
+        .country-ranking-value span {
+          display: block;
+        }
+
+        .country-ranking-value strong {
+          color: #0F172A;
+          font-size: 10px;
+          font-weight: 950;
+        }
+
+        .country-ranking-value span {
+          margin-top: 2px;
+          color: #64748B;
+          font-size: 8px;
+          font-weight: 850;
+        }
+
+        .country-empty-ranking {
+          padding: 28px 12px;
+          text-align: center;
+          color: #94A3B8;
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .country-table-card {
+          border: 1px solid #E2E8F0;
+          border-radius: 18px;
+          background: #FFFFFF;
+          overflow: hidden;
+        }
+
+        .country-table-head {
+          min-height: 61px;
+          padding: 12px 15px;
+          border-bottom: 1px solid #E2E8F0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .country-table-head strong,
+        .country-table-head span {
+          display: block;
+        }
+
+        .country-table-head strong {
+          color: #0F172A;
+          font-size: 13px;
+          font-weight: 950;
+        }
+
+        .country-table-head span {
+          margin-top: 3px;
+          color: #64748B;
+          font-size: 9px;
+          font-weight: 750;
+        }
+
+        .country-table-head small {
+          color: #64748B;
+          font-size: 9px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .country-table {
+          min-width: 1280px;
+        }
+
+        .country-name-cell {
+          min-width: 180px;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+        }
+
+        .country-name-cell > b {
+          width: 26px;
+          height: 26px;
+          border-radius: 8px;
+          background: #F1F5F9;
+          color: #64748B;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          font-weight: 950;
+        }
+
+        .country-name-cell strong,
+        .country-name-cell span {
+          display: block;
+        }
+
+        .country-name-cell strong {
+          color: #0F172A;
+          font-size: 11px;
+          font-weight: 950;
+        }
+
+        .country-name-cell span {
+          margin-top: 2px;
+          color: #94A3B8;
+          font-size: 9px;
+          font-weight: 900;
+        }
+
+        .country-metric {
+          min-width: 28px;
+          min-height: 24px;
+          padding: 0 8px;
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          font-weight: 950;
+        }
+
+        .country-metric.active { background: #ECFDF5; color: #047857; }
+        .country-metric.inactive { background: #FFF7ED; color: #C2410C; }
+        .country-metric.dormant { background: #FEF2F2; color: #B91C1C; }
+        .country-metric.unknown { background: #F1F5F9; color: #64748B; }
+
+        .country-view-readers {
+          height: 30px;
+          padding: 0 10px;
+          border-radius: 9px;
+          font-size: 9px;
+          white-space: nowrap;
+        }
+
+        .country-snapshot-note {
+          padding: 12px 14px;
+          border: 1px solid #E2E8F0;
+          border-radius: 14px;
+          background: #FFFFFF;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+
+        .country-snapshot-note > div:last-child {
+          text-align: right;
+          flex-shrink: 0;
+        }
+
+        .country-snapshot-note strong,
+        .country-snapshot-note span {
+          display: block;
+        }
+
+        .country-snapshot-note strong {
+          color: #334155;
+          font-size: 10px;
+          font-weight: 950;
+        }
+
+        .country-snapshot-note span {
+          margin-top: 3px;
+          color: #64748B;
+          font-size: 9px;
+          line-height: 1.45;
+          font-weight: 750;
+        }
+
+        .country-readers-layer {
+          position: fixed;
+          inset: 0;
+          z-index: 80;
+          display: flex;
+          justify-content: flex-end;
+          background: rgba(15, 23, 42, 0.34);
+          backdrop-filter: blur(3px);
+        }
+
+        .country-readers-drawer {
+          width: min(640px, 94vw);
+          height: 100%;
+          padding: 18px;
+          background: #FFFFFF;
+          box-shadow: -18px 0 48px rgba(15, 23, 42, 0.18);
+          overflow-y: auto;
+        }
+
+        .country-readers-head {
+          padding-bottom: 14px;
+          border-bottom: 1px solid #E2E8F0;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .country-readers-kicker {
+          color: #4F46E5;
+          font-size: 9px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.07em;
+        }
+
+        .country-readers-head h3 {
+          margin: 4px 0 0;
+          color: #0F172A;
+          font-size: 20px;
+          font-weight: 950;
+        }
+
+        .country-readers-head p {
+          margin: 5px 0 0;
+          color: #64748B;
+          font-size: 10px;
+          font-weight: 750;
+        }
+
+        .country-readers-head > button {
+          width: 34px;
+          height: 34px;
+          border: 1px solid #E2E8F0;
+          border-radius: 10px;
+          background: #FFFFFF;
+          color: #475569;
+          font-size: 21px;
+          cursor: pointer;
+        }
+
+        .country-readers-list {
+          margin-top: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .country-reader-row {
+          padding: 11px;
+          border: 1px solid #E2E8F0;
+          border-radius: 13px;
+          display: grid;
+          grid-template-columns: minmax(200px, 1.4fr) minmax(140px, 1fr) auto;
+          gap: 10px;
+          align-items: center;
+        }
+
+        .country-reader-meta {
+          min-width: 0;
+        }
+
+        .country-reader-meta span {
+          display: block;
+          color: #64748B;
+          font-size: 9px;
+          font-weight: 800;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .country-reader-meta span + span {
+          margin-top: 4px;
+          color: #94A3B8;
+        }
+
+        .country-reader-status {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 5px;
+          flex-wrap: wrap;
+        }
+
+        .country-activity-chip {
+          min-height: 25px;
+          padding: 0 8px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          background: #F1F5F9;
+          color: #64748B;
+          font-size: 8px;
+          font-weight: 950;
+          white-space: nowrap;
+        }
+
+        .country-activity-chip.active_recently {
+          background: #ECFDF5;
+          color: #047857;
+        }
+
+        .country-activity-chip.dormant {
+          background: #FEF2F2;
+          color: #B91C1C;
+        }
+
+        .country-activity-chip.inactive {
+          background: #FFF7ED;
+          color: #C2410C;
+        }
+
+        .country-reader-state {
+          padding: 28px 16px;
+          text-align: center;
+          color: #94A3B8;
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        .country-readers-pagination {
+          margin-top: 14px;
+          display: grid;
+          grid-template-columns: 100px 1fr 100px;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .country-readers-pagination button {
+          height: 34px;
+          border: 1px solid #D8E2EF;
+          border-radius: 10px;
+          background: #FFFFFF;
+          color: #475569;
+          font-size: 10px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .country-readers-pagination button:disabled {
+          opacity: 0.45;
+          cursor: default;
+        }
+
+        .country-readers-pagination span {
+          text-align: center;
+          color: #64748B;
+          font-size: 10px;
+          font-weight: 850;
+        }
+
+        @media (max-width: 1050px) {
+          .country-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .country-map-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .country-section {
+            padding: 12px;
+          }
+
+          .country-section-head {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .country-section-actions {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .country-snapshot-time {
+            text-align: left;
+          }
+
+          .country-tools {
+            align-items: stretch;
+            flex-direction: column;
+          }
+
+          .country-local-search,
+          .country-tools select {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .country-reader-row {
+            grid-template-columns: 1fr;
+          }
+
+          .country-reader-status {
+            justify-content: flex-start;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .country-summary-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .country-snapshot-note {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .country-snapshot-note > div:last-child {
+            text-align: left;
+          }
+
+          .country-readers-pagination {
+            grid-template-columns: 1fr;
+          }
+
+          .country-readers-pagination span {
+            order: -1;
+          }
+        }
+      `}</style>
+    </>
+  )
+}
+
 async function readApiResponse(response) {
   const data = await response.json().catch(() => ({}))
 
@@ -531,7 +1880,7 @@ async function readApiResponse(response) {
 export default function AuthorsCommunity() {
   const [searchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
-  const initialTab = ['readers', 'authors', 'visitors'].includes(requestedTab) ? requestedTab : 'readers'
+  const initialTab = ['readers', 'authors', 'visitors', 'countries'].includes(requestedTab) ? requestedTab : 'readers'
   const [activeTab, setActiveTab] = useState(initialTab)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -669,7 +2018,12 @@ const [filter, setFilter] = useState(initialFilter)
   useEffect(() => {
     let alive = true
 
-    async function loadList() {
+if (activeTab === 'countries') {
+  setListLoading(false)
+  return () => { alive = false }
+}
+
+async function loadList() {
       try {
         setListLoading(true)
         setError('')
