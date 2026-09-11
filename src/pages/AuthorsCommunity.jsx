@@ -2018,12 +2018,14 @@ const [filter, setFilter] = useState(initialFilter)
   useEffect(() => {
     let alive = true
 
-if (activeTab === 'countries') {
-  setListLoading(false)
-  return () => { alive = false }
-}
+    if (activeTab === 'countries') {
+      setListLoading(false)
+      return () => {
+        alive = false
+      }
+    }
 
-async function loadList() {
+    async function loadList() {
       try {
         setListLoading(true)
         setError('')
@@ -2098,6 +2100,8 @@ async function loadList() {
   }, [activeTab, page, debouncedSearch, filter, refreshKey])
 
   useEffect(() => {
+    if (activeTab === 'countries') return undefined
+
     let refreshCount = 0
 
     const timer = window.setInterval(() => {
@@ -2110,7 +2114,7 @@ async function loadList() {
     }, 600000)
 
     return () => window.clearInterval(timer)
-  }, [])
+  }, [activeTab])
 
   function switchTab(tab) {
     setActiveTab(tab)
@@ -2329,18 +2333,20 @@ async function loadList() {
       ? 'Unique visitors'
       : activeTab === 'authors'
         ? 'Authors shown'
-        : 'Readers shown'
+        : activeTab === 'countries'
+          ? 'Registered readers'
+          : 'Readers shown'
 
   return (
-    <AdminLayout title="Community" subtitle="View readers, authors, and visitors in one place.">
+    <AdminLayout title="Community" subtitle="View readers, authors, visitors, and reader geography in one place.">
       <style>{styles}</style>
 
       <div className="community-page">
         <section className="community-hero">
           <div>
             <div className="community-kicker">Community Overview</div>
-            <h2>Readers, authors and visitors</h2>
-            <p>Track registered users, author accounts, anonymous visitors, devices, IP addresses and suspected bots.</p>
+            <h2>Readers, authors, visitors and countries</h2>
+            <p>Track registered users, author accounts, anonymous visitors, reader geography, devices, IP addresses and suspected bots.</p>
           </div>
           <div className="community-hero-pill">
             <span>{formatNumber(currentTotal)}</span>
@@ -2348,18 +2354,20 @@ async function loadList() {
           </div>
         </section>
 
-        <section className="community-cards">
-          {cards.map((card) => (
-            <div className="community-card" key={card.label}>
-              <div className={`community-card-icon ${card.tone}`}>{card.icon}</div>
-              <div className="community-card-copy">
-                <div className="community-card-label">{card.label}</div>
-                <div className="community-card-value">{cardsLoading ? '...' : formatNumber(card.value)}</div>
-                <div className="community-card-note">{card.note}</div>
+        {activeTab !== 'countries' ? (
+          <section className="community-cards">
+            {cards.map((card) => (
+              <div className="community-card" key={card.label}>
+                <div className={`community-card-icon ${card.tone}`}>{card.icon}</div>
+                <div className="community-card-copy">
+                  <div className="community-card-label">{card.label}</div>
+                  <div className="community-card-value">{cardsLoading ? '...' : formatNumber(card.value)}</div>
+                  <div className="community-card-note">{card.note}</div>
+                </div>
               </div>
-            </div>
-          ))}
-        </section>
+            ))}
+          </section>
+        ) : null}
 
         <section className="community-panel">
           <div className="community-panel-top">
@@ -2367,39 +2375,48 @@ async function loadList() {
               <button type="button" className={activeTab === 'readers' ? 'active' : ''} onClick={() => switchTab('readers')}>Reader</button>
               <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => switchTab('authors')}>Author</button>
               <button type="button" className={activeTab === 'visitors' ? 'active' : ''} onClick={() => switchTab('visitors')}>Visitor</button>
+              <button type="button" className={activeTab === 'countries' ? 'active' : ''} onClick={() => switchTab('countries')}>🌍 Countries</button>
             </div>
 
-            <div className="community-search-wrap">
-              <span>⌕</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
-            </div>
-          </div>
-
-          <div className="community-filter-row">
-            {currentFilters.map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={filter === item.key ? 'active' : ''}
-                onClick={() => {
-                  setFilter(item.key)
-                  setPage(1)
-                  setSelectedItem(null)
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="community-quick-stats">
-            {quickStats.map((stat) => (
-              <div className="community-quick-stat" key={stat.label}>
-                <span>{stat.label}</span>
-                <strong>{formatNumber(stat.value)}</strong>
+            {activeTab !== 'countries' ? (
+              <div className="community-search-wrap">
+                <span>⌕</span>
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
               </div>
-            ))}
+            ) : (
+              <div className="community-country-tab-note">Cached snapshot · no live reader query</div>
+            )}
           </div>
+
+          {activeTab !== 'countries' ? (
+            <>
+              <div className="community-filter-row">
+                {currentFilters.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={filter === item.key ? 'active' : ''}
+                    onClick={() => {
+                      setFilter(item.key)
+                      setPage(1)
+                      setSelectedItem(null)
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="community-quick-stats">
+                {quickStats.map((stat) => (
+                  <div className="community-quick-stat" key={stat.label}>
+                    <span>{stat.label}</span>
+                    <strong>{formatNumber(stat.value)}</strong>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
 
           {activeTab === 'readers' ? (
             <div className="community-gender-card">
@@ -2431,13 +2448,15 @@ async function loadList() {
             </div>
           ) : null}
 
-          {error ? (
+          {error && activeTab !== 'countries' ? (
             <div className="community-alert">
               <strong>Real API error:</strong> {error}
             </div>
           ) : null}
 
-          {activeTab === 'visitors' ? (
+          {activeTab === 'countries' ? (
+            <CountriesSection />
+          ) : activeTab === 'visitors' ? (
             <div className="community-table-wrap">
               <table className="community-table visitor-table">
                 <thead>
@@ -2578,15 +2597,17 @@ async function loadList() {
             </div>
           )}
 
-          <div className="community-pagination">
-            <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
-            <span>Page {pagination.page} of {pagination.total_pages}</span>
-            <button type="button" disabled={!pagination.has_next || listLoading} onClick={() => setPage((current) => current + 1)}>Next</button>
-          </div>
+          {activeTab !== 'countries' ? (
+            <div className="community-pagination">
+              <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+              <span>Page {pagination.page} of {pagination.total_pages}</span>
+              <button type="button" disabled={!pagination.has_next || listLoading} onClick={() => setPage((current) => current + 1)}>Next</button>
+            </div>
+          ) : null}
         </section>
       </div>
 
-      {activeTab === 'visitors' ? (
+      {activeTab === 'countries' ? null : activeTab === 'visitors' ? (
         <VisitorDetailDrawer visitor={selectedItem} onClose={() => setSelectedItem(null)} />
       ) : (
         <UserDetailDrawer
@@ -2638,6 +2659,7 @@ const styles = `
   .community-search-wrap:focus-within { border-color: #4F46E5; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08); }
   .community-search-wrap input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 13px; font-weight: 800; color: #0F172A; background: transparent; }
   .community-search-wrap input::placeholder { color: #94A3B8; }
+  .community-country-tab-note { min-height: 36px; padding: 0 12px; border: 1px solid #E0E7FF; border-radius: 12px; background: #F5F6FF; color: #6366F1; display: flex; align-items: center; font-size: 10px; font-weight: 900; white-space: nowrap; }
   .community-filter-row { padding: 12px 16px; border-bottom: 1px solid #EEF2F7; display: flex; gap: 8px; flex-wrap: wrap; background: #FFFFFF; }
   .community-filter-row button { height: 32px; border: 1px solid #E2E8F0; border-radius: 999px; background: #FFFFFF; color: #64748B; padding: 0 13px; font-size: 12px; font-weight: 900; cursor: pointer; transition: all 0.14s ease; }
   .community-filter-row button:hover { border-color: #4F46E5; color: #4F46E5; background: #F8FAFF; }
