@@ -11,6 +11,7 @@ const CACHE_TTL_MS = 60 * 1000
 const CACHE_MAX_ENTRIES = 100
 const pageCache = new Map()
 const historyCache = new Map()
+const spendSummaryCache = new Map()
 
 const styles = `
   .balance-page {
@@ -452,6 +453,113 @@ const styles = `
     width: 100%;
   }
 
+  .balance-spend-section {
+    padding: 0 20px 20px;
+  }
+
+  .balance-spend-title {
+    margin: 0 0 10px;
+    color: #0F172A;
+    font-size: 15px;
+    font-weight: 950;
+  }
+
+  .balance-spend-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .balance-spend-card {
+    min-width: 0;
+    padding: 11px;
+    border: 1px solid #E2E8F0;
+    border-radius: 13px;
+    background: #F8FAFC;
+  }
+
+  .balance-spend-label {
+    color: #64748B;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+
+  .balance-spend-value {
+    margin-top: 5px;
+    color: #2563EB;
+    font-size: 15px;
+    font-weight: 950;
+  }
+
+  .balance-spend-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .balance-spend-box {
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+    border-radius: 14px;
+    background: #FFFFFF;
+  }
+
+  .balance-spend-box-title {
+    padding: 10px 12px;
+    border-bottom: 1px solid #E2E8F0;
+    background: #F8FAFC;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+
+  .balance-spend-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #F1F5F9;
+  }
+
+  .balance-spend-row:last-child {
+    border-bottom: 0;
+  }
+
+  .balance-spend-name {
+    min-width: 0;
+    overflow: hidden;
+    color: #0F172A;
+    font-size: 12px;
+    font-weight: 850;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .balance-spend-meta {
+    margin-top: 3px;
+    color: #94A3B8;
+    font-size: 10px;
+    font-weight: 750;
+  }
+
+  .balance-spend-amount {
+    color: #2563EB;
+    font-size: 12px;
+    font-weight: 950;
+    white-space: nowrap;
+  }
+
+  .balance-spend-empty {
+    padding: 16px 12px;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+  }
+
   @media (max-width: 760px) {
     .balance-toolbar {
       grid-template-columns: 1fr;
@@ -473,6 +581,11 @@ const styles = `
 
     .balance-wallet-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .balance-spend-summary,
+    .balance-spend-columns {
+      grid-template-columns: 1fr;
     }
   }
 `
@@ -532,6 +645,10 @@ function historyCacheKey(userId, cursor) {
     cursor?.created_at || '',
     cursor?.event_key || '',
   ])
+}
+
+function spendSummaryCacheKey(userId) {
+  return String(userId || '')
 }
 
 function readTimedCache(map, key) {
@@ -692,6 +809,30 @@ async function loadDiamondHistory({
   return data
 }
 
+async function loadSpendSummary({ userId, signal }) {
+  const key = spendSummaryCacheKey(userId)
+  const cached = readTimedCache(spendSummaryCache, key)
+
+  if (cached) return cached
+
+  const params = new URLSearchParams({ limit: '10' })
+  const token = getAdminToken()
+  const response = await fetch(
+    `${API_URL}/api/admin/balance/${encodeURIComponent(userId)}/spend-summary?${params.toString()}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal,
+    }
+  )
+
+  const data = await readResponse(response)
+  writeTimedCache(spendSummaryCache, key, data)
+
+  return data
+}
+
 function ReaderAvatar({ item, large = false }) {
   const [failed, setFailed] = useState(false)
   const imageUrl = item?.avatar_url || ''
@@ -766,6 +907,9 @@ function DiamondHistoryDrawer({
   loading,
   loadingMore,
   error,
+  spendSummary,
+  spendLoading,
+  spendError,
   onClose,
   onLoadMore,
 }) {
@@ -847,6 +991,103 @@ function DiamondHistoryDrawer({
             </div>
           </div>
         </div>
+
+        <section className="balance-spend-section">
+          <h3 className="balance-spend-title">
+            Where Diamonds Went
+          </h3>
+
+          {spendError ? (
+            <div className="balance-error">{spendError}</div>
+          ) : spendLoading ? (
+            <div className="balance-state">
+              Loading spend summary…
+            </div>
+          ) : (
+            <>
+              <div className="balance-spend-summary">
+                <div className="balance-spend-card">
+                  <div className="balance-spend-label">Total Spent</div>
+                  <div className="balance-spend-value">
+                    {formatNumber(spendSummary?.summary?.total_spent_diamonds)} 💎
+                  </div>
+                </div>
+                <div className="balance-spend-card">
+                  <div className="balance-spend-label">Episode Unlock</div>
+                  <div className="balance-spend-value">
+                    {formatNumber(spendSummary?.summary?.episode_unlock_diamonds)} 💎
+                  </div>
+                </div>
+                <div className="balance-spend-card">
+                  <div className="balance-spend-label">Diamond Gift</div>
+                  <div className="balance-spend-value">
+                    {formatNumber(spendSummary?.summary?.diamond_gift_diamonds)} 💎
+                  </div>
+                </div>
+              </div>
+
+              <div className="balance-spend-columns">
+                <div className="balance-spend-box">
+                  <div className="balance-spend-box-title">Top Authors</div>
+                  {Array.isArray(spendSummary?.top_authors) &&
+                  spendSummary.top_authors.length ? (
+                    spendSummary.top_authors.map((item) => (
+                      <div
+                        className="balance-spend-row"
+                        key={item.author_id}
+                      >
+                        <div>
+                          <div className="balance-spend-name">
+                            {item.author_name || 'Author'}
+                          </div>
+                          <div className="balance-spend-meta">
+                            Unlock {formatNumber(item.unlock_diamonds)} • Gift {formatNumber(item.gift_diamonds)}
+                          </div>
+                        </div>
+                        <div className="balance-spend-amount">
+                          {formatNumber(item.total_diamonds)} 💎
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="balance-spend-empty">
+                      No author spending yet.
+                    </div>
+                  )}
+                </div>
+
+                <div className="balance-spend-box">
+                  <div className="balance-spend-box-title">Top Stories</div>
+                  {Array.isArray(spendSummary?.top_stories) &&
+                  spendSummary.top_stories.length ? (
+                    spendSummary.top_stories.map((item) => (
+                      <div
+                        className="balance-spend-row"
+                        key={item.story_id}
+                      >
+                        <div>
+                          <div className="balance-spend-name">
+                            {item.story_title || 'Story'}
+                          </div>
+                          <div className="balance-spend-meta">
+                            {item.author_name || 'Unknown author'}
+                          </div>
+                        </div>
+                        <div className="balance-spend-amount">
+                          {formatNumber(item.total_diamonds)} 💎
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="balance-spend-empty">
+                      No story spending yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
 
         <div className="balance-history-head">
           <h3>Diamond History</h3>
@@ -942,6 +1183,9 @@ export default function AdminBalancePage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
   const [historyError, setHistoryError] = useState('')
+  const [spendSummary, setSpendSummary] = useState(null)
+  const [spendLoading, setSpendLoading] = useState(false)
+  const [spendError, setSpendError] = useState('')
   const requestIdRef = useRef(0)
   const historyRequestIdRef = useRef(0)
 
@@ -1094,40 +1338,62 @@ export default function AdminBalancePage() {
       next_cursor: null,
     })
     setHistoryError('')
+    setSpendSummary(null)
+    setSpendError('')
     setHistoryLoading(true)
+    setSpendLoading(true)
 
-    try {
-      const data = await loadDiamondHistory({
-        userId: reader.user_id,
-        signal: controller.signal,
-      })
+    const [historyResult, spendResult] =
+      await Promise.allSettled([
+        loadDiamondHistory({
+          userId: reader.user_id,
+          signal: controller.signal,
+        }),
+        loadSpendSummary({
+          userId: reader.user_id,
+          signal: controller.signal,
+        }),
+      ])
 
-      if (requestId !== historyRequestIdRef.current) return
+    if (requestId !== historyRequestIdRef.current) return
+
+    if (historyResult.status === 'fulfilled') {
+      const data = historyResult.value || {}
 
       setHistoryItems(
-        Array.isArray(data?.items) ? data.items : []
+        Array.isArray(data.items) ? data.items : []
       )
       setHistoryPagination(
-        data?.pagination || {
+        data.pagination || {
           has_next: false,
           next_cursor: null,
         }
       )
-    } catch (historyLoadError) {
-      if (historyLoadError?.name === 'AbortError') return
-      if (requestId !== historyRequestIdRef.current) return
-
+    } else if (historyResult.reason?.name !== 'AbortError') {
+      const loadError = historyResult.reason
       setHistoryError(
-        historyLoadError?.status === 429 &&
-        historyLoadError?.retryAfter
-          ? `Too many requests. Try again in ${historyLoadError.retryAfter}s.`
-          : historyLoadError?.message ||
+        loadError?.status === 429 && loadError?.retryAfter
+          ? `Too many requests. Try again in ${loadError.retryAfter}s.`
+          : loadError?.message ||
             'Failed to load Diamond history'
       )
-    } finally {
-      if (requestId === historyRequestIdRef.current) {
-        setHistoryLoading(false)
-      }
+    }
+
+    if (spendResult.status === 'fulfilled') {
+      setSpendSummary(spendResult.value || null)
+    } else if (spendResult.reason?.name !== 'AbortError') {
+      const loadError = spendResult.reason
+      setSpendError(
+        loadError?.status === 429 && loadError?.retryAfter
+          ? `Too many requests. Try again in ${loadError.retryAfter}s.`
+          : loadError?.message ||
+            'Failed to load Diamond spend summary'
+      )
+    }
+
+    if (requestId === historyRequestIdRef.current) {
+      setHistoryLoading(false)
+      setSpendLoading(false)
     }
   }
 
@@ -1201,8 +1467,11 @@ export default function AdminBalancePage() {
     setSelectedReader(null)
     setHistoryItems([])
     setHistoryError('')
+    setSpendSummary(null)
+    setSpendError('')
     setHistoryLoading(false)
     setHistoryLoadingMore(false)
+    setSpendLoading(false)
   }
 
   function toggleSort() {
@@ -1458,6 +1727,9 @@ export default function AdminBalancePage() {
         loading={historyLoading}
         loadingMore={historyLoadingMore}
         error={historyError}
+        spendSummary={spendSummary}
+        spendLoading={spendLoading}
+        spendError={spendError}
         onClose={closeReaderHistory}
         onLoadMore={loadMoreHistory}
       />
