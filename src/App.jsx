@@ -46,6 +46,7 @@ import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
 import AdminMusicPage from './pages/AdminMusicPage';
 import AdminGamePage from './pages/AdminGamePage';
 import AdminWorkPage from './pages/AdminWorkPage';
+import AdminKillSwitchPage from './pages/AdminKillSwitchPage';
 import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 import AdminReportCenterPage from './pages/AdminReportCenterPage';
 import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
@@ -209,6 +210,7 @@ export default function App() {
         <Route path="/music" element={<ProtectedPage><AdminMusicPage /></ProtectedPage>} />
         <Route path="/game" element={<ProtectedPage><AdminGamePage /></ProtectedPage>} />
         <Route path="/alerts/work" element={<ProtectedPage><AdminWorkPage /></ProtectedPage>} />
+        <Route path="/alerts/kill-switch" element={<ProtectedPage><AdminKillSwitchPage /></ProtectedPage>} />
         <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
 
 <Route
