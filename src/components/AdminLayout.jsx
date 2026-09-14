@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AdminSidebar from './AdminSidebar'
-
+import WorkRealtimeAlert from './WorkRealtimeAlert'
 const styles = `
   :root {
     --shadow-admin-bg: #F8FAFC;
@@ -402,6 +402,7 @@ export default function AdminLayout({
   return (
     <>
       <style>{styles}</style>
+      <WorkRealtimeAlert />
 
       <div className="shadow-admin-shell">
         <AdminSidebar />
