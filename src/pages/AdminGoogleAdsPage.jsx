@@ -11,31 +11,52 @@ const DEFAULT_SETTINGS = {
   storyDetailEnabled: false,
   readerEndEnabled: false,
   episodeUnlockEnabled: false,
+  homeEffective: false,
+  storyDetailEffective: false,
+  readerEndEffective: false,
+  episodeUnlockEffective: false,
+  episodeUnlockSuppressed: false,
+  episodeUnlockSuppressionReason: '',
+  shadowFreeUnlockAd: {
+    enabled: false,
+    frequency: 'once_per_session',
+  },
   updatedAt: null,
 }
 
 const PLACEMENTS = [
   {
     key: 'homeEnabled',
+    effectiveKey: 'homeEffective',
     title: 'Home',
     description: 'Google display ad on the Home page.',
   },
   {
     key: 'storyDetailEnabled',
+    effectiveKey: 'storyDetailEffective',
     title: 'Story Detail',
     description: 'Google display ad on the Story Detail page.',
   },
   {
     key: 'readerEndEnabled',
+    effectiveKey: 'readerEndEffective',
     title: 'Reader End',
     description: 'Google display ad after the end of an episode.',
   },
   {
     key: 'episodeUnlockEnabled',
+    effectiveKey: 'episodeUnlockEffective',
     title: 'Episode Unlock Video',
     description: 'Rewarded Google ad used to temporarily unlock an episode.',
   },
 ]
+
+const FREQUENCY_LABELS = {
+  once_per_session: 'Once per session',
+  once_per_day: 'Once per day',
+  every_visit: 'Every visit',
+  every_unlock: 'Every Unlock & Read',
+}
 
 const styles = `
   .google-ads-admin {
@@ -101,6 +122,11 @@ const styles = `
   .google-ads-status.on {
     background: #ECFDF5;
     color: #047857;
+  }
+
+  .google-ads-status.warning {
+    background: #FFF7ED;
+    color: #C2410C;
   }
 
   .google-ads-dot {
@@ -211,6 +237,50 @@ const styles = `
     line-height: 1.65;
   }
 
+  .google-ads-conflict {
+    display: grid;
+    gap: 8px;
+    padding: 16px 18px;
+  }
+
+  .google-ads-conflict-title {
+    margin: 0;
+    color: #0F172A;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .google-ads-conflict-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    color: #64748B;
+    font-size: 11px;
+    font-weight: 750;
+  }
+
+  .google-ads-chip {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #F1F5F9;
+    color: #475569;
+    padding: 6px 9px;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .google-ads-chip.warning {
+    background: #FFF7ED;
+    color: #C2410C;
+  }
+
+  .google-ads-chip.on {
+    background: #ECFDF5;
+    color: #047857;
+  }
+
   @media (max-width: 760px) {
     .google-ads-grid {
       grid-template-columns: 1fr;
@@ -278,6 +348,17 @@ function Toggle({ value, disabled, onClick, label }) {
   )
 }
 
+function normalizeSettings(value) {
+  return {
+    ...DEFAULT_SETTINGS,
+    ...(value || {}),
+    shadowFreeUnlockAd: {
+      ...DEFAULT_SETTINGS.shadowFreeUnlockAd,
+      ...(value?.shadowFreeUnlockAd || {}),
+    },
+  }
+}
+
 export default function AdminGoogleAdsPage() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
@@ -290,10 +371,7 @@ export default function AdminGoogleAdsPage() {
       setLoading(true)
       setError('')
       const data = await apiRequest('/api/google-ads/admin')
-      setSettings({
-        ...DEFAULT_SETTINGS,
-        ...(data.settings || {}),
-      })
+      setSettings(normalizeSettings(data.settings))
     } catch (err) {
       setError(
         err.message || 'Failed to load Google Ads settings'
@@ -325,11 +403,7 @@ export default function AdminGoogleAdsPage() {
         }
       )
 
-      setSettings({
-        ...DEFAULT_SETTINGS,
-        ...(data.settings || {}),
-      })
-
+      setSettings(normalizeSettings(data.settings))
       setSuccess('Google Ads settings updated.')
     } catch (err) {
       setError(
@@ -341,6 +415,14 @@ export default function AdminGoogleAdsPage() {
   }
 
   const masterOn = Boolean(settings.masterEnabled)
+  const shadowAd = settings.shadowFreeUnlockAd || {}
+  const shadowFrequency =
+    FREQUENCY_LABELS[shadowAd.frequency] ||
+    shadowAd.frequency ||
+    'Once per session'
+  const episodeSuppressed = Boolean(
+    settings.episodeUnlockSuppressed
+  )
 
   return (
     <AdminLayout
@@ -404,8 +486,26 @@ export default function AdminGoogleAdsPage() {
                 const enabled = Boolean(
                   settings[placement.key]
                 )
-                const effectiveOn =
-                  masterOn && enabled
+                const effectiveOn = Boolean(
+                  settings[placement.effectiveKey]
+                )
+                const isEpisodeUnlock =
+                  placement.key === 'episodeUnlockEnabled'
+                const suppressed =
+                  isEpisodeUnlock && episodeSuppressed
+
+                let statusText = 'Off'
+                let statusClass = ''
+
+                if (suppressed && enabled && masterOn) {
+                  statusText = 'Automatically Suppressed'
+                  statusClass = 'warning'
+                } else if (effectiveOn) {
+                  statusText = 'Active'
+                  statusClass = 'on'
+                } else if (enabled && !masterOn) {
+                  statusText = 'Ready — Master OFF'
+                }
 
                 return (
                   <section
@@ -416,16 +516,10 @@ export default function AdminGoogleAdsPage() {
                       <h3>{placement.title}</h3>
                       <p>{placement.description}</p>
                       <div
-                        className={`google-ads-status ${
-                          effectiveOn ? 'on' : ''
-                        }`}
+                        className={`google-ads-status ${statusClass}`}
                       >
                         <span className="google-ads-dot" />
-                        {effectiveOn
-                          ? 'Active'
-                          : enabled
-                            ? 'Ready — Master OFF'
-                            : 'Off'}
+                        {statusText}
                       </div>
                     </div>
 
@@ -441,6 +535,40 @@ export default function AdminGoogleAdsPage() {
                 )
               })}
             </div>
+
+            <section className="google-ads-card google-ads-conflict">
+              <h3 className="google-ads-conflict-title">
+                Episode Unlock Conflict Protection
+              </h3>
+
+              <div className="google-ads-conflict-row">
+                <span
+                  className={`google-ads-chip ${
+                    shadowAd.enabled ? 'on' : ''
+                  }`}
+                >
+                  Shadow Image Ad: {shadowAd.enabled ? 'ON' : 'OFF'}
+                </span>
+
+                <span className="google-ads-chip">
+                  {shadowFrequency}
+                </span>
+
+                {episodeSuppressed ? (
+                  <span className="google-ads-chip warning">
+                    Episode Unlock Automatically Suppressed
+                  </span>
+                ) : (
+                  <span className="google-ads-chip on">
+                    No Conflict
+                  </span>
+                )}
+              </div>
+
+              <div className="google-ads-description">
+                Shadow Image Ad with Every visit or Every Unlock & Read automatically blocks Google Episode Unlock. Once per session and Once per day do not block it.
+              </div>
+            </section>
 
             <div className="google-ads-card google-ads-note">
               Master OFF pauses all four placements without changing their individual choices. Turning Master ON again restores only the placements that are individually enabled.
