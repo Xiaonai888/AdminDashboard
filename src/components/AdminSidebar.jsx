@@ -194,7 +194,7 @@ const navSections = [
     label: 'Overview',
     items: [
       { path: '/admin', label: 'Dashboard', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
-      { path: '/task-center', label: 'Task Center', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11' },
+      { path: '/task-center', label: 'Task Center', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2h11' },
       { path: '/balance', label: 'Balance', icon: 'M20 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2z M16 13h4 M4 7V5a2 2 0 0 1 2-2h12v4' },
       { path: '/author-income', label: 'Author Income', icon: 'M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M4 22a8 8 0 0 1 16 0' },
       { path: '/google-ads', label: 'Google Ads', icon: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5' },
@@ -205,11 +205,12 @@ const navSections = [
   },
 
   {
-    label: 'Alerts',
-    items: [
-      { path: '/alerts/work', label: 'Work', icon: 'M3 12h4l2-7 4 14 2-7h6 M19 5l2 2-2 2' },
-    ],
-  },
+  label: 'Alerts',
+  items: [
+    { path: '/alerts/work', label: 'Work', icon: 'M3 12h4l2-7 4 14 2-7h6 M19 5l2 2-2 2' },
+    { path: '/alerts/kill-switch', label: 'Kill Switch', icon: 'M12 2v6 M12 16v6 M4.93 4.93l4.24 4.24 M14.83 14.83l4.24 4.24 M2 12h6 M16 12h6 M4.93 19.07l4.24-4.24 M14.83 9.17l4.24-4.24' },
+  ],
+},
 
   {
     label: 'Event',
