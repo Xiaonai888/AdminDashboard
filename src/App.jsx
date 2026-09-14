@@ -41,6 +41,7 @@ import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminBalancePage from './pages/AdminBalancePage';
 import AdminAuthorIncomePage from './pages/AdminAuthorIncomePage';
+import AdminGoogleAdsPage from './pages/AdminGoogleAdsPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
 import AdminMusicPage from './pages/AdminMusicPage';
 import AdminGamePage from './pages/AdminGamePage';
@@ -202,6 +203,7 @@ export default function App() {
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
         <Route path="/balance" element={<ProtectedPage><AdminBalancePage /></ProtectedPage>} />
         <Route path="/author-income" element={<ProtectedPage permission="income.view"><AdminAuthorIncomePage /></ProtectedPage>} />
+        <Route path="/google-ads" element={<ProtectedPage permission="income.view"><AdminGoogleAdsPage /></ProtectedPage>} />
         <Route path="/search-insights" element={<ProtectedPage><AdminSearchInsightsPage /></ProtectedPage>} />
         <Route path="/music" element={<ProtectedPage><AdminMusicPage /></ProtectedPage>} />
         <Route path="/game" element={<ProtectedPage><AdminGamePage /></ProtectedPage>} />
