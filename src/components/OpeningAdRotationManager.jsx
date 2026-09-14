@@ -680,14 +680,6 @@ export default function OpeningAdRotationManager({ onChanged }) {
 
       const rotateEverySeconds = intervalSeconds(intervalValue, intervalUnit)
 
-      if (settings.enabled && settings.mode === 'manual' && !manualSelectedItem?.enabled) {
-        throw new Error('Choose an enabled Manual Ad before enabling Opening Ad.')
-      }
-
-      if (settings.enabled && settings.mode === 'auto' && loopItems.length === 0) {
-        throw new Error('Auto mode needs at least one enabled Ad checked In Loop.')
-      }
-
       const data = await request('/api/advertisements/admin/opening-rotation/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -794,15 +786,6 @@ export default function OpeningAdRotationManager({ onChanged }) {
       const existingItem = editor.id
         ? items.find((item) => Number(item.id) === Number(editor.id)) || null
         : null
-      const isCurrentManualLive =
-        settings.enabled &&
-        settings.mode === 'manual' &&
-        Number(settings.manualAdId) === Number(editor.id)
-
-      if (isCurrentManualLive && !editor.enabled) {
-        throw new Error('Set another enabled Manual Ad LIVE, or disable Opening Ad before disabling this LIVE Ad.')
-      }
-
       const formData = new FormData()
       if (selectedFile) formData.append('image', selectedFile)
 
@@ -854,20 +837,6 @@ export default function OpeningAdRotationManager({ onChanged }) {
 
   async function archiveItem(item) {
     if (!item) return
-
-    const isCurrentManualLive =
-      settings.enabled &&
-      settings.mode === 'manual' &&
-      Number(settings.manualAdId) === Number(item.id)
-    const manualReplacement = isCurrentManualLive
-      ? activeItems.find((candidate) => Number(candidate.id) !== Number(item.id) && candidate.enabled) || null
-      : null
-
-    if (isCurrentManualLive && !manualReplacement) {
-      setError('Enable another Manual Ad and set it LIVE, or disable Opening Ad before archiving the current LIVE Ad.')
-      return
-    }
-
     if (!window.confirm(`Archive "${item.name || 'this Ad'}"?`)) return
 
     try {
@@ -879,24 +848,8 @@ export default function OpeningAdRotationManager({ onChanged }) {
         method: 'DELETE',
       })
 
-      if (manualReplacement) {
-        await request('/api/advertisements/admin/opening-rotation/settings', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ manual_ad_id: manualReplacement.id }),
-        })
-      }
-
-      if (settings.mode === 'auto' && item.enabled && item.in_loop) {
-        await restartAutoClock()
-      }
-
-      await loadRotation(manualReplacement?.id || null)
-      setMessage(
-        manualReplacement
-          ? `Ad archived. ${manualReplacement.name || 'Another Ad'} is now the Manual LIVE Ad.`
-          : 'Ad archived. You can restore it later.',
-      )
+      await loadRotation(null)
+      setMessage('Ad archived. Manual mode will show no Ad until another enabled Ad is set LIVE.')
       if (typeof onChanged === 'function') onChanged()
     } catch (requestError) {
       setError(requestError.message || 'Failed to archive Ad')
