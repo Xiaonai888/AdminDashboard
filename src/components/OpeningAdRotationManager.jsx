@@ -215,6 +215,11 @@ const openingStyles = `
     color:#4338CA;
   }
 
+  .opening-mini.editing {
+    background:#E0F2FE;
+    color:#0369A1;
+  }
+
   .opening-mini.off {
     background:#FEE2E2;
     color:#B91C1C;
@@ -327,6 +332,14 @@ const openingStyles = `
     font-size:11.5px;
     font-weight:800;
     line-height:1.5;
+  }
+
+  .opening-inline-actions {
+    display:flex;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:12px;
   }
 
   .opening-archived {
@@ -513,6 +526,14 @@ export default function OpeningAdRotationManager({ onChanged }) {
     [activeItems, settings.maxAds],
   )
 
+  const manualSelectedItem = useMemo(
+    () =>
+      settings.manualAdId
+        ? activeItems.find((item) => Number(item.id) === Number(settings.manualAdId)) || null
+        : null,
+    [activeItems, settings.manualAdId],
+  )
+
   const liveInfo = useMemo(() => {
     if (!settings.enabled) {
       return { liveId: null, nextId: null, remaining: 0 }
@@ -520,7 +541,7 @@ export default function OpeningAdRotationManager({ onChanged }) {
 
     if (settings.mode === 'manual') {
       return {
-        liveId: settings.manualAdId ? Number(settings.manualAdId) : null,
+        liveId: manualSelectedItem?.enabled ? Number(manualSelectedItem.id) : null,
         nextId: null,
         remaining: 0,
       }
@@ -541,10 +562,11 @@ export default function OpeningAdRotationManager({ onChanged }) {
       nextId: loopItems.length > 1 ? Number(loopItems[(index + 1) % loopItems.length]?.id || 0) : null,
       remaining,
     }
-  }, [settings, loopItems, now])
+  }, [settings, loopItems, manualSelectedItem, now])
 
   const previewImage = previewUrl || editor.imageUrl || ''
   const selectedIsLive = editor.id && Number(editor.id) === Number(liveInfo.liveId)
+  const selectedIsNext = editor.id && Number(editor.id) === Number(liveInfo.nextId)
 
   async function loadRotation(preferredId = null) {
     try {
@@ -619,6 +641,37 @@ export default function OpeningAdRotationManager({ onChanged }) {
     setError('')
   }
 
+  async function restartAutoClock() {
+    const data = await request('/api/advertisements/admin/opening-rotation/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restart_rotation: true }),
+    })
+
+    const next = normalizeSettings(data.settings)
+    setSettings((previous) => ({
+      ...previous,
+      rotationStartedAt: next.rotationStartedAt,
+    }))
+    setNow(Date.now())
+    return next
+  }
+
+  async function handleRestartAutoClock() {
+    try {
+      setSaving(true)
+      setMessage('')
+      setError('')
+      await restartAutoClock()
+      setMessage('Auto Rotation restarted from Ad #1.')
+      if (typeof onChanged === 'function') onChanged()
+    } catch (requestError) {
+      setError(requestError.message || 'Failed to restart Auto Rotation')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function saveSettings() {
     try {
       setSaving(true)
@@ -627,8 +680,8 @@ export default function OpeningAdRotationManager({ onChanged }) {
 
       const rotateEverySeconds = intervalSeconds(intervalValue, intervalUnit)
 
-      if (settings.enabled && settings.mode === 'manual' && !settings.manualAdId) {
-        throw new Error('Choose one Manual Ad before enabling Opening Ad.')
+      if (settings.enabled && settings.mode === 'manual' && !manualSelectedItem?.enabled) {
+        throw new Error('Choose an enabled Manual Ad before enabling Opening Ad.')
       }
 
       if (settings.enabled && settings.mode === 'auto' && loopItems.length === 0) {
@@ -708,6 +761,13 @@ export default function OpeningAdRotationManager({ onChanged }) {
         body: formData,
       })
 
+      const eligibilityChanged =
+        settings.mode === 'auto' &&
+        field === 'in_loop' &&
+        Boolean(item.enabled) &&
+        Boolean(item.in_loop) !== Boolean(value)
+
+      if (eligibilityChanged) await restartAutoClock()
       await loadRotation(selectedId)
       if (typeof onChanged === 'function') onChanged()
     } catch (requestError) {
@@ -729,6 +789,18 @@ export default function OpeningAdRotationManager({ onChanged }) {
 
       if (!selectedFile && !String(editor.imageUrl || '').trim()) {
         throw new Error('Upload an image before saving this Ad.')
+      }
+
+      const existingItem = editor.id
+        ? items.find((item) => Number(item.id) === Number(editor.id)) || null
+        : null
+      const isCurrentManualLive =
+        settings.enabled &&
+        settings.mode === 'manual' &&
+        Number(settings.manualAdId) === Number(editor.id)
+
+      if (isCurrentManualLive && !editor.enabled) {
+        throw new Error('Set another enabled Manual Ad LIVE, or disable Opening Ad before disabling this LIVE Ad.')
       }
 
       const formData = new FormData()
@@ -759,6 +831,13 @@ export default function OpeningAdRotationManager({ onChanged }) {
       })
 
       const savedId = data.item?.id || editor.id
+      const wasEligible = Boolean(existingItem?.enabled && existingItem?.in_loop)
+      const willBeEligible = Boolean(editor.enabled && editor.inLoop)
+      const shouldRestartAuto =
+        settings.mode === 'auto' &&
+        (isNew ? willBeEligible : wasEligible !== willBeEligible)
+
+      if (shouldRestartAuto) await restartAutoClock()
 
       if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
       setPreviewUrl('')
@@ -774,6 +853,21 @@ export default function OpeningAdRotationManager({ onChanged }) {
   }
 
   async function archiveItem(item) {
+    if (!item) return
+
+    const isCurrentManualLive =
+      settings.enabled &&
+      settings.mode === 'manual' &&
+      Number(settings.manualAdId) === Number(item.id)
+    const manualReplacement = isCurrentManualLive
+      ? activeItems.find((candidate) => Number(candidate.id) !== Number(item.id) && candidate.enabled) || null
+      : null
+
+    if (isCurrentManualLive && !manualReplacement) {
+      setError('Enable another Manual Ad and set it LIVE, or disable Opening Ad before archiving the current LIVE Ad.')
+      return
+    }
+
     if (!window.confirm(`Archive "${item.name || 'this Ad'}"?`)) return
 
     try {
@@ -785,8 +879,24 @@ export default function OpeningAdRotationManager({ onChanged }) {
         method: 'DELETE',
       })
 
-      await loadRotation(null)
-      setMessage('Ad archived. You can restore it later.')
+      if (manualReplacement) {
+        await request('/api/advertisements/admin/opening-rotation/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ manual_ad_id: manualReplacement.id }),
+        })
+      }
+
+      if (settings.mode === 'auto' && item.enabled && item.in_loop) {
+        await restartAutoClock()
+      }
+
+      await loadRotation(manualReplacement?.id || null)
+      setMessage(
+        manualReplacement
+          ? `Ad archived. ${manualReplacement.name || 'Another Ad'} is now the Manual LIVE Ad.`
+          : 'Ad archived. You can restore it later.',
+      )
       if (typeof onChanged === 'function') onChanged()
     } catch (requestError) {
       setError(requestError.message || 'Failed to archive Ad')
@@ -815,12 +925,46 @@ export default function OpeningAdRotationManager({ onChanged }) {
     }
   }
 
+  async function duplicateItem(item) {
+    if (!item) return
+
+    try {
+      setSaving(true)
+      setMessage('')
+      setError('')
+
+      const formData = new FormData()
+      formData.append('name', `${item.name || `Opening Ad ${item.id}`} Copy`)
+      formData.append('enabled', 'false')
+      formData.append('image_url', item.image_url || '')
+      formData.append('link_url', item.link_url || '')
+      formData.append('badge', item.badge || '')
+      formData.append('duration_seconds', String(Number(item.duration_seconds ?? 5)))
+      formData.append('close_after_seconds', String(Number(item.close_after_seconds ?? 3)))
+      formData.append('frequency', item.frequency || 'once_per_session')
+      formData.append('in_loop', 'false')
+
+      const data = await request('/api/advertisements/admin/opening-rotation/items', {
+        method: 'POST',
+        body: formData,
+      })
+
+      await loadRotation(data.item?.id || null)
+      setMessage('Ad duplicated as Disabled and outside the loop.')
+      if (typeof onChanged === 'function') onChanged()
+    } catch (requestError) {
+      setError(requestError.message || 'Failed to duplicate Ad')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function persistOrder(nextItems) {
     const changed = nextItems.filter((item, index) => Number(item.sort_order || 0) !== index + 1)
     if (!changed.length) return
 
     await Promise.all(
-      changed.map((item, indexInChanged) => {
+      changed.map((item) => {
         const actualIndex = nextItems.findIndex((candidate) => Number(candidate.id) === Number(item.id))
         const formData = new FormData()
         formData.append('sort_order', String(actualIndex + 1))
@@ -845,8 +989,9 @@ export default function OpeningAdRotationManager({ onChanged }) {
       setSaving(true)
       setError('')
       await persistOrder(next)
+      if (settings.mode === 'auto') await restartAutoClock()
       await loadRotation(selectedId)
-      setMessage('Ad order updated.')
+      setMessage(settings.mode === 'auto' ? 'Ad order updated. Auto Rotation restarted from #1.' : 'Ad order updated.')
       if (typeof onChanged === 'function') onChanged()
     } catch (requestError) {
       setError(requestError.message || 'Failed to reorder Ads')
@@ -872,8 +1017,9 @@ export default function OpeningAdRotationManager({ onChanged }) {
       setSaving(true)
       setError('')
       await persistOrder(next)
+      if (settings.mode === 'auto') await restartAutoClock()
       await loadRotation(selectedId)
-      setMessage('Ad order updated.')
+      setMessage(settings.mode === 'auto' ? 'Ad order updated. Auto Rotation restarted from #1.' : 'Ad order updated.')
       if (typeof onChanged === 'function') onChanged()
     } catch (requestError) {
       setError(requestError.message || 'Failed to reorder Ads')
@@ -1063,6 +1209,25 @@ export default function OpeningAdRotationManager({ onChanged }) {
                 </div>
               ) : null}
 
+              {settings.mode === 'manual' && settings.enabled && !manualSelectedItem?.enabled ? (
+                <div className="opening-warning">
+                  Manual mode has no enabled LIVE Ad. Choose an enabled Ad and click Set Live.
+                </div>
+              ) : null}
+
+              {settings.mode === 'auto' ? (
+                <div className="opening-inline-actions">
+                  <button
+                    type="button"
+                    className="opening-small-btn primary"
+                    onClick={handleRestartAutoClock}
+                    disabled={saving || loopItems.length === 0}
+                  >
+                    Restart From #1
+                  </button>
+                </div>
+              ) : null}
+
               <div className="btn-row">
                 <button
                   type="button"
@@ -1130,6 +1295,7 @@ export default function OpeningAdRotationManager({ onChanged }) {
                             {item.enabled ? 'Enabled' : 'Disabled'}
                           </span>
                           {item.in_loop ? <span className="opening-mini">In Loop</span> : null}
+                          {isSelected ? <span className="opening-mini editing">EDITING</span> : null}
                           {isLive ? <span className="opening-mini live">LIVE</span> : null}
                           {isNext ? <span className="opening-mini next">NEXT</span> : null}
                         </div>
@@ -1156,6 +1322,15 @@ export default function OpeningAdRotationManager({ onChanged }) {
                             {isLive ? 'LIVE' : 'Set Live'}
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          className="opening-small-btn"
+                          disabled={saving}
+                          onClick={() => duplicateItem(item)}
+                        >
+                          Duplicate
+                        </button>
 
                         <div className="opening-order-buttons">
                           <button
@@ -1440,6 +1615,7 @@ export default function OpeningAdRotationManager({ onChanged }) {
                 {selectedId === 'new' ? 'NEW DRAFT' : `Ad #${editor.id}`}
               </span>
               {selectedIsLive ? <span className="opening-preview-badge live">LIVE</span> : null}
+              {selectedIsNext ? <span className="opening-preview-badge">NEXT</span> : null}
               <span className="opening-preview-badge">
                 {editor.enabled ? 'Enabled' : 'Disabled'}
               </span>
