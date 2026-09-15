@@ -3,6 +3,8 @@ import AdminSidebar from '../components/AdminSidebar'
 import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropModal'
 import ImageDropZone from '../components/common/ImageDropZone'
 import OpeningAdRotationManager from '../components/OpeningAdRotationManager'
+import FreeUnlockAdRotationManager from '../components/FreeUnlockAdRotationManager'
+import MeAdRotationManager from '../components/MeAdRotationManager'
 
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -1089,9 +1091,9 @@ export default function AdminAdvertisementPage() {
   }, [])
 
   useEffect(() => {
-    setRecordPage(1)
-    fetchRecords(1, activeTab)
-  }, [activeTab])
+  setRecordPage(1)
+  if (activeTab === 'splash') fetchRecords(1, activeTab)
+}, [activeTab])
 
   useEffect(() => {
     return () => {
@@ -1132,11 +1134,14 @@ export default function AdminAdvertisementPage() {
             ))}
           </div>
 
-          {activeTab === 'opening' ? (
-  <OpeningAdRotationManager onChanged={() => fetchRecords(1, 'opening')} />
-) : null}
+          {activeTab === 'opening' ? <OpeningAdRotationManager /> : null}
+{activeTab === 'freeUnlock' ? <FreeUnlockAdRotationManager /> : null}
+{activeTab === 'me' ? <MeAdRotationManager /> : null}
 
-<div className="shell" style={activeTab === 'opening' ? { display: 'none' } : undefined}>
+<div
+  className="shell"
+  style={activeTab !== 'splash' ? { display: 'none' } : undefined}
+>
             <section className="panel">
               <div className="panel-header">
                 <div>
@@ -1331,7 +1336,7 @@ export default function AdminAdvertisementPage() {
 
           <section
   className="panel records-panel"
-  style={activeTab === 'opening' ? { display: 'none' } : undefined}
+  style={activeTab !== 'splash' ? { display: 'none' } : undefined}
 >
             <div className="panel-header">
               <div>
