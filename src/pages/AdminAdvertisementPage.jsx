@@ -1329,7 +1329,10 @@ export default function AdminAdvertisementPage() {
             </aside>
           </div>
 
-          <section className="panel records-panel">
+          <section
+  className="panel records-panel"
+  style={activeTab === 'opening' ? { display: 'none' } : undefined}
+>
             <div className="panel-header">
               <div>
                 <h3>Advertisement Records</h3>
