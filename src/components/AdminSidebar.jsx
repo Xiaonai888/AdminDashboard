@@ -207,6 +207,7 @@ const navSections = [
   {
   label: 'Alerts',
   items: [
+    { path: '/alerts/system-control', label: 'System Control', icon: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5' },
     { path: '/alerts/work', label: 'Work', icon: 'M3 12h4l2-7 4 14 2-7h6 M19 5l2 2-2 2' },
     { path: '/alerts/kill-switch', label: 'Kill Switch', icon: 'M12 2v6 M12 16v6 M4.93 4.93l4.24 4.24 M14.83 14.83l4.24 4.24 M2 12h6 M16 12h6 M4.93 19.07l4.24-4.24 M14.83 9.17l4.24-4.24' },
     { path: '/alerts/security-center', label: 'Security Center', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-5' },
