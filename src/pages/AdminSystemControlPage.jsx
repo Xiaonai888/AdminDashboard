@@ -156,6 +156,97 @@ const styles = `
     opacity: 0.65;
   }
 
+  .sc-report-menu {
+    position: relative;
+  }
+
+  .sc-report-trigger {
+    min-height: 34px;
+    padding: 0 13px;
+    border: 1px solid #DDD6FE;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #6D28D9;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    list-style: none;
+    user-select: none;
+  }
+
+  .sc-report-trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .sc-report-menu[open] .sc-report-trigger {
+    background: #F5F3FF;
+    border-color: #C4B5FD;
+  }
+
+  .sc-report-options {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 7px);
+    z-index: 80;
+    width: 228px;
+    padding: 7px;
+    border: 1px solid #E2E8F0;
+    border-radius: 13px;
+    background: #FFFFFF;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  }
+
+  .sc-report-option {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .sc-report-option:hover {
+    background: #F8FAFC;
+  }
+
+  .sc-report-option:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  .sc-report-option strong {
+    font-size: 9px;
+    font-weight: 950;
+  }
+
+  .sc-report-option span {
+    color: #94A3B8;
+    font-size: 8px;
+    font-weight: 850;
+  }
+
+  .sc-report-divider {
+    height: 1px;
+    margin: 5px 4px;
+    background: #EEF2F7;
+  }
+
+  .sc-report-option.full {
+    color: #6D28D9;
+    background: #FAF5FF;
+  }
+
   .sc-refresh {
     min-height: 34px;
     padding: 0 13px;
@@ -929,6 +1020,7 @@ export default function AdminSystemControlPage() {
   })
   const [loading, setLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [reportLoading, setReportLoading] = useState('')
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState(null)
 
@@ -1135,6 +1227,90 @@ export default function AdminSystemControlPage() {
 
     setRangeKey(next)
   }, [])
+
+  const downloadReport = useCallback(async (type) => {
+    const token = getToken()
+
+    if (!token) {
+      setError('Admin token is missing.')
+      return
+    }
+
+    const fallback = getHistoryRange(
+      rangeKey,
+      appliedCustom.from,
+      appliedCustom.to
+    )
+
+    const from =
+      historyReport?.range?.requested_from ||
+      (Number.isFinite(fallback.from)
+        ? new Date(fallback.from).toISOString()
+        : null)
+
+    const to =
+      historyReport?.range?.effective_to ||
+      (Number.isFinite(fallback.to)
+        ? new Date(fallback.to).toISOString()
+        : null)
+
+    if (!from || !to) {
+      setError('Please load a valid time range before downloading.')
+      return
+    }
+
+    try {
+      setReportLoading(type)
+      setError('')
+
+      const query = new URLSearchParams({
+        type,
+        from,
+        to,
+      })
+
+      const response = await fetch(
+        `${API_URL}/api/admin/system-control/reports/download?${query}`,
+        {
+          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(
+          data?.message || 'Report download failed.'
+        )
+      }
+
+      const blob = await response.blob()
+      const disposition =
+        response.headers.get('Content-Disposition') || ''
+      const match = disposition.match(/filename="([^"]+)"/i)
+      const filename =
+        match?.[1] || `system-control-${type}`
+
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (downloadError) {
+      setError(
+        downloadError?.message || 'Report download failed.'
+      )
+    } finally {
+      setReportLoading('')
+    }
+  }, [rangeKey, appliedCustom, historyReport])
 
   useEffect(() => {
     loadSnapshot()
@@ -1390,6 +1566,37 @@ export default function AdminSystemControlPage() {
             <span className="sc-updated">
               Updated {formatTime(updatedAt)}
             </span>
+
+            <details className="sc-report-menu">
+              <summary className="sc-report-trigger">
+                {reportLoading ? 'Preparing…' : 'Download Report ▾'}
+              </summary>
+
+              <div className="sc-report-options">
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('summary-pdf') }}>
+                  <strong>Summary Report</strong><span>PDF</span>
+                </button>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('summary-md') }}>
+                  <strong>Summary Report</strong><span>MD</span>
+                </button>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('usage-csv') }}>
+                  <strong>Usage Data</strong><span>CSV</span>
+                </button>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('problems-pdf') }}>
+                  <strong>Problems Report</strong><span>PDF</span>
+                </button>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('problems-md') }}>
+                  <strong>Problems Report</strong><span>MD</span>
+                </button>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('evidence-json') }}>
+                  <strong>Raw Evidence</strong><span>JSON</span>
+                </button>
+                <div className="sc-report-divider" />
+                <button type="button" className="sc-report-option full" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('full-zip') }}>
+                  <strong>Full Report</strong><span>ZIP</span>
+                </button>
+              </div>
+            </details>
 
             <button
               type="button"
