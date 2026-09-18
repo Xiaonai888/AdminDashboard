@@ -440,6 +440,18 @@ export default function AdminSystemCloudflareDetailPage() {
       ? r2.errors
       : []
 
+  const missingConfig = Array.isArray(r2?.missing)
+  ? r2.missing
+  : []
+
+const missingApiToken =
+  missingConfig.includes('CLOUDFLARE_API_TOKEN')
+
+const missingAccountId =
+  missingConfig.includes(
+    'CLOUDFLARE_ACCOUNT_ID_OR_R2_ACCOUNT_ID'
+  )
+
   const status =
     String(r2?.status || 'not_configured')
       .trim()
@@ -510,21 +522,42 @@ export default function AdminSystemCloudflareDetailPage() {
         ) : null}
 
         {status === 'not_configured' ? (
-          <div className="cfr-warning">
-            Cloudflare provider metrics are not configured. Add CLOUDFLARE_API_TOKEN and R2_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID on the backend. Existing R2 upload/download features are not affected.
-          </div>
-        ) : null}
+  <div className="cfr-error">
+    <div>
+      <strong>Cloudflare R2 configuration error</strong>
+    </div>
 
-        {providerErrors.length > 0 ? (
-          <div className="cfr-warning">
-            {providerErrors
-              .map(
-                (item) =>
-                  `${item.source || 'provider'}: ${item.message || 'Unavailable'}`
-              )
-              .join(' · ')}
-          </div>
-        ) : null}
+    {missingApiToken ? (
+      <div>
+        Missing API Token — add
+        {' '}
+        <code>CLOUDFLARE_API_TOKEN</code>
+        {' '}or{' '}
+        <code>SYSTEM_CLOUDFLARE_API_TOKEN</code>
+      </div>
+    ) : null}
+
+    {missingAccountId ? (
+      <div>
+        Missing Account ID — add one of:
+        {' '}
+        <code>CLOUDFLARE_ACCOUNT_ID</code>,
+        {' '}
+        <code>SYSTEM_CLOUDFLARE_ACCOUNT_ID</code>
+        {' '}or{' '}
+        <code>R2_ACCOUNT_ID</code>
+      </div>
+    ) : null}
+
+    <div>
+      Bucket name is optional:
+      {' '}
+      <code>CLOUDFLARE_R2_BUCKET</code>
+      {' '}or{' '}
+      <code>R2_BUCKET_NAME</code>
+    </div>
+  </div>
+) : null}
 
         <div className="cfr-cards">
           <div className="cfr-card">
