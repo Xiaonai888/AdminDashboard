@@ -51,6 +51,7 @@ import AdminSystemControlPage from './pages/AdminSystemControlPage';
 import AdminSystemUsageAnalyticsPage from './pages/AdminSystemUsageAnalyticsPage';
 import AdminSystemRenderDetailPage from './pages/AdminSystemRenderDetailPage';
 import AdminSystemSupabaseDetailPage from './pages/AdminSystemSupabaseDetailPage';
+import AdminSystemCloudflareDetailPage from './pages/AdminSystemCloudflareDetailPage';
 import AdminSystemProblemReportsPage from './pages/AdminSystemProblemReportsPage';
 import AdminSystemIncidentDetailPage from './pages/AdminSystemIncidentDetailPage';
 import AdminSystemManagePage from './pages/AdminSystemManagePage';
@@ -225,6 +226,7 @@ export default function App() {
         <Route path="/alerts/system-control/usage" element={<ProtectedPage permission="system_control.view"><AdminSystemUsageAnalyticsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/render" element={<ProtectedPage permission="system_control.view"><AdminSystemRenderDetailPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/supabase" element={<ProtectedPage permission="system_control.view"><AdminSystemSupabaseDetailPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/cloudflare" element={<ProtectedPage permission="system_control.view"><AdminSystemCloudflareDetailPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/problems" element={<ProtectedPage permission="system_control.view"><AdminSystemProblemReportsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/problems/:incidentId" element={<ProtectedPage permission="system_control.view"><AdminSystemIncidentDetailPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/manage" element={<ProtectedPage permission="system_control.view"><AdminSystemManagePage /></ProtectedPage>} />
