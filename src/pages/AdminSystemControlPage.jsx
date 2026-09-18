@@ -212,7 +212,7 @@ const styles = `
     font: inherit;
     font-size: 9px;
     font-weight: 900;
-    cursor: default;
+    cursor: pointer;
     white-space: nowrap;
   }
 
@@ -496,7 +496,7 @@ const styles = `
     font-weight: 950;
     padding: 0;
     text-align: left;
-    cursor: default;
+    cursor: pointer;
   }
 
   .sc-empty {
@@ -792,6 +792,7 @@ function statusClass(status) {
 }
 
 export default function AdminSystemControlPage() {
+  const navigate = useNavigate()
   const [usage, setUsage] = useState(null)
   const [anomaly, setAnomaly] = useState(null)
   const [incidents, setIncidents] = useState([])
@@ -1011,6 +1012,7 @@ export default function AdminSystemControlPage() {
             value={formatUsage(totalMb)}
             note={summaryNote}
             spark={sparkBase}
+            onClick={() => navigate('/alerts/system-control/usage')}
           />
 
           <SummaryCard
@@ -1020,6 +1022,7 @@ export default function AdminSystemControlPage() {
             value={formatUsage(renderMb)}
             note="Measured external traffic"
             spark={sparkBase.map((value, index) => value * (0.74 + index * 0.02))}
+            onClick={() => navigate('/alerts/system-control/render')}
           />
 
           <SummaryCard
@@ -1029,6 +1032,7 @@ export default function AdminSystemControlPage() {
             value={formatNumber(supabaseCalls)}
             note="Calls in current measured window"
             spark={sparkBase.map((value, index) => value * (0.64 + (index % 3) * 0.09))}
+            onClick={() => navigate('/alerts/system-control/supabase')}
           />
 
           <SummaryCard
@@ -1045,6 +1049,7 @@ export default function AdminSystemControlPage() {
                 )
               : [1, 1, 1, 1]
             }
+            onClick={() => navigate('/alerts/system-control/problems')}
           />
         </section>
 
@@ -1060,7 +1065,11 @@ export default function AdminSystemControlPage() {
               </div>
             </div>
 
-            <button type="button" className="sc-detail-btn">
+            <button
+              type="button"
+              className="sc-detail-btn"
+              onClick={() => navigate('/alerts/system-control/usage')}
+            >
               Detailed Analytics →
             </button>
           </div>
@@ -1177,7 +1186,11 @@ export default function AdminSystemControlPage() {
               </div>
             </div>
 
-            <button type="button" className="sc-detail-btn">
+            <button
+              type="button"
+              className="sc-detail-btn"
+              onClick={() => navigate('/alerts/system-control/problems')}
+            >
               View All Incidents →
             </button>
           </div>
@@ -1214,7 +1227,11 @@ export default function AdminSystemControlPage() {
                   <span className={`sc-pill ${statusClass(incident.status)}`}>
                     {incident.status || 'OPEN'}
                   </span>
-                  <button type="button" className="sc-open">
+                  <button
+                    type="button"
+                    className="sc-open"
+                    onClick={() => navigate(`/alerts/system-control/problems/${incident.id}`)}
+                  >
                     Open Report →
                   </button>
                 </div>
