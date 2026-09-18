@@ -8,7 +8,63 @@ const API_URL =
 
 const SNAPSHOT_REFRESH_MS = 30 * 1000
 const INCIDENT_REFRESH_MS = 60 * 1000
-const MAX_HISTORY = 24
+
+const RANGE_MS = {
+  '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+}
+
+const RANGE_LABELS = {
+  '1h': 'Last 1 Hour',
+  '6h': 'Last 6 Hours',
+  '24h': 'Last 24 Hours',
+  '7d': 'Last 7 Days',
+  '30d': 'Last 30 Days',
+  custom: 'Custom Range',
+}
+
+function toLocalInputValue(value) {
+  const date = new Date(value)
+  const local = new Date(
+    date.getTime() - date.getTimezoneOffset() * 60000
+  )
+  return local.toISOString().slice(0, 16)
+}
+
+function getHistoryRange(key, customFrom, customTo) {
+  if (key === 'custom') {
+    return {
+      from: new Date(customFrom).getTime(),
+      to: new Date(customTo).getTime(),
+    }
+  }
+
+  const to = Date.now()
+  return {
+    from: to - (RANGE_MS[key] || RANGE_MS['24h']),
+    to,
+  }
+}
+
+function compactChart(values, maxPoints = 120) {
+  if (values.length <= maxPoints) return values
+
+  const size = Math.ceil(values.length / maxPoints)
+  const result = []
+
+  for (let i = 0; i < values.length; i += size) {
+    const group = values.slice(i, i + size)
+    result.push(
+      group.reduce((sum, value) => sum + number(value), 0) /
+        group.length
+    )
+  }
+
+  return result
+}
 
 const styles = `
   .sc-page {
