@@ -46,6 +46,7 @@ import AdminGoogleAdsPage from './pages/AdminGoogleAdsPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
 import AdminMusicPage from './pages/AdminMusicPage';
 import AdminGamePage from './pages/AdminGamePage';
+import AdminAppPage from './pages/AdminAppPage';
 import AdminSystemControlPage from './pages/AdminSystemControlPage';
 import AdminSystemUsageAnalyticsPage from './pages/AdminSystemUsageAnalyticsPage';
 import AdminSystemRenderDetailPage from './pages/AdminSystemRenderDetailPage';
@@ -230,6 +231,7 @@ export default function App() {
         <Route path="/alerts/kill-switch" element={<ProtectedPage><AdminKillSwitchPage /></ProtectedPage>} />
         <Route path="/alerts/security-center" element={<ProtectedPage><AdminSecurityCenterPage /></ProtectedPage>} />
         <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
+        <Route path="/app" element={<ProtectedPage><AdminAppPage /></ProtectedPage>} />
 
 <Route
   path="/stories"
