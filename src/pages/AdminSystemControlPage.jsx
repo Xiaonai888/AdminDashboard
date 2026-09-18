@@ -988,6 +988,9 @@ export default function AdminSystemControlPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
             <span className="sc-updated">Updated {formatTime(updatedAt)}</span>
+            <button type="button" className="sc-refresh" onClick={() => navigate('/alerts/system-control/manage')}>
+  Manage
+</button>
             <button
               type="button"
               className="sc-refresh"
