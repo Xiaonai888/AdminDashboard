@@ -73,6 +73,37 @@ function confidenceTone(value) {
   return 'low'
 }
 
+
+function canManageSystemControl() {
+  let admin = {}
+
+  try {
+    admin = JSON.parse(
+      sessionStorage.getItem('shadow_admin_user') ||
+      localStorage.getItem('shadow_admin_user') ||
+      '{}'
+    )
+  } catch {
+    admin = {}
+  }
+
+  const role = String(admin?.role || '')
+    .trim()
+    .toLowerCase()
+
+  return (
+    admin?.has_all_permissions === true ||
+    role === 'owner' ||
+    role === 'admin' ||
+    (
+      Array.isArray(admin?.permission_keys) &&
+      admin.permission_keys.includes(
+        'system_control.manage'
+      )
+    )
+  )
+}
+
 const css = `
   .id-page {
     display: grid;
@@ -355,6 +386,16 @@ const css = `
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .id-readonly {
+    padding: 10px 12px;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #F8FAFC;
+    color: #64748B;
+    font-size: 9px;
+    font-weight: 850;
   }
 
   .id-action {
@@ -672,6 +713,11 @@ export default function AdminSystemIncidentDetailPage() {
   const [fixVersion, setFixVersion] = useState('')
   const [resolutionSummary, setResolutionSummary] = useState('')
 
+  const canManage = useMemo(
+    () => canManageSystemControl(),
+    []
+  )
+
   const load = useCallback(async () => {
     try {
       setLoading(true)
@@ -719,6 +765,12 @@ export default function AdminSystemIncidentDetailPage() {
 
   const runAction = useCallback(async (action, body = {}) => {
     try {
+      if (!canManage) {
+        throw new Error(
+          'Permission required: system_control.manage'
+        )
+      }
+
       setActionLoading(action)
       setError('')
       setSuccess('')
@@ -773,7 +825,7 @@ export default function AdminSystemIncidentDetailPage() {
     } finally {
       setActionLoading('')
     }
-  }, [incidentId])
+  }, [incidentId, canManage])
 
   const evidence = item?.evidence || {}
   const advisor = evidence?.advisor || null
@@ -816,19 +868,24 @@ export default function AdminSystemIncidentDetailPage() {
     workflow.indexOf(statusUpper)
   )
 
-  const canApplyFix = [
-    'OPEN',
-    'INVESTIGATING',
-    'FIX_APPLIED',
-  ].includes(statusUpper)
+  const canApplyFix =
+    canManage &&
+    [
+      'OPEN',
+      'INVESTIGATING',
+      'FIX_APPLIED',
+    ].includes(statusUpper)
 
   const canVerify =
+    canManage &&
     statusUpper === 'FIX_APPLIED'
 
   const canResolve =
+    canManage &&
     statusUpper === 'VERIFIED'
 
   const canArchive =
+    canManage &&
     statusUpper === 'RESOLVED'
 
   const before = item?.verification_before || {}
@@ -939,6 +996,12 @@ export default function AdminSystemIncidentDetailPage() {
               </div>
 
               <div className="id-workflow-body">
+                {!canManage ? (
+                  <div className="id-readonly">
+                    Read-only access — system_control.manage is required for Apply Fix, Verify, Resolve, and Archive.
+                  </div>
+                ) : null}
+
                 {canApplyFix ? (
                   <>
                     <div className="id-workflow-form">
