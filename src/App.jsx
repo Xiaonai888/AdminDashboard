@@ -46,6 +46,11 @@ import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
 import AdminMusicPage from './pages/AdminMusicPage';
 import AdminGamePage from './pages/AdminGamePage';
 import AdminSystemControlPage from './pages/AdminSystemControlPage';
+import AdminSystemUsageAnalyticsPage from './pages/AdminSystemUsageAnalyticsPage';
+import AdminSystemRenderDetailPage from './pages/AdminSystemRenderDetailPage';
+import AdminSystemSupabaseDetailPage from './pages/AdminSystemSupabaseDetailPage';
+import AdminSystemProblemReportsPage from './pages/AdminSystemProblemReportsPage';
+import AdminSystemIncidentDetailPage from './pages/AdminSystemIncidentDetailPage';
 import AdminWorkPage from './pages/AdminWorkPage';
 import AdminKillSwitchPage from './pages/AdminKillSwitchPage';
 import AdminSecurityCenterPage from './pages/AdminSecurityCenterPage';
@@ -212,6 +217,11 @@ export default function App() {
         <Route path="/music" element={<ProtectedPage><AdminMusicPage /></ProtectedPage>} />
         <Route path="/game" element={<ProtectedPage><AdminGamePage /></ProtectedPage>} />
         <Route path="/alerts/system-control" element={<ProtectedPage permission="system_control.view"><AdminSystemControlPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/usage" element={<ProtectedPage permission="system_control.view"><AdminSystemUsageAnalyticsPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/render" element={<ProtectedPage permission="system_control.view"><AdminSystemRenderDetailPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/supabase" element={<ProtectedPage permission="system_control.view"><AdminSystemSupabaseDetailPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/problems" element={<ProtectedPage permission="system_control.view"><AdminSystemProblemReportsPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/problems/:incidentId" element={<ProtectedPage permission="system_control.view"><AdminSystemIncidentDetailPage /></ProtectedPage>} />
         <Route path="/alerts/work" element={<ProtectedPage><AdminWorkPage /></ProtectedPage>} />
         <Route path="/alerts/kill-switch" element={<ProtectedPage><AdminKillSwitchPage /></ProtectedPage>} />
         <Route path="/alerts/security-center" element={<ProtectedPage><AdminSecurityCenterPage /></ProtectedPage>} />
