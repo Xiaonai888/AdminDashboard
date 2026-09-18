@@ -1009,6 +1009,7 @@ export default function AdminSystemControlPage() {
   const initialCustomTo = toLocalInputValue(Date.now())
 
   const [anomaly, setAnomaly] = useState(null)
+  const [providerState, setProviderState] = useState(null)
   const [incidents, setIncidents] = useState([])
   const [historyReport, setHistoryReport] = useState(null)
   const [rangeKey, setRangeKey] = useState('24h')
@@ -1052,6 +1053,7 @@ export default function AdminSystemControlPage() {
       }
 
       setAnomaly(data.anomaly || null)
+      setProviderState(data.providers || null)
       setUpdatedAt(Date.now())
       setError('')
     } catch (loadError) {
