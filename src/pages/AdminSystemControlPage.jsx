@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -690,9 +691,9 @@ function Sparkline({ values = [], tone = 'purple' }) {
   )
 }
 
-function SummaryCard({ tone, icon, label, value, note, spark }) {
+function SummaryCard({ tone, icon, label, value, note, spark, onClick }) {
   return (
-    <div className="sc-summary-card">
+    <div className="sc-summary-card" onClick={onClick} style={{ cursor: 'pointer' }}>
       <div className="sc-summary-head">
         <div className="sc-summary-label">
           <span className={`sc-icon ${tone}`}>{icon}</span>
