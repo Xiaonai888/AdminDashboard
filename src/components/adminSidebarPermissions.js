@@ -27,6 +27,7 @@ const PATH_PERMISSION = {
   '/recommended': 'recommended.view',
 
   '/comments': 'comments.view',
+  '/reviews': 'comments.view',
   '/comments/trash': 'comments.view',
   '/reports': 'reports.view',
   '/chat-evidence': 'chat_evidence.view',
