@@ -1,10 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://shadow-backend-kucw.onrender.com'
+
+const RANGE_MS = {
+  '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000,
+  '30d': 30 * 24 * 60 * 60 * 1000,
+}
+
+const RANGE_LABELS = {
+  '1h': 'Last 1 Hour',
+  '6h': 'Last 6 Hours',
+  '24h': 'Last 24 Hours',
+  '7d': 'Last 7 Days',
+  '30d': 'Last 30 Days',
+  custom: 'Custom Range',
+}
 
 const STATUS_OPTIONS = [
   { key: 'ALL', label: 'All' },
@@ -33,29 +56,89 @@ function auth() {
   }
 }
 
+function toLocalInputValue(value) {
+  const date = new Date(value)
+  const local = new Date(
+    date.getTime() -
+      date.getTimezoneOffset() * 60000
+  )
+
+  return local.toISOString().slice(0, 16)
+}
+
+function getRange(
+  key,
+  customFrom,
+  customTo
+) {
+  if (key === 'custom') {
+    return {
+      from: new Date(customFrom).getTime(),
+      to: new Date(customTo).getTime(),
+    }
+  }
+
+  const to = Date.now()
+
+  return {
+    from:
+      to -
+      (RANGE_MS[key] || RANGE_MS['24h']),
+    to,
+  }
+}
+
 function labelize(value) {
   return String(value || '—')
     .replaceAll('_', ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(
+      /\b\w/g,
+      (letter) => letter.toUpperCase()
+    )
 }
 
 function severityTone(value) {
-  const severity = String(value || '').toLowerCase()
+  const severity = String(
+    value || ''
+  ).toLowerCase()
 
-  if (['critical', 'high'].includes(severity)) return 'high'
-  if (severity === 'medium') return 'medium'
+  if (
+    ['critical', 'high'].includes(
+      severity
+    )
+  ) {
+    return 'high'
+  }
+
+  if (severity === 'medium') {
+    return 'medium'
+  }
+
   return 'low'
 }
 
 function statusTone(value) {
-  const status = String(value || '').toUpperCase()
+  const status = String(
+    value || ''
+  ).toUpperCase()
 
   if (status === 'OPEN') return 'open'
-  if (status === 'INVESTIGATING') return 'investigating'
-  if (status === 'FIX_APPLIED') return 'fix-applied'
-  if (status === 'VERIFIED') return 'verified'
-  if (status === 'RESOLVED') return 'resolved'
-  if (status === 'ARCHIVED') return 'archived'
+  if (status === 'INVESTIGATING') {
+    return 'investigating'
+  }
+  if (status === 'FIX_APPLIED') {
+    return 'fix-applied'
+  }
+  if (status === 'VERIFIED') {
+    return 'verified'
+  }
+  if (status === 'RESOLVED') {
+    return 'resolved'
+  }
+  if (status === 'ARCHIVED') {
+    return 'archived'
+  }
+
   return 'neutral'
 }
 
@@ -63,9 +146,20 @@ function formatDate(value) {
   if (!value) return '—'
 
   const date = new Date(value)
-  return Number.isFinite(date.getTime())
+
+  return Number.isFinite(
+    date.getTime()
+  )
     ? date.toLocaleString()
     : '—'
+}
+
+function csvCell(value) {
+  const text = String(value ?? '')
+  return `"${text.replaceAll(
+    '"',
+    '""'
+  )}"`
 }
 
 const css = `
@@ -91,7 +185,9 @@ const css = `
 
   .pr-search,
   .pr-select,
-  .pr-btn {
+  .pr-input,
+  .pr-btn,
+  .pr-download-trigger {
     min-height: 36px;
     border: 1px solid #E2E8F0;
     border-radius: 10px;
@@ -108,15 +204,21 @@ const css = `
     outline: none;
   }
 
+  .pr-select,
+  .pr-input {
+    padding: 0 10px;
+    outline: none;
+  }
+
   .pr-search:focus,
-  .pr-select:focus {
+  .pr-select:focus,
+  .pr-input:focus {
     border-color: #A78BFA;
     box-shadow: 0 0 0 3px #F3E8FF;
   }
 
-  .pr-select {
-    padding: 0 10px;
-    outline: none;
+  .pr-input {
+    min-width: 180px;
   }
 
   .pr-btn {
@@ -129,6 +231,12 @@ const css = `
     background: #F8FAFC;
   }
 
+  .pr-btn.primary {
+    border-color: #DDD6FE;
+    background: #F5F3FF;
+    color: #6D28D9;
+  }
+
   .pr-btn:disabled {
     cursor: wait;
     opacity: 0.6;
@@ -137,6 +245,87 @@ const css = `
   .pr-meta {
     color: #94A3B8;
     font-size: 9px;
+    font-weight: 850;
+  }
+
+  .pr-range-arrow {
+    color: #94A3B8;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .pr-download {
+    position: relative;
+  }
+
+  .pr-download-trigger {
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    list-style: none;
+    color: #6D28D9;
+    border-color: #DDD6FE;
+    font-weight: 900;
+    user-select: none;
+  }
+
+  .pr-download-trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .pr-download[open] .pr-download-trigger {
+    background: #F5F3FF;
+    border-color: #C4B5FD;
+  }
+
+  .pr-download-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 7px);
+    z-index: 90;
+    width: 245px;
+    padding: 7px;
+    border: 1px solid #E2E8F0;
+    border-radius: 13px;
+    background: #FFFFFF;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  }
+
+  .pr-download-option {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .pr-download-option:hover {
+    background: #F8FAFC;
+  }
+
+  .pr-download-option:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  .pr-download-option strong {
+    font-size: 9px;
+    font-weight: 950;
+  }
+
+  .pr-download-option span {
+    color: #94A3B8;
+    font-size: 8px;
     font-weight: 850;
   }
 
@@ -152,7 +341,8 @@ const css = `
 
   .pr-cards {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(7, minmax(0, 1fr));
     gap: 10px;
   }
 
@@ -347,13 +537,25 @@ const css = `
 
   @media (max-width: 1250px) {
     .pr-cards {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 1000px) {
+    .pr-top {
+      align-items: flex-start;
+    }
+
+    .pr-tools {
+      width: 100%;
     }
   }
 
   @media (max-width: 900px) {
     .pr-cards {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
     }
 
     .pr-list {
@@ -375,80 +577,267 @@ const css = `
       width: 100%;
     }
 
-    .pr-select {
-      flex: 1;
+    .pr-select,
+    .pr-input {
+      flex: 1 1 170px;
+      min-width: 0;
+    }
+
+    .pr-download {
+      width: 100%;
+    }
+
+    .pr-download-trigger {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .pr-download-menu {
+      left: 0;
+      right: auto;
+      width: min(245px, 90vw);
     }
   }
 `
 
 export default function AdminSystemProblemReportsPage() {
   const navigate = useNavigate()
-  const [items, setItems] = useState([])
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [updatedAt, setUpdatedAt] = useState(null)
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true)
+  const initialFrom =
+    toLocalInputValue(
+      Date.now() - RANGE_MS['24h']
+    )
 
-      const response = await fetch(
-        `${API_URL}/api/admin/system-control/incidents?limit=50`,
-        auth()
-      )
+  const initialTo =
+    toLocalInputValue(Date.now())
 
-      const payload = await response.json().catch(() => ({}))
+  const [items, setItems] =
+    useState([])
 
-      if (!response.ok || payload?.ok !== true) {
-        throw new Error(
-          payload?.message || 'Failed to load incident reports.'
-        )
+  const [query, setQuery] =
+    useState('')
+
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState('ALL')
+
+  const [rangeKey, setRangeKey] =
+    useState('24h')
+
+  const [
+    customFrom,
+    setCustomFrom,
+  ] = useState(initialFrom)
+
+  const [
+    customTo,
+    setCustomTo,
+  ] = useState(initialTo)
+
+  const [
+    appliedCustom,
+    setAppliedCustom,
+  ] = useState({
+    from: initialFrom,
+    to: initialTo,
+  })
+
+  const [loading, setLoading] =
+    useState(false)
+
+  const [
+    downloading,
+    setDownloading,
+  ] = useState('')
+
+  const [error, setError] =
+    useState('')
+
+  const [
+    updatedAt,
+    setUpdatedAt,
+  ] = useState(null)
+
+  const lastLoadedAtRef =
+    useRef(0)
+
+  const currentRange = useCallback(() => {
+    return getRange(
+      rangeKey,
+      appliedCustom.from,
+      appliedCustom.to
+    )
+  }, [
+    rangeKey,
+    appliedCustom,
+  ])
+
+  const validateRange = useCallback(
+    (range) => {
+      if (
+        !Number.isFinite(range.from) ||
+        !Number.isFinite(range.to)
+      ) {
+        return 'Please select a valid date and time range.'
       }
 
-      setItems(
-        Array.isArray(payload.incidents)
-          ? payload.incidents
-          : []
-      )
-      setUpdatedAt(new Date())
-      setError('')
-    } catch (loadError) {
-      setError(
-        loadError?.message || 'Failed to load incident reports.'
-      )
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      if (range.to <= range.from) {
+        return 'End time must be after start time.'
+      }
+
+      if (
+        range.to - range.from >
+        31 * 24 * 60 * 60 * 1000
+      ) {
+        return 'Custom range cannot exceed 31 days.'
+      }
+
+      if (range.to > Date.now()) {
+        return 'End time cannot be in the future.'
+      }
+
+      return ''
+    },
+    []
+  )
+
+  const load = useCallback(
+    async () => {
+      const token = getToken()
+
+      if (!token) {
+        setError(
+          'Admin token is missing.'
+        )
+        return
+      }
+
+      const range = currentRange()
+      const rangeError =
+        validateRange(range)
+
+      if (rangeError) {
+        setError(rangeError)
+        return
+      }
+
+      try {
+        setLoading(true)
+
+        const params =
+          new URLSearchParams({
+            limit: '200',
+            from: new Date(
+              range.from
+            ).toISOString(),
+            to: new Date(
+              range.to
+            ).toISOString(),
+          })
+
+        const response = await fetch(
+          `${API_URL}/api/admin/system-control/incidents?${params}`,
+          auth()
+        )
+
+        const payload =
+          await response
+            .json()
+            .catch(() => ({}))
+
+        if (
+          !response.ok ||
+          payload?.ok !== true
+        ) {
+          throw new Error(
+            payload?.message ||
+              'Failed to load incident reports.'
+          )
+        }
+
+        setItems(
+          Array.isArray(
+            payload.incidents
+          )
+            ? payload.incidents
+            : []
+        )
+
+        const now = Date.now()
+
+        setUpdatedAt(
+          new Date(now)
+        )
+
+        lastLoadedAtRef.current =
+          now
+
+        setError('')
+      } catch (loadError) {
+        setError(
+          loadError?.message ||
+            'Failed to load incident reports.'
+        )
+      } finally {
+        setLoading(false)
+      }
+    },
+    [
+      currentRange,
+      validateRange,
+    ]
+  )
 
   useEffect(() => {
     load()
 
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
+    const onVisibility = () => {
+      if (
+        document.visibilityState ===
+          'visible' &&
+        Date.now() -
+          lastLoadedAtRef.current >=
+          60 * 1000
+      ) {
         load()
       }
-    }, 60000)
+    }
 
-    return () => clearInterval(timer)
+    document.addEventListener(
+      'visibilitychange',
+      onVisibility
+    )
+
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        onVisibility
+      )
+    }
   }, [load])
 
-  const countByStatus = useCallback(
-    (status) => {
-      if (status === 'ALL') return items.length
+  const countByStatus =
+    useCallback(
+      (status) => {
+        if (status === 'ALL') {
+          return items.length
+        }
 
-      return items.filter(
-        (item) =>
-          String(item.status || '').toUpperCase() === status
-      ).length
-    },
-    [items]
-  )
+        return items.filter(
+          (item) =>
+            String(
+              item.status || ''
+            ).toUpperCase() ===
+            status
+        ).length
+      },
+      [items]
+    )
 
   const visible = useMemo(() => {
-    const search = query.trim().toLowerCase()
+    const search =
+      query.trim().toLowerCase()
 
     return items.filter((item) => {
       const status = String(
@@ -474,19 +863,278 @@ export default function AdminSystemProblemReportsPage() {
         item.fix_summary,
         item.fix_commit,
         item.fix_version,
-        item?.evidence?.classification,
+        item?.evidence
+          ?.classification,
       ].some((value) =>
         String(value || '')
           .toLowerCase()
           .includes(search)
       )
     })
-  }, [items, query, statusFilter])
+  }, [
+    items,
+    query,
+    statusFilter,
+  ])
 
   const selectedLabel =
     STATUS_OPTIONS.find(
-      (option) => option.key === statusFilter
+      (option) =>
+        option.key ===
+        statusFilter
     )?.label || 'All'
+
+  const rangeLabel =
+    RANGE_LABELS[rangeKey] ||
+    RANGE_LABELS['24h']
+
+  const handleRangeChange =
+    useCallback((event) => {
+      const next =
+        event.target.value
+
+      if (next === 'custom') {
+        const now = Date.now()
+
+        const nextFrom =
+          toLocalInputValue(
+            now -
+              RANGE_MS['24h']
+          )
+
+        const nextTo =
+          toLocalInputValue(now)
+
+        setCustomFrom(nextFrom)
+        setCustomTo(nextTo)
+
+        setAppliedCustom({
+          from: nextFrom,
+          to: nextTo,
+        })
+      }
+
+      setRangeKey(next)
+    }, [])
+
+  const applyCustomRange =
+    useCallback(() => {
+      const range = getRange(
+        'custom',
+        customFrom,
+        customTo
+      )
+
+      const rangeError =
+        validateRange(range)
+
+      if (rangeError) {
+        setError(rangeError)
+        return
+      }
+
+      setError('')
+
+      setAppliedCustom({
+        from: customFrom,
+        to: customTo,
+      })
+    }, [
+      customFrom,
+      customTo,
+      validateRange,
+    ])
+
+  const downloadServerReport =
+    useCallback(
+      async (type) => {
+        const token = getToken()
+
+        if (!token) {
+          setError(
+            'Admin token is missing.'
+          )
+          return
+        }
+
+        const range =
+          currentRange()
+
+        const rangeError =
+          validateRange(range)
+
+        if (rangeError) {
+          setError(rangeError)
+          return
+        }
+
+        try {
+          setDownloading(type)
+          setError('')
+
+          const params =
+            new URLSearchParams({
+              type,
+              from: new Date(
+                range.from
+              ).toISOString(),
+              to: new Date(
+                range.to
+              ).toISOString(),
+            })
+
+          const response =
+            await fetch(
+              `${API_URL}/api/admin/system-control/reports/download?${params}`,
+              auth()
+            )
+
+          if (!response.ok) {
+            const payload =
+              await response
+                .json()
+                .catch(() => ({}))
+
+            throw new Error(
+              payload?.message ||
+                'Problem report download failed.'
+            )
+          }
+
+          const blob =
+            await response.blob()
+
+          const disposition =
+            response.headers.get(
+              'Content-Disposition'
+            ) || ''
+
+          const match =
+            disposition.match(
+              /filename="([^"]+)"/i
+            )
+
+          const filename =
+            match?.[1] ||
+            `problem-report-${type}`
+
+          const url =
+            URL.createObjectURL(blob)
+
+          const link =
+            document.createElement('a')
+
+          link.href = url
+          link.download = filename
+
+          document.body.appendChild(
+            link
+          )
+
+          link.click()
+          link.remove()
+
+          window.setTimeout(
+            () =>
+              URL.revokeObjectURL(
+                url
+              ),
+            1000
+          )
+        } catch (downloadError) {
+          setError(
+            downloadError?.message ||
+              'Problem report download failed.'
+          )
+        } finally {
+          setDownloading('')
+        }
+      },
+      [
+        currentRange,
+        validateRange,
+      ]
+    )
+
+  const downloadFilteredCsv =
+    useCallback(() => {
+      const header = [
+        'id',
+        'severity',
+        'status',
+        'feature',
+        'route',
+        'provider',
+        'first_seen',
+        'last_seen',
+        'fix_summary',
+        'fix_commit',
+        'fix_version',
+      ]
+
+      const rows = visible.map(
+        (item) => [
+          item.id,
+          item.severity,
+          item.status,
+          item.feature,
+          item.source_route,
+          item.dependency,
+          item.first_seen_at,
+          item.last_seen_at,
+          item.fix_summary,
+          item.fix_commit,
+          item.fix_version,
+        ]
+      )
+
+      const csv = [
+        header
+          .map(csvCell)
+          .join(','),
+        ...rows.map((row) =>
+          row
+            .map(csvCell)
+            .join(',')
+        ),
+      ].join('\n')
+
+      const blob =
+        new Blob(
+          [csv],
+          {
+            type: 'text/csv;charset=utf-8',
+          }
+        )
+
+      const url =
+        URL.createObjectURL(blob)
+
+      const link =
+        document.createElement('a')
+
+      const stamp =
+        new Date()
+          .toISOString()
+          .replaceAll(':', '-')
+
+      link.href = url
+      link.download =
+        `shadow-problem-filtered-${stamp}.csv`
+
+      document.body.appendChild(
+        link
+      )
+
+      link.click()
+      link.remove()
+
+      window.setTimeout(
+        () =>
+          URL.revokeObjectURL(url),
+        1000
+      )
+    }, [visible])
 
   return (
     <AdminLayout
@@ -502,7 +1150,9 @@ export default function AdminSystemProblemReportsPage() {
               className="pr-search"
               value={query}
               onChange={(event) =>
-                setQuery(event.target.value)
+                setQuery(
+                  event.target.value
+                )
               }
               placeholder="Search ID, feature, route, provider, fix…"
               aria-label="Search problem reports"
@@ -512,31 +1162,202 @@ export default function AdminSystemProblemReportsPage() {
               className="pr-select"
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(event.target.value)
+                setStatusFilter(
+                  event.target.value
+                )
               }
               aria-label="Problem report status"
             >
-              {STATUS_OPTIONS.map((option) => (
-                <option
-                  key={option.key}
-                  value={option.key}
-                >
-                  {option.label}
-                </option>
-              ))}
+              {STATUS_OPTIONS.map(
+                (option) => (
+                  <option
+                    key={option.key}
+                    value={option.key}
+                  >
+                    {option.label}
+                  </option>
+                )
+              )}
             </select>
           </div>
 
           <div className="pr-tools">
+            <select
+              className="pr-select"
+              value={rangeKey}
+              onChange={
+                handleRangeChange
+              }
+              aria-label="Problem report time range"
+            >
+              <option value="1h">
+                Last 1 Hour
+              </option>
+              <option value="6h">
+                Last 6 Hours
+              </option>
+              <option value="24h">
+                Last 24 Hours
+              </option>
+              <option value="7d">
+                Last 7 Days
+              </option>
+              <option value="30d">
+                Last 30 Days
+              </option>
+              <option value="custom">
+                Custom Date & Time
+              </option>
+            </select>
+
+            {rangeKey === 'custom' ? (
+              <>
+                <input
+                  type="datetime-local"
+                  className="pr-input"
+                  value={customFrom}
+                  max={customTo}
+                  onChange={(event) =>
+                    setCustomFrom(
+                      event.target.value
+                    )
+                  }
+                  aria-label="Problem report start time"
+                />
+
+                <span className="pr-range-arrow">
+                  →
+                </span>
+
+                <input
+                  type="datetime-local"
+                  className="pr-input"
+                  value={customTo}
+                  min={customFrom}
+                  max={toLocalInputValue(
+                    Date.now()
+                  )}
+                  onChange={(event) =>
+                    setCustomTo(
+                      event.target.value
+                    )
+                  }
+                  aria-label="Problem report end time"
+                />
+
+                <button
+                  type="button"
+                  className="pr-btn primary"
+                  onClick={
+                    applyCustomRange
+                  }
+                  disabled={loading}
+                >
+                  Apply
+                </button>
+              </>
+            ) : null}
+
             <span className="pr-meta">
-              Latest 50 · Updated{' '}
+              {rangeLabel} ·{' '}
+              {items.length} reports ·
+              Updated{' '}
               {updatedAt
-                ? updatedAt.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+                ? updatedAt.toLocaleTimeString(
+                    [],
+                    {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }
+                  )
                 : '—'}
             </span>
+
+            <details className="pr-download">
+              <summary className="pr-download-trigger">
+                {downloading
+                  ? 'Preparing…'
+                  : 'Download Problem Report ▾'}
+              </summary>
+
+              <div className="pr-download-menu">
+                <button
+                  type="button"
+                  className="pr-download-option"
+                  disabled={Boolean(
+                    downloading
+                  )}
+                  onClick={(event) => {
+                    event.currentTarget
+                      .closest('details')
+                      ?.removeAttribute(
+                        'open'
+                      )
+
+                    downloadServerReport(
+                      'problems-pdf'
+                    )
+                  }}
+                >
+                  <strong>
+                    Problem Report
+                  </strong>
+                  <span>
+                    PDF · selected range
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className="pr-download-option"
+                  disabled={Boolean(
+                    downloading
+                  )}
+                  onClick={(event) => {
+                    event.currentTarget
+                      .closest('details')
+                      ?.removeAttribute(
+                        'open'
+                      )
+
+                    downloadServerReport(
+                      'problems-md'
+                    )
+                  }}
+                >
+                  <strong>
+                    Problem Report
+                  </strong>
+                  <span>
+                    MD · selected range
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className="pr-download-option"
+                  disabled={Boolean(
+                    downloading
+                  )}
+                  onClick={(event) => {
+                    event.currentTarget
+                      .closest('details')
+                      ?.removeAttribute(
+                        'open'
+                      )
+
+                    downloadFilteredCsv()
+                  }}
+                >
+                  <strong>
+                    Current Filter
+                  </strong>
+                  <span>
+                    CSV · visible results
+                  </span>
+                </button>
+              </div>
+            </details>
 
             <button
               type="button"
@@ -544,37 +1365,49 @@ export default function AdminSystemProblemReportsPage() {
               onClick={load}
               disabled={loading}
             >
-              {loading ? 'Refreshing…' : 'Refresh'}
+              {loading
+                ? 'Refreshing…'
+                : 'Refresh'}
             </button>
           </div>
         </div>
 
         {error ? (
-          <div className="pr-error">{error}</div>
+          <div className="pr-error">
+            {error}
+          </div>
         ) : null}
 
         <div className="pr-cards">
-          {STATUS_OPTIONS.map((option) => (
-            <button
-              type="button"
-              className={`pr-card ${
-                statusFilter === option.key
-                  ? 'active'
-                  : ''
-              }`}
-              key={option.key}
-              onClick={() =>
-                setStatusFilter(option.key)
-              }
-            >
-              <div className="pr-card-label">
-                {option.label}
-              </div>
-              <div className="pr-card-value">
-                {countByStatus(option.key)}
-              </div>
-            </button>
-          ))}
+          {STATUS_OPTIONS.map(
+            (option) => (
+              <button
+                type="button"
+                className={`pr-card ${
+                  statusFilter ===
+                  option.key
+                    ? 'active'
+                    : ''
+                }`}
+                key={option.key}
+                onClick={() =>
+                  setStatusFilter(
+                    option.key
+                  )
+                }
+              >
+                <div className="pr-card-label">
+                  {option.label}
+                </div>
+
+                <div className="pr-card-value">
+                  {countByStatus(
+                    option.key
+                  )}
+                </div>
+              </button>
+            )
+          )}
         </div>
 
         <section className="pr-block">
@@ -583,9 +1416,15 @@ export default function AdminSystemProblemReportsPage() {
               <div className="pr-head-title">
                 Incident Archive
               </div>
+
               <div className="pr-head-sub">
-                {selectedLabel} · {visible.length} matching report
-                {visible.length === 1 ? '' : 's'}
+                {selectedLabel} ·{' '}
+                {rangeLabel} ·{' '}
+                {visible.length}{' '}
+                matching report
+                {visible.length === 1
+                  ? ''
+                  : 's'}
               </div>
             </div>
 
@@ -617,7 +1456,8 @@ export default function AdminSystemProblemReportsPage() {
                 }
                 onKeyDown={(event) => {
                   if (
-                    event.key === 'Enter' ||
+                    event.key ===
+                      'Enter' ||
                     event.key === ' '
                   ) {
                     navigate(
@@ -631,19 +1471,23 @@ export default function AdminSystemProblemReportsPage() {
                     item.severity
                   )}`}
                 >
-                  {item.severity || 'info'}
+                  {item.severity ||
+                    'info'}
                 </span>
 
                 <span className="pr-feature">
-                  {item.feature || 'unknown'}
+                  {item.feature ||
+                    'unknown'}
                 </span>
 
                 <span className="pr-route">
-                  {item.source_route || 'UNKNOWN'}
+                  {item.source_route ||
+                    'UNKNOWN'}
                 </span>
 
                 <span>
-                  {item.dependency || 'UNKNOWN'}
+                  {item.dependency ||
+                    'UNKNOWN'}
                 </span>
 
                 <span
@@ -651,18 +1495,23 @@ export default function AdminSystemProblemReportsPage() {
                     item.status
                   )}`}
                 >
-                  {labelize(item.status || 'OPEN')}
+                  {labelize(
+                    item.status ||
+                      'OPEN'
+                  )}
                 </span>
 
                 <span>
-                  {formatDate(item.last_seen_at)}
+                  {formatDate(
+                    item.last_seen_at
+                  )}
                 </span>
               </div>
             ))}
 
             {!visible.length ? (
               <div className="pr-empty">
-                No matching incident reports.
+                No matching incident reports in this time range.
               </div>
             ) : null}
           </div>
