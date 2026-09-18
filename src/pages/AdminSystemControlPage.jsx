@@ -6,9 +6,6 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://shadow-backend-kucw.onrender.com'
 
-const SNAPSHOT_REFRESH_MS = 30 * 1000
-const INCIDENT_REFRESH_MS = 60 * 1000
-
 const RANGE_MS = {
   '1h': 60 * 60 * 1000,
   '6h': 6 * 60 * 60 * 1000,
@@ -1318,18 +1315,6 @@ export default function AdminSystemControlPage() {
     loadSnapshot()
     loadIncidents()
 
-    const snapshotTimer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        loadSnapshot()
-      }
-    }, SNAPSHOT_REFRESH_MS)
-
-    const incidentTimer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        loadIncidents()
-      }
-    }, INCIDENT_REFRESH_MS)
-
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
         loadSnapshot()
@@ -1343,8 +1328,6 @@ export default function AdminSystemControlPage() {
     )
 
     return () => {
-      clearInterval(snapshotTimer)
-      clearInterval(incidentTimer)
       document.removeEventListener(
         'visibilitychange',
         onVisibility
@@ -1354,16 +1337,6 @@ export default function AdminSystemControlPage() {
 
   useEffect(() => {
     loadHistory()
-
-    if (rangeKey === 'custom') return undefined
-
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        loadHistory()
-      }
-    }, SNAPSHOT_REFRESH_MS)
-
-    return () => clearInterval(timer)
   }, [loadHistory, rangeKey])
 
   const rows = useMemo(
