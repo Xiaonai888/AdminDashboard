@@ -220,6 +220,7 @@ export default function App() {
         <Route path="/search-insights" element={<ProtectedPage><AdminSearchInsightsPage /></ProtectedPage>} />
         <Route path="/music" element={<ProtectedPage><AdminMusicPage /></ProtectedPage>} />
         <Route path="/game" element={<ProtectedPage><AdminGamePage /></ProtectedPage>} />
+        <Route path="/app" element={<ProtectedPage><AdminAppPage /></ProtectedPage>} />
         <Route path="/alerts/system-control" element={<ProtectedPage permission="system_control.view"><AdminSystemControlPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/usage" element={<ProtectedPage permission="system_control.view"><AdminSystemUsageAnalyticsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/render" element={<ProtectedPage permission="system_control.view"><AdminSystemRenderDetailPage /></ProtectedPage>} />
@@ -231,8 +232,7 @@ export default function App() {
         <Route path="/alerts/kill-switch" element={<ProtectedPage><AdminKillSwitchPage /></ProtectedPage>} />
         <Route path="/alerts/security-center" element={<ProtectedPage><AdminSecurityCenterPage /></ProtectedPage>} />
         <Route path="/help-center" element={<ProtectedPage><HelpCenterManagementPage /></ProtectedPage>} />
-        <Route path="/app" element={<ProtectedPage><AdminAppPage /></ProtectedPage>} />
-
+       
 <Route
   path="/stories"
   element={
