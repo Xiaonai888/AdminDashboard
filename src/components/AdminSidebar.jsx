@@ -264,6 +264,7 @@ const navSections = [
     label: 'Moderation',
     items: [
       { path: '/comments', label: 'Comments', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
+      { path: '/reviews', label: 'Reviews', icon: 'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z' },
       { path: '/comments/trash', label: 'Comment Trash', icon: 'M3 6h18 M8 6V4h8v2 M19 6l-1 15H6L5 6 M10 11v6 M14 11v6' },
       { path: '/reports', label: 'Report Center', icon: 'M4 21V5m0 0h11l-1 4 1 4H4 M4 5V3' },
       { path: '/chat-evidence', label: 'Chat Evidence', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-5' },
