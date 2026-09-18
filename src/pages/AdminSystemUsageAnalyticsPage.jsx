@@ -5,7 +5,6 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://shadow-backend-kucw.onrender.com'
 
-const REFRESH_MS = 30 * 1000
 const HISTORY_LIMIT = 40
 
 const css = `
@@ -228,19 +227,22 @@ export default function AdminSystemUsageAnalyticsPage() {
   useEffect(() => {
     load()
 
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') load()
-    }, REFRESH_MS)
-
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') load()
+      if (document.visibilityState === 'visible') {
+        load()
+      }
     }
 
-    document.addEventListener('visibilitychange', onVisibility)
+    document.addEventListener(
+      'visibilitychange',
+      onVisibility
+    )
 
     return () => {
-      clearInterval(timer)
-      document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener(
+        'visibilitychange',
+        onVisibility
+      )
     }
   }, [load])
 
