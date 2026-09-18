@@ -58,8 +58,7 @@ function compactChart(values, maxPoints = 120) {
   for (let i = 0; i < values.length; i += size) {
     const group = values.slice(i, i + size)
     result.push(
-      group.reduce((sum, value) => sum + number(value), 0) /
-        group.length
+      group.reduce((sum, value) => sum + number(value), 0)
     )
   }
 
@@ -104,6 +103,57 @@ const styles = `
     color: #94A3B8;
     font-size: 10px;
     font-weight: 800;
+  }
+
+  .sc-range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .sc-range-select,
+  .sc-range-input {
+    min-height: 34px;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #334155;
+    padding: 0 10px;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 850;
+    outline: none;
+  }
+
+  .sc-range-select:focus,
+  .sc-range-input:focus {
+    border-color: #A78BFA;
+    box-shadow: 0 0 0 3px #F3E8FF;
+  }
+
+  .sc-range-arrow {
+    color: #94A3B8;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .sc-range-apply {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid #DDD6FE;
+    border-radius: 10px;
+    background: #F5F3FF;
+    color: #6D28D9;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .sc-range-apply:disabled {
+    cursor: wait;
+    opacity: 0.65;
   }
 
   .sc-refresh {
@@ -603,6 +653,19 @@ const styles = `
       display: none;
     }
 
+    .sc-range-wrap {
+      width: 100%;
+    }
+
+    .sc-range-select {
+      flex: 1 1 160px;
+    }
+
+    .sc-range-input {
+      min-width: 0;
+      flex: 1 1 180px;
+    }
+
     .sc-problems {
       overflow-x: auto;
     }
@@ -849,11 +912,23 @@ function statusClass(status) {
 
 export default function AdminSystemControlPage() {
   const navigate = useNavigate()
-  const [usage, setUsage] = useState(null)
+  const initialCustomFrom = toLocalInputValue(
+    Date.now() - RANGE_MS['24h']
+  )
+  const initialCustomTo = toLocalInputValue(Date.now())
+
   const [anomaly, setAnomaly] = useState(null)
   const [incidents, setIncidents] = useState([])
-  const [history, setHistory] = useState([])
+  const [historyReport, setHistoryReport] = useState(null)
+  const [rangeKey, setRangeKey] = useState('24h')
+  const [customFrom, setCustomFrom] = useState(initialCustomFrom)
+  const [customTo, setCustomTo] = useState(initialCustomTo)
+  const [appliedCustom, setAppliedCustom] = useState({
+    from: initialCustomFrom,
+    to: initialCustomTo,
+  })
   const [loading, setLoading] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState(null)
 
@@ -879,22 +954,18 @@ export default function AdminSystemControlPage() {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok || data?.ok !== true) {
-        throw new Error(data?.message || 'System Control snapshot failed.')
+        throw new Error(
+          data?.message || 'System Control snapshot failed.'
+        )
       }
 
-      const nextUsage = data.usage || null
-      setUsage(nextUsage)
       setAnomaly(data.anomaly || null)
       setUpdatedAt(Date.now())
       setError('')
-
-      const measuredMb = number(nextUsage?.minute?.mb)
-      setHistory((current) => {
-        const next = [...current, measuredMb]
-        return next.slice(-MAX_HISTORY)
-      })
     } catch (loadError) {
-      setError(loadError?.message || 'System Control snapshot failed.')
+      setError(
+        loadError?.message || 'System Control snapshot failed.'
+      )
     } finally {
       setLoading(false)
     }
@@ -916,13 +987,153 @@ export default function AdminSystemControlPage() {
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok || data?.ok !== true) {
-        throw new Error(data?.message || 'System Control incidents failed.')
+        throw new Error(
+          data?.message || 'System Control incidents failed.'
+        )
       }
 
-      setIncidents(Array.isArray(data.incidents) ? data.incidents : [])
+      setIncidents(
+        Array.isArray(data.incidents) ? data.incidents : []
+      )
     } catch (loadError) {
-      setError(loadError?.message || 'System Control incidents failed.')
+      setError(
+        loadError?.message || 'System Control incidents failed.'
+      )
     }
+  }, [])
+
+  const loadHistory = useCallback(async () => {
+    const token = getToken()
+
+    if (!token) {
+      setError('Admin token is missing.')
+      return
+    }
+
+    const range = getHistoryRange(
+      rangeKey,
+      appliedCustom.from,
+      appliedCustom.to
+    )
+
+    if (
+      !Number.isFinite(range.from) ||
+      !Number.isFinite(range.to)
+    ) {
+      setError('Please select a valid date and time range.')
+      return
+    }
+
+    if (range.to <= range.from) {
+      setError('End time must be after start time.')
+      return
+    }
+
+    if (
+      range.to - range.from >
+      31 * 24 * 60 * 60 * 1000
+    ) {
+      setError('Custom range cannot exceed 31 days.')
+      return
+    }
+
+    try {
+      setHistoryLoading(true)
+
+      const query = new URLSearchParams({
+        from: new Date(range.from).toISOString(),
+        to: new Date(range.to).toISOString(),
+      })
+
+      const response = await fetch(
+        `${API_URL}/api/admin/system-control/history?${query}`,
+        {
+          credentials: 'include',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || data?.ok !== true) {
+        throw new Error(
+          data?.message || 'Usage history failed.'
+        )
+      }
+
+      setHistoryReport(data.history || null)
+      setUpdatedAt(Date.now())
+      setError('')
+    } catch (loadError) {
+      setError(
+        loadError?.message || 'Usage history failed.'
+      )
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [rangeKey, appliedCustom])
+
+  const applyCustomRange = useCallback(() => {
+    const range = getHistoryRange(
+      'custom',
+      customFrom,
+      customTo
+    )
+
+    if (
+      !Number.isFinite(range.from) ||
+      !Number.isFinite(range.to)
+    ) {
+      setError('Please select a valid date and time range.')
+      return
+    }
+
+    if (range.to <= range.from) {
+      setError('End time must be after start time.')
+      return
+    }
+
+    if (
+      range.to - range.from >
+      31 * 24 * 60 * 60 * 1000
+    ) {
+      setError('Custom range cannot exceed 31 days.')
+      return
+    }
+
+    if (range.to > Date.now()) {
+      setError('End time cannot be in the future.')
+      return
+    }
+
+    setError('')
+    setAppliedCustom({
+      from: customFrom,
+      to: customTo,
+    })
+  }, [customFrom, customTo])
+
+  const handleRangeChange = useCallback((event) => {
+    const next = event.target.value
+
+    if (next === 'custom') {
+      const now = Date.now()
+      const nextFrom = toLocalInputValue(
+        now - RANGE_MS['24h']
+      )
+      const nextTo = toLocalInputValue(now)
+
+      setCustomFrom(nextFrom)
+      setCustomTo(nextTo)
+      setAppliedCustom({
+        from: nextFrom,
+        to: nextTo,
+      })
+    }
+
+    setRangeKey(next)
   }, [])
 
   useEffect(() => {
@@ -948,46 +1159,103 @@ export default function AdminSystemControlPage() {
       }
     }
 
-    document.addEventListener('visibilitychange', onVisibility)
+    document.addEventListener(
+      'visibilitychange',
+      onVisibility
+    )
 
     return () => {
       clearInterval(snapshotTimer)
       clearInterval(incidentTimer)
-      document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener(
+        'visibilitychange',
+        onVisibility
+      )
     }
   }, [loadIncidents, loadSnapshot])
 
+  useEffect(() => {
+    loadHistory()
+
+    if (rangeKey === 'custom') return undefined
+
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadHistory()
+      }
+    }, SNAPSHOT_REFRESH_MS)
+
+    return () => clearInterval(timer)
+  }, [loadHistory, rangeKey])
+
   const rows = useMemo(
-    () => (Array.isArray(usage?.minute?.rows) ? usage.minute.rows : []),
-    [usage]
+    () =>
+      Array.isArray(historyReport?.rows)
+        ? historyReport.rows
+        : [],
+    [historyReport]
+  )
+
+  const historyValues = useMemo(
+    () =>
+      compactChart(
+        Array.isArray(historyReport?.series)
+          ? historyReport.series.map(
+              (item) => number(item.mb)
+            )
+          : []
+      ),
+    [historyReport]
   )
 
   const providers = useMemo(
-    () => aggregate(rows, (row) => dependencyLabel(row.dependency)).slice(0, 5),
+    () =>
+      aggregate(
+        rows,
+        (row) => dependencyLabel(row.dependency)
+      ).slice(0, 5),
     [rows]
   )
 
   const features = useMemo(
-    () => aggregate(rows, (row) => String(row.feature || 'Other')).slice(0, 5),
+    () =>
+      aggregate(
+        rows,
+        (row) => String(row.feature || 'Other')
+      ).slice(0, 5),
     [rows]
   )
 
   const externalRows = useMemo(
-    () => rows.filter((row) => row.kind === 'external_request'),
+    () =>
+      rows.filter(
+        (row) => row.kind === 'external_request'
+      ),
     [rows]
   )
 
-  const totalMb = number(usage?.minute?.mb)
+  const totalMb = number(historyReport?.totals?.mb)
+
   const renderMb = externalRows.reduce(
     (sum, row) => sum + number(row.mb),
     0
   )
+
   const supabaseCalls = rows
-    .filter((row) => String(row.dependency || '').toUpperCase() === 'SUPABASE')
-    .reduce((sum, row) => sum + number(row.count), 0)
+    .filter(
+      (row) =>
+        String(row.dependency || '').toUpperCase() ===
+        'SUPABASE'
+    )
+    .reduce(
+      (sum, row) => sum + number(row.count),
+      0
+    )
 
   const activeProblems = incidents.filter(
-    (incident) => String(incident.status || '').toUpperCase() !== 'RESOLVED'
+    (incident) =>
+      String(incident.status || '').toUpperCase() !==
+      'RESOLVED'
   ).length
 
   const providerTotal = providers.reduce(
@@ -997,9 +1265,11 @@ export default function AdminSystemControlPage() {
 
   let runningPercent = 0
   const donutStops = providers.map((item) => {
-    const share = providerTotal > 0
-      ? (item.bytes / providerTotal) * 100
-      : 0
+    const share =
+      providerTotal > 0
+        ? (item.bytes / providerTotal) * 100
+        : 0
+
     runningPercent += share
     return runningPercent
   })
@@ -1014,19 +1284,32 @@ export default function AdminSystemControlPage() {
     1
   )
 
-  const sparkBase = history.length >= 4
-    ? history.slice(-10)
-    : [1, 1.4, 1.1, 1.8, 1.5, 2.2, 1.9, 2.7]
+  const sparkBase =
+    historyValues.length >= 2
+      ? historyValues.slice(-10)
+      : [0, 0, 0, 0]
 
-  const anomalyStatus = String(anomaly?.status || 'learning').toLowerCase()
-  const summaryNote =
+  const selectedRangeLabel =
+    RANGE_LABELS[rangeKey] ||
+    RANGE_LABELS['24h']
+
+  const partialHistory =
+    historyReport?.coverage?.partial === true
+
+  const usageRangeNote = partialHistory
+    ? `${selectedRangeLabel} · Partial history`
+    : selectedRangeLabel
+
+  const anomalyStatus = String(
+    anomaly?.status || 'learning'
+  ).toLowerCase()
+
+  const totalUsageNote =
     anomalyStatus === 'active'
-      ? 'Anomaly active now'
+      ? `${usageRangeNote} · Anomaly active`
       : anomalyStatus === 'suspect'
-        ? 'Potential anomaly detected'
-        : anomalyStatus === 'learning'
-          ? 'Learning normal baseline'
-          : 'Current measured window'
+        ? `${usageRangeNote} · Potential anomaly`
+        : usageRangeNote
 
   return (
     <AdminLayout
@@ -1042,21 +1325,95 @@ export default function AdminSystemControlPage() {
             Live System Control
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-            <span className="sc-updated">Updated {formatTime(updatedAt)}</span>
-            <button type="button" className="sc-refresh" onClick={() => navigate('/alerts/system-control/manage')}>
-  Manage
-</button>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div className="sc-range-wrap">
+              <select
+                className="sc-range-select"
+                value={rangeKey}
+                onChange={handleRangeChange}
+                aria-label="System Control time range"
+              >
+                <option value="1h">Last 1 Hour</option>
+                <option value="6h">Last 6 Hours</option>
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="custom">Custom Date & Time</option>
+              </select>
+
+              {rangeKey === 'custom' ? (
+                <>
+                  <input
+                    type="datetime-local"
+                    className="sc-range-input"
+                    value={customFrom}
+                    max={customTo}
+                    onChange={(event) =>
+                      setCustomFrom(event.target.value)
+                    }
+                    aria-label="Custom range start"
+                  />
+
+                  <span className="sc-range-arrow">→</span>
+
+                  <input
+                    type="datetime-local"
+                    className="sc-range-input"
+                    value={customTo}
+                    min={customFrom}
+                    max={toLocalInputValue(Date.now())}
+                    onChange={(event) =>
+                      setCustomTo(event.target.value)
+                    }
+                    aria-label="Custom range end"
+                  />
+
+                  <button
+                    type="button"
+                    className="sc-range-apply"
+                    disabled={historyLoading}
+                    onClick={applyCustomRange}
+                  >
+                    Apply
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            <span className="sc-updated">
+              Updated {formatTime(updatedAt)}
+            </span>
+
             <button
               type="button"
               className="sc-refresh"
-              disabled={loading}
+              onClick={() =>
+                navigate('/alerts/system-control/manage')
+              }
+            >
+              Manage
+            </button>
+
+            <button
+              type="button"
+              className="sc-refresh"
+              disabled={loading || historyLoading}
               onClick={() => {
                 loadSnapshot()
+                loadHistory()
                 loadIncidents()
               }}
             >
-              {loading ? 'Refreshing…' : 'Refresh'}
+              {loading || historyLoading
+                ? 'Refreshing…'
+                : 'Refresh'}
             </button>
           </div>
         </div>
@@ -1069,9 +1426,11 @@ export default function AdminSystemControlPage() {
             icon="◉"
             label="Total Data Usage"
             value={formatUsage(totalMb)}
-            note={summaryNote}
+            note={totalUsageNote}
             spark={sparkBase}
-            onClick={() => navigate('/alerts/system-control/usage')}
+            onClick={() =>
+              navigate('/alerts/system-control/usage')
+            }
           />
 
           <SummaryCard
@@ -1079,9 +1438,14 @@ export default function AdminSystemControlPage() {
             icon="☁"
             label="Render Usage"
             value={formatUsage(renderMb)}
-            note="Measured external traffic"
-            spark={sparkBase.map((value, index) => value * (0.74 + index * 0.02))}
-            onClick={() => navigate('/alerts/system-control/render')}
+            note={`Measured external traffic · ${selectedRangeLabel}`}
+            spark={sparkBase.map(
+              (value, index) =>
+                value * (0.74 + index * 0.02)
+            )}
+            onClick={() =>
+              navigate('/alerts/system-control/render')
+            }
           />
 
           <SummaryCard
@@ -1089,9 +1453,14 @@ export default function AdminSystemControlPage() {
             icon="▤"
             label="Supabase Activity"
             value={formatNumber(supabaseCalls)}
-            note="Calls in current measured window"
-            spark={sparkBase.map((value, index) => value * (0.64 + (index % 3) * 0.09))}
-            onClick={() => navigate('/alerts/system-control/supabase')}
+            note={`Calls · ${selectedRangeLabel}`}
+            spark={sparkBase.map(
+              (value, index) =>
+                value * (0.64 + (index % 3) * 0.09)
+            )}
+            onClick={() =>
+              navigate('/alerts/system-control/supabase')
+            }
           />
 
           <SummaryCard
@@ -1099,16 +1468,28 @@ export default function AdminSystemControlPage() {
             icon="!"
             label="Active Problems"
             value={formatNumber(activeProblems)}
-            note={activeProblems > 0 ? 'Needs attention' : 'No active incident'}
-            spark={incidents.length
-              ? incidents.map((incident, index) =>
-                  String(incident.status || '').toUpperCase() === 'RESOLVED'
-                    ? Math.max(1, incidents.length - index - 1)
-                    : incidents.length - index + 1
-                )
-              : [1, 1, 1, 1]
+            note={
+              activeProblems > 0
+                ? 'Needs attention'
+                : 'No active incident'
             }
-            onClick={() => navigate('/alerts/system-control/problems')}
+            spark={
+              incidents.length
+                ? incidents.map((incident, index) =>
+                    String(
+                      incident.status || ''
+                    ).toUpperCase() === 'RESOLVED'
+                      ? Math.max(
+                          1,
+                          incidents.length - index - 1
+                        )
+                      : incidents.length - index + 1
+                  )
+                : [1, 1, 1, 1]
+            }
+            onClick={() =>
+              navigate('/alerts/system-control/problems')
+            }
           />
         </section>
 
@@ -1119,7 +1500,7 @@ export default function AdminSystemControlPage() {
               <div>
                 <div className="sc-block-title">Usage Report</div>
                 <div className="sc-block-subtitle">
-                  Simple live usage summary. Detailed analytics will open in its own page.
+                  Usage totals and contributors for the selected time range.
                 </div>
               </div>
             </div>
@@ -1127,7 +1508,9 @@ export default function AdminSystemControlPage() {
             <button
               type="button"
               className="sc-detail-btn"
-              onClick={() => navigate('/alerts/system-control/usage')}
+              onClick={() =>
+                navigate('/alerts/system-control/usage')
+              }
             >
               Detailed Analytics →
             </button>
@@ -1137,21 +1520,27 @@ export default function AdminSystemControlPage() {
             <div className="sc-panel">
               <div className="sc-panel-head">
                 <div className="sc-panel-title">Total Data Usage</div>
-                <div className="sc-panel-meta">Live session</div>
+                <div className="sc-panel-meta">{usageRangeNote}</div>
               </div>
 
               <div className="sc-chart-value">
                 <strong>{formatUsage(totalMb)}</strong>
-                <span>current minute</span>
+                <span>selected period</span>
               </div>
 
-              <LineChart values={history.length >= 2 ? history : sparkBase} />
+              <LineChart
+                values={
+                  historyValues.length >= 2
+                    ? historyValues
+                    : sparkBase
+                }
+              />
             </div>
 
             <div className="sc-panel">
               <div className="sc-panel-head">
                 <div className="sc-panel-title">Usage by Provider</div>
-                <div className="sc-panel-meta">Current window</div>
+                <div className="sc-panel-meta">{selectedRangeLabel}</div>
               </div>
 
               <div className="sc-donut-wrap">
@@ -1173,7 +1562,13 @@ export default function AdminSystemControlPage() {
 
               <div className="sc-legend">
                 {providers.length > 0 ? providers.map((item, index) => {
-                  const colors = ['#6D28D9', '#3B82F6', '#10B981', '#F59E0B', '#CBD5E1']
+                  const colors = [
+                    '#6D28D9',
+                    '#3B82F6',
+                    '#10B981',
+                    '#F59E0B',
+                    '#CBD5E1',
+                  ]
                   const share = providerTotal > 0
                     ? (item.bytes / providerTotal) * 100
                     : 0
@@ -1199,7 +1594,7 @@ export default function AdminSystemControlPage() {
             <div className="sc-panel">
               <div className="sc-panel-head">
                 <div className="sc-panel-title">Top Data Contributors</div>
-                <div className="sc-panel-meta">Current window</div>
+                <div className="sc-panel-meta">{selectedRangeLabel}</div>
               </div>
 
               <div className="sc-contributors">
@@ -1248,7 +1643,9 @@ export default function AdminSystemControlPage() {
             <button
               type="button"
               className="sc-detail-btn"
-              onClick={() => navigate('/alerts/system-control/problems')}
+              onClick={() =>
+                navigate('/alerts/system-control/problems')
+              }
             >
               View All Incidents →
             </button>
@@ -1289,7 +1686,9 @@ export default function AdminSystemControlPage() {
                   <button
                     type="button"
                     className="sc-open"
-                    onClick={() => navigate(`/alerts/system-control/problems/${incident.id}`)}
+                    onClick={() =>
+                      navigate(`/alerts/system-control/problems/${incident.id}`)
+                    }
                   >
                     Open Report →
                   </button>
