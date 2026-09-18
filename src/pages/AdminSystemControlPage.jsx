@@ -1419,6 +1419,16 @@ export default function AdminSystemControlPage() {
     0
   )
 
+  const renderBilling =
+    providerState?.render?.billing_breakdown || null
+
+  const renderDisplayMb =
+    renderBilling?.total_mb ?? renderMb
+
+  const cloudflareStatus = String(
+    providerState?.cloudflare_r2?.status || 'not_configured'
+  ).replaceAll('_', ' ')
+
   const supabaseCalls = rows
     .filter(
       (row) =>
@@ -1646,8 +1656,12 @@ export default function AdminSystemControlPage() {
             tone="blue"
             icon="☁"
             label="Render Usage"
-            value={formatUsage(renderMb)}
-            note={`Measured external traffic · ${selectedRangeLabel}`}
+            value={formatUsage(renderDisplayMb)}
+            note={
+              renderBilling
+                ? 'Official Render outbound · provider hour'
+                : `Measured external traffic · ${selectedRangeLabel}`
+            }
             spark={sparkBase.map(
               (value, index) =>
                 value * (0.74 + index * 0.02)
@@ -1748,7 +1762,7 @@ export default function AdminSystemControlPage() {
 
             <div className="sc-panel">
               <div className="sc-panel-head">
-                <div className="sc-panel-title">Usage by Provider</div>
+                <div className="sc-panel-title">Measured Traffic by Dependency</div>
                 <div className="sc-panel-meta">{selectedRangeLabel}</div>
               </div>
 
@@ -1798,6 +1812,17 @@ export default function AdminSystemControlPage() {
                   </div>
                 )}
               </div>
+
+              <button
+                type="button"
+                className="sc-detail-btn"
+                style={{ width: '100%', marginTop: 12 }}
+                onClick={() =>
+                  navigate('/alerts/system-control/cloudflare')
+                }
+              >
+                Cloudflare R2 · {cloudflareStatus} →
+              </button>
             </div>
 
             <div className="sc-panel">
