@@ -374,12 +374,23 @@ export default function AdminReaderOnlinePage() {
   }, [page, debouncedSearch, status, sort, refreshKey])
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.hidden) return
-      setRefreshKey((value) => value + 1)
-    }, 60000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setRefreshKey((value) => value + 1)
+      }
+    }
 
-    return () => window.clearInterval(timer)
+    document.addEventListener(
+      'visibilitychange',
+      refreshWhenVisible
+    )
+
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        refreshWhenVisible
+      )
+    }
   }, [])
 
   const summary = data.summary || {}
@@ -445,8 +456,16 @@ export default function AdminReaderOnlinePage() {
               <option value="name">Name A–Z</option>
             </select>
 
-            <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>
-              Refresh
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                if (!loading) {
+                  setRefreshKey((value) => value + 1)
+                }
+              }}
+            >
+              {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
 
@@ -615,6 +634,7 @@ const styles = `
   .reader-online-toolbar input, .reader-online-toolbar select { min-width: 0; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 12px; padding: 11px 12px; color: #0F172A; font-weight: 750; outline: none; }
   .reader-online-toolbar input:focus, .reader-online-toolbar select:focus { border-color: #4F46E5; background: #FFFFFF; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
   .reader-online-toolbar button, .reader-online-pagination button { border: 0; border-radius: 12px; background: #EEF2FF; color: #4F46E5; padding: 10px 13px; font-weight: 900; cursor: pointer; }
+  .reader-online-toolbar button:disabled { opacity: 0.5; cursor: not-allowed; }
   .reader-online-table-wrap { min-height: 440px; overflow-x: auto; }
   .reader-online-table { width: 100%; min-width: 1260px; border-collapse: collapse; }
   .reader-online-table th { background: #F8FAFC; color: #64748B; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 12px 14px; border-bottom: 1px solid #E2E8F0; }
