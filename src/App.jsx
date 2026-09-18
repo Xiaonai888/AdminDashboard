@@ -51,6 +51,7 @@ import AdminSystemRenderDetailPage from './pages/AdminSystemRenderDetailPage';
 import AdminSystemSupabaseDetailPage from './pages/AdminSystemSupabaseDetailPage';
 import AdminSystemProblemReportsPage from './pages/AdminSystemProblemReportsPage';
 import AdminSystemIncidentDetailPage from './pages/AdminSystemIncidentDetailPage';
+import AdminSystemManagePage from './pages/AdminSystemManagePage';
 import AdminWorkPage from './pages/AdminWorkPage';
 import AdminKillSwitchPage from './pages/AdminKillSwitchPage';
 import AdminSecurityCenterPage from './pages/AdminSecurityCenterPage';
@@ -222,6 +223,7 @@ export default function App() {
         <Route path="/alerts/system-control/supabase" element={<ProtectedPage permission="system_control.view"><AdminSystemSupabaseDetailPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/problems" element={<ProtectedPage permission="system_control.view"><AdminSystemProblemReportsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/problems/:incidentId" element={<ProtectedPage permission="system_control.view"><AdminSystemIncidentDetailPage /></ProtectedPage>} />
+        <Route path="/alerts/system-control/manage" element={<ProtectedPage permission="system_control.view"><AdminSystemManagePage /></ProtectedPage>} />
         <Route path="/alerts/work" element={<ProtectedPage><AdminWorkPage /></ProtectedPage>} />
         <Route path="/alerts/kill-switch" element={<ProtectedPage><AdminKillSwitchPage /></ProtectedPage>} />
         <Route path="/alerts/security-center" element={<ProtectedPage><AdminSecurityCenterPage /></ProtectedPage>} />
