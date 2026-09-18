@@ -17,6 +17,7 @@ import ChangePasswordPage from "./pages/Admin/ChangePasswordPage";
 import AdminSettingsPage from "./pages/Admin/AdminSettingsPage";
 import GenreManagementPage from './pages/GenreManagementPage';
 import CommentModerationPage from './pages/CommentModerationPage';
+import AdminReviewsPage from './pages/AdminReviewsPage';
 import AdminCommentTrashPage from './pages/AdminCommentTrashPage';
 import PaymentControlPage from './pages/PaymentControlPage';
 import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
@@ -198,6 +199,7 @@ export default function App() {
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
         <Route path="/genres" element={<ProtectedPage><GenreManagementPage /></ProtectedPage>} />
         <Route path="/comments" element={<ProtectedPage><CommentModerationPage /></ProtectedPage>} />
+        <Route path="/reviews" element={<ProtectedPage permission="comments.view"><AdminReviewsPage /></ProtectedPage>} />
         <Route path="/comments/trash" element={<ProtectedPage><AdminCommentTrashPage /></ProtectedPage>} />
         <Route path="/reports" element={<ProtectedPage><AdminReportCenterPage /></ProtectedPage>} />
         <Route path="/chat-evidence" element={<ProtectedPage><AdminChatEvidencePage /></ProtectedPage>} />
