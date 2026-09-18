@@ -252,6 +252,207 @@ const css = `
     word-break: break-word;
   }
 
+  .id-workflow {
+    border-color: #DDE7F2;
+    background: linear-gradient(180deg, #FBFDFF 0, #FFFFFF 120px);
+  }
+
+  .id-workflow-track {
+    padding: 14px 16px 4px;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .id-workflow-step {
+    min-width: 0;
+    padding: 9px 7px;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #F8FAFC;
+    color: #94A3B8;
+    font-size: 8px;
+    font-weight: 950;
+    text-align: center;
+  }
+
+  .id-workflow-step.done {
+    border-color: #C7D2FE;
+    background: #EEF2FF;
+    color: #4338CA;
+  }
+
+  .id-workflow-step.current {
+    border-color: #A78BFA;
+    background: #F5F3FF;
+    color: #6D28D9;
+    box-shadow: 0 0 0 2px #F3E8FF;
+  }
+
+  .id-workflow-body {
+    padding: 12px 16px 16px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .id-workflow-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(160px, 0.6fr) minmax(150px, 0.5fr);
+    gap: 9px;
+  }
+
+  .id-field {
+    display: grid;
+    gap: 6px;
+  }
+
+  .id-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .id-field label {
+    color: #64748B;
+    font-size: 8px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .id-input,
+  .id-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #334155;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 750;
+    outline: none;
+  }
+
+  .id-input {
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .id-textarea {
+    min-height: 86px;
+    resize: vertical;
+    padding: 10px;
+    line-height: 1.55;
+  }
+
+  .id-input:focus,
+  .id-textarea:focus {
+    border-color: #A78BFA;
+    box-shadow: 0 0 0 3px #F3E8FF;
+  }
+
+  .id-workflow-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .id-action {
+    min-height: 36px;
+    padding: 0 13px;
+    border: 1px solid #DDD6FE;
+    border-radius: 10px;
+    background: #F5F3FF;
+    color: #6D28D9;
+    font: inherit;
+    font-size: 9px;
+    font-weight: 950;
+    cursor: pointer;
+  }
+
+  .id-action.primary {
+    border-color: #6D28D9;
+    background: #6D28D9;
+    color: #FFFFFF;
+  }
+
+  .id-action.success {
+    border-color: #A7F3D0;
+    background: #ECFDF5;
+    color: #047857;
+  }
+
+  .id-action.archive {
+    border-color: #CBD5E1;
+    background: #F8FAFC;
+    color: #475569;
+  }
+
+  .id-action:disabled {
+    cursor: wait;
+    opacity: 0.58;
+  }
+
+  .id-success {
+    padding: 10px 12px;
+    border: 1px solid #A7F3D0;
+    border-radius: 10px;
+    background: #ECFDF5;
+    color: #047857;
+    font-size: 9px;
+    font-weight: 850;
+  }
+
+  .id-resolution {
+    padding: 12px;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    background: #F8FAFC;
+  }
+
+  .id-resolution-title {
+    color: #334155;
+    font-size: 9px;
+    font-weight: 950;
+  }
+
+  .id-resolution-text {
+    margin-top: 6px;
+    color: #64748B;
+    font-size: 9px;
+    line-height: 1.55;
+    font-weight: 750;
+  }
+
+  .id-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+
+  .id-compare-card {
+    padding: 11px;
+    border: 1px solid #EEF2F7;
+    border-radius: 11px;
+    background: #FFFFFF;
+  }
+
+  .id-compare-card strong {
+    display: block;
+    color: #334155;
+    font-size: 9px;
+    font-weight: 950;
+  }
+
+  .id-compare-card span {
+    display: block;
+    margin-top: 6px;
+    color: #64748B;
+    font-size: 8px;
+    line-height: 1.55;
+    font-weight: 800;
+  }
+
   .id-advisor {
     border-color: #DDD6FE;
     background:
@@ -423,8 +624,18 @@ const css = `
 
   @media (max-width: 900px) {
     .id-grid,
-    .id-advisor-grid {
+    .id-advisor-grid,
+    .id-workflow-form,
+    .id-compare {
       grid-template-columns: 1fr;
+    }
+
+    .id-field.full {
+      grid-column: auto;
+    }
+
+    .id-workflow-track {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .id-advisor-card.full {
@@ -453,14 +664,20 @@ export default function AdminSystemIncidentDetailPage() {
   const navigate = useNavigate()
   const [item, setItem] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [fixSummary, setFixSummary] = useState('')
+  const [fixCommit, setFixCommit] = useState('')
+  const [fixVersion, setFixVersion] = useState('')
+  const [resolutionSummary, setResolutionSummary] = useState('')
 
   const load = useCallback(async () => {
     try {
       setLoading(true)
 
       const response = await fetch(
-        `${API_URL}/api/admin/system-control/incidents?limit=50`,
+        `${API_URL}/api/admin/system-control/incidents/${incidentId}`,
         auth()
       )
 
@@ -472,20 +689,20 @@ export default function AdminSystemIncidentDetailPage() {
         )
       }
 
-      const found = (
-        Array.isArray(payload.incidents)
-          ? payload.incidents
-          : []
-      ).find(
-        (incident) =>
-          String(incident.id) === String(incidentId)
-      )
+      const found = payload.incident || null
 
       if (!found) {
         throw new Error('Incident not found.')
       }
 
       setItem(found)
+      setFixSummary(found.fix_summary || '')
+      setFixCommit(found.fix_commit || '')
+      setFixVersion(found.fix_version || '')
+      setResolutionSummary(
+        found?.resolution_summary?.summary || ''
+      )
+      setSuccess('')
       setError('')
     } catch (loadError) {
       setError(
@@ -499,6 +716,64 @@ export default function AdminSystemIncidentDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const runAction = useCallback(async (action, body = {}) => {
+    try {
+      setActionLoading(action)
+      setError('')
+      setSuccess('')
+
+      const response = await fetch(
+        `${API_URL}/api/admin/system-control/incidents/${incidentId}/${action}`,
+        {
+          ...auth(),
+          method: 'POST',
+          headers: {
+            ...auth().headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        }
+      )
+
+      const payload = await response.json().catch(() => ({}))
+
+      if (!response.ok || payload?.ok !== true) {
+        throw new Error(
+          payload?.message || `Incident ${action} failed.`
+        )
+      }
+
+      const next = payload.incident || null
+
+      if (next) {
+        setItem(next)
+        setFixSummary(next.fix_summary || '')
+        setFixCommit(next.fix_commit || '')
+        setFixVersion(next.fix_version || '')
+        setResolutionSummary(
+          next?.resolution_summary?.summary || ''
+        )
+      }
+
+      const messages = {
+        fix: 'Fix marked as applied.',
+        verify: 'Incident verified.',
+        resolve: 'Incident resolved.',
+        archive: 'Incident archived.',
+      }
+
+      setSuccess(
+        messages[action] || 'Incident updated.'
+      )
+    } catch (actionError) {
+      setError(
+        actionError?.message || 'Incident action failed.'
+      )
+    } finally {
+      setActionLoading('')
+    }
+  }, [incidentId])
 
   const evidence = item?.evidence || {}
   const advisor = evidence?.advisor || null
@@ -522,6 +797,43 @@ export default function AdminSystemIncidentDetailPage() {
   const severity = String(
     item?.severity || 'info'
   ).toLowerCase()
+
+  const workflow = [
+    'OPEN',
+    'INVESTIGATING',
+    'FIX_APPLIED',
+    'VERIFIED',
+    'RESOLVED',
+    'ARCHIVED',
+  ]
+
+  const statusUpper = String(
+    item?.status || 'OPEN'
+  ).toUpperCase()
+
+  const workflowIndex = Math.max(
+    0,
+    workflow.indexOf(statusUpper)
+  )
+
+  const canApplyFix = [
+    'OPEN',
+    'INVESTIGATING',
+    'FIX_APPLIED',
+  ].includes(statusUpper)
+
+  const canVerify =
+    statusUpper === 'FIX_APPLIED'
+
+  const canResolve =
+    statusUpper === 'VERIFIED'
+
+  const canArchive =
+    statusUpper === 'RESOLVED'
+
+  const before = item?.verification_before || {}
+  const after = item?.verification_after || {}
+  const resolution = item?.resolution_summary || {}
 
   return (
     <AdminLayout
@@ -569,6 +881,10 @@ export default function AdminSystemIncidentDetailPage() {
           <div className="id-error">{error}</div>
         ) : null}
 
+        {success ? (
+          <div className="id-success">{success}</div>
+        ) : null}
+
         {item ? (
           <>
             <section className="id-hero">
@@ -594,6 +910,255 @@ export default function AdminSystemIncidentDetailPage() {
                 {item.source_route || 'UNKNOWN'} ·{' '}
                 {item.dependency || 'UNKNOWN'} · Evidence{' '}
                 {evidence.retention_tier || 'full'}
+              </div>
+            </section>
+
+            <section className="id-block id-workflow">
+              <div className="id-head">
+                <span>Incident Workflow</span>
+                <span className={`id-pill ${status}`}>
+                  {item.status || 'OPEN'}
+                </span>
+              </div>
+
+              <div className="id-workflow-track">
+                {workflow.map((step, index) => (
+                  <div
+                    className={`id-workflow-step ${
+                      index < workflowIndex
+                        ? 'done'
+                        : index === workflowIndex
+                          ? 'current'
+                          : ''
+                    }`}
+                    key={step}
+                  >
+                    {labelize(step)}
+                  </div>
+                ))}
+              </div>
+
+              <div className="id-workflow-body">
+                {canApplyFix ? (
+                  <>
+                    <div className="id-workflow-form">
+                      <div className="id-field full">
+                        <label>Fix Summary</label>
+                        <textarea
+                          className="id-textarea"
+                          value={fixSummary}
+                          onChange={(event) =>
+                            setFixSummary(event.target.value)
+                          }
+                          placeholder="Describe exactly what was changed to fix this incident."
+                        />
+                      </div>
+
+                      <div className="id-field">
+                        <label>Commit</label>
+                        <input
+                          className="id-input"
+                          value={fixCommit}
+                          onChange={(event) =>
+                            setFixCommit(event.target.value)
+                          }
+                          placeholder="Optional commit SHA"
+                        />
+                      </div>
+
+                      <div className="id-field">
+                        <label>Version</label>
+                        <input
+                          className="id-input"
+                          value={fixVersion}
+                          onChange={(event) =>
+                            setFixVersion(event.target.value)
+                          }
+                          placeholder="Optional version"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="id-workflow-actions">
+                      <button
+                        type="button"
+                        className="id-action primary"
+                        disabled={
+                          Boolean(actionLoading) ||
+                          !fixSummary.trim()
+                        }
+                        onClick={() =>
+                          runAction('fix', {
+                            fix_summary: fixSummary.trim(),
+                            fix_commit:
+                              fixCommit.trim() || null,
+                            fix_version:
+                              fixVersion.trim() || null,
+                          })
+                        }
+                      >
+                        {actionLoading === 'fix'
+                          ? 'Saving…'
+                          : statusUpper === 'FIX_APPLIED'
+                            ? 'Update Fix'
+                            : 'Apply Fix'}
+                      </button>
+
+                      {canVerify ? (
+                        <button
+                          type="button"
+                          className="id-action success"
+                          disabled={Boolean(actionLoading)}
+                          onClick={() =>
+                            runAction('verify')
+                          }
+                        >
+                          {actionLoading === 'verify'
+                            ? 'Verifying…'
+                            : 'Verify Recovery'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
+
+                {canResolve ? (
+                  <>
+                    <div className="id-field">
+                      <label>Resolution Summary</label>
+                      <textarea
+                        className="id-textarea"
+                        value={resolutionSummary}
+                        onChange={(event) =>
+                          setResolutionSummary(
+                            event.target.value
+                          )
+                        }
+                        placeholder="Optional final resolution note."
+                      />
+                    </div>
+
+                    <div className="id-workflow-actions">
+                      <button
+                        type="button"
+                        className="id-action primary"
+                        disabled={Boolean(actionLoading)}
+                        onClick={() =>
+                          runAction('resolve', {
+                            summary:
+                              resolutionSummary.trim() ||
+                              undefined,
+                          })
+                        }
+                      >
+                        {actionLoading === 'resolve'
+                          ? 'Resolving…'
+                          : 'Resolve Incident'}
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {canArchive ? (
+                  <div className="id-workflow-actions">
+                    <button
+                      type="button"
+                      className="id-action archive"
+                      disabled={Boolean(actionLoading)}
+                      onClick={() =>
+                        runAction('archive')
+                      }
+                    >
+                      {actionLoading === 'archive'
+                        ? 'Archiving…'
+                        : 'Archive Incident'}
+                    </button>
+                  </div>
+                ) : null}
+
+                {statusUpper === 'ARCHIVED' ? (
+                  <div className="id-resolution">
+                    <div className="id-resolution-title">
+                      Archived Resolution
+                    </div>
+                    <div className="id-resolution-text">
+                      This incident is archived and retained as a compact resolution record.
+                    </div>
+                  </div>
+                ) : null}
+
+                {item.fix_applied_at ||
+                item.verified_at ||
+                item.resolved_at ||
+                item.archived_at ? (
+                  <div className="id-grid">
+                    <div className="id-resolution">
+                      <div className="id-resolution-title">
+                        Workflow Timestamps
+                      </div>
+                      <div className="id-resolution-text">
+                        Fix Applied: {formatDate(item.fix_applied_at)}
+                        <br />
+                        Verified: {formatDate(item.verified_at)}
+                        <br />
+                        Resolved: {formatDate(item.resolved_at)}
+                        <br />
+                        Archived: {formatDate(item.archived_at)}
+                      </div>
+                    </div>
+
+                    <div className="id-resolution">
+                      <div className="id-resolution-title">
+                        Saved Fix
+                      </div>
+                      <div className="id-resolution-text">
+                        {item.fix_summary || '—'}
+                        <br />
+                        Commit: {item.fix_commit || '—'}
+                        <br />
+                        Version: {item.fix_version || '—'}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {Object.keys(before).length ||
+                Object.keys(after).length ? (
+                  <div className="id-compare">
+                    <div className="id-compare-card">
+                      <strong>Before Fix</strong>
+                      <span>
+                        Requests: {formatNumber(before?.current?.count)}
+                        <br />
+                        Data: {formatDataFromBytes(before?.current?.bytes)}
+                        <br />
+                        Errors: {formatNumber(before?.current?.errors)}
+                      </span>
+                    </div>
+
+                    <div className="id-compare-card">
+                      <strong>After Verification</strong>
+                      <span>
+                        Requests: {formatNumber(after?.current?.count)}
+                        <br />
+                        Data: {formatDataFromBytes(after?.current?.bytes)}
+                        <br />
+                        Errors: {formatNumber(after?.current?.errors)}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {resolution?.summary ? (
+                  <div className="id-resolution">
+                    <div className="id-resolution-title">
+                      Final Resolution
+                    </div>
+                    <div className="id-resolution-text">
+                      {resolution.summary}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </section>
 
@@ -712,10 +1277,37 @@ export default function AdminSystemIncidentDetailPage() {
 
                   <div className="id-kv">
                     <div className="id-key">
+                      Fix Applied
+                    </div>
+                    <div className="id-val">
+                      {formatDate(item.fix_applied_at)}
+                    </div>
+                  </div>
+
+                  <div className="id-kv">
+                    <div className="id-key">
+                      Verified
+                    </div>
+                    <div className="id-val">
+                      {formatDate(item.verified_at)}
+                    </div>
+                  </div>
+
+                  <div className="id-kv">
+                    <div className="id-key">
                       Resolved
                     </div>
                     <div className="id-val">
                       {formatDate(item.resolved_at)}
+                    </div>
+                  </div>
+
+                  <div className="id-kv">
+                    <div className="id-key">
+                      Archived
+                    </div>
+                    <div className="id-val">
+                      {formatDate(item.archived_at)}
                     </div>
                   </div>
 
