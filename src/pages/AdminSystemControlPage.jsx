@@ -274,7 +274,7 @@ const styles = `
 
   .sc-summary {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
   }
 
@@ -331,6 +331,11 @@ const styles = `
   .sc-icon.green {
     color: #059669;
     background: #ECFDF5;
+  }
+
+  .sc-icon.orange {
+    color: #EA580C;
+    background: #FFF7ED;
   }
 
   .sc-icon.red {
@@ -882,7 +887,9 @@ function Sparkline({ values = [], tone = 'purple' }) {
       ? '#EF4444'
       : tone === 'green'
         ? '#10B981'
-        : '#6D28D9'
+        : tone === 'orange'
+          ? '#F97316'
+          : '#6D28D9'
 
   return (
     <svg className="sc-spark" viewBox="0 0 100 28" aria-hidden="true">
@@ -908,7 +915,15 @@ function SummaryCard({ tone, icon, label, value, note, spark, onClick }) {
         </div>
         <Sparkline
           values={spark}
-          tone={tone === 'red' ? 'red' : tone === 'green' ? 'green' : 'purple'}
+          tone={
+            tone === 'red'
+              ? 'red'
+              : tone === 'green'
+                ? 'green'
+                : tone === 'orange'
+                  ? 'orange'
+                  : 'purple'
+          }
         />
       </div>
 
@@ -1398,9 +1413,43 @@ export default function AdminSystemControlPage() {
   const renderDisplayMb =
     renderBilling?.total_mb ?? renderMb
 
-  const cloudflareStatus = String(
-    providerState?.cloudflare_r2?.status || 'not_configured'
-  ).replaceAll('_', ' ')
+  const cloudflareR2 =
+    providerState?.cloudflare_r2 || null
+
+  const cloudflareStatusRaw = String(
+    cloudflareR2?.status || 'not_configured'
+  ).toLowerCase()
+
+  const cloudflareStatus =
+    cloudflareStatusRaw.replaceAll('_', ' ')
+
+  const cloudflareStorageMb = number(
+    cloudflareR2?.storage?.total?.total_mb
+  )
+
+  const cloudflareOperations = number(
+    cloudflareR2?.operations?.requests
+  )
+
+  const cloudflareValue =
+    cloudflareStatusRaw === 'not_configured'
+      ? 'Not configured'
+      : cloudflareR2?.storage?.total?.total_mb != null
+        ? formatUsage(cloudflareStorageMb)
+        : '—'
+
+  const cloudflareNote =
+    cloudflareStatusRaw === 'ok'
+      ? `Provider storage · ${formatNumber(
+          cloudflareOperations
+        )} ops`
+      : cloudflareStatusRaw === 'partial'
+        ? `Partial provider data · ${formatNumber(
+            cloudflareOperations
+          )} ops`
+        : cloudflareStatusRaw === 'not_configured'
+          ? 'Provider metrics not configured'
+          : `Provider status · ${cloudflareStatus}`
 
   const supabaseCalls = rows
     .filter(
@@ -1660,6 +1709,18 @@ export default function AdminSystemControlPage() {
           />
 
           <SummaryCard
+            tone="orange"
+            icon="R2"
+            label="Cloudflare R2"
+            value={cloudflareValue}
+            note={cloudflareNote}
+            spark={[]}
+            onClick={() =>
+              navigate('/alerts/system-control/cloudflare')
+            }
+          />
+
+          <SummaryCard
             tone="red"
             icon="!"
             label="Active Problems"
@@ -1786,16 +1847,6 @@ export default function AdminSystemControlPage() {
                 )}
               </div>
 
-              <button
-                type="button"
-                className="sc-detail-btn"
-                style={{ width: '100%', marginTop: 12 }}
-                onClick={() =>
-                  navigate('/alerts/system-control/cloudflare')
-                }
-              >
-                Cloudflare R2 · {cloudflareStatus} →
-              </button>
             </div>
 
             <div className="sc-panel">
