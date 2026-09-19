@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
@@ -1036,6 +1036,7 @@ export default function AdminSystemControlPage() {
   const [reportLoading, setReportLoading] = useState('')
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState(null)
+  const lastSnapshotAtRef = useRef(0)
 
   const loadSnapshot = useCallback(async () => {
     const token = getToken()
@@ -1046,6 +1047,7 @@ export default function AdminSystemControlPage() {
     }
 
     try {
+      lastSnapshotAtRef.current = Date.now()
       setLoading(true)
 
       const response = await fetch(
@@ -1332,7 +1334,7 @@ export default function AdminSystemControlPage() {
 
     const onVisibility = () => {
       if (document.visibilityState === 'visible') {
-        loadSnapshot()
+        if (Date.now() - lastSnapshotAtRef.current >= 30_000) loadSnapshot()
         loadIncidents()
       }
     }
