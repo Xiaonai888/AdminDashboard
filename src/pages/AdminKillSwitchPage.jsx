@@ -898,18 +898,24 @@ export default function AdminKillSwitchPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className={`kill-toggle ${record.enabled ? 'turn-off' : 'turn-on'}`}
-                disabled={savingId === record.id}
-                onClick={() => toggleSwitch(record)}
-              >
-                {savingId === record.id
-                  ? 'Saving…'
-                  : record.enabled
-                    ? 'Turn OFF'
-                    : 'Turn ON'}
-              </button>
+              {record.enabled && record.mode === 'automatic' && record.source === 'ALL' && record.target_type === 'api' ? (
+                <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
+                  <CriticalCanaryPanel record={record} onReleased={loadSwitches} />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={`kill-toggle ${record.enabled ? 'turn-off' : 'turn-on'}`}
+                  disabled={savingId === record.id}
+                  onClick={() => toggleSwitch(record)}
+                >
+                  {savingId === record.id
+                    ? 'Saving…'
+                    : record.enabled
+                      ? 'Turn OFF'
+                      : 'Turn ON'}
+                </button>
+              )}
             </article>
           ))}
         </div>
