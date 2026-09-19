@@ -2102,18 +2102,23 @@ const [filter, setFilter] = useState(initialFilter)
   useEffect(() => {
     if (activeTab === 'countries') return undefined
 
-    let refreshCount = 0
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        setRefreshKey((current) => current + 1)
+      }
+    }
 
-    const timer = window.setInterval(() => {
-      if (document.hidden) return
+    document.addEventListener(
+      'visibilitychange',
+      refreshWhenVisible
+    )
 
-      refreshCount += 1
-      setRefreshKey((current) => current + 1)
-
-      if (refreshCount >= 5) window.clearInterval(timer)
-    }, 600000)
-
-    return () => window.clearInterval(timer)
+    return () => {
+      document.removeEventListener(
+        'visibilitychange',
+        refreshWhenVisible
+      )
+    }
   }, [activeTab])
 
   function switchTab(tab) {
