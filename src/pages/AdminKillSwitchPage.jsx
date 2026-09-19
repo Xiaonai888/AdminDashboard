@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import CriticalCanaryPanel from '../components/CriticalCanaryPanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
