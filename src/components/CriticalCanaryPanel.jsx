@@ -43,12 +43,17 @@ export default function CriticalCanaryPanel({ record, onReleased }) {
   const [query, setQuery] = useState('')
   const [reason, setReason] = useState('')
   const [reviewedMetrics, setReviewedMetrics] = useState(false)
+  const [verifiedOffline, setVerifiedOffline] = useState(false)
+  const [confirmedTarget, setConfirmedTarget] = useState('')
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const eligible = canTest(record)
+  const exactTarget = `${record.method} ${record.path}`
   const ready = trial?.state === 'ready' && !trial?.in_flight &&
     new Date(trial.expires_at).getTime() > Date.now()
+  const offlineReady = !eligible && verifiedOffline && reviewedMetrics &&
+    reason.trim().length >= 20 && confirmedTarget.trim() === exactTarget
   const boxStyle = { width: '100%', marginTop: 12, padding: 14, background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 12, display: 'grid', gap: 10 }
   const buttonStyle = { minHeight: 38, border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', background: '#fff', cursor: 'pointer' }
   const inputStyle = { width: '100%', minHeight: 38, padding: 8, borderRadius: 8, border: '1px solid #cbd5e1', boxSizing: 'border-box' }
@@ -127,8 +132,8 @@ export default function CriticalCanaryPanel({ record, onReleased }) {
   }
 
   async function release() {
-    if (!ready || !reviewedMetrics || reason.trim().length < 12) return
-    if (!window.confirm(`Release ${record.method} ${record.path} for ALL users? Confirm the bug is repaired and request/Supabase metrics are safe.`)) return
+    if (!reviewedMetrics || reason.trim().length < 20 || (eligible ? !ready : !offlineReady)) return
+    if (!window.confirm(`Release ${record.method} ${record.path} for ALL users? Confirm the repair, monitoring, and exact target.`)) return
     setBusy('release')
     setError('')
     setMessage('')
@@ -142,6 +147,9 @@ export default function CriticalCanaryPanel({ record, onReleased }) {
           path: record.path,
           enabled: false,
           approved: true,
+          metrics_reviewed: reviewedMetrics,
+          offline_verified: !eligible && verifiedOffline,
+          confirmed_target: !eligible ? confirmedTarget.trim() : null,
           mode: record.mode,
           reason: reason.trim(),
           incident_id: record.incident_id || null,
@@ -163,9 +171,28 @@ export default function CriticalCanaryPanel({ record, onReleased }) {
     <section style={boxStyle} aria-label="Critical circuit recovery">
       <strong style={{ color: '#991b1b' }}>Critical circuit: owner-controlled recovery</strong>
       {!eligible ? (
-        <p style={{ margin: 0, color: '#92400e' }}>
-          Half-open testing currently supports only exact GET API routes. This circuit stays ON; do not use the normal toggle to bypass the recovery check.
-        </p>
+        <>
+          <p style={{ margin: 0, color: '#92400e', fontSize: 13 }}>
+            Live half-open testing is not supported for this endpoint. Do not send test mutations to production. Keep this circuit ON until the repair has been verified outside production and current request, error, and database usage have been reviewed.
+          </p>
+          <label style={{ fontSize: 13 }}>Repair and offline verification details (minimum 20 characters)
+            <textarea style={{ ...inputStyle, minHeight: 66, resize: 'vertical' }} value={reason} onChange={(event) => setReason(event.target.value)} disabled={Boolean(busy)} placeholder="Describe the fix, staging tests, and monitoring results" />
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13 }}>
+            <input type="checkbox" checked={verifiedOffline} onChange={(event) => setVerifiedOffline(event.target.checked)} disabled={Boolean(busy)} />
+            I verified the repair outside production and confirmed it is safe to resume this operation.
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 13 }}>
+            <input type="checkbox" checked={reviewedMetrics} onChange={(event) => setReviewedMetrics(event.target.checked)} disabled={Boolean(busy)} />
+            I reviewed current request, error, and Supabase usage. I understand normal HTTP responses alone do not prove the loop is fixed.
+          </label>
+          <label style={{ fontSize: 13 }}>To confirm the exact route, enter: <strong>{exactTarget}</strong>
+            <input style={inputStyle} value={confirmedTarget} onChange={(event) => setConfirmedTarget(event.target.value)} disabled={Boolean(busy)} autoComplete="off" />
+          </label>
+          <button type="button" style={{ ...buttonStyle, background: '#991b1b', color: '#fff' }} disabled={Boolean(busy) || !offlineReady} onClick={release}>
+            {busy === 'release' ? 'Releasing…' : 'Owner approve release after offline verification'}
+          </button>
+        </>
       ) : (
         <>
           <p style={{ margin: 0, fontSize: 13 }}>Run at most 5 authenticated owner-only GET requests within 5 minutes. Two successful responses permit review, but do not prove that request volume or Supabase usage is safe.</p>
@@ -184,14 +211,14 @@ export default function CriticalCanaryPanel({ record, onReleased }) {
           )}
           {ready && (
             <>
-              <label style={{ fontSize: 13 }}>Repair / release reason (minimum 12 characters)
+              <label style={{ fontSize: 13 }}>Repair / release reason (minimum 20 characters)
                 <textarea style={{ ...inputStyle, minHeight: 66, resize: 'vertical' }} value={reason} onChange={(event) => setReason(event.target.value)} disabled={Boolean(busy)} placeholder="Describe the fix and verification" />
               </label>
               <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
                 <input type="checkbox" checked={reviewedMetrics} onChange={(event) => setReviewedMetrics(event.target.checked)} disabled={Boolean(busy)} />
                 I verified the repair and checked current request, error and Supabase usage outside this limited HTTP test.
               </label>
-              <button type="button" style={{ ...buttonStyle, background: '#991b1b', color: '#fff' }} disabled={Boolean(busy) || reason.trim().length < 12 || !reviewedMetrics} onClick={release}>Owner approve full release</button>
+              <button type="button" style={{ ...buttonStyle, background: '#991b1b', color: '#fff' }} disabled={Boolean(busy) || reason.trim().length < 20 || !reviewedMetrics} onClick={release}>Owner approve full release</button>
             </>
           )}
         </>
