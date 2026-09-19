@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -176,6 +176,7 @@ export default function AdminSystemUsageAnalyticsPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState(null)
+  const lastSnapshotAtRef = useRef(0)
 
   const load = useCallback(async () => {
     const token = getToken()
@@ -186,6 +187,7 @@ export default function AdminSystemUsageAnalyticsPage() {
     }
 
     try {
+      lastSnapshotAtRef.current = Date.now()
       setLoading(true)
 
       const response = await fetch(
@@ -228,7 +230,7 @@ export default function AdminSystemUsageAnalyticsPage() {
     load()
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && Date.now() - lastSnapshotAtRef.current >= 30_000) {
         load()
       }
     }
