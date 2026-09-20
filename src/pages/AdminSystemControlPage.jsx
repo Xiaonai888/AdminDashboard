@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import AdminRequestEvidencePanel from '../components/AdminRequestEvidencePanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -1023,6 +1024,7 @@ export default function AdminSystemControlPage() {
   const [anomaly, setAnomaly] = useState(null)
   const [providerState, setProviderState] = useState(null)
   const [incidents, setIncidents] = useState([])
+  const [requestEvidence, setRequestEvidence] = useState([])
   const [historyReport, setHistoryReport] = useState(null)
   const [rangeKey, setRangeKey] = useState('24h')
   const [customFrom, setCustomFrom] = useState(initialCustomFrom)
@@ -1067,6 +1069,7 @@ export default function AdminSystemControlPage() {
       }
 
       setAnomaly(data.anomaly || null)
+      setRequestEvidence(Array.isArray(data.evidence) ? data.evidence : [])
       setProviderState(data.providers || null)
       setUpdatedAt(Date.now())
       setError('')
@@ -1753,6 +1756,7 @@ export default function AdminSystemControlPage() {
             }
           />
         </section>
+        <AdminRequestEvidencePanel evidence={requestEvidence} />
 
         <section className="sc-block">
           <div className="sc-block-head">
