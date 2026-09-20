@@ -1756,7 +1756,6 @@ export default function AdminSystemControlPage() {
             }
           />
         </section>
-        <AdminRequestEvidencePanel evidence={requestEvidence} />
 
         <section className="sc-block">
           <div className="sc-block-head">
@@ -1894,6 +1893,7 @@ export default function AdminSystemControlPage() {
           </div>
         </section>
 
+        <AdminRequestEvidencePanel evidence={requestEvidence} />
         <section className="sc-block">
           <div className="sc-block-head">
             <div className="sc-problems-head">
