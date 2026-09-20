@@ -12,7 +12,7 @@ const css=`.scx{display:grid;gap:18px}.cards{display:grid;grid-template-columns:
 export default function AdminSystemSupabaseDetailPage(){
  const [usage,setUsage]=useState(null),[loading,setLoading]=useState(false),[error,setError]=useState('')
  const load=useCallback(async()=>{try{setLoading(true);const r=await fetch(`${API_URL}/api/admin/system-control/snapshot`,auth());const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.message||'Failed');setUsage(j.usage||null);setError('')}catch(e){setError(e.message)}finally{setLoading(false)}},[])
- useEffect(()=>{load();const i=setInterval(()=>document.visibilityState==='visible'&&load(),30000);return()=>clearInterval(i)},[load])
+ useEffect(()=>{load();const i=setInterval(()=>document.visibilityState==='visible'&&load(),60000);return()=>clearInterval(i)},[load])
  const rows=useMemo(()=>Array.isArray(usage?.minute?.rows)?usage.minute.rows.filter(x=>String(x.dependency).toUpperCase()==='SUPABASE'):[],[usage])
  const calls=rows.reduce((s,x)=>s+num(x.count),0),mb=rows.reduce((s,x)=>s+num(x.mb),0),errors=rows.reduce((s,x)=>s+num(x.errors),0)
  const groups=useMemo(()=>{const m=new Map();for(const r of rows){const k=r.feature||'unknown',x=m.get(k)||{key:k,count:0,mb:0,errors:0};x.count+=num(r.count);x.mb+=num(r.mb);x.errors+=num(r.errors);m.set(k,x)}return[...m.values()].sort((a,b)=>b.count-a.count).slice(0,12)},[rows])
