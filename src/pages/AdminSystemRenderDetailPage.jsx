@@ -370,7 +370,9 @@ export default function AdminSystemRenderDetailPage() {
 
   useEffect(() => {
     load()
+  }, [load])
 
+  useEffect(() => {
     const onVisible = () => {
       if (
         document.visibilityState === 'visible' &&
