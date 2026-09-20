@@ -378,9 +378,11 @@ export default function AdminSystemCloudflareDetailPage() {
     }
   }, [])
 
-  useEffect(() => {
+    useEffect(() => {
     load()
+  }, [load])
 
+  useEffect(() => {
     const onVisible = () => {
       if (
         document.visibilityState === 'visible' &&
