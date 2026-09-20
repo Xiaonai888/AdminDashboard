@@ -230,7 +230,7 @@ export default function AdminSystemUsageAnalyticsPage() {
     load()
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastSnapshotAtRef.current >= 30_000) {
+            if (document.visibilityState === 'visible' && Date.now() - lastSnapshotAtRef.current >= 60_000) {
         load()
       }
     }
