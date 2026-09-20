@@ -1333,12 +1333,14 @@ export default function AdminSystemControlPage() {
     loadIncidents()
 
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (Date.now() - lastSnapshotAtRef.current >= 30_000) loadSnapshot()
+      if (
+        document.visibilityState === 'visible' &&
+        Date.now() - lastSnapshotAtRef.current >= 60_000
+      ) {
+        loadSnapshot()
         loadIncidents()
       }
     }
-
     document.addEventListener(
       'visibilitychange',
       onVisibility
