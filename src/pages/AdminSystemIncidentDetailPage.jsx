@@ -1278,15 +1278,47 @@ export default function AdminSystemIncidentDetailPage() {
                   </div>
 
                   <div className="id-kv">
-                    <div className="id-key">
-                      Current Requests
-                    </div>
+                    <div className="id-key">Observed Events (15s)</div>
                     <div className="id-val">
-                      {formatNumber(
-                        evidence?.current?.count
-                      )}
+                      {formatNumber(evidence?.current?.count)}
                     </div>
                   </div>
+
+                  {evidence?.current?.http_requests_observed != null ? (
+                    <>
+                      <div className="id-kv">
+                        <div className="id-key">HTTP Requests (observed)</div>
+                        <div className="id-val">
+                          {formatNumber(evidence.current.http_requests_observed)}
+                        </div>
+                      </div>
+                      <div className="id-kv">
+                        <div className="id-key">External Calls (observed)</div>
+                        <div className="id-val">
+                          {formatNumber(evidence.current.external_calls_observed)}
+                        </div>
+                      </div>
+                      <div className="id-kv">
+                        <div className="id-key">Supabase Calls (observed)</div>
+                        <div className="id-val">
+                          {formatNumber(evidence.current.supabase_calls_observed)}
+                        </div>
+                      </div>
+                      <div className="id-kv">
+                        <div className="id-key">Busy Routes (observed)</div>
+                        <div className="id-val">
+                          {(evidence.current.route_breakdown || []).map((route) => (
+                            <div key={route.route}>
+                              {route.route} · HTTP {formatNumber(route.http_requests)} · Supabase {formatNumber(route.supabase_calls)} · HTTP errors {formatNumber(route.http_errors)}
+                            </div>
+                          ))}
+                          {evidence.current.coverage === 'top_100_rows_only'
+                            ? 'Only the top 100 rows by data size were available; observed counts may be incomplete.'
+                            : 'Counts use recorded rows in the same 15-second window; this does not prove duplicate requests.'}
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
 
                   <div className="id-kv">
                     <div className="id-key">
