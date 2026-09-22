@@ -637,8 +637,8 @@ export default function AdminIncomePage() {
   const [payoutLoading, setPayoutLoading] =
     useState(false)
   const [payoutActionId, setPayoutActionId] =
-    const [selectedPayout, setSelectedPayout] = useState(null)
     useState('')
+  const [selectedPayout, setSelectedPayout] = useState(null)
 
   const summary = data?.summary || {}
   const sources = data?.sources || []
@@ -857,61 +857,10 @@ export default function AdminIncomePage() {
     }
   }
 
-  async function markPayoutPaid(payout) {
-    const confirmed = window.confirm(
-      `Mark ${formatUsd(
-        payout.net_payout_usd
-      )} for ${payoutAuthorName(
-        payout
-      )} as PAID?`
-    )
-
-    if (!confirmed) return
-
-    try {
-      setPayoutActionId(payout.id)
-      setMessage('')
-      setSuccess('')
-
-      const response = await fetch(
-        `${API_URL}/api/admin/income/payouts/${payout.id}/paid`,
-        {
-          method: 'POST',
-          headers: authHeaders(true),
-          body: JSON.stringify({
-            admin_note: '',
-          }),
-        }
-      )
-
-      const result =
-        await response.json().catch(() => ({}))
-
-      if (!response.ok || result.ok === false) {
-        throw new Error(
-          result.message ||
-            'Failed to mark payout paid'
-        )
-      }
-
-      setSuccess(
-        `${payoutAuthorName(
-          payout
-        )} payout marked as paid.`
-      )
-
-      await Promise.all([
-        fetchPayouts(),
-        fetchIncome(),
-      ])
-    } catch (error) {
-      setMessage(
-        error.message ||
-          'Failed to mark payout paid'
-      )
-    } finally {
-      setPayoutActionId('')
-    }
+  function markPayoutPaid(payout) {
+    setMessage('')
+    setSuccess('')
+    setSelectedPayout(payout)
   }
 
   async function refreshAll() {
@@ -932,6 +881,19 @@ export default function AdminIncomePage() {
       subtitle="Finance & Growth"
     >
       <style>{styles}</style>
+      <AdminStoryPayoutConfirmModal
+        payout={selectedPayout}
+        apiUrl={API_URL}
+        authHeaders={authHeaders}
+        authorName={payoutAuthorName}
+        formatUsd={formatUsd}
+        onClose={() => setSelectedPayout(null)}
+        onPaid={async () => {
+          setSelectedPayout(null)
+          setSuccess('Payout recorded with receipt.')
+          await Promise.all([fetchPayouts(), fetchIncome()])
+        }}
+      />
 
       <div className="income-page">
         <div className="income-wrap">
