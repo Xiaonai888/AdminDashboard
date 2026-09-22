@@ -1,3 +1,4 @@
+import AdminStoryPayoutConfirmModal from '../components/AdminStoryPayoutConfirmModal'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
@@ -636,6 +637,7 @@ export default function AdminIncomePage() {
   const [payoutLoading, setPayoutLoading] =
     useState(false)
   const [payoutActionId, setPayoutActionId] =
+    const [selectedPayout, setSelectedPayout] = useState(null)
     useState('')
 
   const summary = data?.summary || {}
