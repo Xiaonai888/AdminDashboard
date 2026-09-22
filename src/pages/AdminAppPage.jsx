@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import ImageDropZone from '../components/common/ImageDropZone'
+import AdminDocsProfile from './AdminDocsProfile'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
