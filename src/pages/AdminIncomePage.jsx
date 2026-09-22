@@ -1146,7 +1146,7 @@ export default function AdminIncomePage() {
                       Author Payout Management
                     </div>
                     <div className="income-small">
-                      Episode Unlock + Diamond Gift
+                      Story Unlock Only · Minimum $10
                     </div>
                   </div>
 
