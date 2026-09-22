@@ -908,7 +908,21 @@ export default function AdminIncomePage() {
         authHeaders={authHeaders}
         authorName={payoutAuthorName}
         formatUsd={formatUsd}
-        onClose={() => setSelectedPayout(null)}
+        onClose={() => {
+          setSelectedPayout(null)
+          fetchPayouts()
+        }}
+        onRecorded={(payoutId, transferReference) => {
+          if (payoutId) {
+            setSelectedPayout((current) => current?.id === payoutId ? {
+              ...current,
+              status: 'awaiting_receipt',
+              transfer_reference: current.transfer_reference || transferReference,
+              transfer_recorded_at: current.transfer_recorded_at || new Date().toISOString(),
+            } : current)
+          }
+          fetchPayouts()
+        }}
         onPaid={async () => {
           setSelectedPayout(null)
           setSuccess('Payout recorded with receipt.')
