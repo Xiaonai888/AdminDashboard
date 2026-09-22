@@ -1176,6 +1176,9 @@ export default function AdminIncomePage() {
                       <option value="scheduled">
                         Scheduled
                       </option>
+                      <option value="awaiting_receipt">
+                      Awaiting Receipt
+                      </option>
                       <option value="paid">
                         Paid
                       </option>
