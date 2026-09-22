@@ -6,6 +6,7 @@ import AdminLayout from '../components/AdminLayout'
 const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://shadow-backend-kucw.onrender.com'
+const PAYOUT_WORKFLOW_READY = import.meta.env.VITE_STORY_PAYOUT_WORKFLOW_READY === 'true'
 
 const styles = `
   .income-page {
@@ -373,7 +374,7 @@ const styles = `
 
   .income-payout-summary {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 12px;
     padding: 16px 20px;
     border-bottom: 1px solid #E2E8F0;
@@ -397,6 +398,11 @@ const styles = `
     color: #1D4ED8;
   }
 
+  .income-status.awaiting_receipt {
+    background: #FEF3C7;
+    color: #92400E;
+  }
+
   .income-status.paid {
     background: #DCFCE7;
     color: #15803D;
@@ -410,6 +416,17 @@ const styles = `
   .income-status.failed {
     background: #FEE2E2;
     color: #B91C1C;
+  }
+
+  .income-payout-warning {
+    margin: 14px 20px;
+    padding: 13px 15px;
+    border-radius: 14px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.6;
   }
 
   .income-status.cancelled {
@@ -639,6 +656,9 @@ export default function AdminIncomePage() {
   const [payoutActionId, setPayoutActionId] =
     useState('')
   const [selectedPayout, setSelectedPayout] = useState(null)
+  const awaitingReceiptRows = useMemo(() => payouts.filter((payout) => payout.status === 'awaiting_receipt'), [payouts])
+  const awaitingReceiptCount = payoutSummary.awaiting_receipt_count ?? awaitingReceiptRows.length
+  const awaitingReceiptUsd = payoutSummary.awaiting_receipt_usd ?? awaitingReceiptRows.reduce((total, payout) => total + (Number(payout.net_payout_usd) || 0), 0)
 
   const summary = data?.summary || {}
   const sources = data?.sources || []
@@ -805,7 +825,7 @@ export default function AdminIncomePage() {
   }
 
   async function generatePayouts() {
-    if (!payoutMonth) return
+    if (!PAYOUT_WORKFLOW_READY || !payoutMonth) return
 
     const confirmed = window.confirm(
       `Generate or refresh author payouts for ${payoutMonth}?`
@@ -857,7 +877,8 @@ export default function AdminIncomePage() {
     }
   }
 
-  function markPayoutPaid(payout) {
+  function openPayoutTransfer(payout) {
+    if (!PAYOUT_WORKFLOW_READY || !['scheduled', 'awaiting_receipt'].includes(payout.status)) return
     setMessage('')
     setSuccess('')
     setSelectedPayout(payout)
@@ -1176,9 +1197,9 @@ export default function AdminIncomePage() {
                       <option value="scheduled">
                         Scheduled
                       </option>
-                      <option value="awaiting_receipt">
-                      Awaiting Receipt
-                      </option>
+                        <option value="awaiting_receipt">
+                          Awaiting Receipt
+                        </option>
                       <option value="paid">
                         Paid
                       </option>
@@ -1205,15 +1226,21 @@ export default function AdminIncomePage() {
                       className="income-payout-button"
                       onClick={generatePayouts}
                       disabled={
-                        payoutActionId === 'generate'
+                        !PAYOUT_WORKFLOW_READY || payoutActionId === 'generate'
                       }
                     >
                       {payoutActionId ===
                       'generate'
                         ? 'Generating...'
-                        : 'Generate Payout'}
+                        : PAYOUT_WORKFLOW_READY ? 'Generate Payout' : 'Generate paused'}
                     </button>
                   </div>
+                </div>
+
+                <div className="income-payout-warning" role="status">
+                  {PAYOUT_WORKFLOW_READY
+                    ? 'A recorded transfer must never be sent again. Upload its receipt and complete the existing payout instead.'
+                    : 'Payout generation and transfer actions are paused until the backend and receipt workflow are verified. Do not send money or mark payouts paid from this page.'}
                 </div>
 
                 <div className="income-payout-summary">
@@ -1246,6 +1273,11 @@ export default function AdminIncomePage() {
                         0}{' '}
                       ready
                     </div>
+                  </div>
+                  <div className="income-withdraw-item">
+                    <div className="income-card-label">Awaiting Receipt</div>
+                    <div className="income-mini-value">{formatUsd(awaitingReceiptUsd)}</div>
+                    <div className="income-small">{awaitingReceiptCount} transfers awaiting receipt</div>
                   </div>
                   <div className="income-withdraw-item">
                     <div className="income-card-label">
@@ -1367,42 +1399,41 @@ export default function AdminIncomePage() {
                               <span
                                 className={`income-status ${payout.status}`}
                               >
-                                {String(
-                                  payout.status || ''
-                                ).replace(
-                                  /_/g,
-                                  ' '
-                                )}
+                                {String(payout.status || '').replace(/_/g, ' ')}
                               </span>
+                              {payout.status === 'awaiting_receipt' && payout.transfer_recorded_at ? (
+                                <div className="income-small">Transfer recorded: {new Date(payout.transfer_recorded_at).toLocaleString()}</div>
+                              ) : null}
+                              {payout.status === 'awaiting_receipt' && payout.transfer_reference ? (
+                                <div className="income-small">Reference: {payout.transfer_reference}</div>
+                              ) : null}
                             </td>
                             <td>
-                              {payout.status ===
-                              'scheduled' ? (
-                                <button
-                                  type="button"
-                                  className="income-payout-button paid"
-                                  onClick={() =>
-                                    markPayoutPaid(
-                                      payout
-                                    )
-                                  }
-                                  disabled={
-                                    payoutActionId ===
-                                    payout.id
-                                  }
-                                >
-                                  {payoutActionId ===
-                                  payout.id
-                                    ? 'Saving...'
-                                    : 'Mark Paid'}
-                                </button>
+                              {payout.status === 'scheduled' || payout.status === 'awaiting_receipt' ? (
+                                <div>
+                                  {payout.status === 'awaiting_receipt' ? (
+                                    <div className="income-small">Transfer recorded — do not transfer again. Upload the receipt for this payout.</div>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    className="income-payout-button paid"
+                                    onClick={() => openPayoutTransfer(payout)}
+                                    disabled={!PAYOUT_WORKFLOW_READY || payoutActionId === payout.id}
+                                  >
+                                    {!PAYOUT_WORKFLOW_READY
+                                      ? 'Receipt workflow pending'
+                                      : payoutActionId === payout.id
+                                        ? 'Saving...'
+                                        : payout.status === 'awaiting_receipt'
+                                          ? 'Upload receipt'
+                                          : 'Transfer / record receipt'}
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="income-small">
-                                  {payout.status ===
-                                  'paid'
+                                  {payout.status === 'paid'
                                     ? 'Completed'
-                                    : payout.status ===
-                                        'missing_payment_method'
+                                    : payout.status === 'missing_payment_method'
                                       ? 'Author must add payment method'
                                       : '-'}
                                 </span>
