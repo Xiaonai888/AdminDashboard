@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminAuthor100PercentEventTab from '../components/events/AdminAuthor100PercentEventTab'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -95,6 +96,10 @@ async function readResponse(response) {
 }
 
 const styles = `
+.event-tabs{display:flex;flex-wrap:wrap;gap:8px}
+.event-tab{border:1px solid #cbd5e1;border-radius:12px;background:var(--shadow-admin-card,#fff);color:var(--shadow-admin-text,#0f172a);padding:10px 15px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+.event-tab.active{border-color:#4f46e5;background:#eef2ff;color:#4338ca}
+.event-tab:focus-visible{outline:3px solid #818cf8;outline-offset:2px}
 .event-page{display:flex;flex-direction:column;gap:18px}
 .event-hero{background:linear-gradient(135deg,#111827,#312e81,#4f46e5);color:#fff;border-radius:24px;padding:24px}
 .event-hero h2{margin:0;font-size:25px;font-weight:950}
@@ -163,6 +168,7 @@ const styles = `
 export default function AdminEventPage() {
   const token = getAdminToken()
 
+  const [activeTab, setActiveTab] = useState('general')
   const [events, setEvents] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [form, setForm] = useState(createEmptyForm)
@@ -502,6 +508,13 @@ if (!form.image_url) {
           </p>
         </div>
 
+        <div className="event-tabs" aria-label="Event management sections">
+          <button type="button" className={`event-tab ${activeTab === 'general' ? 'active' : ''}`} aria-pressed={activeTab === 'general'} onClick={() => setActiveTab('general')}>General Events</button>
+          <button type="button" className={`event-tab ${activeTab === 'author100' ? 'active' : ''}`} aria-pressed={activeTab === 'author100'} onClick={() => setActiveTab('author100')}>100% Author Event</button>
+        </div>
+
+        {activeTab === 'general' ? (
+          <>
         {error ? (
           <div className="event-alert error">{error}</div>
         ) : null}
@@ -1002,6 +1015,13 @@ if (!form.image_url) {
             </div>
           </div>
         </div>
+          </>
+        ) : (
+          <>
+            <div className="event-alert" style={{ background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }} role="note">Testing only: do not add authors until the revenue calculations and Supabase event checks have been validated.</div>
+            <AdminAuthor100PercentEventTab />
+          </>
+        )}
       </div>
     </AdminLayout>
   )
