@@ -780,7 +780,7 @@ export default function AdminAppPage() {
         {error ? (
           <div className="app-admin-status error">{error}</div>
         ) : null}
-
+        <AdminDocsProfile studioApp={app} />
         <section className="app-admin-card">
           <div className="app-admin-head">
             <div>
