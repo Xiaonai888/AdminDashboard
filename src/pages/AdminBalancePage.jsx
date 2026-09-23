@@ -71,6 +71,27 @@ const styles = `
     border-color: #C7D2FE;
   }
 
+  .balance-filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .balance-filter-controls .balance-type-select {
+    width: 168px;
+    min-width: 0;
+    padding: 0 9px;
+    cursor: pointer;
+  }
+
+  .balance-filter-controls .balance-sort-icon {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    font-size: 19px;
+  }
+
   .balance-dormant-toggle.active {
     color: #B45309;
     background: #FFFBEB;
@@ -569,6 +590,10 @@ const styles = `
       width: 100%;
     }
 
+    .balance-filter-controls .balance-sort-icon {
+      width: 44px;
+    }
+
     .balance-footer {
       align-items: stretch;
       flex-direction: column;
@@ -629,12 +654,14 @@ function cacheKey({
   page,
   search,
   sort,
+  balanceType,
   dormantOnly,
 }) {
   return JSON.stringify([
     page,
     search.trim().toLowerCase(),
     sort,
+    balanceType,
     Boolean(dormantOnly),
   ])
 }
@@ -719,6 +746,7 @@ async function loadBalancePage({
   page,
   search,
   sort,
+  balanceType,
   dormantOnly,
   refresh = false,
   signal,
@@ -727,6 +755,7 @@ async function loadBalancePage({
     page,
     search,
     sort,
+    balanceType,
     dormantOnly,
   })
 
@@ -745,6 +774,7 @@ async function loadBalancePage({
     page: String(page),
     limit: String(PAGE_SIZE),
     sort,
+    balance_type: balanceType,
     dormant: dormantOnly ? '1' : '0',
     dormant_days: String(DORMANT_DAYS),
   })
@@ -1161,6 +1191,7 @@ export default function AdminBalancePage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sort, setSort] = useState('desc')
+  const [balanceType, setBalanceType] = useState('diamond')
   const [dormantOnly, setDormantOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [items, setItems] = useState([])
@@ -1211,6 +1242,7 @@ export default function AdminBalancePage() {
           page,
           search: debouncedSearch,
           sort,
+          balanceType,
           dormantOnly,
           signal: controller.signal,
         })
@@ -1235,6 +1267,7 @@ export default function AdminBalancePage() {
             page: page + 1,
             search: debouncedSearch,
             sort,
+            balanceType,
             dormantOnly,
             signal: controller.signal,
           }).catch(() => {})
@@ -1260,14 +1293,11 @@ export default function AdminBalancePage() {
     run()
 
     return () => controller.abort()
-  }, [page, debouncedSearch, sort, dormantOnly])
+  }, [page, debouncedSearch, sort, balanceType, dormantOnly])
 
   const orderLabel = useMemo(
-    () =>
-      sort === 'desc'
-        ? 'Diamond: High → Low'
-        : 'Diamond: Low → High',
-    [sort]
+    () => `${({ diamond: 'Diamond', coin: 'Coin', story_card: 'Story Card', voucher: 'Voucher' })[balanceType]}: ${sort === 'desc' ? 'High → Low' : 'Low → High'}`,
+    [balanceType, sort]
   )
 
   async function refreshCurrentPage() {
@@ -1282,6 +1312,7 @@ export default function AdminBalancePage() {
         page,
         search: debouncedSearch,
         sort,
+        balanceType,
         dormantOnly,
       })
 
@@ -1291,6 +1322,7 @@ export default function AdminBalancePage() {
         page,
         search: debouncedSearch,
         sort,
+        balanceType,
         dormantOnly,
         refresh: true,
         signal: controller.signal,
@@ -1489,7 +1521,7 @@ export default function AdminBalancePage() {
   return (
     <AdminLayout
       title="Balance"
-      subtitle="Reader wallet balances ranked by Diamonds."
+      subtitle="Reader wallet balances sorted by selected balance type."
     >
       <style>{styles}</style>
 
@@ -1506,14 +1538,32 @@ export default function AdminBalancePage() {
             autoComplete="off"
           />
 
-          <button
-            type="button"
-            className="balance-button balance-sort"
-            onClick={toggleSort}
-            disabled={loading}
-          >
-            ⇅ {orderLabel}
-          </button>
+          <div className="balance-filter-controls">
+            <select
+              className="balance-button balance-sort balance-type-select"
+              value={balanceType}
+              aria-label="Balance type"
+              onChange={(event) => {
+                setBalanceType(event.target.value)
+                setPage(1)
+              }}
+            >
+              <option value="diamond">💎 Diamonds</option>
+              <option value="coin">🪙 Coins</option>
+              <option value="story_card">Story Card</option>
+              <option value="voucher">Voucher</option>
+            </select>
+            <button
+              type="button"
+              className="balance-button balance-sort balance-sort-icon"
+              onClick={toggleSort}
+              disabled={loading}
+              title={orderLabel}
+              aria-label={orderLabel}
+            >
+              ⇅
+            </button>
+          </div>
 
           <button
             type="button"
