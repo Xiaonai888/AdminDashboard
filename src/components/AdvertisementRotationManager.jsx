@@ -44,6 +44,9 @@ function badgeClass(value){const key=String(value||'').toLowerCase();if(key==='h
 export default function AdvertisementRotationManager({title,apiPrefix,uploadFileName='advertisement',onChanged}){
   const fileInputRef=useRef(null)
   const dragIdRef=useRef(null)
+  const loadSequenceRef=useRef(0)
+  const modeTransitionRef=useRef(false)
+  const savedMaxAdsRef=useRef(1)
   const [settings,setSettings]=useState(normalizeSettings(null))
   const [items,setItems]=useState([])
   const [queueItems,setQueueItems]=useState([])
@@ -88,19 +91,24 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   async function request(path,options={}){const token=getAdminToken();const response=await fetch(`${API_URL}${path}`,{...options,headers:{...(options.headers||{}),...(token?{Authorization:`Bearer ${token}`}:{})}});const data=await response.json().catch(()=>({}));if(!response.ok||data.ok===false)throw new Error(data.message||'Request failed');return data}
 
   async function loadRotation(preferredId=null){
+    const loadId=++loadSequenceRef.current
     try{
-      setLoading(true);setError('')
+      setLoading(true)
+      setError('')
       const params=new URLSearchParams({page:String(page),limit:String(perPage),status:libraryTab,filter,search})
       const data=await request(`${apiPrefix}?${params.toString()}`)
+      if(loadId!==loadSequenceRef.current)return false
       const nextSettings=normalizeSettings(data.settings)
       const parts=intervalParts(nextSettings.rotateEverySeconds)
       setSettings(nextSettings)
+      savedMaxAdsRef.current=nextSettings.maxAds
       setItems(Array.isArray(data.items)?data.items:[])
       setQueueItems(Array.isArray(data.queue)?data.queue:[])
       setManualItem(data.manual_item||null)
       setSummary(data.summary||{active_total:0,archived_total:0})
       setPagination(data.pagination||{page:1,limit:perPage,total:0,total_pages:1,has_next:false,has_prev:false})
-      setIntervalValue(parts.value);setIntervalUnit(parts.unit)
+      setIntervalValue(parts.value)
+      setIntervalUnit(parts.unit)
       if(Number(data.pagination?.page||page)!==page)setPage(Number(data.pagination?.page||page))
       if(preferredId){
         const wanted=(data.items||[]).find(item=>Number(item.id)===Number(preferredId))
@@ -109,25 +117,36 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
       setSelectedFile(null)
       if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl)
       setPreviewUrl('')
-    }catch(requestError){setError(requestError.message||`Failed to load ${title}`)}
-    finally{setLoading(false)}
+      return true
+    }catch(requestError){
+      if(loadId===loadSequenceRef.current)setError(requestError.message||`Failed to load ${title}`)
+      return false
+    }finally{
+      if(loadId===loadSequenceRef.current)setLoading(false)
+    }
   }
 
   useEffect(()=>{loadRotation()},[apiPrefix,page,perPage,libraryTab,filter,search])
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer)},[])
   useEffect(()=>()=>{if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);if(cropImage?.startsWith('blob:'))URL.revokeObjectURL(cropImage)},[previewUrl,cropImage])
 
-async function switchMode(mode){
-  if(saving||loading||settings.mode===mode)return
-  try{
-    setSaving(true);setError('')
-    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})})
-    await loadRotation(selectedId)
-    if(typeof onChanged==='function')onChanged()
-  }catch(error){setError(error.message||'Failed to change Ad mode')}
-  finally{setSaving(false)}
-}
-  
+  async function switchMode(mode){
+    if(saving||loading||modeTransitionRef.current||settings.mode===mode||!['manual','auto'].includes(mode))return
+    modeTransitionRef.current=true
+    loadSequenceRef.current+=1
+    try{
+      setSaving(true)
+      setError('')
+      setMessage('')
+      await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})})
+      setEditorOpen(false)
+      setSelectedId(null)
+      const loaded=await loadRotation()
+      if(loaded){setMessage(mode==='manual'?'Manual LIVE selection is active. Auto Loop selections are preserved.':'Auto Loop is active. Manual LIVE selection is preserved.');if(typeof onChanged==='function')onChanged()}
+    }catch(requestError){setError(requestError.message||'Failed to change Ad mode')}
+    finally{modeTransitionRef.current=false;setSaving(false)}
+  }
+
   function updateLocalSettings(field,value){setSettings(previous=>({...previous,[field]:value}));setMessage('');setError('')}
   function updateEditor(field,value){setEditor(previous=>({...previous,[field]:value}));setMessage('');setError('')}
   function openManage(){setManageOpen(true);setEditorOpen(false);setMessage('');setError('')}
@@ -135,12 +154,92 @@ async function switchMode(mode){
   function selectItem(item){setSelectedId(item.id);setEditor(itemToEditor(item,title));setEditorOpen(true);setEditorTab('details');setSelectedFile(null);if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);setPreviewUrl('');setMessage('');setError('')}
   function newItem(){setSelectedId('new');setEditor(createEditor(title));setEditorOpen(true);setEditorTab('details');setSelectedFile(null);if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);setPreviewUrl('');setMessage('');setError('')}
 
-  async function restartAutoClock(){await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({restart_rotation:true})});await loadRotation()}
-  async function saveSettings(){try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:settings.enabled,mode:settings.mode,manual_ad_id:settings.manualAdId,rotate_every_seconds:intervalSeconds(intervalValue,intervalUnit),max_ads:Math.max(1,Number(settings.maxAds||1))})});await loadRotation();setMessage(`${title} settings saved.`);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||`Failed to save ${title} settings`)}finally{setSaving(false)}}
-  async function setManualLive(item){if(!item?.enabled){setError('Enable this Ad before setting it LIVE.');return}try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'manual',manual_ad_id:item.id})});await loadRotation(item.id);setMessage(`${item.name||'Ad'} is now the Manual LIVE Ad.`);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to set Manual LIVE Ad')}finally{setSaving(false)}}
-  async function updateItemField(item,field,value){try{setSaving(true);setMessage('');setError('');const formData=new FormData();formData.append(field,String(value));await request(`${apiPrefix}/items/${item.id}`,{method:'PUT',body:formData});await loadRotation(item.id);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to update Ad')}finally{setSaving(false)}}
+  async function restartAutoClock(){
+    if(saving||loading||settings.mode!=='auto')return
+    try{
+      setSaving(true);setMessage('');setError('')
+      await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({restart_rotation:true})})
+      await loadRotation()
+      setMessage('Auto Rotation restarted from #1.')
+    }catch(requestError){setError(requestError.message||'Failed to restart Auto Rotation')}
+    finally{setSaving(false)}
+  }
 
-  async function saveEditor(){try{setSaving(true);setMessage('');setError('');if(!String(editor.name||'').trim())throw new Error('Ad name is required.');if(!selectedFile&&!String(editor.imageUrl||'').trim())throw new Error('Upload an image before saving this Ad.');const formData=new FormData();if(selectedFile)formData.append('image',selectedFile);formData.append('name',String(editor.name||'').trim());formData.append('enabled',String(Boolean(editor.enabled)));formData.append('image_url',editor.imageUrl||'');formData.append('link_url',editor.linkUrl||'');formData.append('badge',editor.badge||'');formData.append('duration_seconds',String(Math.max(1,Number(editor.durationSeconds||1))));formData.append('close_after_seconds',String(Math.max(0,Number(editor.closeAfterSeconds||0))));formData.append('frequency',editor.frequency||'once_per_session');formData.append('in_loop',String(Boolean(editor.inLoop)));if(editor.id&&editor.sortOrder)formData.append('sort_order',String(editor.sortOrder));const isNew=selectedId==='new';const path=isNew?`${apiPrefix}/items`:`${apiPrefix}/items/${editor.id}`;const data=await request(path,{method:isNew?'POST':'PUT',body:formData});const saved=data.item||editor;setSelectedId(saved.id);setEditor(itemToEditor(saved,title));setEditorOpen(true);await loadRotation(saved.id);setMessage(isNew?`New ${title} created.`:`${title} saved.`);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||`Failed to save ${title}`)}finally{setSaving(false)}}
+  async function saveManualSettings(){
+    const payload={enabled:Boolean(settings.enabled),manual_ad_id:settings.manualAdId}
+    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  }
+
+  async function saveAutoSettings(){
+    const payload={enabled:Boolean(settings.enabled),rotate_every_seconds:intervalSeconds(intervalValue,intervalUnit),max_ads:Math.max(1,Number(settings.maxAds||1))}
+    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+  }
+
+  async function saveSettings(){
+    if(saving||loading||modeTransitionRef.current)return
+    try{
+      setSaving(true);setMessage('');setError('')
+      if(settings.mode==='manual')await saveManualSettings()
+      else await saveAutoSettings()
+      const loaded=await loadRotation()
+      if(loaded)setMessage(`${title} ${settings.mode==='manual'?'Manual':'Auto'} settings saved.`)
+      if(typeof onChanged==='function')onChanged()
+    }catch(requestError){setError(requestError.message||`Failed to save ${title} settings`)}
+    finally{setSaving(false)}
+  }
+
+  async function setManualLive(item){
+    if(saving||loading||settings.mode!=='manual'||modeTransitionRef.current)return
+    if(!item?.enabled){setError('Enable this Ad before setting it LIVE.');return}
+    try{
+      setSaving(true);setMessage('');setError('')
+      await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({manual_ad_id:item.id})})
+      const loaded=await loadRotation(item.id)
+      if(loaded)setMessage(`${item.name||'Ad'} is now the only Manual LIVE Ad.`)
+      if(typeof onChanged==='function')onChanged()
+    }catch(requestError){setError(requestError.message||'Failed to set Manual LIVE Ad')}
+    finally{setSaving(false)}
+  }
+
+  async function ensureAutoCapacity(extra=0){
+    if(settings.mode!=='auto')return
+    const savedCapacity=Number(savedMaxAdsRef.current||1)
+    const maxAds=Math.max(savedCapacity,Number(settings.maxAds||1),loopItems.length>=savedCapacity?Number(summary.active_total||0)+extra:0)
+    if(maxAds<=savedCapacity)return
+    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({max_ads:maxAds})})
+    savedMaxAdsRef.current=maxAds
+  }
+
+  async function setAutoLoop(item,inLoop){
+    if(saving||loading||settings.mode!=='auto'||modeTransitionRef.current)return
+    if(inLoop&&!item?.enabled){setError('Enable this Ad before adding it to Auto Loop.');return}
+    try{
+      setSaving(true);setMessage('');setError('')
+      const formData=new FormData()
+      formData.append('in_loop',String(Boolean(inLoop)))
+      await request(`${apiPrefix}/items/${item.id}`,{method:'PUT',body:formData})
+      if(inLoop)await ensureAutoCapacity()
+      const loaded=await loadRotation(item.id)
+      if(loaded)setMessage(inLoop?'Ad added to Auto Loop; Manual LIVE selection is unchanged.':'Ad removed from Auto Loop; Manual LIVE selection is unchanged.')
+      if(typeof onChanged==='function')onChanged()
+    }catch(requestError){await loadRotation(item.id);setError(requestError.message||'Failed to update Auto Loop')}
+    finally{setSaving(false)}
+  }
+
+  async function updateItemField(item,field,value){
+    if(saving||loading||modeTransitionRef.current||field!=='enabled')return
+    try{
+      setSaving(true);setMessage('');setError('')
+      const formData=new FormData()
+      formData.append('enabled',String(Boolean(value)))
+      await request(`${apiPrefix}/items/${item.id}`,{method:'PUT',body:formData})
+      await loadRotation(item.id)
+      if(typeof onChanged==='function')onChanged()
+    }catch(requestError){setError(requestError.message||'Failed to update Ad availability')}
+    finally{setSaving(false)}
+  }
+
+  async function saveEditor(){try{setSaving(true);setMessage('');setError('');if(!String(editor.name||'').trim())throw new Error('Ad name is required.');if(!selectedFile&&!String(editor.imageUrl||'').trim())throw new Error('Upload an image before saving this Ad.');const formData=new FormData();if(selectedFile)formData.append('image',selectedFile);formData.append('name',String(editor.name||'').trim());formData.append('enabled',String(Boolean(editor.enabled)));formData.append('image_url',editor.imageUrl||'');formData.append('link_url',editor.linkUrl||'');formData.append('badge',editor.badge||'');formData.append('duration_seconds',String(Math.max(1,Number(editor.durationSeconds||1))));formData.append('close_after_seconds',String(Math.max(0,Number(editor.closeAfterSeconds||0))));formData.append('frequency',editor.frequency||'once_per_session');if(settings.mode==='auto')formData.append('in_loop',String(Boolean(editor.inLoop)));if(editor.id&&editor.sortOrder)formData.append('sort_order',String(editor.sortOrder));const isNew=selectedId==='new';const path=isNew?`${apiPrefix}/items`:`${apiPrefix}/items/${editor.id}`;const data=await request(path,{method:isNew?'POST':'PUT',body:formData});const saved=data.item||editor;if(settings.mode==='auto'&&saved.in_loop)await ensureAutoCapacity(isNew?1:0);setSelectedId(saved.id);setEditor(itemToEditor(saved,title));setEditorOpen(true);await loadRotation(saved.id);setMessage(isNew?`New ${title} created.`:`${title} saved.`);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||`Failed to save ${title}`)}finally{setSaving(false)}}
   async function duplicateItem(item){if(!item)return;try{setSaving(true);setMessage('');setError('');const formData=new FormData();const imageUrl=item.image_url??item.imageUrl??'';const linkUrl=item.link_url??item.linkUrl??'';const durationSeconds=item.duration_seconds??item.durationSeconds??5;const closeAfterSeconds=item.close_after_seconds??item.closeAfterSeconds??3;formData.append('name',`${item.name||`${title} ${item.id}`} Copy`);formData.append('enabled','false');formData.append('image_url',imageUrl);formData.append('link_url',linkUrl);formData.append('badge',item.badge||'');formData.append('duration_seconds',String(Number(durationSeconds)));formData.append('close_after_seconds',String(Number(closeAfterSeconds)));formData.append('frequency',item.frequency||'once_per_session');formData.append('in_loop','false');const data=await request(`${apiPrefix}/items`,{method:'POST',body:formData});setLibraryTab('active');setPage(1);setSelectedId(data.item?.id||null);setEditor(itemToEditor(data.item,title));setEditorOpen(true);await loadRotation(data.item?.id||null);setMessage('Ad duplicated as Disabled and outside the loop.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to duplicate Ad')}finally{setSaving(false)}}
   async function archiveItem(item){if(!item)return;if(!window.confirm(`Archive "${item.name||'this Ad'}"?`))return;try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/items/${item.id}`,{method:'DELETE'});setEditorOpen(false);setSelectedId(null);await loadRotation();setMessage('Ad archived. You can restore it from Archived.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to archive Ad')}finally{setSaving(false)}}
   async function restoreItem(item){try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/items/${item.id}/restore`,{method:'POST'});setLibraryTab('active');setPage(1);setEditorOpen(false);setSelectedId(null);setMessage('Ad restored as Disabled and outside the loop.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to restore Ad')}finally{setSaving(false)}}
@@ -156,35 +255,35 @@ async function switchMode(mode){
   const pageNumbers=Array.from({length:Math.min(5,pagination.total_pages)},(_,index)=>{const start=Math.max(1,Math.min(pagination.page-2,pagination.total_pages-4));return start+index}).filter(number=>number<=pagination.total_pages)
 
   return <><style>{styles}</style><div className="arm-shell">
-    <section className="arm-card"><div className="arm-head"><div><h3>{title} Settings</h3><p>Manual or Auto Rotation with a compact, paginated Ad Library.</p></div><span className={`arm-status ${settings.enabled?'':'off'}`}><span className="arm-dot"/>{settings.enabled?'Active':'Disabled'}</span></div>
+    <section className="arm-card"><div className="arm-head"><div><h3>{title} Settings</h3><p>Manual LIVE and Auto Loop use separate selection controls. Ad images and availability belong to the shared library.</p></div><span className={`arm-status ${settings.enabled?'':'off'}`}><span className="arm-dot"/>{settings.enabled?'Active':'Disabled'}</span></div>
     <div className="arm-body"><div className="arm-settings">
       <div className="arm-toggle-row"><div><div className="arm-title">Enable {title}</div><div className="arm-help">Master switch for this placement.</div></div><button type="button" className={`arm-switch ${settings.enabled?'on':''}`} onClick={()=>updateLocalSettings('enabled',!settings.enabled)}><span/></button></div>
-      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Manual and Auto are mutually exclusive.</div><div className="arm-mode" style={{marginTop:8}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button></div></div>
+      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Each mode keeps its own selection. Switching modes does not replace the other selection.</div><div className="arm-mode" style={{marginTop:8}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button></div></div>
       {settings.mode==='auto'?<div className="arm-grid"><div className="arm-field"><label>Rotate Every</label><div className="arm-interval"><input className="arm-input" type="number" min="1" value={intervalValue} onChange={event=>setIntervalValue(Math.max(1,Number(event.target.value||1)))}/><select className="arm-input" value={intervalUnit} onChange={event=>setIntervalUnit(event.target.value)}><option value="minutes">Minutes</option><option value="hours">Hours</option></select></div></div><div className="arm-field"><label>Max Ads in Loop</label><input className="arm-input" type="number" min="1" value={settings.maxAds} onChange={event=>updateLocalSettings('maxAds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Next Change</label><input className="arm-input" value={remainingLabel||'—'} readOnly/></div></div>:null}
-      <div className="arm-current-grid"><MiniStatusCard label="Current Ad" item={currentItem}/><MiniStatusCard label="Next Ad" item={nextItem}/></div>
+      <div className="arm-current-grid"><MiniStatusCard label={settings.mode==='manual'?'Manual LIVE Ad':'Auto Current Ad'} item={currentItem}/>{settings.mode==='auto'?<MiniStatusCard label="Auto Next Ad" item={nextItem}/>:null}</div>
       {settings.mode==='auto'&&settings.enabled&&loopItems.length===0?<div className="arm-warning">Auto is enabled but no eligible Ad is in the loop. No fallback Ad will show.</div>:null}
       {settings.mode==='manual'&&settings.enabled&&!manualSelectedItem?.enabled?<div className="arm-warning">Manual mode has no enabled LIVE Ad. No fallback Ad will show.</div>:null}
       {message?<div className="arm-success">{message}</div>:null}{error?<div className="arm-error">{error}</div>:null}
-      <div className="arm-actions"><button type="button" className="arm-btn soft" onClick={()=>loadRotation(selectedId)} disabled={loading||saving}>{loading?'Loading...':'Reload'}</button>{settings.mode==='auto'?<button type="button" className="arm-btn soft" onClick={restartAutoClock} disabled={saving||loopItems.length===0}>Restart #1</button>:null}<button type="button" className="arm-btn primary" onClick={saveSettings} disabled={saving}>{saving?'Saving...':'Save Settings'}</button></div>
-      <button type="button" className="arm-btn primary arm-manage" onClick={openManage}>Manage Ads ({summary.active_total})</button>
+      <div className="arm-actions"><button type="button" className="arm-btn soft" onClick={()=>loadRotation(selectedId)} disabled={loading||saving}>{loading?'Loading...':'Reload'}</button>{settings.mode==='auto'?<button type="button" className="arm-btn soft" onClick={restartAutoClock} disabled={saving||loading||loopItems.length===0}>Restart #1</button>:null}<button type="button" className="arm-btn primary" onClick={saveSettings} disabled={saving||loading}>{saving?'Saving...':'Save Settings'}</button></div>
+      <button type="button" className="arm-btn primary arm-manage" onClick={openManage} disabled={saving||loading}>Manage {settings.mode==='manual'?'Manual':'Auto'} Ads ({summary.active_total})</button>
     </div>
-    <div className="arm-queue"><div className="arm-queue-head"><div className="arm-queue-title">Rotation Queue ({settings.mode==='auto'?loopItems.length:manualSelectedItem?1:0})</div><button type="button" className="arm-btn" style={{padding:'6px 9px'}} onClick={openManage}>View All</button></div><div className="arm-queue-list">{(settings.mode==='auto'?loopItems:manualSelectedItem?[manualSelectedItem]:[]).slice(0,5).map((item,index)=><div key={item.id} className={`arm-queue-item ${Number(item.id)===Number(liveInfo.liveId)?'current':''}`}><div className="arm-queue-top"><span className="arm-queue-number">{index+1}</span>{Number(item.id)===Number(liveInfo.liveId)?'Current':Number(item.id)===Number(liveInfo.nextId)?'Next':'Queued'}</div>{item.image_url?<img className="arm-queue-image" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-queue-image arm-mini-empty">NO IMAGE</div>}<div className="arm-queue-name">{item.name||`Ad ${item.id}`}</div></div>)}</div></div>
+    <div className="arm-queue"><div className="arm-queue-head"><div className="arm-queue-title">{settings.mode==='auto'?'Auto Rotation Queue':'Manual LIVE Selection'} ({settings.mode==='auto'?loopItems.length:manualSelectedItem?1:0})</div><button type="button" className="arm-btn" style={{padding:'6px 9px'}} onClick={openManage} disabled={saving||loading}>View All</button></div><div className="arm-queue-list">{(settings.mode==='auto'?loopItems:manualSelectedItem?[manualSelectedItem]:[]).slice(0,5).map((item,index)=><div key={item.id} className={`arm-queue-item ${Number(item.id)===Number(liveInfo.liveId)?'current':''}`}><div className="arm-queue-top"><span className="arm-queue-number">{index+1}</span>{Number(item.id)===Number(liveInfo.liveId)?'Current':Number(item.id)===Number(liveInfo.nextId)?'Next':'Queued'}</div>{item.image_url?<img className="arm-queue-image" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-queue-image arm-mini-empty">NO IMAGE</div>}<div className="arm-queue-name">{item.name||`Ad ${item.id}`}</div></div>)}</div></div>
     </div></section>
 
     <aside className="arm-card arm-preview"><div className="arm-head"><div><h3>Mobile Preview</h3><p>{editorOpen?'Preview the Ad being edited.':'Preview the current LIVE Ad.'}</p></div></div><div className="arm-body"><div className="arm-phone"><div className="arm-screen">{previewSource?.image_url?<><div className="arm-preview-image"><img src={previewSource.image_url} alt="Advertisement preview" decoding="async"/><div className="arm-preview-shadow"/>{previewSource.badge?<span className={`arm-badge ${badgeClass(previewSource.badge)}`}>{previewSource.badge}</span>:null}{Number(previewSource.close_after_seconds||0)>0?<span className="arm-skip"><strong>{previewSource.close_after_seconds}S</strong> Skip</span>:null}</div><div className="arm-brand"><img src={SHADOW_LOGO_URL} alt="Shadow"/><div>{BRAND_TEXT}</div></div></>:<div className="arm-preview-empty">No LIVE Ad to preview.</div>}</div></div><div className="arm-preview-note">Mode: {settings.mode==='auto'?'Auto Rotation':'Manual'} · Placement: {settings.enabled?'Enabled':'Disabled'} · Current: {currentItem?.name||'None'}</div></div></aside>
   </div>
 
   {manageOpen?<div className="arm-overlay" onMouseDown={event=>event.target===event.currentTarget&&closeManage()}><div className="arm-modal">
-    <div className="arm-modal-head"><div><div className="arm-modal-title">Manage {title} Ads</div><div className="arm-modal-sub">Server-side pagination loads only the current page, even with 100+ Ads.</div></div><div className="arm-actions"><button type="button" className="arm-btn primary" onClick={newItem} disabled={saving}>+ New Ad</button><button type="button" className="arm-close" onClick={closeManage}>×</button></div></div>
+    <div className="arm-modal-head"><div><div className="arm-modal-title">Manage {title} {settings.mode==='manual'?'Manual LIVE':'Auto Loop'} Ads</div><div className="arm-modal-sub">Manual has one LIVE Ad; Auto can include multiple enabled Ads. Shared assets are managed here.</div></div><div className="arm-actions"><button type="button" className="arm-btn primary" onClick={newItem} disabled={saving}>+ New Ad</button><button type="button" className="arm-close" onClick={closeManage}>×</button></div></div>
     <div className="arm-modal-main"><section className="arm-library">
       <div className="arm-library-tools"><div className="arm-tabs"><button type="button" className={`arm-tab ${libraryTab==='active'?'active':''}`} onClick={()=>{setLibraryTab('active');setPage(1)}}>Active ({summary.active_total})</button><button type="button" className={`arm-tab ${libraryTab==='archived'?'active':''}`} onClick={()=>{setLibraryTab('archived');setFilter('all');setPage(1)}}>Archived ({summary.archived_total})</button></div>
       <form className="arm-tools-row" onSubmit={event=>{event.preventDefault();setSearch(searchInput.trim());setPage(1)}}><input className="arm-input" value={searchInput} onChange={event=>setSearchInput(event.target.value)} placeholder="Search ad name or exact ID..."/><select className="arm-input" value={filter} disabled={libraryTab==='archived'} onChange={event=>{setFilter(event.target.value);setPage(1)}}><option value="all">All Ads</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option><option value="in_loop">In Loop</option></select><select className="arm-input" value={perPage} onChange={event=>{setPerPage(Number(event.target.value));setPage(1)}}><option value={10}>10 / page</option><option value={20}>20 / page</option><option value={50}>50 / page</option></select><button className="arm-btn soft" type="submit">Search</button></form></div>
-      <div className="arm-table-wrap"><table className="arm-table"><thead><tr><th className="arm-col-drag">#</th><th className="arm-col-thumb">Image</th><th>Ad Name</th><th className="arm-col-enabled">Enabled</th><th className="arm-col-loop">Loop / Live</th><th className="arm-col-order">Order</th><th className="arm-col-actions">Actions</th></tr></thead><tbody>{items.length?items.map(item=>{const isSelected=Number(selectedId)===Number(item.id);const isLive=Number(liveInfo.liveId)===Number(item.id);const isNext=Number(liveInfo.nextId)===Number(item.id);return <tr key={item.id} className={isSelected?'selected':''} draggable={libraryTab==='active'&&!saving} onDragStart={()=>{dragIdRef.current=item.id}} onDragOver={event=>{if(libraryTab==='active')event.preventDefault()}} onDrop={()=>{if(libraryTab==='active')handleDrop(item.id)}}><td><div className="arm-drag">{libraryTab==='active'?'⋮⋮':'—'}</div></td><td>{item.image_url?<img className="arm-row-thumb" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-row-thumb arm-mini-empty">NO</div>}</td><td onClick={()=>selectItem(item)} style={{cursor:'pointer'}}><div className="arm-name">{item.name||`${title} ${item.id}`}</div><div className="arm-submeta">ID #{item.id}{isLive?' · LIVE':''}{isNext?' · NEXT':''}</div></td><td>{libraryTab==='active'?<button type="button" className={`arm-switch ${item.enabled?'on':''}`} disabled={saving} onClick={()=>updateItemField(item,'enabled',!item.enabled)}><span/></button>:'—'}</td><td>{libraryTab==='active'&&settings.mode==='auto'?<input className="arm-check" type="checkbox" checked={Boolean(item.in_loop)} disabled={saving} onChange={event=>updateItemField(item,'in_loop',event.target.checked)}/>:libraryTab==='active'&&settings.mode==='manual'?<button type="button" className={`arm-btn ${isLive?'success':''}`} style={{padding:'6px 7px',fontSize:9}} disabled={saving||isLive||!item.enabled} onClick={()=>setManualLive(item)}>{isLive?'LIVE':'Set Live'}</button>:'—'}</td><td>{libraryTab==='active'?<div className="arm-order"><button type="button" disabled={saving||Number(item.sort_order)<=1} onClick={()=>moveItem(item.id,'up')}>↑</button><button type="button" disabled={saving||Number(item.sort_order)>=Number(summary.active_total)} onClick={()=>moveItem(item.id,'down')}>↓</button></div>:'—'}</td><td><details className="arm-more"><summary>•••</summary><div className="arm-more-menu">{libraryTab==='active'?<><button type="button" onClick={()=>selectItem(item)}>Edit</button><button type="button" onClick={()=>duplicateItem(item)}>Duplicate</button><button type="button" className="danger" onClick={()=>archiveItem(item)}>Archive</button></>:<button type="button" onClick={()=>restoreItem(item)}>Restore</button>}</div></details></td></tr>}):<tr><td colSpan={7} style={{padding:24,textAlign:'center',color:'#94a3b8',fontWeight:800}}>No Ads found.</td></tr>}</tbody></table></div>
+      <div className="arm-table-wrap"><table className="arm-table"><thead><tr><th className="arm-col-drag">#</th><th className="arm-col-thumb">Image</th><th>Ad Name</th><th className="arm-col-enabled">Enabled</th><th className="arm-col-loop">Loop / Live</th><th className="arm-col-order">Order</th><th className="arm-col-actions">Actions</th></tr></thead><tbody>{items.length?items.map(item=>{const isSelected=Number(selectedId)===Number(item.id);const isLive=Number(liveInfo.liveId)===Number(item.id);const isNext=Number(liveInfo.nextId)===Number(item.id);return <tr key={item.id} className={isSelected?'selected':''} draggable={libraryTab==='active'&&!saving} onDragStart={()=>{dragIdRef.current=item.id}} onDragOver={event=>{if(libraryTab==='active')event.preventDefault()}} onDrop={()=>{if(libraryTab==='active')handleDrop(item.id)}}><td><div className="arm-drag">{libraryTab==='active'?'⋮⋮':'—'}</div></td><td>{item.image_url?<img className="arm-row-thumb" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-row-thumb arm-mini-empty">NO</div>}</td><td onClick={()=>selectItem(item)} style={{cursor:'pointer'}}><div className="arm-name">{item.name||`${title} ${item.id}`}</div><div className="arm-submeta">ID #{item.id}{isLive?' · LIVE':''}{isNext?' · NEXT':''}</div></td><td>{libraryTab==='active'?<button type="button" className={`arm-switch ${item.enabled?'on':''}`} disabled={saving} onClick={()=>updateItemField(item,'enabled',!item.enabled)}><span/></button>:'—'}</td><td>{libraryTab==='active'&&settings.mode==='auto'?<input className="arm-check" type="checkbox" checked={Boolean(item.in_loop)} disabled={saving||loading||!item.enabled} onChange={event=>setAutoLoop(item,event.target.checked)}/>:libraryTab==='active'&&settings.mode==='manual'?<button type="button" className={`arm-btn ${isLive?'success':''}`} style={{padding:'6px 7px',fontSize:9}} disabled={saving||loading||isLive||!item.enabled} onClick={()=>setManualLive(item)}>{isLive?'LIVE':'Set Live'}</button>:'—'}</td><td>{libraryTab==='active'?<div className="arm-order"><button type="button" disabled={saving||Number(item.sort_order)<=1} onClick={()=>moveItem(item.id,'up')}>↑</button><button type="button" disabled={saving||Number(item.sort_order)>=Number(summary.active_total)} onClick={()=>moveItem(item.id,'down')}>↓</button></div>:'—'}</td><td><details className="arm-more"><summary>•••</summary><div className="arm-more-menu">{libraryTab==='active'?<><button type="button" onClick={()=>selectItem(item)}>Edit</button><button type="button" onClick={()=>duplicateItem(item)}>Duplicate</button><button type="button" className="danger" onClick={()=>archiveItem(item)}>Archive</button></>:<button type="button" onClick={()=>restoreItem(item)}>Restore</button>}</div></details></td></tr>}):<tr><td colSpan={7} style={{padding:24,textAlign:'center',color:'#94a3b8',fontWeight:800}}>No Ads found.</td></tr>}</tbody></table></div>
       <div className="arm-library-footer"><div className="arm-page-info">Showing {pagination.total?((pagination.page-1)*pagination.limit)+1:0}–{Math.min(pagination.page*pagination.limit,pagination.total)} of {pagination.total}</div><div className="arm-pages"><button type="button" disabled={!pagination.has_prev} onClick={()=>setPage(Math.max(1,pagination.page-1))}>‹</button>{pageNumbers.map(number=><button key={number} type="button" className={pagination.page===number?'active':''} onClick={()=>setPage(number)}>{number}</button>)}<button type="button" disabled={!pagination.has_next} onClick={()=>setPage(Math.min(pagination.total_pages,pagination.page+1))}>›</button></div></div>
     </section>
 
     <aside className="arm-editor">{editorOpen?<><div className="arm-editor-head"><div><h4>{selectedId==='new'?`Create New ${title}`:`Edit Ad #${editor.id}`}</h4><div className="arm-help">{editor.enabled?'Enabled':'Disabled'}{editor.inLoop?' · In Loop':''}</div></div><button type="button" className="arm-close" onClick={()=>setEditorOpen(false)}>×</button></div><div className="arm-editor-content"><div className="arm-editor-tabs"><button type="button" className={`arm-editor-tab ${editorTab==='details'?'active':''}`} onClick={()=>setEditorTab('details')}>Details</button><button type="button" className={`arm-editor-tab ${editorTab==='behavior'?'active':''}`} onClick={()=>setEditorTab('behavior')}>Behavior</button></div>
-      {editorTab==='details'?<><div className="arm-field"><label>Ad Name</label><input className="arm-input" value={editor.name} disabled={editor.isArchived} onChange={event=>updateEditor('name',event.target.value)}/></div><div className="arm-toggle-row" style={{marginTop:10}}><div><div className="arm-title">Enable This Ad</div><div className="arm-help">Disabled Ads are skipped.</div></div><button type="button" className={`arm-switch ${editor.enabled?'on':''}`} disabled={editor.isArchived} onClick={()=>updateEditor('enabled',!editor.enabled)}><span/></button></div><div className="arm-field" style={{marginTop:10}}><label>Image URL</label><input className="arm-input" value={editor.imageUrl} readOnly placeholder="Auto-filled after upload"/></div><ImageDropZone label="Drop image here" onFiles={files=>openCropForFile(files[0])}><label className="arm-upload"><input ref={fileInputRef} type="file" accept="image/*" onChange={event=>openCropForFile(event.target.files?.[0])} style={{display:'none'}}/><div className="arm-upload-title">Drop image here or click to choose</div><div className="arm-upload-help">Auto crop 9:16 · Output 1080×1920 · Saved to R2 on Save.</div></label></ImageDropZone><div className="arm-field" style={{marginTop:10}}><label>Badge</label><select className="arm-input" value={editor.badge} onChange={event=>updateEditor('badge',event.target.value)}><option value="">No Badge</option><option value="NEW">New</option><option value="HOT">Hot</option><option value="TOP">Top</option><option value="END">End</option><option value="UP">Up</option></select></div><div className="arm-field" style={{marginTop:10}}><label>Click Link URL</label><input className="arm-input" value={editor.linkUrl} onChange={event=>updateEditor('linkUrl',event.target.value)} placeholder="https://shadowerabook.site/..."/></div></>:<><div className="arm-grid" style={{gridTemplateColumns:'1fr 1fr'}}><div className="arm-field"><label>Duration Seconds</label><input className="arm-input" type="number" min="1" value={editor.durationSeconds} onChange={event=>updateEditor('durationSeconds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Close After Seconds</label><input className="arm-input" type="number" min="0" value={editor.closeAfterSeconds} onChange={event=>updateEditor('closeAfterSeconds',Math.max(0,Number(event.target.value||0)))}/></div></div><div className="arm-field" style={{marginTop:10}}><label>User Frequency</label><select className="arm-input" value={editor.frequency} onChange={event=>updateEditor('frequency',event.target.value)}><option value="once_per_session">Once per session</option><option value="once_per_day">Once per day</option><option value="every_visit">Every visit</option><option value="every_unlock">Every Unlock & Read</option></select></div>{settings.mode==='auto'?<div className="arm-toggle-row" style={{marginTop:10}}><div><div className="arm-title">In Loop</div><div className="arm-help">Only enabled Ads in loop can rotate.</div></div><button type="button" className={`arm-switch ${editor.inLoop?'on':''}`} onClick={()=>updateEditor('inLoop',!editor.inLoop)}><span/></button></div>:null}<div className="arm-field" style={{marginTop:10}}><label>Order</label><input className="arm-input" value={editor.sortOrder||'New'} readOnly/></div></>}
+      {editorTab==='details'?<><div className="arm-field"><label>Ad Name</label><input className="arm-input" value={editor.name} disabled={editor.isArchived} onChange={event=>updateEditor('name',event.target.value)}/></div><div className="arm-toggle-row" style={{marginTop:10}}><div><div className="arm-title">Make Ad Available</div><div className="arm-help">Ad availability is shared; only Manual LIVE and Auto Loop selections are separate.</div></div><button type="button" className={`arm-switch ${editor.enabled?'on':''}`} disabled={editor.isArchived} onClick={()=>updateEditor('enabled',!editor.enabled)}><span/></button></div><div className="arm-field" style={{marginTop:10}}><label>Image URL</label><input className="arm-input" value={editor.imageUrl} readOnly placeholder="Auto-filled after upload"/></div><ImageDropZone label="Drop image here" onFiles={files=>openCropForFile(files[0])}><label className="arm-upload"><input ref={fileInputRef} type="file" accept="image/*" onChange={event=>openCropForFile(event.target.files?.[0])} style={{display:'none'}}/><div className="arm-upload-title">Drop image here or click to choose</div><div className="arm-upload-help">Auto crop 9:16 · Output 1080×1920 · Saved to R2 on Save.</div></label></ImageDropZone><div className="arm-field" style={{marginTop:10}}><label>Badge</label><select className="arm-input" value={editor.badge} onChange={event=>updateEditor('badge',event.target.value)}><option value="">No Badge</option><option value="NEW">New</option><option value="HOT">Hot</option><option value="TOP">Top</option><option value="END">End</option><option value="UP">Up</option></select></div><div className="arm-field" style={{marginTop:10}}><label>Click Link URL</label><input className="arm-input" value={editor.linkUrl} onChange={event=>updateEditor('linkUrl',event.target.value)} placeholder="https://shadowerabook.site/..."/></div></>:<><div className="arm-grid" style={{gridTemplateColumns:'1fr 1fr'}}><div className="arm-field"><label>Duration Seconds</label><input className="arm-input" type="number" min="1" value={editor.durationSeconds} onChange={event=>updateEditor('durationSeconds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Close After Seconds</label><input className="arm-input" type="number" min="0" value={editor.closeAfterSeconds} onChange={event=>updateEditor('closeAfterSeconds',Math.max(0,Number(event.target.value||0)))}/></div></div><div className="arm-field" style={{marginTop:10}}><label>User Frequency</label><select className="arm-input" value={editor.frequency} onChange={event=>updateEditor('frequency',event.target.value)}><option value="once_per_session">Once per session</option><option value="once_per_day">Once per day</option><option value="every_visit">Every visit</option><option value="every_unlock">Every Unlock & Read</option></select></div>{settings.mode==='auto'?<div className="arm-toggle-row" style={{marginTop:10}}><div><div className="arm-title">In Loop</div><div className="arm-help">Auto-only selection. Changing this does not change Manual LIVE.</div></div><button type="button" className={`arm-switch ${editor.inLoop?'on':''}`} disabled={saving||!editor.enabled||editor.isArchived} onClick={()=>updateEditor('inLoop',!editor.inLoop)}><span/></button></div>:null}<div className="arm-field" style={{marginTop:10}}><label>Order</label><input className="arm-input" value={editor.sortOrder||'New'} readOnly/></div></>}
       {message?<div className="arm-success" style={{marginTop:10}}>{message}</div>:null}{error?<div className="arm-error" style={{marginTop:10}}>{error}</div>:null}<div className="arm-editor-actions">{selectedId!=='new'?<><button type="button" className="arm-btn soft" disabled={saving} onClick={()=>duplicateItem(editor)}>Duplicate</button><button type="button" className="arm-btn danger" disabled={saving} onClick={()=>archiveItem(editor)}>Archive</button></>:<button type="button" className="arm-btn soft full" onClick={newItem} disabled={saving}>Clear</button>}<button type="button" className="arm-btn primary full" onClick={saveEditor} disabled={saving||editor.isArchived}>{saving?'Saving...':selectedId==='new'?'Create Ad':'Save Changes'}</button></div></div></>:<div className="arm-editor-empty">Select an Ad to edit, or click + New Ad.</div>}</aside>
     </div></div></div>:null}
 
