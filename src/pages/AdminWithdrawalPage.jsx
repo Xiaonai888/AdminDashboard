@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminStoryPayoutPanel from '../components/AdminStoryPayoutPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -591,6 +592,7 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
 
       <div className="withdraw-page">
         <div className="withdraw-body">
+          <AdminStoryPayoutPanel />
           <div className="withdraw-top">
             <div className="withdraw-kicker">AUTHOR PAYOUTS</div>
             <h1 className="withdraw-heading">Withdraw Requests</h1>
