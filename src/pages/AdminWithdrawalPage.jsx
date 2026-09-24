@@ -164,6 +164,8 @@ const styles = `
     word-break: break-word;
   }
 
+  .withdraw-qr { width: 92px; max-width: 100%; max-height: 92px; object-fit: contain; margin-top: 7px; border-radius: 10px; border: 1px solid #e2e8f0; }
+
   .amount {
     font-size: 22px;
     font-weight: 950;
@@ -184,6 +186,7 @@ const styles = `
 
   .status-in_review { background: #FEF3C7; color: #92400E; }
   .status-approved { background: #DBEAFE; color: #1D4ED8; }
+  .status-awaiting_receipt { background: #FFF7ED; color: #9A3412; }
   .status-paid { background: #DCFCE7; color: #166534; }
   .status-rejected { background: #FEE2E2; color: #991B1B; }
   .status-cancelled { background: #F1F5F9; color: #475569; }
@@ -458,6 +461,7 @@ export default function AdminWithdrawalPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [busyId, setBusyId] = useState('')
+  const [receiptSelection, setReceiptSelection] = useState({ id: '', file: null })
 
   const totalText = useMemo(() => `${meta.total || 0} withdrawals`, [meta.total])
 
@@ -509,98 +513,141 @@ export default function AdminWithdrawalPage() {
 
 
   async function updateWithdrawalStatus(withdrawal, nextStatus) {
-    if (busyId || loading) return
-    let adminNote = ''
-    let rejectReason = ''
-    let paidTransactionId = ''
-    let paidAmountUsd = ''
-    let paidProofUrl = ''
-
+    if (busyId || loading || !['approved', 'rejected'].includes(nextStatus)) return
+    if (withdrawal.paid_transaction_id) {
+      setMessage('A bank transfer is already recorded. Finish its receipt workflow; do not reject or transfer again.')
+      return
+    }
+    let reason = ''
+    let note = ''
     if (nextStatus === 'rejected') {
-      rejectReason = window.prompt('Reject reason:')
-      if (rejectReason === null) return
-
-      if (!rejectReason.trim()) {
-        setMessage('Reject reason is required.')
-        return
-      }
+      reason = window.prompt('Reason for rejecting this withdrawal:')
+      if (reason === null) return
+      if (!reason.trim()) { setMessage('Reject reason is required.'); return }
+    } else {
+      note = window.prompt('Admin note (optional):')
+      if (note === null) return
     }
-
-    if (nextStatus === 'approved') {
-      adminNote = window.prompt('Admin note for approval (optional):') || ''
-    }
-
-    if (nextStatus === 'paid') {
-      if (withdrawal.status !== 'approved') {
-        setMessage('Approve the withdrawal before recording its payment.')
-        return
-      }
-
-      paidAmountUsd = Number(withdrawal.amount_usd)
-      if (!Number.isFinite(paidAmountUsd) || paidAmountUsd <= 0) {
-        setMessage('Invalid withdrawal amount. Refresh and check the request.')
-        return
-      }
-
-      paidTransactionId = window.prompt('Bank transaction reference (after money was sent):')
-      if (paidTransactionId === null) return
-      if (paidTransactionId.trim().length < 4) {
-        setMessage('A real bank transaction reference (at least 4 characters) is required.')
-        return
-      }
-
-      paidProofUrl = window.prompt('HTTPS URL of the actual bank transfer receipt:')
-      if (paidProofUrl === null) return
-      if (!/^https:\/\/[^\s]+$/i.test(paidProofUrl.trim())) {
-        setMessage('A valid HTTPS receipt URL is required.')
-        return
-      }
-    }
-    const confirmText =
-      nextStatus === 'approved'
-        ? 'Approve this withdrawal request?'
-        : nextStatus === 'rejected'
-          ? 'Reject this withdrawal request?'
-          : nextStatus === 'paid'
-            ? `Have you ALREADY transferred exactly ${formatUsd(withdrawal.amount_usd)} to this author and verified the bank receipt? This does not send money.`
-            : `Update withdrawal to ${nextStatus}?`
-
-    if (!window.confirm(confirmText)) return
-
+    if (!window.confirm(`${nextStatus === 'approved' ? 'Approve' : 'Reject'} this withdrawal request?`)) return
     setBusyId(withdrawal.id)
     try {
-      setMessage('')
-
-      const token = getAdminToken()
-      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${withdrawal.id}/status`, {
+      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${encodeURIComponent(withdrawal.id)}/status`, {
         method: 'PATCH',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          'Content-Type': 'application/json',
-        },
+        headers: { ...authHeaders(true) },
+        body: JSON.stringify({ status: nextStatus, admin_note: note, reject_reason: reason }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Unable to update withdrawal')
+      await fetchWithdrawals(page)
+      setMessage(`Withdrawal ${nextStatus}.`)
+    } catch (error) {
+      setMessage(`${error.message || 'Unable to update withdrawal'}. Refresh and verify the current status before trying again.`)
+    } finally { setBusyId('') }
+  }
+
+  function authHeaders(json = false) {
+    const token = getAdminToken()
+    return { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(json ? { 'Content-Type': 'application/json' } : {}) }
+  }
+
+  async function recordTransfer(withdrawal) {
+    if (busyId || loading || withdrawal.status !== 'approved' || withdrawal.paid_transaction_id) return
+    const bank = withdrawal.payment_method_snapshot || {}
+    if (!withdrawal.payment_method_id || !bank.account_number && !bank.paypal_email && !bank.phone_number) {
+      setMessage('Verify the saved payment destination before recording any bank transfer.')
+      return
+    }
+    const details = `${bank.bank_name || bank.type || 'Bank'} · ${bank.account_name || ''} · ${bank.account_number || bank.paypal_email || bank.phone_number || ''}`
+    if (!window.confirm(`Only continue if you ALREADY sent ${formatUsd(withdrawal.amount_usd)} to ${details} outside this app. This button will NOT send money. Have you completed the bank transfer?`)) return
+    const reference = window.prompt('Reference shown on your completed bank transfer:')
+    if (reference === null) return
+    if (reference.trim().length < 4 || reference.trim().length > 120) { setMessage('Enter the actual bank reference (4–120 characters).'); return }
+    const pin = window.prompt('Six-digit Owner Passkey to record the completed transfer:')
+    if (pin === null) return
+    if (!/^\d{6}$/.test(pin.trim())) { setMessage('Enter a valid six-digit Owner Passkey.'); return }
+    setBusyId(withdrawal.id)
+    try {
+      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${encodeURIComponent(withdrawal.id)}/transfer-record`, {
+        method: 'POST', headers: authHeaders(true),
+        body: JSON.stringify({ transfer_confirmed: true, transfer_reference: reference.trim(), passkey_pin: pin.trim() }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Could not record transfer')
+      await fetchWithdrawals(page)
+      setMessage('Bank transfer recorded. Upload its real receipt. Never send this payment again.')
+    } catch (error) {
+      setMessage(`${error.message || 'Transfer record failed'} Check the request status BEFORE taking any further action; do not send money again.`)
+    } finally { setBusyId('') }
+  }
+
+  function chooseReceipt(withdrawalId, file) {
+    if (!file) { setReceiptSelection({ id: '', file: null }); return }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size < 100 || file.size > 2 * 1024 * 1024) {
+      setReceiptSelection({ id: '', file: null })
+      setMessage('Select a PNG, JPG or WEBP bank receipt of 100 bytes–2 MB.')
+      return
+    }
+    setReceiptSelection({ id: withdrawalId, file })
+    setMessage('')
+  }
+
+  async function uploadReceipt(withdrawal) {
+    if (busyId || loading || receiptSelection.id !== withdrawal.id || !receiptSelection.file) return
+    setBusyId(withdrawal.id)
+    try {
+      const body = new FormData()
+      body.append('receipt', receiptSelection.file)
+      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${encodeURIComponent(withdrawal.id)}/receipt`, {
+        method: 'POST', headers: authHeaders(), body,
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Could not upload receipt')
+      setReceiptSelection({ id: '', file: null })
+      await fetchWithdrawals(page)
+      setMessage('Bank receipt saved. Verify it before confirming Paid.')
+    } catch (error) {
+      setMessage(`${error.message || 'Receipt upload failed'}. Check the request before trying again; do not send money again.`)
+    } finally { setBusyId('') }
+  }
+
+  async function confirmPaid(withdrawal) {
+    if (busyId || loading || withdrawal.status !== 'approved' || !withdrawal.paid_transaction_id || !/^store-withdrawals\//.test(withdrawal.paid_proof_url || '')) return
+    if (!window.confirm(`Confirm that ${formatUsd(withdrawal.amount_usd)} was sent and this saved bank receipt belongs to this withdrawal. This records Paid; it does NOT send money.`)) return
+    const pin = window.prompt('Six-digit Owner Passkey to confirm Paid:')
+    if (pin === null) return
+    if (!/^\d{6}$/.test(pin.trim())) { setMessage('Enter a valid six-digit Owner Passkey.'); return }
+    setBusyId(withdrawal.id)
+    try {
+      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${encodeURIComponent(withdrawal.id)}/status`, {
+        method: 'PATCH', headers: authHeaders(true),
         body: JSON.stringify({
-          status: nextStatus,
-          admin_note: adminNote.trim() || null,
-          reject_reason: rejectReason.trim() || null,
-          paid_amount_usd: nextStatus === 'paid' ? paidAmountUsd : null,
-          paid_transaction_id: paidTransactionId.trim() || null,
-          paid_proof_url: paidProofUrl.trim() || null,
-          paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop() : null,
+          status: 'paid', paid_amount_usd: Number(withdrawal.amount_usd),
+          paid_transaction_id: withdrawal.paid_transaction_id,
+          paid_proof_url: withdrawal.paid_proof_url,
+          passkey_pin: pin.trim(),
         }),
       })
-
       const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to update withdrawal request')
-      }
-
-      setMessage(data.message || 'Withdrawal updated')
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Could not confirm Paid')
       await fetchWithdrawals(page)
+      setMessage('Paid recorded. This request is now available in Paid History.')
     } catch (error) {
-      setMessage(`${error.message || 'Failed to update withdrawal request'}. Refresh and verify its status before retrying.`)
-    } finally {
-      setBusyId('')
+      setMessage(`${error.message || 'Paid confirmation failed'}. Refresh the request before trying again. Do not send the money again.`)
+    } finally { setBusyId('') }
+  }
+
+  async function viewReceipt(withdrawal) {
+    if (busyId || !/^store-withdrawals\//.test(withdrawal.paid_proof_url || '')) return
+    const windowRef = window.open('', '_blank')
+    try {
+      const response = await fetch(`${API_URL}/api/author-store/admin/withdrawals/${encodeURIComponent(withdrawal.id)}/receipt`, { headers: authHeaders(), cache: 'no-store' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.receipt_url) throw new Error(data.message || 'Receipt unavailable')
+      if (windowRef) windowRef.location.replace(data.receipt_url)
+      else window.open(data.receipt_url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      windowRef?.close()
+      setMessage(error.message || 'Could not open receipt')
     }
   }
 
@@ -699,13 +746,19 @@ export default function AdminWithdrawalPage() {
                         <div className="small">Paid ref: <span className="strong">{withdrawal.paid_transaction_id}</span></div>
                       ) : null}
                       {withdrawal.paid_proof_url ? (
-                        <div className="small"><a href={withdrawal.paid_proof_url} target="_blank" rel="noopener noreferrer">View payment receipt</a></div>
+                        <div className="small">
+                          {String(withdrawal.paid_proof_url).startsWith('store-withdrawals/') ? (
+                            <button type="button" disabled={Boolean(busyId)} onClick={() => viewReceipt(withdrawal)}>View saved receipt</button>
+                          ) : /^https:\/\//i.test(withdrawal.paid_proof_url) ? (
+                            <a href={withdrawal.paid_proof_url} target="_blank" rel="noopener noreferrer">View previous payment receipt</a>
+                          ) : <span>Receipt saved</span>}
+                        </div>
                       ) : null}
                     </div>
 
                     <div>
-                      <span className={`status-pill status-${withdrawal.status || 'in_review'}`}>
-                        {statusLabel(withdrawal.status || 'in_review')}
+                      <span className={`status-pill status-${withdrawal.status === 'approved' && withdrawal.paid_transaction_id && !withdrawal.paid_proof_url ? 'awaiting_receipt' : withdrawal.status || 'in_review'}`}>
+                        {withdrawal.status === 'approved' && withdrawal.paid_transaction_id && !withdrawal.paid_proof_url ? 'Awaiting Receipt' : statusLabel(withdrawal.status || 'in_review')}
                       </span>
                       <div className="small">Paid at: <span className="strong">{formatDate(withdrawal.paid_at)}</span></div>
                       <div className="small">Admin note: <span className="strong">{withdrawal.admin_note || '-'}</span></div>
@@ -724,20 +777,24 @@ export default function AdminWithdrawalPage() {
                         <button
                           className="action-button reject-button"
                           type="button"
-                          disabled={Boolean(busyId) || loading || !['in_review', 'approved'].includes(withdrawal.status)}
+                          disabled={Boolean(busyId) || loading || !['in_review', 'approved'].includes(withdrawal.status) || Boolean(withdrawal.paid_transaction_id)}
                           onClick={() => updateWithdrawalStatus(withdrawal, 'rejected')}
                         >
                           Reject
                         </button>
 
-                        <button
-                          className="action-button paid-button"
-                          type="button"
-                          disabled={Boolean(busyId) || loading || withdrawal.status !== 'approved'}
-                          onClick={() => updateWithdrawalStatus(withdrawal, 'paid')}
-                        >
-                          Mark Paid
-                        </button>
+                        {withdrawal.status === 'approved' && !withdrawal.paid_transaction_id ? (
+                          <button className="action-button paid-button" type="button" disabled={Boolean(busyId) || loading} onClick={() => recordTransfer(withdrawal)}>Record bank transfer</button>
+                        ) : null}
+                        {withdrawal.status === 'approved' && withdrawal.paid_transaction_id && !withdrawal.paid_proof_url ? (
+                          <>
+                            <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="Bank transfer receipt" disabled={Boolean(busyId) || loading} style={{ width: '100%', maxWidth: '100%', fontSize: 11 }} onChange={event => chooseReceipt(withdrawal.id, event.target.files?.[0])} />
+                            <button className="action-button paid-button" type="button" disabled={Boolean(busyId) || loading || receiptSelection.id !== withdrawal.id || !receiptSelection.file} onClick={() => uploadReceipt(withdrawal)}>Upload receipt</button>
+                          </>
+                        ) : null}
+                        {withdrawal.status === 'approved' && withdrawal.paid_transaction_id && String(withdrawal.paid_proof_url || '').startsWith('store-withdrawals/') ? (
+                          <button className="action-button paid-button" type="button" disabled={Boolean(busyId) || loading} onClick={() => confirmPaid(withdrawal)}>Confirm Paid</button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
