@@ -73,8 +73,7 @@ const PERIODS = [
 ]
 
 function startOfLast12Months(date) {
-  const [year, month] = date.split('-').map(Number)
-  return new Date(Date.UTC(year, month - 12, 1)).toISOString().slice(0, 10)
+  return shiftDay(date, -364)
 }
 
 function getPeriodStart(period, asOf) {
