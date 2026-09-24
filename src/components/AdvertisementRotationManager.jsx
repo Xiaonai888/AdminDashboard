@@ -117,6 +117,17 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer)},[])
   useEffect(()=>()=>{if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);if(cropImage?.startsWith('blob:'))URL.revokeObjectURL(cropImage)},[previewUrl,cropImage])
 
+async function switchMode(mode){
+  if(saving||loading||settings.mode===mode)return
+  try{
+    setSaving(true);setError('')
+    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})})
+    await loadRotation(selectedId)
+    if(typeof onChanged==='function')onChanged()
+  }catch(error){setError(error.message||'Failed to change Ad mode')}
+  finally{setSaving(false)}
+}
+  
   function updateLocalSettings(field,value){setSettings(previous=>({...previous,[field]:value}));setMessage('');setError('')}
   function updateEditor(field,value){setEditor(previous=>({...previous,[field]:value}));setMessage('');setError('')}
   function openManage(){setManageOpen(true);setEditorOpen(false);setMessage('');setError('')}
@@ -148,7 +159,7 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
     <section className="arm-card"><div className="arm-head"><div><h3>{title} Settings</h3><p>Manual or Auto Rotation with a compact, paginated Ad Library.</p></div><span className={`arm-status ${settings.enabled?'':'off'}`}><span className="arm-dot"/>{settings.enabled?'Active':'Disabled'}</span></div>
     <div className="arm-body"><div className="arm-settings">
       <div className="arm-toggle-row"><div><div className="arm-title">Enable {title}</div><div className="arm-help">Master switch for this placement.</div></div><button type="button" className={`arm-switch ${settings.enabled?'on':''}`} onClick={()=>updateLocalSettings('enabled',!settings.enabled)}><span/></button></div>
-      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Manual and Auto are mutually exclusive.</div><div className="arm-mode" style={{marginTop:8}}><button type="button" className={settings.mode==='manual'?'active':''} onClick={()=>updateLocalSettings('mode','manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} onClick={()=>updateLocalSettings('mode','auto')}>Auto Rotation</button></div></div>
+      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Manual and Auto are mutually exclusive.</div><div className="arm-mode" style={{marginTop:8}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button></div></div>
       {settings.mode==='auto'?<div className="arm-grid"><div className="arm-field"><label>Rotate Every</label><div className="arm-interval"><input className="arm-input" type="number" min="1" value={intervalValue} onChange={event=>setIntervalValue(Math.max(1,Number(event.target.value||1)))}/><select className="arm-input" value={intervalUnit} onChange={event=>setIntervalUnit(event.target.value)}><option value="minutes">Minutes</option><option value="hours">Hours</option></select></div></div><div className="arm-field"><label>Max Ads in Loop</label><input className="arm-input" type="number" min="1" max="100" value={settings.maxAds} onChange={event=>updateLocalSettings('maxAds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Next Change</label><input className="arm-input" value={remainingLabel||'—'} readOnly/></div></div>:null}
       <div className="arm-current-grid"><MiniStatusCard label="Current Ad" item={currentItem}/><MiniStatusCard label="Next Ad" item={nextItem}/></div>
       {settings.mode==='auto'&&settings.enabled&&loopItems.length===0?<div className="arm-warning">Auto is enabled but no eligible Ad is in the loop. No fallback Ad will show.</div>:null}
