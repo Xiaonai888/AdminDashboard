@@ -66,6 +66,12 @@ const styles = `
   .app-admin-empty{padding:28px;text-align:center;color:#64748B;font-size:12px;font-weight:800}
   @media(max-width:760px){.app-admin-profile{grid-template-columns:110px 1fr}.app-admin-add,.app-admin-add.full{grid-template-columns:1fr 1fr}.app-admin-profile-btn,.app-admin-drop{min-height:110px}.app-admin-preview{width:88px;height:88px}.app-admin-grid{grid-template-columns:1fr}}
   @media(max-width:520px){.app-admin-profile,.app-admin-add,.app-admin-add.full{grid-template-columns:1fr}.app-admin-preview{width:100px;height:100px}}
+.app-admin-profile{grid-template-columns:142px minmax(0,1fr)}
+.app-admin-drop,.app-admin-profile-btn{min-height:142px}
+.app-admin-profile-btn{padding:2px}
+.app-admin-preview{width:136px;height:136px;border-radius:22px}
+@media(max-width:760px){.app-admin-profile{grid-template-columns:142px minmax(0,1fr)}.app-admin-drop,.app-admin-profile-btn{min-height:142px}.app-admin-preview{width:136px;height:136px}}
+@media(max-width:630px){.app-admin-profile{grid-template-columns:1fr}.app-admin-drop,.app-admin-profile-btn{min-height:122px}.app-admin-preview{width:116px;height:116px}}
 `
 
 function getAdminToken() {
