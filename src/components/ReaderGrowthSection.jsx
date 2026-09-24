@@ -81,11 +81,12 @@ function getPeriodStart(period, asOf) {
   if (period === 'latest') return asOf
   if (period === '7d') return shiftDay(asOf, -6)
   if (period === '30d') return shiftDay(asOf, -29)
-  if (period === 'month') return `${asOf.slice(0, 7)}-01`
+  if (period === 'month') return `${new Date(Date.now() + 420 * 60000).toISOString().slice(0, 7)}-01`
   if (period === 'year') return startOfLast12Months(asOf)
   if (period === 'week') {
-    const weekday = new Date(`${asOf}T00:00:00Z`).getUTCDay()
-    return shiftDay(asOf, -((weekday + 6) % 7))
+    const today = new Date(Date.now() + 420 * 60000).toISOString().slice(0, 10)
+    const weekday = new Date(`${today}T00:00:00Z`).getUTCDay()
+    return shiftDay(today, -((weekday + 6) % 7))
   }
   return shiftDay(asOf, -6)
 }
@@ -139,7 +140,7 @@ export default function ReaderGrowthSection() {
   const firstDay = days[0]?.date || asOf
   const from = period === 'custom' ? (customFrom || shiftDay(asOf, -6)) : getPeriodStart(period, asOf || '2000-01-01')
   const to = period === 'custom' ? (customTo || asOf) : asOf
-  const validRange = Boolean(asOf && from <= to && from >= firstDay && to <= asOf)
+  const validRange = Boolean(asOf && from >= firstDay && to <= asOf && (from <= to || ['week', 'month'].includes(period)))
   const selected = useMemo(() => validRange ? days.filter((row) => row.date >= from && row.date <= to) : [], [days, from, to, validRange])
   const total = selected.reduce((sum, row) => sum + row.count, 0)
   const last30 = asOf ? sumDays(days, shiftDay(asOf, -29), asOf) : 0
@@ -217,7 +218,7 @@ export default function ReaderGrowthSection() {
           </div>
           <div className="rg-chart">
             <h4>{periodLabel} · new readers</h4>
-            <p className="rg-muted">{validRange ? `${formatDate(from)} – ${formatDate(to)}` : 'Invalid date range'}</p>
+            <p className="rg-muted">{validRange ? (from > to ? 'No completed days yet' : `${formatDate(from)} – ${formatDate(to)}`) : 'Invalid date range'}</p>
             {validRange && bars.length ? (
               <div className="rg-scroll">
                 <div className="rg-bars" role="img" aria-label={`New reader registrations: ${number(total)} total`}>
