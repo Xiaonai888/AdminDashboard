@@ -1131,7 +1131,6 @@ export default function AdminNotificationsPage() {
     <AdminLayout title="Notifications" subtitle="Create announcements for readers">
       <style>{styles}</style>
 
-      <div className="notification-admin-page">
         <div className="notification-admin-page">
   <AdminAuthorStoreRequestNotifications />
         <div className="notification-admin-head">
