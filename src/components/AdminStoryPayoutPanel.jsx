@@ -41,6 +41,7 @@ const styles = `
   .story-pay-tab[aria-selected="true"] { background:#4f46e5; color:#fff; border-color:#4f46e5; }
   .story-pay-button { border:0; border-radius:11px; min-height:38px; padding:9px 12px; background:#0f766e; color:#fff; font-weight:800; font-size:12px; cursor:pointer; }
   .story-pay-button:disabled { opacity:.55; cursor:not-allowed; }
+  .story-pay-export { background:#166534; }
   .story-pay-alert { background:#fffbeb; color:#92400e; border:1px solid #fde68a; border-radius:12px; font-size:12px; padding:10px 12px; margin-bottom:13px; line-height:1.6; }
   .story-pay-error { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; }
   .story-pay-table-wrap { max-width:100%; overflow-x:auto; border:1px solid #e2e8f0; border-radius:14px; }
@@ -64,6 +65,7 @@ export default function AdminStoryPayoutPanel() {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
   const [selectedPayout, setSelectedPayout] = useState(null)
 
   useEffect(() => {
@@ -103,6 +105,36 @@ export default function AdminStoryPayoutPanel() {
     setRevision((value) => value + 1)
   }
 
+  async function downloadExcel() {
+    if (exporting || !month) return
+    setExporting(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ month })
+      const response = await fetch(`${API_URL}/api/admin/income/payouts/excel?${params}`, {
+        headers: authHeaders(), cache: 'no-store',
+      })
+      if (!response.ok) {
+        const failure = await response.json().catch(() => ({}))
+        throw new Error(failure.message || 'Failed to download the complete Excel report')
+      }
+      const blob = await response.blob()
+      if (!blob.size) throw new Error('The Excel report was empty')
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `story-payouts-${month}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (caught) {
+      setError(caught.message || 'Unable to download Excel')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   function changeView(next) {
     setSelectedPayout(null)
     setPage(1)
@@ -126,7 +158,9 @@ export default function AdminStoryPayoutPanel() {
         <button type="button" className="story-pay-tab" role="tab" aria-selected={view === 'awaiting_receipt'} onClick={() => changeView('awaiting_receipt')}>Awaiting Receipt</button>
         <button type="button" className="story-pay-tab" role="tab" aria-selected={view === 'paid'} onClick={() => changeView('paid')}>Paid History</button>
         <button type="button" className="story-pay-tab" onClick={refresh} disabled={loading}>Refresh</button>
+        <button type="button" className="story-pay-button story-pay-export" onClick={downloadExcel} disabled={exporting || !month}>{exporting ? 'Preparing Excel…' : 'Download Excel · All authors'}</button>
       </div>
+      <div className="story-pay-muted">Excel contains every eligible payout in the selected completed month, including recorded transfers and Paid History, not only the 20 rows on screen. Amounts and bank details come from the generated monthly payout records.</div>
       {!WORKFLOW_READY ? <div className="story-pay-alert" role="status">Payout transfers are paused until the full workflow is verified. You can review the list, but do not send money from this page yet.</div> : null}
       {error ? <div className="story-pay-alert story-pay-error" role="alert">{error}</div> : null}
       {loading ? <p className="story-pay-muted">Loading payouts…</p> : payouts.length === 0 ? <p className="story-pay-muted">No {view === 'pending' ? 'eligible unpaid' : view === 'awaiting_receipt' ? 'receipt-pending' : 'paid'} Story Payout records for this month. The monthly payout records must be generated before they appear here.</p> : (
