@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AuthorBooksModal from '../components/AuthorBooksModal'
 import ReaderCountryWorldMap from '../components/ReaderCountryWorldMap'
+import ReaderGrowthSection from '../components/ReaderGrowthSection'
 import { useSearchParams } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -1881,6 +1882,7 @@ export default function AuthorsCommunity() {
   const [searchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
   const initialTab = ['readers', 'authors', 'visitors', 'countries'].includes(requestedTab) ? requestedTab : 'readers'
+  const initialTab = ['readers', 'authors', 'visitors', 'countries', 'growth'].includes(requestedTab) ? requestedTab : 'readers'
   const [activeTab, setActiveTab] = useState(initialTab)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -2018,7 +2020,7 @@ const [filter, setFilter] = useState(initialFilter)
   useEffect(() => {
     let alive = true
 
-    if (activeTab === 'countries') {
+    if (['countries', 'growth'].includes(activeTab)) {
       setListLoading(false)
       return () => {
         alive = false
@@ -2100,7 +2102,7 @@ const [filter, setFilter] = useState(initialFilter)
   }, [activeTab, page, debouncedSearch, filter, refreshKey])
 
   useEffect(() => {
-    if (activeTab === 'countries') return undefined
+    if (['countries', 'growth'].includes(activeTab)) return undefined
 
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -2359,7 +2361,7 @@ const [filter, setFilter] = useState(initialFilter)
           </div>
         </section>
 
-        {activeTab !== 'countries' ? (
+        {!['countries', 'growth'].includes(activeTab) ? (
           <section className="community-cards">
             {cards.map((card) => (
               <div className="community-card" key={card.label}>
@@ -2381,9 +2383,10 @@ const [filter, setFilter] = useState(initialFilter)
               <button type="button" className={activeTab === 'authors' ? 'active' : ''} onClick={() => switchTab('authors')}>Author</button>
               <button type="button" className={activeTab === 'visitors' ? 'active' : ''} onClick={() => switchTab('visitors')}>Visitor</button>
               <button type="button" className={activeTab === 'countries' ? 'active' : ''} onClick={() => switchTab('countries')}>🌍 Countries</button>
+              <button type="button" className={activeTab === 'growth' ? 'active' : ''} onClick={() => switchTab('growth')}>↗ Growth</button>
             </div>
 
-            {activeTab !== 'countries' ? (
+            {!['countries', 'growth'].includes(activeTab) ? (
               <div className="community-search-wrap">
                 <span>⌕</span>
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
@@ -2393,7 +2396,7 @@ const [filter, setFilter] = useState(initialFilter)
             )}
           </div>
 
-          {activeTab !== 'countries' ? (
+          {!['countries', 'growth'].includes(activeTab) ? (
             <>
               <div className="community-filter-row">
                 {currentFilters.map((item) => (
@@ -2453,15 +2456,17 @@ const [filter, setFilter] = useState(initialFilter)
             </div>
           ) : null}
 
-          {error && activeTab !== 'countries' ? (
+          {error && !['countries', 'growth'].includes(activeTab) ? (
             <div className="community-alert">
               <strong>Real API error:</strong> {error}
             </div>
           ) : null}
 
           {activeTab === 'countries' ? (
-            <CountriesSection />
-          ) : activeTab === 'visitors' ? (
+  <CountriesSection />
+) : activeTab === 'growth' ? (
+  <ReaderGrowthSection />
+) : activeTab === 'visitors' ? (
             <div className="community-table-wrap">
               <table className="community-table visitor-table">
                 <thead>
@@ -2602,7 +2607,7 @@ const [filter, setFilter] = useState(initialFilter)
             </div>
           )}
 
-          {activeTab !== 'countries' ? (
+          {!['countries', 'growth'].includes(activeTab) ? (
             <div className="community-pagination">
               <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
               <span>Page {pagination.page} of {pagination.total_pages}</span>
@@ -2612,7 +2617,7 @@ const [filter, setFilter] = useState(initialFilter)
         </section>
       </div>
 
-      {activeTab === 'countries' ? null : activeTab === 'visitors' ? (
+      {['countries', 'growth'].includes(activeTab) ? null : activeTab === 'visitors' ? (
         <VisitorDetailDrawer visitor={selectedItem} onClose={() => setSelectedItem(null)} />
       ) : (
         <UserDetailDrawer
