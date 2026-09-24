@@ -1881,7 +1881,6 @@ async function readApiResponse(response) {
 export default function AuthorsCommunity() {
   const [searchParams] = useSearchParams()
   const requestedTab = searchParams.get('tab')
-  const initialTab = ['readers', 'authors', 'visitors', 'countries'].includes(requestedTab) ? requestedTab : 'readers'
   const initialTab = ['readers', 'authors', 'visitors', 'countries', 'growth'].includes(requestedTab) ? requestedTab : 'readers'
   const [activeTab, setActiveTab] = useState(initialTab)
   const [search, setSearch] = useState('')
