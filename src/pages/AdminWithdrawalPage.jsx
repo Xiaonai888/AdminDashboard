@@ -452,7 +452,7 @@ function getPaymentMethodText(method) {
 export default function AdminWithdrawalPage() {
   const [withdrawals, setWithdrawals] = useState([])
   const [status, setStatus] = useState('in_review')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('withdrawal') || '')
   const [page, setPage] = useState(1)
   const [meta, setMeta] = useState({ total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [loading, setLoading] = useState(true)
