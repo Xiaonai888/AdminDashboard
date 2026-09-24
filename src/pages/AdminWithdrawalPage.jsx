@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminStoryPayoutPanel from '../components/AdminStoryPayoutPanel'
+import AdminAuthorStoreExcelButton from '../components/AdminAuthorStoreExcelButton'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -629,6 +630,7 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                 Refresh
               </button>
             </div>
+           <AdminAuthorStoreExcelButton status={status} query={query} />
           </div>
 
           <div className="withdraw-card">
