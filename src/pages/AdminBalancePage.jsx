@@ -5,6 +5,8 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://shadow-backend-kucw.onrender.com'
 
+const BALANCE_FALLBACK_API_URL = 'https://shadow-backend-kucw.onrender.com'
+
 const PAGE_SIZE = 20
 const DORMANT_DAYS = 90
 const CACHE_TTL_MS = 60 * 1000
@@ -783,23 +785,55 @@ async function loadBalancePage({
   if (refresh) params.set('refresh', '1')
 
   const token = getAdminToken()
-  const response = await fetch(
-    `${API_URL}/api/admin/balance?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      signal,
+  const balanceField = {
+    diamond: 'diamond_balance',
+    coin: 'coin_balance',
+    voucher: 'voucher_balance',
+    story_card: 'story_card_balance',
+  }[balanceType] || 'diamond_balance'
+
+  async function requestBalance(baseUrl, forceRefresh) {
+    const requestParams = new URLSearchParams(params)
+    if (forceRefresh) requestParams.set('refresh', '1')
+    const response = await fetch(
+      `${baseUrl.replace(/\/$/, '')}/api/admin/balance?${requestParams.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+        signal,
+      }
+    )
+    const data = await readResponse(response)
+    const rows = Array.isArray(data?.items) ? data.items : []
+    const correctlySorted = rows.every((item, index) => {
+      if (!index) return true
+      const previous = Number(rows[index - 1]?.[balanceField] || 0)
+      const current = Number(item?.[balanceField] || 0)
+      return Number.isFinite(previous) && Number.isFinite(current) &&
+        (sort === 'desc' ? previous >= current : previous <= current)
+    })
+    return {
+      data,
+      valid: data?.balance_type === balanceType && data?.sort === sort &&
+        Array.isArray(data?.items) && correctlySorted,
     }
-  )
+  }
 
-  const data = await readResponse(response)
+  let result = await requestBalance(API_URL, refresh)
+  if (!result.valid && API_URL.replace(/\/$/, '') !== BALANCE_FALLBACK_API_URL) {
+    result = await requestBalance(BALANCE_FALLBACK_API_URL, true)
+  }
+  if (!result.valid) {
+    throw new Error(
+      'Balance API is still using an old or incorrect ranking. Deploy the latest Shadow-Backend and confirm AdminDashboard VITE_API_URL points to that service.'
+    )
+  }
 
-  writeTimedCache(pageCache, key, data)
+  writeTimedCache(pageCache, key, result.data)
 
   return {
-    data,
-    source: data?.cached ? 'server-cache' : 'database',
+    data: result.data,
+    source: result.data?.cached ? 'server-cache' : 'database',
   }
 }
 
