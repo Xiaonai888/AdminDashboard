@@ -457,6 +457,7 @@ export default function AdminWithdrawalPage() {
   const [meta, setMeta] = useState({ total: 0, total_pages: 1, has_next: false, has_prev: false })
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [busyId, setBusyId] = useState('')
 
   const totalText = useMemo(() => `${meta.total || 0} withdrawals`, [meta.total])
 
@@ -508,6 +509,7 @@ export default function AdminWithdrawalPage() {
 
 
   async function updateWithdrawalStatus(withdrawal, nextStatus) {
+    if (busyId || loading) return
     let adminNote = ''
     let rejectReason = ''
     let paidTransactionId = ''
@@ -529,30 +531,43 @@ export default function AdminWithdrawalPage() {
     }
 
     if (nextStatus === 'paid') {
-  paidAmountUsd = window.prompt('Paid amount:', String(withdrawal.amount_usd || ''))
-  if (paidAmountUsd === null) return
+      if (withdrawal.status !== 'approved') {
+        setMessage('Approve the withdrawal before recording its payment.')
+        return
+      }
 
-  paidTransactionId = window.prompt('Transaction ID / Reference number (optional):') || ''
+      paidAmountUsd = Number(withdrawal.amount_usd)
+      if (!Number.isFinite(paidAmountUsd) || paidAmountUsd <= 0) {
+        setMessage('Invalid withdrawal amount. Refresh and check the request.')
+        return
+      }
 
-  paidProofUrl = window.prompt('Payment proof screenshot URL:')
-  if (paidProofUrl === null) return
+      paidTransactionId = window.prompt('Bank transaction reference (after money was sent):')
+      if (paidTransactionId === null) return
+      if (paidTransactionId.trim().length < 4) {
+        setMessage('A real bank transaction reference (at least 4 characters) is required.')
+        return
+      }
 
-  if (!paidProofUrl.trim()) {
-    setMessage('Payment proof screenshot URL is required.')
-    return
-  }
-}
+      paidProofUrl = window.prompt('HTTPS URL of the actual bank transfer receipt:')
+      if (paidProofUrl === null) return
+      if (!/^https:\/\/[^\s]+$/i.test(paidProofUrl.trim())) {
+        setMessage('A valid HTTPS receipt URL is required.')
+        return
+      }
+    }
     const confirmText =
       nextStatus === 'approved'
         ? 'Approve this withdrawal request?'
         : nextStatus === 'rejected'
           ? 'Reject this withdrawal request?'
           : nextStatus === 'paid'
-            ? 'Mark this withdrawal as paid? Make sure you already sent the money.'
+            ? `Have you ALREADY transferred exactly ${formatUsd(withdrawal.amount_usd)} to this author and verified the bank receipt? This does not send money.`
             : `Update withdrawal to ${nextStatus}?`
 
     if (!window.confirm(confirmText)) return
 
+    setBusyId(withdrawal.id)
     try {
       setMessage('')
 
@@ -567,10 +582,10 @@ export default function AdminWithdrawalPage() {
           status: nextStatus,
           admin_note: adminNote.trim() || null,
           reject_reason: rejectReason.trim() || null,
-          paid_amount_usd: paidAmountUsd ? Number(paidAmountUsd) : null,
+          paid_amount_usd: nextStatus === 'paid' ? paidAmountUsd : null,
           paid_transaction_id: paidTransactionId.trim() || null,
           paid_proof_url: paidProofUrl.trim() || null,
-paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop() : null,
+          paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop() : null,
         }),
       })
 
@@ -581,9 +596,11 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
       }
 
       setMessage(data.message || 'Withdrawal updated')
-      fetchWithdrawals(page)
+      await fetchWithdrawals(page)
     } catch (error) {
-      setMessage(error.message || 'Failed to update withdrawal request')
+      setMessage(`${error.message || 'Failed to update withdrawal request'}. Refresh and verify its status before retrying.`)
+    } finally {
+      setBusyId('')
     }
   }
 
@@ -595,10 +612,10 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
         <div className="withdraw-body">
           <AdminStoryPayoutPanel />
           <div className="withdraw-top">
-            <div className="withdraw-kicker">AUTHOR PAYOUTS</div>
-            <h1 className="withdraw-heading">Withdraw Requests</h1>
+            <div className="withdraw-kicker">AUTHOR STORE · REQUEST-BASED</div>
+            <h1 className="withdraw-heading">Author Store Withdrawals</h1>
             <div className="withdraw-note">
-              Review author withdrawal requests, payment method snapshots, and payout status.
+              Request-based payouts only. Story Payouts are listed separately above. Paid requests remain available in Paid History.
             </div>
 
             <div className="withdraw-toolbar">
@@ -617,9 +634,9 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                 value={status}
                 onChange={(event) => setStatus(event.target.value)}
               >
-                <option value="in_review">In review</option>
+                <option value="in_review">New requests</option>
                 <option value="approved">Approved</option>
-                <option value="paid">Paid</option>
+                <option value="paid">Paid History</option>
                 <option value="rejected">Rejected</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="archived">Archived</option>
@@ -630,12 +647,12 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                 Refresh
               </button>
             </div>
-           <AdminAuthorStoreExcelButton status={status} query={query} />
+            <AdminAuthorStoreExcelButton status={status} query={query} />
           </div>
 
           <div className="withdraw-card">
             <div className="withdraw-card-head">
-              <div className="withdraw-card-title">Withdrawal list</div>
+              <div className="withdraw-card-title">Author Store withdrawal list</div>
               <div className="count-pill">{totalText}</div>
             </div>
 
@@ -652,7 +669,7 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                 const method = withdrawal.payment_method_snapshot || {}
 
                 return (
-                  <div className="withdraw-row" key={withdrawal.id}>
+                  <div className="withdraw-row" key={withdrawal.id} data-withdrawal-id={withdrawal.id}>
                     <div>
                       <div className="amount">{formatUsd(withdrawal.amount_usd)}</div>
                       <div className="small">Withdrawal ID: <span className="strong">{withdrawal.id}</span></div>
@@ -672,13 +689,17 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                       <div className="strong">Payment method</div>
                       <div className="small">{getPaymentMethodText(method)}</div>
                       {method.qr_image_url ? (
-                        <div className="small">QR: <span className="strong">{method.qr_image_url}</span></div>
-                      ) : null}
+                        <div className="small">
+                          <a href={method.qr_image_url} target="_blank" rel="noopener noreferrer" aria-label="Open author bank QR">
+                            <img src={method.qr_image_url} alt="Author bank QR" loading="lazy" style={{ width: 90, maxHeight: 90, objectFit: 'contain', borderRadius: 10, border: '1px solid #E2E8F0' }} />
+                          </a>
+                        </div>
+                      ) : <div className="small">Bank QR not uploaded</div>}
                       {withdrawal.paid_transaction_id ? (
                         <div className="small">Paid ref: <span className="strong">{withdrawal.paid_transaction_id}</span></div>
                       ) : null}
                       {withdrawal.paid_proof_url ? (
-                        <div className="small">Proof: <span className="strong">{withdrawal.paid_proof_url}</span></div>
+                        <div className="small"><a href={withdrawal.paid_proof_url} target="_blank" rel="noopener noreferrer">View payment receipt</a></div>
                       ) : null}
                     </div>
 
@@ -694,7 +715,7 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                         <button
                           className="action-button approve-button"
                           type="button"
-                          disabled={!['in_review'].includes(withdrawal.status)}
+                          disabled={Boolean(busyId) || loading || withdrawal.status !== 'in_review'}
                           onClick={() => updateWithdrawalStatus(withdrawal, 'approved')}
                         >
                           Approve
@@ -703,7 +724,7 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                         <button
                           className="action-button reject-button"
                           type="button"
-                          disabled={!['in_review', 'approved'].includes(withdrawal.status)}
+                          disabled={Boolean(busyId) || loading || !['in_review', 'approved'].includes(withdrawal.status)}
                           onClick={() => updateWithdrawalStatus(withdrawal, 'rejected')}
                         >
                           Reject
@@ -712,7 +733,7 @@ paid_proof_file_name: paidProofUrl.trim() ? paidProofUrl.trim().split('/').pop()
                         <button
                           className="action-button paid-button"
                           type="button"
-                          disabled={!['in_review', 'approved'].includes(withdrawal.status)}
+                          disabled={Boolean(busyId) || loading || withdrawal.status !== 'approved'}
                           onClick={() => updateWithdrawalStatus(withdrawal, 'paid')}
                         >
                           Mark Paid
