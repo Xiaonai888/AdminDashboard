@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminAuthorStoreRequestNotifications from '../components/AdminAuthorStoreRequestNotifications'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -1131,6 +1132,8 @@ export default function AdminNotificationsPage() {
       <style>{styles}</style>
 
       <div className="notification-admin-page">
+        <div className="notification-admin-page">
+  <AdminAuthorStoreRequestNotifications />
         <div className="notification-admin-head">
           <div>
             <div className="notification-admin-kicker">Reader Announcements</div>
