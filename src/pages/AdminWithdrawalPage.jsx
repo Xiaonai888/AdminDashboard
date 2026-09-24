@@ -252,6 +252,41 @@ const styles = `
     background: #16A34A;
   }
 
+  .withdraw-main-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 5px;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    background: #FFFFFF;
+  }
+
+  .withdraw-main-tab {
+    flex: 1 1 200px;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .withdraw-main-tab.active {
+    background: #4F46E5;
+    color: #FFFFFF;
+  }
+
+  .withdraw-main-tab:focus-visible {
+    outline: 2px solid #4F46E5;
+    outline-offset: 2px;
+  }
+
   @media (max-width: 1100px) {
     .withdraw-page,
     .withdraw-body {
@@ -453,6 +488,7 @@ function getPaymentMethodText(method) {
 }
 
 export default function AdminWithdrawalPage() {
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).has('withdrawal') ? 'store' : 'story')
   const [withdrawals, setWithdrawals] = useState([])
   const [status, setStatus] = useState('in_review')
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('withdrawal') || '')
@@ -508,8 +544,8 @@ export default function AdminWithdrawalPage() {
   }
 
   useEffect(() => {
-    fetchWithdrawals(1)
-  }, [status])
+    if (activeTab === 'store') fetchWithdrawals(1)
+  }, [status, activeTab])
 
 
   async function updateWithdrawalStatus(withdrawal, nextStatus) {
@@ -657,7 +693,18 @@ export default function AdminWithdrawalPage() {
 
       <div className="withdraw-page">
         <div className="withdraw-body">
-          <AdminStoryPayoutPanel />
+          <div className="withdraw-main-tabs" role="tablist" aria-label="Withdrawal type">
+            <button type="button" role="tab" aria-selected={activeTab === 'story'} className={`withdraw-main-tab ${activeTab === 'story' ? 'active' : ''}`} onClick={() => setActiveTab('story')}>
+              Story Payouts
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === 'store'} className={`withdraw-main-tab ${activeTab === 'store' ? 'active' : ''}`} onClick={() => setActiveTab('store')}>
+              Author Store Withdrawals
+            </button>
+          </div>
+          {activeTab === 'story' ? (
+            <AdminStoryPayoutPanel />
+          ) : (
+            <>
           <div className="withdraw-top">
             <div className="withdraw-kicker">AUTHOR STORE · REQUEST-BASED</div>
             <h1 className="withdraw-heading">Author Store Withdrawals</h1>
@@ -822,6 +869,8 @@ export default function AdminWithdrawalPage() {
               </button>
             </div>
           </div>
+            </>
+          )}
         </div>
       </div>
     </AdminLayout>
