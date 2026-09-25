@@ -42,6 +42,7 @@ import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminBalancePage from './pages/AdminBalancePage';
 import AdminAuthorIncomePage from './pages/AdminAuthorIncomePage';
+import AdminAuthorLibraryPage from './pages/AdminAuthorLibraryPage';
 import AdminGoogleAdsPage from './pages/AdminGoogleAdsPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
 import AdminMusicPage from './pages/AdminMusicPage';
@@ -188,6 +189,7 @@ export default function App() {
         <Route path="/income/episode-sales" element={<ProtectedPage><AdminEpisodeSalesPage /></ProtectedPage>} />
         <Route path="/income/diamond-gifts" element={<ProtectedPage><AdminDiamondGiftsPage /></ProtectedPage>} />
         <Route path="/income/author-page" element={<ProtectedPage><AdminAuthorPageIncomePage /></ProtectedPage>} />
+        <Route path="/author-library" element={<ProtectedPage><AdminAuthorLibraryPage /></ProtectedPage>} />
         <Route path="/income/shadow-mall" element={<ProtectedPage><AdminShadowMallIncomePage /></ProtectedPage>} />
         <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
