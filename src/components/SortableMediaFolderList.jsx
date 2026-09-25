@@ -53,6 +53,7 @@ function reorderFolders(folders, draggedId, targetId, placeAfter) {
 export default function SortableMediaFolderList({
   folders,
   images,
+  imageCounts,
   selectedFolderId,
   onSelect,
   onEdit,
@@ -281,12 +282,7 @@ export default function SortableMediaFolderList({
                   </div>
 
                   <div className="media-folder-count">
-                    {
-                      images.filter(
-                        (image) => image.folderId === folder.id
-                      ).length
-                    }{' '}
-                    images
+                    {imageCounts?.[folder.id] || 'Open to view'}
                   </div>
                 </div>
               </div>
