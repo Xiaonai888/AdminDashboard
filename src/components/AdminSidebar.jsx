@@ -197,6 +197,7 @@ const navSections = [
       { path: '/task-center', label: 'Task Center', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2h11' },
       { path: '/balance', label: 'Balance', icon: 'M20 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2z M16 13h4 M4 7V5a2 2 0 0 1 2-2h12v4' },
       { path: '/author-income', label: 'Author Income', icon: 'M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M4 22a8 8 0 0 1 16 0' },
+      { path: '/author-library', label: 'Author Library', icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z' },
       { path: '/google-ads', label: 'Google Ads', icon: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5' },
       { path: '/search-insights', label: 'Search Insights', icon: 'M11 3a8 8 0 1 0 4.9 14.3L21 22l1-1-4.7-5.1A8 8 0 0 0 11 3z' },
       { path: '/music', label: 'Music', icon: 'M9 18V5l10-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M16 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6' },
