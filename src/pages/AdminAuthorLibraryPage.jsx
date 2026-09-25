@@ -3,7 +3,6 @@ import AdminLayout from '../components/AdminLayout'
 
 const API = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const TTL = 60_000
-const cache = new Map()
 const styles = `
   .al-wrap{max-width:1120px;margin:0 auto;color:#17243b}
   .al-tools{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}
@@ -62,6 +61,7 @@ export default function AdminAuthorLibraryPage() {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
   const reqId = useRef(0)
+  const cacheRef = useRef(new Map())
   const selected = items.find(item => item.id === selectedId) || null
 
   useEffect(() => {
@@ -70,13 +70,13 @@ export default function AdminAuthorLibraryPage() {
   }, [input])
 
   const load = useCallback(async (force = false) => {
-    const key = `${type}|${search}|${page}`
-    const saved = cache.get(key)
+    const current = ++reqId.current
+    const key = `${headers().Authorization || ''}|${type}|${search}|${page}`
+    const saved = cacheRef.current.get(key)
     if (!force && saved && Date.now() - saved.time < TTL) {
       setItems(saved.data.items); setTotal(saved.data.total); setHasNext(saved.data.has_next); setError(''); setLoading(false)
       return
     }
-    const current = ++reqId.current
     setLoading(true); setError('')
     try {
       const params = new URLSearchParams({ type, q: search, page: String(page) })
@@ -84,8 +84,8 @@ export default function AdminAuthorLibraryPage() {
       const body = await response.json().catch(() => ({}))
       if (!response.ok || !body.ok || !Array.isArray(body.items)) throw new Error(body.message || 'Unable to load Author Library')
       if (current !== reqId.current) return
-      cache.set(key, { time: Date.now(), data: body })
-      if (cache.size > 30) cache.delete(cache.keys().next().value)
+      cacheRef.current.set(key, { time: Date.now(), data: body })
+      if (cacheRef.current.size > 30) cacheRef.current.delete(cacheRef.current.keys().next().value)
       setItems(body.items); setTotal(body.total); setHasNext(body.has_next)
     } catch (reason) {
       if (current === reqId.current) { setError(reason.message || 'Unable to load library'); setItems([]); setTotal(0); setHasNext(false) }
@@ -135,7 +135,7 @@ export default function AdminAuthorLibraryPage() {
         <div className="al-tools">
           <input className="al-search" aria-label="Search author products" placeholder="Search title, author, Author Page…" value={input} onChange={event => setInput(event.target.value)} maxLength={60} />
           <div className="al-tabs">{['all', 'book', 'pdf'].map(value => <button className={`al-btn ${type === value ? 'active' : ''}`} type="button" key={value} onClick={() => switchType(value)}>{value === 'all' ? 'All' : value === 'book' ? 'Book' : 'PDF'}</button>)}</div>
-          <button className="al-btn" type="button" disabled={loading} onClick={() => { cache.clear(); void load(true) }}>Refresh</button>
+          <button className="al-btn" type="button" disabled={loading} onClick={() => { cacheRef.current.clear(); void load(true) }}>Refresh</button>
         </div>
         <p className="al-muted">{loading ? 'Loading…' : `${total} products · page ${page} · 20 per page`} · Private PDF files are never cached</p>
         {error ? <p className="al-error" role="alert">{error}</p> : null}
