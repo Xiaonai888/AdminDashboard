@@ -5,6 +5,23 @@ import SortableMediaFolderList from '../components/SortableMediaFolderList'
 import { uploadMediaLibraryWithProgress } from '../utils/uploadMediaLibraryWithProgress'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const MEDIA_CACHE_MS = 10 * 60 * 1000
+let mediaCache = { token: null, folders: null, foldersAt: 0, foldersPromise: null, records: new Map(), pending: new Map(), selectedFolderId: '', versions: new Map() }
+
+function getMediaCache() {
+  const token = getAdminToken()
+  if (mediaCache.token !== token) {
+    mediaCache = { token, folders: null, foldersAt: 0, foldersPromise: null, records: new Map(), pending: new Map(), selectedFolderId: '', versions: new Map() }
+  }
+  return mediaCache
+}
+
+function patchCachedImage(image) {
+  const cache = getMediaCache()
+  const record = cache.records.get(image.folderId)
+  if (record) record.images = record.images.map((item) => item.id === image.id ? image : item)
+}
+
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
@@ -389,7 +406,7 @@ function MediaCard({ image, folders, onMove, onToggle, onDelete }) {
   return (
     <article className="media-card">
       <div className="media-card-image">
-        <img src={image.imageUrl} alt={image.title} />
+        <img src={image.imageUrl} alt={image.title} loading="lazy" decoding="async" />
         <span className={`media-status ${image.active ? 'active' : 'hidden'}`}>
           {image.active ? 'Active' : 'Hidden'}
         </span>
@@ -415,9 +432,9 @@ function MediaCard({ image, folders, onMove, onToggle, onDelete }) {
 }
 
 export default function ShadowMediaLibraryPage() {
-  const [folders, setFolders] = useState([])
-  const [images, setImages] = useState([])
-  const [selectedFolderId, setSelectedFolderId] = useState('')
+  const [folders, setFolders] = useState(() => getMediaCache().folders || [])
+  const [images, setImages] = useState(() => getMediaCache().records.get(getMediaCache().selectedFolderId)?.images || [])
+  const [selectedFolderId, setSelectedFolderId] = useState(() => getMediaCache().selectedFolderId)
   const [search, setSearch] = useState('')
   const [folderModalOpen, setFolderModalOpen] = useState(false)
   const [editingFolder, setEditingFolder] = useState(null)
@@ -425,25 +442,99 @@ export default function ShadowMediaLibraryPage() {
   const [uploads, setUploads] = useState([])
   const [uploadError, setUploadError] = useState('')
   const [uploading, setUploading] = useState(false)
-
-  const loadLibrary = async () => {
-    try {
-      const data = await apiRequest('/api/admin/media-library')
-      const nextFolders = (data.folders || []).map(folderFromApi)
-      const nextImages = (data.images || []).map(imageFromApi)
-      setFolders(nextFolders)
-      setImages(nextImages)
-      setSelectedFolderId((current) =>
-        nextFolders.some((folder) => folder.id === current) ? current : nextFolders[0]?.id || ''
-      )
-    } catch (error) {
-      window.alert(error.message)
-    }
-  }
+  const [imagePage, setImagePage] = useState(1)
+  const [hasMoreImages, setHasMoreImages] = useState(false)
+  const [loadingImages, setLoadingImages] = useState(false)
+  const [imagesError, setImagesError] = useState('')
+  const [imageRevision, setImageRevision] = useState(0)
 
   useEffect(() => {
-    loadLibrary()
+    let active = true
+    const cache = getMediaCache()
+    const fetchFolders = async () => {
+      if (!cache.folders || Date.now() - cache.foldersAt >= MEDIA_CACHE_MS) {
+        if (!cache.foldersPromise) {
+          cache.foldersPromise = apiRequest('/api/admin/media-library?folders_only=1')
+            .then((data) => {
+              cache.folders = (data.folders || []).map(folderFromApi)
+              cache.foldersAt = Date.now()
+              return cache.folders
+            })
+            .finally(() => { cache.foldersPromise = null })
+        }
+        await cache.foldersPromise
+      }
+      if (!active) return
+      const nextFolders = cache.folders || []
+      setFolders(nextFolders)
+      setSelectedFolderId((current) => {
+        const next = nextFolders.some((folder) => folder.id === current) ? current : nextFolders[0]?.id || ''
+        cache.selectedFolderId = next
+        return next
+      })
+    }
+    fetchFolders().catch((error) => { if (active) setImagesError(error.message || 'Failed to load folders.') })
+    return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    if (!selectedFolderId) {
+      setImages([])
+      setHasMoreImages(false)
+      setLoadingImages(false)
+      return
+    }
+    let active = true
+    const cache = getMediaCache()
+    const cached = cache.records.get(selectedFolderId)
+    const fresh = cached && Date.now() - cached.at < MEDIA_CACHE_MS
+    if (fresh && cached.page >= imagePage) {
+      setImages(cached.images)
+      setHasMoreImages(cached.hasMore)
+      setImagesError('')
+      setLoadingImages(false)
+      return
+    }
+    if (cached && !fresh && imagePage > 1) {
+      setImagePage(1)
+      return
+    }
+    const requestedPage = fresh && cached?.page + 1 === imagePage ? imagePage : 1
+    const key = `${selectedFolderId}:${requestedPage}`
+    const generation = cache.versions.get(selectedFolderId) || 0
+    setImagesError('')
+    setLoadingImages(true)
+    if (requestedPage === 1 && !fresh) {
+      setImages([])
+      setHasMoreImages(false)
+    }
+    let request = cache.pending.get(key)
+    if (!request) {
+      request = apiRequest(`/api/admin/media-library?images_only=1&folder_id=${encodeURIComponent(selectedFolderId)}&page=${requestedPage}`)
+        .then((data) => {
+          const list = (data.images || []).map(imageFromApi)
+          const previous = requestedPage > 1 ? cache.records.get(selectedFolderId) : null
+          const result = {
+            images: previous ? [...previous.images, ...list.filter((item) => !previous.images.some((old) => old.id === item.id))] : list,
+            page: requestedPage,
+            hasMore: Boolean(data.has_more),
+            at: Date.now(),
+          }
+          if ((cache.versions.get(selectedFolderId) || 0) === generation) cache.records.set(selectedFolderId, result)
+          return result
+        })
+        .finally(() => { if (cache.pending.get(key) === request) cache.pending.delete(key) })
+      cache.pending.set(key, request)
+    }
+    request.then((record) => {
+      if (!active || (cache.versions.get(selectedFolderId) || 0) !== generation) return
+      setImages(record.images)
+      setHasMoreImages(record.hasMore)
+    }).catch((error) => {
+      if (active) setImagesError(error.message || 'Failed to load images.')
+    }).finally(() => { if (active) setLoadingImages(false) })
+    return () => { active = false }
+  }, [selectedFolderId, imagePage, imageRevision])
 
   const sortedFolders = useMemo(
     () => [...folders].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -454,12 +545,45 @@ export default function ShadowMediaLibraryPage() {
 
   const filteredImages = useMemo(() => {
     const cleanSearch = search.trim().toLowerCase()
-
     return images
       .filter((image) => image.folderId === selectedFolderId)
       .filter((image) => !cleanSearch || image.title.toLowerCase().includes(cleanSearch))
       .sort((a, b) => a.sortOrder - b.sortOrder)
   }, [images, search, selectedFolderId])
+
+  const selectMediaFolder = (folderId) => {
+    const cache = getMediaCache()
+    cache.selectedFolderId = folderId
+    const cached = cache.records.get(folderId)
+    setImages(cached && Date.now() - cached.at < MEDIA_CACHE_MS ? cached.images : [])
+    setHasMoreImages(cached && Date.now() - cached.at < MEDIA_CACHE_MS ? cached.hasMore : false)
+    setSearch('')
+    setImagesError('')
+    setImagePage(1)
+    setSelectedFolderId(folderId)
+  }
+
+  const invalidateMediaFolders = (folderIds) => {
+    const cache = getMediaCache()
+    folderIds.forEach((id) => {
+      cache.versions.set(id, (cache.versions.get(id) || 0) + 1)
+      cache.records.delete(id)
+      for (const key of cache.pending.keys()) {
+        if (key.startsWith(`${id}:`)) cache.pending.delete(key)
+      }
+    })
+    if (folderIds.includes(selectedFolderId)) {
+      setImages([])
+      setHasMoreImages(false)
+      setImagePage(1)
+      setImageRevision((current) => current + 1)
+    }
+  }
+
+  const folderImageCounts = Object.fromEntries(
+    [...getMediaCache().records.entries()].filter(([, record]) => Date.now() - record.at < MEDIA_CACHE_MS)
+      .map(([id, record]) => [id, `${record.images.length}${record.hasMore ? '+' : ''} images loaded`])
+  )
 
   const saveFolder = async (folder) => {
     try {
@@ -517,7 +641,10 @@ export default function ShadowMediaLibraryPage() {
           ? current.map((item) => (item.id === saved.id ? saved : item))
           : [...current, saved]
       )
-      setSelectedFolderId(saved.id)
+      const cache = getMediaCache()
+      cache.folders = existing ? (cache.folders || []).map((item) => item.id === saved.id ? saved : item) : [...(cache.folders || []), saved]
+      cache.foldersAt = Date.now()
+      selectMediaFolder(saved.id)
       setFolderModalOpen(false)
       setEditingFolder(null)
     } catch (error) {
@@ -534,8 +661,11 @@ export default function ShadowMediaLibraryPage() {
       const data = await apiRequest(`/api/admin/media-library/folders/${folderId}`, { method: 'DELETE' })
       const remaining = folders.filter((item) => item.id !== folderId)
       setFolders(remaining)
-      setImages((current) => current.filter((image) => image.folderId !== folderId))
-      setSelectedFolderId(remaining[0]?.id || '')
+      const cache = getMediaCache()
+      cache.folders = remaining
+      cache.foldersAt = Date.now()
+      invalidateMediaFolders([folderId])
+      selectMediaFolder(remaining[0]?.id || '')
 
       if (data.cleanup_warning) {
         window.alert(`Folder deleted. R2 cleanup warning: ${data.cleanup_warning}`)
@@ -554,6 +684,9 @@ export default function ShadowMediaLibraryPage() {
       })
       const saved = folderFromApi(data.folder)
       setFolders((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+      const cache = getMediaCache()
+      cache.folders = (cache.folders || []).map((item) => item.id === saved.id ? saved : item)
+      cache.foldersAt = Date.now()
     } catch (error) {
       window.alert(error.message)
     }
@@ -698,7 +831,7 @@ export default function ShadowMediaLibraryPage() {
       }
 
       uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
-      setImages((current) => [...current, ...created])
+      invalidateMediaFolders([...new Set(created.map((item) => item.folderId))])
       setUploads([])
       setUploadError('')
       setUploadOpen(false)
@@ -717,7 +850,7 @@ export default function ShadowMediaLibraryPage() {
         body: JSON.stringify({ folder_id: folderId }),
       })
       const saved = imageFromApi(data.image)
-      setImages((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+      invalidateMediaFolders([...new Set([images.find((item) => item.id === imageId)?.folderId, saved.folderId].filter(Boolean))])
     } catch (error) {
       window.alert(error.message)
     }
@@ -734,7 +867,8 @@ export default function ShadowMediaLibraryPage() {
         body: JSON.stringify({ is_active: !image.active }),
       })
       const saved = imageFromApi(data.image)
-      setImages((current) => current.map((item) => (item.id === saved.id ? saved : item)))
+      setImages((current) => current.map((item) => item.id === saved.id ? saved : item))
+      patchCachedImage(saved)
     } catch (error) {
       window.alert(error.message)
     }
@@ -746,7 +880,7 @@ export default function ShadowMediaLibraryPage() {
 
     try {
       const data = await apiRequest(`/api/admin/media-library/images/${imageId}`, { method: 'DELETE' })
-      setImages((current) => current.filter((item) => item.id !== imageId))
+      invalidateMediaFolders(image?.folderId ? [image.folderId] : [])
 
       if (data.cleanup_warning) {
         window.alert(`Image deleted. R2 cleanup warning: ${data.cleanup_warning}`)
@@ -1132,6 +1266,18 @@ export default function ShadowMediaLibraryPage() {
           font-size: 12px;
           font-weight: 700;
           outline: none;
+        }
+
+        .media-pagination {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          gap: 12px;
+          padding: 12px 18px 22px;
+          color: #64748B;
+          font-size: 12px;
+          font-weight: 750;
         }
 
         .media-grid {
@@ -1848,12 +1994,18 @@ export default function ShadowMediaLibraryPage() {
           <SortableMediaFolderList
   folders={folders}
   images={images}
+  imageCounts={folderImageCounts}
   selectedFolderId={selectedFolderId}
-  onSelect={setSelectedFolderId}
+  onSelect={selectMediaFolder}
   onEdit={(folder) => { setEditingFolder(folder); setFolderModalOpen(true) }}
   onToggle={toggleFolder}
   onDelete={deleteFolder}
-  onReordered={setFolders}
+  onReordered={(nextFolders) => {
+    setFolders(nextFolders)
+    const cache = getMediaCache()
+    cache.folders = nextFolders
+    cache.foldersAt = Date.now()
+  }}
 />
         </aside>
 
@@ -1879,11 +2031,13 @@ export default function ShadowMediaLibraryPage() {
               className="media-search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search images in this folder..."
+              placeholder="Search loaded images in this folder..."
             />
           </div>
 
-          {filteredImages.length ? (
+          {loadingImages && !images.length ? (
+            <div className="media-empty" role="status">Loading images...</div>
+          ) : filteredImages.length ? (
             <div className="media-grid">
               {filteredImages.map((image) => (
                 <MediaCard
@@ -1899,20 +2053,32 @@ export default function ShadowMediaLibraryPage() {
           ) : (
             <div className="media-empty">
               <div className="media-empty-icon">▧</div>
-              <h3>No images in this folder</h3>
-              <p>
-                Add people, locations, objects, backgrounds, effects or any reusable image.
-              </p>
-              <button
-                type="button"
-                className="media-button primary"
-                disabled={!selectedFolderId}
-                onClick={() => setUploadOpen(true)}
-              >
-                Add First Images
-              </button>
+              <h3>{search.trim() ? 'No matches in loaded images' : 'No images in this folder'}</h3>
+              <p>{search.trim() ? 'Load more images to search further in this folder.' : 'Add people, locations, objects, backgrounds, effects or any reusable image.'}</p>
+              {!search.trim() && !imagesError ? (
+                <button type="button" className="media-button primary" disabled={!selectedFolderId} onClick={() => setUploadOpen(true)}>
+                  Add First Images
+                </button>
+              ) : null}
             </div>
           )}
+          {imagesError ? <div className="media-upload-error" role="alert">{imagesError}</div> : null}
+          {selectedFolderId && (hasMoreImages || loadingImages || imagesError) ? (
+            <div className="media-pagination">
+              <span>{images.length} images loaded{hasMoreImages ? ' · More available' : ''}</span>
+              <button
+                type="button"
+                className="media-button light"
+                disabled={loadingImages}
+                onClick={() => {
+                  if (imagesError) setImageRevision((current) => current + 1)
+                  else setImagePage(Math.max(imagePage, getMediaCache().records.get(selectedFolderId)?.page || 1) + 1)
+                }}
+              >
+                {loadingImages ? 'Loading...' : imagesError ? 'Retry' : 'Load 30 More'}
+              </button>
+            </div>
+          ) : null}
         </section>
       </div>
 
