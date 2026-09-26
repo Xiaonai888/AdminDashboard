@@ -57,11 +57,14 @@ export default function AdminAuthorLibraryPage() {
   const [selectedId, setSelectedId] = useState('')
   const [modal, setModal] = useState(false)
   const [pin, setPin] = useState('')
-  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [showPin, setShowPin] = useState(false)
+  const [intent, setIntent] = useState('download')
+  const [preview, setPreview] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
   const reqId = useRef(0)
   const cacheRef = useRef(new Map())
+  const previewUrlRef = useRef('')
   const selected = items.find(item => item.id === selectedId) || null
 
   useEffect(() => {
@@ -95,20 +98,25 @@ export default function AdminAuthorLibraryPage() {
   useEffect(() => { void load(); return () => { reqId.current += 1 } }, [load])
 
   function switchType(value) { setType(value); setPage(1); setSelectedId(''); setError('') }
-  function openDownload() { setPin(''); setTwoFactorCode(''); setDownloadError(''); setModal(true) }
-  function closeDownload() { if (!downloading) { setModal(false); setPin(''); setTwoFactorCode(''); setDownloadError('') } }
+  function openProtected(nextIntent) { setIntent(nextIntent); setPin(''); setShowPin(false); setDownloadError(''); setModal(true) }
+  function closeDownload() { if (!downloading) { setModal(false); setPin(''); setShowPin(false); setDownloadError('') } }
+  function closePreview() { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = ''; setPreview(null) }
+  useEffect(() => () => { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current) }, [])
 
   async function download(event) {
     event.preventDefault()
     if (!selected || downloading) return
     const id = selected.id
+    const fileName = selected.pdf_file_name || `author-pdf-${id}.pdf`
+    const fileTitle = selected.title || 'PDF'
+    const action = intent
     setDownloading(true); setDownloadError('')
     try {
-      const response = await fetch(`${API}/api/admin/income/author-library/${encodeURIComponent(id)}/download`, {
+      const response = await fetch(`${API}/api/admin/income/author-library/${encodeURIComponent(id)}/${action}`, {
         method: 'POST', headers: { ...headers(), 'Content-Type': 'application/json' },
-        cache: 'no-store', body: JSON.stringify({ pin, twoFactorCode }),
+        cache: 'no-store', body: JSON.stringify({ pin }),
       })
-      setPin(''); setTwoFactorCode('')
+      setPin('')
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new Error(data.message || 'PDF verification failed')
@@ -116,9 +124,16 @@ export default function AdminAuthorLibraryPage() {
       const file = await response.blob()
       if (file.size < 5 || !file.type.toLowerCase().includes('application/pdf')) throw new Error('Server did not return a PDF')
       const url = URL.createObjectURL(file)
+      if (action === 'read') {
+        closePreview()
+        previewUrlRef.current = url
+        setPreview({ url, title: fileTitle })
+        setModal(false)
+        return
+      }
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = (selected.pdf_file_name || `author-pdf-${id}.pdf`).replace(/[\\/]/g, '_')
+      anchor.download = fileName.replace(/[\\/]/g, '_')
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
@@ -161,16 +176,21 @@ export default function AdminAuthorLibraryPage() {
             <div><span>File name / size</span>{selected.product_type === 'pdf' ? `${selected.pdf_file_name || '-'} · ${selected.pdf_size_bytes ? Math.round(selected.pdf_size_bytes / 1024).toLocaleString() + ' KB' : 'Unknown size'}` : 'Physical book · no PDF'}</div>
             <div><span>Storage record</span>{selected.product_type === 'pdf' ? selected.file_recorded ? selected.pdf_private ? 'Private PDF record · actual file unverified' : 'Public/legacy PDF · admin download unavailable' : 'No PDF attached' : `Stock: ${selected.stock_quantity ?? 0}`}</div>
           </div>
-          {selected.product_type === 'pdf' && selected.pdf_private && selected.file_recorded ? <button className="al-btn primary" type="button" onClick={openDownload}>Download PDF · verify Passkey + 2FA</button> : <p className="al-muted">{selected.product_type === 'book' ? 'Physical books do not have a PDF download.' : 'Secure download requires a private PDF file.'}</p>}
+          {selected.product_type === 'pdf' && selected.pdf_private && selected.file_recorded ? <div className="al-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}><button className="al-btn" type="button" onClick={() => openProtected('read')}>Read Online · Passkey</button><button className="al-btn primary" type="button" onClick={() => openProtected('download')}>Download PDF · Passkey</button></div> : <p className="al-muted">{selected.product_type === 'book' ? 'Physical books do not have a PDF download.' : 'Secure download requires a private PDF file.'}</p>}
           <p className="al-muted">An Admin inspection download does not change a reader’s Read Online Only access rights. A PDF signature check is not a guarantee that its pages and content are correct; inspect the downloaded file.</p>
         </section> : null}
       </div>
+      {preview ? <div className="al-overlay" role="dialog" aria-modal="true" aria-label={`Read ${preview.title}`} style={{ padding: 8 }}><div style={{ width: 'min(100%, 1050px)', height: 'min(96dvh, 1100px)', background: '#fff', display: 'flex', flexDirection: 'column', borderRadius: 14, overflow: 'hidden' }}><div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: 12 }}><strong style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview.title}</strong><button className="al-btn" type="button" onClick={closePreview}>Close</button></div><iframe title={preview.title} src={preview.url} style={{ width: '100%', flex: 1, border: 0, background: '#fff' }} /></div></div> : null}
       {modal && selected ? <div className="al-overlay" role="presentation"><form className="al-modal" onSubmit={download} aria-label="Verify PDF inspection download">
-        <h2>Confirm PDF inspection</h2><p>{selected.title}</p><p>Enter your existing Admin Passkey PIN and a fresh 2FA Authenticator code. Both are required for <strong>every</strong> PDF download. This request is checked on the Backend and logged.</p>
-        <label htmlFor="al-pin">Admin Passkey PIN (6 digits)</label><input id="al-pin" className="al-input" value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} type="password" autoComplete="off" inputMode="numeric" maxLength={6} required />
-        <label htmlFor="al-totp">Authenticator code (6 digits)</label><input id="al-totp" className="al-input" value={twoFactorCode} onChange={event => setTwoFactorCode(event.target.value.replace(/\D/g, '').slice(0, 6))} type="text" autoComplete="one-time-code" inputMode="numeric" maxLength={6} required />
+        <h2>{intent === 'read' ? 'Read PDF online' : 'Confirm PDF inspection'}</h2><p>{selected.title}</p><p>Enter your existing Admin Passkey PIN. Backend checks it every time before sending a private PDF.</p>
+        <label htmlFor="al-pin">Admin Passkey PIN (6 digits)</label>
+        <div style={{ position: 'relative' }}><input id="al-pin" className="al-input" style={{ width: '100%', boxSizing: 'border-box', paddingRight: 48 }} value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} type={showPin ? 'text' : 'password'} autoComplete="off" inputMode="numeric" maxLength={6} required />
+          <button type="button" onClick={() => setShowPin(value => !value)} aria-label={showPin ? 'Hide Passkey PIN' : 'Show Passkey PIN'} aria-pressed={showPin} title={showPin ? 'Hide PIN' : 'Show PIN'} style={{ position: 'absolute', right: 5, top: 3, width: 39, height: 39, display: 'grid', placeItems: 'center', border: 0, background: 'transparent', color: '#516079', cursor: 'pointer' }}>
+            <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>{showPin ? null : <path d="M3 3l18 18"/>}</svg>
+          </button>
+        </div>
         {downloadError ? <p className="al-error" role="alert">{downloadError}</p> : null}
-        <div className="al-actions"><button type="button" className="al-btn" disabled={downloading} onClick={closeDownload}>Cancel</button><button className="al-btn primary" type="submit" disabled={downloading || pin.length !== 6 || twoFactorCode.length !== 6}>{downloading ? 'Verifying…' : 'Verify & Download'}</button></div>
+        <div className="al-actions"><button type="button" className="al-btn" disabled={downloading} onClick={closeDownload}>Cancel</button><button className="al-btn primary" type="submit" disabled={downloading || pin.length !== 6}>{downloading ? 'Verifying…' : intent === 'read' ? 'Verify & Read' : 'Verify & Download'}</button></div>
       </form></div> : null}
     </AdminLayout>
   )
