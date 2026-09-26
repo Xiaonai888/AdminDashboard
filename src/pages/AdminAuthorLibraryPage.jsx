@@ -58,7 +58,7 @@ export default function AdminAuthorLibraryPage() {
   const [modal, setModal] = useState(false)
   const [pin, setPin] = useState('')
   const [showPin, setShowPin] = useState(false)
-  const [intent, setIntent] = useState('download')
+  const [readError, setReadError] = useState('')
   const [preview, setPreview] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
@@ -98,25 +98,23 @@ export default function AdminAuthorLibraryPage() {
   useEffect(() => { void load(); return () => { reqId.current += 1 } }, [load])
 
   function switchType(value) { setType(value); setPage(1); setSelectedId(''); setError('') }
-  function openProtected(nextIntent) { setIntent(nextIntent); setPin(''); setShowPin(false); setDownloadError(''); setModal(true) }
+  function openProtected() { setPin(''); setShowPin(false); setDownloadError(''); setModal(true) }
   function closeDownload() { if (!downloading) { setModal(false); setPin(''); setShowPin(false); setDownloadError('') } }
   function closePreview() { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = ''; setPreview(null) }
   useEffect(() => () => { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current) }, [])
 
-  async function download(event) {
-    event.preventDefault()
+  async function openPdf(action) {
     if (!selected || downloading) return
     const id = selected.id
     const fileName = selected.pdf_file_name || `author-pdf-${id}.pdf`
     const fileTitle = selected.title || 'PDF'
-    const action = intent
-    setDownloading(true); setDownloadError('')
+    setDownloading(true); setDownloadError(''); setReadError('')
     try {
       const response = await fetch(`${API}/api/admin/income/author-library/${encodeURIComponent(id)}/${action}`, {
         method: 'POST', headers: { ...headers(), 'Content-Type': 'application/json' },
-        cache: 'no-store', body: JSON.stringify({ pin }),
+        cache: 'no-store', ...(action === 'download' ? { body: JSON.stringify({ pin }) } : {}),
       })
-      setPin('')
+      if (action === 'download') setPin('')
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new Error(data.message || 'PDF verification failed')
@@ -139,9 +137,13 @@ export default function AdminAuthorLibraryPage() {
       anchor.remove()
       setTimeout(() => URL.revokeObjectURL(url), 60000)
       setModal(false)
-    } catch (reason) { setDownloadError(reason.message || 'PDF download failed') }
-    finally { setDownloading(false) }
+    } catch (reason) {
+      if (action === 'read') setReadError(reason.message || 'PDF could not be opened')
+      else setDownloadError(reason.message || 'PDF download failed')
+    } finally { setDownloading(false) }
   }
+
+  function download(event) { event.preventDefault(); void openPdf('download') }
 
   return (
     <AdminLayout title="Author Library" subtitle="Review author products and inspect private PDFs securely">
@@ -176,13 +178,14 @@ export default function AdminAuthorLibraryPage() {
             <div><span>File name / size</span>{selected.product_type === 'pdf' ? `${selected.pdf_file_name || '-'} · ${selected.pdf_size_bytes ? Math.round(selected.pdf_size_bytes / 1024).toLocaleString() + ' KB' : 'Unknown size'}` : 'Physical book · no PDF'}</div>
             <div><span>Storage record</span>{selected.product_type === 'pdf' ? selected.file_recorded ? selected.pdf_private ? 'Private PDF record · actual file unverified' : 'Public/legacy PDF · admin download unavailable' : 'No PDF attached' : `Stock: ${selected.stock_quantity ?? 0}`}</div>
           </div>
-          {selected.product_type === 'pdf' && selected.pdf_private && selected.file_recorded ? <div className="al-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}><button className="al-btn" type="button" onClick={() => openProtected('read')}>Read Online · Passkey</button><button className="al-btn primary" type="button" onClick={() => openProtected('download')}>Download PDF · Passkey</button></div> : <p className="al-muted">{selected.product_type === 'book' ? 'Physical books do not have a PDF download.' : 'Secure download requires a private PDF file.'}</p>}
+          {selected.product_type === 'pdf' && selected.pdf_private && selected.file_recorded ? <div className="al-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}><button className="al-btn" type="button" disabled={downloading} onClick={() => { void openPdf('read') }}>{downloading ? 'Opening…' : 'Read Online'}</button><button className="al-btn primary" type="button" disabled={downloading} onClick={openProtected}>Download PDF · Passkey</button></div> : <p className="al-muted">{selected.product_type === 'book' ? 'Physical books do not have a PDF download.' : 'Secure download requires a private PDF file.'}</p>}
+          {readError ? <p className="al-error" role="alert">{readError}</p> : null}
           <p className="al-muted">An Admin inspection download does not change a reader’s Read Online Only access rights. A PDF signature check is not a guarantee that its pages and content are correct; inspect the downloaded file.</p>
         </section> : null}
       </div>
       {preview ? <div className="al-overlay" role="dialog" aria-modal="true" aria-label={`Read ${preview.title}`} style={{ padding: 8 }}><div style={{ width: 'min(100%, 1050px)', height: 'min(96dvh, 1100px)', background: '#fff', display: 'flex', flexDirection: 'column', borderRadius: 14, overflow: 'hidden' }}><div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: 12 }}><strong style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview.title}</strong><button className="al-btn" type="button" onClick={closePreview}>Close</button></div><iframe title={preview.title} src={preview.url} style={{ width: '100%', flex: 1, border: 0, background: '#fff' }} /></div></div> : null}
       {modal && selected ? <div className="al-overlay" role="presentation"><form className="al-modal" onSubmit={download} aria-label="Verify PDF inspection download">
-        <h2>{intent === 'read' ? 'Read PDF online' : 'Confirm PDF inspection'}</h2><p>{selected.title}</p><p>Enter your existing Admin Passkey PIN. Backend checks it every time before sending a private PDF.</p>
+        <h2>Confirm PDF inspection download</h2><p>{selected.title}</p><p>Enter your existing Admin Passkey PIN. Backend checks it every time before sending a private PDF.</p>
         <label htmlFor="al-pin">Admin Passkey PIN (6 digits)</label>
         <div style={{ position: 'relative' }}><input id="al-pin" className="al-input" style={{ width: '100%', boxSizing: 'border-box', paddingRight: 48 }} value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} type={showPin ? 'text' : 'password'} autoComplete="off" inputMode="numeric" maxLength={6} required />
           <button type="button" onClick={() => setShowPin(value => !value)} aria-label={showPin ? 'Hide Passkey PIN' : 'Show Passkey PIN'} aria-pressed={showPin} title={showPin ? 'Hide PIN' : 'Show PIN'} style={{ position: 'absolute', right: 5, top: 3, width: 39, height: 39, display: 'grid', placeItems: 'center', border: 0, background: 'transparent', color: '#516079', cursor: 'pointer' }}>
@@ -190,7 +193,7 @@ export default function AdminAuthorLibraryPage() {
           </button>
         </div>
         {downloadError ? <p className="al-error" role="alert">{downloadError}</p> : null}
-        <div className="al-actions"><button type="button" className="al-btn" disabled={downloading} onClick={closeDownload}>Cancel</button><button className="al-btn primary" type="submit" disabled={downloading || pin.length !== 6}>{downloading ? 'Verifying…' : intent === 'read' ? 'Verify & Read' : 'Verify & Download'}</button></div>
+        <div className="al-actions"><button type="button" className="al-btn" disabled={downloading} onClick={closeDownload}>Cancel</button><button className="al-btn primary" type="submit" disabled={downloading || pin.length !== 6}>{downloading ? 'Verifying…' : 'Verify & Download'}</button></div>
       </form></div> : null}
     </AdminLayout>
   )
