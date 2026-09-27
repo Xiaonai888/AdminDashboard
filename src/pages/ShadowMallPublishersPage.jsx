@@ -3,9 +3,103 @@ import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
+const PUBLISHER_LOGO_MAX_BYTES = 5 * 1024 * 1024
+const PUBLISHER_LOGO_OPTIMIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
+}
+
+function revokePreviewUrl(url) {
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+}
+
+function createCanvasBlob(canvas, type, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality))
+}
+
+async function optimizePublisherLogo(file) {
+  if (!file?.type?.startsWith('image/')) {
+    throw new Error('Please choose an image file.')
+  }
+
+  if (file.size > PUBLISHER_LOGO_MAX_BYTES) {
+    throw new Error('Publisher logo must be 5 MB or smaller.')
+  }
+
+  const type = String(file.type || '').toLowerCase()
+  if (!PUBLISHER_LOGO_OPTIMIZABLE_TYPES.has(type)) return file
+
+  const objectUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error('Failed to read publisher logo.'))
+      element.src = objectUrl
+    })
+
+    const sourceWidth = Number(image.naturalWidth || image.width || 0)
+    const sourceHeight = Number(image.naturalHeight || image.height || 0)
+    if (!sourceWidth || !sourceHeight) return file
+
+    const maxWidth = 900
+    const maxHeight = 900
+    const targetBytes = 220 * 1024
+    const minOptimizeBytes = 280 * 1024
+
+    if (file.size <= minOptimizeBytes && sourceWidth <= maxWidth && sourceHeight <= maxHeight) {
+      return file
+    }
+
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) return file
+
+    const baseScale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight)
+    const qualities = [0.92, 0.88, 0.84, 0.8, 0.76]
+    let scale = baseScale
+    let bestBlob = null
+
+    try {
+      while (scale >= Math.min(baseScale, 0.5)) {
+        const width = Math.max(1, Math.round(sourceWidth * scale))
+        const height = Math.max(1, Math.round(sourceHeight * scale))
+
+        canvas.width = width
+        canvas.height = height
+        context.clearRect(0, 0, width, height)
+        context.drawImage(image, 0, 0, width, height)
+
+        for (const quality of qualities) {
+          const blob = await createCanvasBlob(canvas, 'image/webp', quality)
+          if (!blob) continue
+          if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob
+          if (blob.size <= targetBytes) break
+        }
+
+        if (bestBlob?.size <= targetBytes || scale <= 0.5) break
+        scale *= 0.82
+      }
+    } finally {
+      canvas.width = 1
+      canvas.height = 1
+    }
+
+    if (!bestBlob || bestBlob.size >= file.size * 0.9) return file
+
+    const outputName = `${String(file.name || 'publisher-logo').replace(/\.[^.]+$/, '') || 'publisher-logo'}.webp`
+
+    return new File([bestBlob], outputName, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    })
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 const emptyForm = {
@@ -188,6 +282,10 @@ export default function ShadowMallPublishersPage() {
     () => publishers.filter((publisher) => publisher.is_active),
     [publishers]
   )
+
+  useEffect(() => () => {
+    revokePreviewUrl(logoPreview)
+  }, [logoPreview])
 
   function authHeaders() {
     const token = getAdminToken()
@@ -403,17 +501,35 @@ async function loadPublisherLogs(nextPage = 1) {
 
   function handleLogoUpload(event) {
     const file = event.target.files?.[0]
+    event.target.value = ''
 
     if (!file) return
 
+    if (!file.type?.startsWith('image/')) {
+      setMessage('Please choose an image file.')
+      return
+    }
+
+    if (file.size > PUBLISHER_LOGO_MAX_BYTES) {
+      setMessage('Publisher logo must be 5 MB or smaller.')
+      return
+    }
+
     setLogoFile(file)
-    setLogoPreview(URL.createObjectURL(file))
+    setLogoPreview((current) => {
+      revokePreviewUrl(current)
+      return URL.createObjectURL(file)
+    })
     setRemoveLogo(false)
+    setMessage('')
   }
 
   function clearLogo() {
     setLogoFile(null)
-    setLogoPreview('')
+    setLogoPreview((current) => {
+      revokePreviewUrl(current)
+      return ''
+    })
     setRemoveLogo(true)
 
     if (logoInputRef.current) {
@@ -423,7 +539,10 @@ async function loadPublisherLogs(nextPage = 1) {
 
   function resetLogo() {
     setLogoFile(null)
-    setLogoPreview('')
+    setLogoPreview((current) => {
+      revokePreviewUrl(current)
+      return ''
+    })
     setRemoveLogo(false)
 
     if (logoInputRef.current) {
@@ -456,7 +575,8 @@ async function loadPublisherLogs(nextPage = 1) {
       formData.append('is_active', String(Boolean(form.is_active)))
 
       if (logoFile) {
-        formData.append('publisher_logo', logoFile)
+        const optimizedLogo = await optimizePublisherLogo(logoFile)
+        formData.append('publisher_logo', optimizedLogo)
       }
 
       if (removeLogo && !logoFile) {
@@ -498,7 +618,10 @@ async function loadPublisherLogs(nextPage = 1) {
       is_active: Boolean(publisher.is_active),
     })
     setLogoFile(null)
-    setLogoPreview(publisher.logo_url || '')
+    setLogoPreview((current) => {
+      revokePreviewUrl(current)
+      return publisher.logo_url || ''
+    })
     setRemoveLogo(false)
 
     if (logoInputRef.current) {
