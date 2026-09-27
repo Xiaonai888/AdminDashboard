@@ -215,6 +215,13 @@ export default function AdminAuthorIncomePage() {
       setMessage('')
 
       try {
+if (!sessionStorage.getItem('shadow_author_income_reconciled_v1')) {
+  const repair = await fetch(`${API_URL}/api/admin/income/author-income/reconcile`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+  }).catch(() => null)
+  if (repair?.ok) sessionStorage.setItem('shadow_author_income_reconciled_v1', '1')
+}
+        
         const params = new URLSearchParams({
           page: String(page),
           limit: String(PAGE_SIZE),
