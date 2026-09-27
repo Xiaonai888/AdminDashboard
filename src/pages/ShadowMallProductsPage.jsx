@@ -4,6 +4,8 @@ import AdminSidebar from '../components/AdminSidebar';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 const USE_LEGACY_SIDEBAR = false;
+const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const PRODUCT_OPTIMIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
 
 const styles = `
  
@@ -1232,6 +1234,99 @@ function getYoutubeEmbedUrl(value) {
   return raw;
 }
 
+function revokePreviewUrl(url) {
+  if (typeof url === 'string' && url.startsWith('blob:')) {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function createCanvasBlob(canvas, type, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+async function optimizeProductImage(file, variant = 'gallery') {
+  if (!file?.type?.startsWith('image/')) {
+    throw new Error('Please choose an image file.');
+  }
+
+  if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+    throw new Error('Product images must be 5 MB or smaller.');
+  }
+
+  const type = String(file.type || '').toLowerCase();
+  if (!PRODUCT_OPTIMIZABLE_TYPES.has(type)) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('Failed to read product image.'));
+      element.src = objectUrl;
+    });
+
+    const sourceWidth = Number(image.naturalWidth || image.width || 0);
+    const sourceHeight = Number(image.naturalHeight || image.height || 0);
+    if (!sourceWidth || !sourceHeight) return file;
+
+    const isCover = variant === 'cover';
+    const maxWidth = isCover ? 1400 : 1280;
+    const maxHeight = isCover ? 2100 : 1920;
+    const targetBytes = (isCover ? 720 : 560) * 1024;
+    const minOptimizeBytes = (isCover ? 850 : 700) * 1024;
+
+    if (file.size <= minOptimizeBytes && sourceWidth <= maxWidth && sourceHeight <= maxHeight) {
+      return file;
+    }
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return file;
+
+    const baseScale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight);
+    const qualities = [0.92, 0.88, 0.84, 0.8, 0.76];
+    let scale = baseScale;
+    let bestBlob = null;
+
+    try {
+      while (scale >= Math.min(baseScale, 0.5)) {
+        const width = Math.max(1, Math.round(sourceWidth * scale));
+        const height = Math.max(1, Math.round(sourceHeight * scale));
+
+        canvas.width = width;
+        canvas.height = height;
+        context.clearRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        for (const quality of qualities) {
+          const blob = await createCanvasBlob(canvas, 'image/webp', quality);
+          if (!blob) continue;
+          if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob;
+          if (blob.size <= targetBytes) break;
+        }
+
+        if (bestBlob?.size <= targetBytes || scale <= 0.5) break;
+        scale *= 0.82;
+      }
+    } finally {
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+
+    if (!bestBlob || bestBlob.size >= file.size * 0.9) return file;
+
+    const outputName = `${String(file.name || (isCover ? 'main-cover' : 'gallery-image')).replace(/\.[^.]+$/, '') || (isCover ? 'main-cover' : 'gallery-image')}.webp`;
+
+    return new File([bestBlob], outputName, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export default function ShadowMallProductsPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -1320,6 +1415,11 @@ const searchMatch = !keyword || title.includes(keyword);
     fetchProducts();
   }, []);
 
+  useEffect(() => () => {
+    revokePreviewUrl(mainCoverPreview);
+    galleryPreviews.forEach(revokePreviewUrl);
+  }, [mainCoverPreview, galleryPreviews]);
+
   function updateField(field, value) {
     setForm((current) => ({
       ...current,
@@ -1329,16 +1429,34 @@ const searchMatch = !keyword || title.includes(keyword);
 
   function handleMainCoverUpload(event) {
     const file = event.target.files?.[0];
+    event.target.value = '';
 
     if (!file) return;
 
+    if (!file.type?.startsWith('image/')) {
+      setMessage('Please choose an image file.');
+      return;
+    }
+
+    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      setMessage('Product images must be 5 MB or smaller.');
+      return;
+    }
+
+    setMessage('');
     setMainCoverFile(file);
-    setMainCoverPreview(URL.createObjectURL(file));
+    setMainCoverPreview((current) => {
+      revokePreviewUrl(current);
+      return URL.createObjectURL(file);
+    });
   }
 
   function clearMainCover() {
     setMainCoverFile(null);
-    setMainCoverPreview('');
+    setMainCoverPreview((current) => {
+      revokePreviewUrl(current);
+      return '';
+    });
 
     if (mainCoverInputRef.current) {
       mainCoverInputRef.current.value = '';
@@ -1347,8 +1465,21 @@ const searchMatch = !keyword || title.includes(keyword);
 
   function handleGalleryUpload(index, event) {
     const file = event.target.files?.[0];
+    event.target.value = '';
 
     if (!file) return;
+
+    if (!file.type?.startsWith('image/')) {
+      setMessage('Please choose an image file.');
+      return;
+    }
+
+    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+      setMessage('Product images must be 5 MB or smaller.');
+      return;
+    }
+
+    setMessage('');
 
     setGalleryFiles((current) => {
       const next = [...current];
@@ -1358,6 +1489,7 @@ const searchMatch = !keyword || title.includes(keyword);
 
     setGalleryPreviews((current) => {
       const next = [...current];
+      revokePreviewUrl(next[index]);
       next[index] = URL.createObjectURL(file);
       return next;
     });
@@ -1372,6 +1504,7 @@ const searchMatch = !keyword || title.includes(keyword);
 
     setGalleryPreviews((current) => {
       const next = [...current];
+      revokePreviewUrl(next[index]);
       next[index] = '';
       return next;
     });
@@ -1383,9 +1516,15 @@ const searchMatch = !keyword || title.includes(keyword);
 
   function resetMedia() {
     setMainCoverFile(null);
-    setMainCoverPreview('');
+    setMainCoverPreview((current) => {
+      revokePreviewUrl(current);
+      return '';
+    });
     setGalleryFiles([null, null, null, null, null]);
-    setGalleryPreviews(['', '', '', '', '']);
+    setGalleryPreviews((current) => {
+      current.forEach(revokePreviewUrl);
+      return ['', '', '', '', ''];
+    });
 
     if (mainCoverInputRef.current) {
       mainCoverInputRef.current.value = '';
@@ -1429,11 +1568,17 @@ const searchMatch = !keyword || title.includes(keyword);
     });
 
     setMainCoverFile(null);
-    setMainCoverPreview(product.cover_url || '');
+    setMainCoverPreview((current) => {
+      revokePreviewUrl(current);
+      return product.cover_url || '';
+    });
 
     const existingGallery = normalizeGallery(product.gallery_image_urls || product.image_urls);
     setGalleryFiles([null, null, null, null, null]);
-    setGalleryPreviews([...existingGallery, '', '', '', '', ''].slice(0, 5));
+    setGalleryPreviews((current) => {
+      current.forEach(revokePreviewUrl);
+      return [...existingGallery, '', '', '', '', ''].slice(0, 5);
+    });
 
     setMessage('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1467,17 +1612,27 @@ const searchMatch = !keyword || title.includes(keyword);
         formData.append(key, String(value ?? ''));
       });
 
-      formData.append('gallery_image_urls', JSON.stringify(galleryPreviews.map((url) => url || '').slice(0, 5)));
+      formData.append(
+        'gallery_image_urls',
+        JSON.stringify(
+          galleryPreviews
+            .map((url, index) => (galleryFiles[index] ? '' : (String(url || '').startsWith('blob:') ? '' : (url || ''))))
+            .slice(0, 5)
+        )
+      );
 
       if (mainCoverFile) {
-        formData.append('main_cover', mainCoverFile);
+        const optimizedMainCover = await optimizeProductImage(mainCoverFile, 'cover');
+        formData.append('main_cover', optimizedMainCover);
       }
 
-      galleryFiles.forEach((file, index) => {
+      for (let index = 0; index < galleryFiles.length; index += 1) {
+        const file = galleryFiles[index];
         if (file) {
-          formData.append(`gallery_image_${index}`, file);
+          const optimizedGalleryImage = await optimizeProductImage(file, 'gallery');
+          formData.append(`gallery_image_${index}`, optimizedGalleryImage);
         }
-      });
+      }
 
       const url = editingId
         ? `${API_URL}/api/shadow-mall/products/${editingId}`
