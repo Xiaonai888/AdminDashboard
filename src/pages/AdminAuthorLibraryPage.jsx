@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminPdfReader from '../components/AdminPdfReader'
 
 const API = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const TTL = 60_000
@@ -64,7 +65,6 @@ export default function AdminAuthorLibraryPage() {
   const [downloadError, setDownloadError] = useState('')
   const reqId = useRef(0)
   const cacheRef = useRef(new Map())
-  const previewUrlRef = useRef('')
   const selected = items.find(item => item.id === selectedId) || null
 
   useEffect(() => {
@@ -100,8 +100,7 @@ export default function AdminAuthorLibraryPage() {
   function switchType(value) { setType(value); setPage(1); setSelectedId(''); setError('') }
   function openProtected() { setPin(''); setShowPin(false); setDownloadError(''); setModal(true) }
   function closeDownload() { if (!downloading) { setModal(false); setPin(''); setShowPin(false); setDownloadError('') } }
-  function closePreview() { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current); previewUrlRef.current = ''; setPreview(null) }
-  useEffect(() => () => { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current) }, [])
+  function closePreview() { setPreview(null) }
 
   async function openPdf(action) {
     if (!selected || downloading) return
@@ -121,14 +120,12 @@ export default function AdminAuthorLibraryPage() {
       }
       const file = await response.blob()
       if (file.size < 5 || !file.type.toLowerCase().includes('application/pdf')) throw new Error('Server did not return a PDF')
-      const url = URL.createObjectURL(file)
       if (action === 'read') {
-        closePreview()
-        previewUrlRef.current = url
-        setPreview({ url, title: fileTitle })
+        setPreview({ blob: file, title: fileTitle })
         setModal(false)
         return
       }
+      const url = URL.createObjectURL(file)
       const anchor = document.createElement('a')
       anchor.href = url
       anchor.download = fileName.replace(/[\\/]/g, '_')
@@ -180,10 +177,22 @@ export default function AdminAuthorLibraryPage() {
           </div>
           {selected.product_type === 'pdf' && selected.pdf_private && selected.file_recorded ? <div className="al-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}><button className="al-btn" type="button" disabled={downloading} onClick={() => { void openPdf('read') }}>{downloading ? 'Opening…' : 'Read Online'}</button><button className="al-btn primary" type="button" disabled={downloading} onClick={openProtected}>Download PDF · Passkey</button></div> : <p className="al-muted">{selected.product_type === 'book' ? 'Physical books do not have a PDF download.' : 'Secure download requires a private PDF file.'}</p>}
           {readError ? <p className="al-error" role="alert">{readError}</p> : null}
-          <p className="al-muted">An Admin inspection download does not change a reader’s Read Online Only access rights. A PDF signature check is not a guarantee that its pages and content are correct; inspect the downloaded file.</p>
+          <p className="al-muted">Admin Read Online does not require Passkey. Download PDF requires your Admin Passkey PIN.</p>
         </section> : null}
       </div>
-      {preview ? <div className="al-overlay" role="dialog" aria-modal="true" aria-label={`Read ${preview.title}`} style={{ padding: 8 }}><div style={{ width: 'min(100%, 1050px)', height: 'min(96dvh, 1100px)', background: '#fff', display: 'flex', flexDirection: 'column', borderRadius: 14, overflow: 'hidden' }}><div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: 12 }}><strong style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{preview.title}</strong><button className="al-btn" type="button" onClick={closePreview}>Close</button></div><iframe title={preview.title} src={preview.url} style={{ width: '100%', flex: 1, border: 0, background: '#fff' }} /></div></div> : null}
+
+      {preview ? <div className="al-overlay" role="dialog" aria-modal="true" aria-label={`Read ${preview.title}`} style={{ padding: 8 }}>
+        <div style={{ width: 'min(100%, 1100px)', height: 'min(97dvh, 1150px)', background: '#fff', display: 'flex', flexDirection: 'column', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: 12, borderBottom: '1px solid #e5eaf2' }}>
+            <strong style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{preview.title}</strong>
+            <button className="al-btn" type="button" onClick={closePreview}>Close</button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <AdminPdfReader blob={preview.blob} title={preview.title} />
+          </div>
+        </div>
+      </div> : null}
+
       {modal && selected ? <div className="al-overlay" role="presentation"><form className="al-modal" onSubmit={download} aria-label="Verify PDF inspection download">
         <h2>Confirm PDF inspection download</h2><p>{selected.title}</p><p>Enter your existing Admin Passkey PIN. Backend checks it every time before sending a private PDF.</p>
         <label htmlFor="al-pin">Admin Passkey PIN (6 digits)</label>
