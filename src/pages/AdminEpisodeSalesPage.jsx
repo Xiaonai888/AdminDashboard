@@ -730,6 +730,8 @@ export default function AdminEpisodeSalesPage() {
     useState(0)
   const eventRefreshTimerRef =
     useRef(null)
+  const reconcilePromiseRef =
+    useRef(null)
 
   const transactions =
     data?.transactions || []
@@ -755,11 +757,69 @@ export default function AdminEpisodeSalesPage() {
   )
 
   async function fetchEpisodeSales(
-    signal
+    signal,
+    forceReconcile = false
   ) {
     try {
       setLoading(true)
       setMessage('')
+
+      let reconcileWarning = ''
+
+      if (forceReconcile) {
+        reconcilePromiseRef.current = null
+      }
+
+      if (!reconcilePromiseRef.current) {
+        reconcilePromiseRef.current = fetch(
+          `${API_URL}/api/admin/income/author-income/reconcile`,
+          {
+            method: 'POST',
+            headers: authHeaders(),
+          }
+        )
+          .then(async (response) => {
+            const result =
+              await response.json().catch(
+                () => ({})
+              )
+
+            if (
+              !response.ok ||
+              result.ok === false
+            ) {
+              throw new Error(
+                result.message ||
+                  'Income repair failed'
+              )
+            }
+
+            return result
+          })
+          .catch((error) => {
+            reconcilePromiseRef.current = null
+            throw error
+          })
+      }
+
+      try {
+        const reconcileResult =
+          await reconcilePromiseRef.current
+
+        if (
+          Number(
+            reconcileResult
+              ?.sales_skipped_incomplete || 0
+          ) > 0
+        ) {
+          reconcileWarning =
+            'Some older sales could not be safely repaired in this scan'
+        }
+      } catch (error) {
+        reconcileWarning =
+          error.message ||
+          'Income repair failed'
+      }
 
       const params = new URLSearchParams()
 
@@ -816,13 +876,23 @@ export default function AdminEpisodeSalesPage() {
         )
       }
 
+      const warnings = []
+
+      if (reconcileWarning) {
+        warnings.push(
+          `Repair warning: ${reconcileWarning}`
+        )
+      }
+
       if (
         result.truncated_source_scan
       ) {
-        setMessage(
+        warnings.push(
           'This date range is very large. Narrow the date filter if older records are missing.'
         )
       }
+
+      setMessage(warnings.join(' '))
     } catch (error) {
       if (error.name === 'AbortError') {
         return
@@ -1168,7 +1238,10 @@ export default function AdminEpisodeSalesPage() {
                 className="episode-sales-button primary"
                 type="button"
                 onClick={() =>
-                  fetchEpisodeSales()
+                  fetchEpisodeSales(
+                    undefined,
+                    true
+                  )
                 }
                 disabled={loading}
               >
