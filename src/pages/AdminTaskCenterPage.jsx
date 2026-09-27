@@ -446,7 +446,8 @@ export default function AdminTaskCenterPage() {
       const savedMission = data?.mission || nextMissions.find((item) => item.id === mission.id) || nextMissions[index]
       if (savedMission?.id) setSelectedMissionId(savedMission.id)
 
-      setReadingMissionView('editor')
+      setSelectedMissionId('')
+      setReadingMissionView('overview')
       setMessage({ type: 'success', text: 'Reading mission saved successfully.' })
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to save reading mission' })
