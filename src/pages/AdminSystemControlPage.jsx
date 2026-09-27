@@ -1530,6 +1530,29 @@ export default function AdminSystemControlPage() {
         ? `${usageRangeNote} · Potential anomaly`
         : usageRangeNote
 
+  const regressionStatus = String(
+    regression?.status || 'learning'
+  ).toLowerCase()
+
+  const regressionRows = Array.isArray(
+    regression?.regressions
+  )
+    ? regression.regressions
+    : []
+
+  const improvementRows = Array.isArray(
+    regression?.improvements
+  )
+    ? regression.improvements
+    : []
+
+  const regressionTone =
+    regressionStatus === 'regression_detected'
+      ? 'high'
+      : regressionStatus === 'healthy'
+        ? 'resolved'
+        : 'low'
+
   return (
     <AdminLayout
       title="System Control"
@@ -1757,6 +1780,90 @@ export default function AdminSystemControlPage() {
               navigate('/alerts/system-control/problems')
             }
           />
+        </section>
+
+        <section className="sc-block">
+          <div className="sc-block-head">
+            <div className="sc-block-title-wrap">
+              <span className="sc-icon purple">↕</span>
+              <div>
+                <div className="sc-block-title">Regression Watch</div>
+                <div className="sc-block-subtitle">
+                  Current {formatNumber(regression?.current_minutes || 15)}m vs {formatNumber(regression?.baseline_hours || 24)}h baseline · {formatNumber(regression?.routes_compared || 0)} routes compared · Deploy {regression?.deploy_sha ? String(regression.deploy_sha).slice(0, 7) : 'unknown'}
+                </div>
+              </div>
+            </div>
+
+            <span className={`sc-pill ${regressionTone}`}>
+              {regressionStatus.replaceAll('_', ' ')}
+            </span>
+          </div>
+
+          <div style={{ padding: 14, display: 'grid', gap: 12 }}>
+            {regressionRows.length > 0 ? (
+              <div className="sc-contributors">
+                <div className="sc-panel-title">
+                  Regressions requiring attention
+                </div>
+
+                {regressionRows.slice(0, 5).map((item) => (
+                  <div className="sc-panel" key={`regression-${item.route}`}>
+                    <div className="sc-contributor-top">
+                      <span>{item.route}</span>
+                      <span>
+                        DB/HTTP {item.baseline?.db_per_http ?? '—'} → {item.current?.db_per_http ?? '—'}
+                      </span>
+                    </div>
+
+                    <div className="sc-block-subtitle">
+                      Signals: {(item.signals || []).join(' · ').replaceAll('_', ' ') || 'usage regression'}
+                    </div>
+
+                    <div className="sc-block-subtitle">
+                      Bytes/HTTP {item.baseline?.bytes_per_http ?? '—'} → {item.current?.bytes_per_http ?? '—'} · Avg {item.baseline?.avg_ms ?? '—'}ms → {item.current?.avg_ms ?? '—'}ms · Errors {(number(item.baseline?.error_rate) * 100).toFixed(1)}% → {(number(item.current?.error_rate) * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="sc-empty" style={{ padding: 14 }}>
+                {regressionStatus === 'healthy'
+                  ? 'No regression detected in the current comparison window.'
+                  : 'Learning the baseline. Regression results will appear automatically.'}
+              </div>
+            )}
+
+            {improvementRows.length > 0 ? (
+              <div className="sc-contributors">
+                <div className="sc-panel-title">
+                  Improvements detected
+                </div>
+
+                {improvementRows.slice(0, 5).map((item) => (
+                  <div className="sc-panel" key={`improvement-${item.route}`}>
+                    <div className="sc-contributor-top">
+                      <span>{item.route}</span>
+                      <span>
+                        DB/HTTP {item.baseline?.db_per_http ?? '—'} → {item.current?.db_per_http ?? '—'}
+                      </span>
+                    </div>
+
+                    <div className="sc-block-subtitle">
+                      Improved: {(item.signals || []).join(' · ').replaceAll('_', ' ') || 'route efficiency'}
+                    </div>
+
+                    <div className="sc-block-subtitle">
+                      Bytes/HTTP {item.baseline?.bytes_per_http ?? '—'} → {item.current?.bytes_per_http ?? '—'} · Avg {item.baseline?.avg_ms ?? '—'}ms → {item.current?.avg_ms ?? '—'}ms
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="sc-block-subtitle">
+              Baseline loaded {regression?.baseline_loaded_at ? relativeTime(regression.baseline_loaded_at) : 'not yet'} · Last analyzed {regression?.last_analyzed_at ? relativeTime(regression.last_analyzed_at) : 'not yet'} · No extra monitoring request is created by this panel.
+            </div>
+          </div>
         </section>
 
         <section className="sc-block">
