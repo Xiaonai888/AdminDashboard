@@ -218,22 +218,25 @@ export default function AdminAuthorIncomePage() {
       try {
         const token = getAdminToken()
 
-        if (!reconcilePromiseRef.current) {
-          reconcilePromiseRef.current = fetch(
-            `${API_URL}/api/admin/income/author-income/reconcile`,
-            {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          )
-            .then(readResponse)
-            .catch((error) => {
-              reconcilePromiseRef.current = null
-              throw error
-            })
-        }
+        let reconcileWarning = ''
 
-        await reconcilePromiseRef.current
+if (!reconcilePromiseRef.current) {
+  reconcilePromiseRef.current = fetch(
+    `${API_URL}/api/admin/income/author-income/reconcile`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  ).then(readResponse)
+}
+
+try {
+  await reconcilePromiseRef.current
+} catch (error) {
+  reconcilePromiseRef.current = null
+  reconcileWarning =
+    error.message || 'Author income repair failed'
+}
 
         const params = new URLSearchParams({
           page: String(page),
@@ -258,7 +261,11 @@ export default function AdminAuthorIncomePage() {
         )
 
         const result = await readResponse(response)
-        setData(result)
+setData(result)
+
+if (reconcileWarning) {
+  setMessage(`Repair warning: ${reconcileWarning}`)
+}
       } catch (error) {
         if (error.name !== 'AbortError') {
           setMessage(
