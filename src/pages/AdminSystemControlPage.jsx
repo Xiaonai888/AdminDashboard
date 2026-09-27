@@ -1022,6 +1022,7 @@ export default function AdminSystemControlPage() {
   const initialCustomTo = toLocalInputValue(Date.now())
 
   const [anomaly, setAnomaly] = useState(null)
+  const [regression, setRegression] = useState(null)
   const [providerState, setProviderState] = useState(null)
   const [incidents, setIncidents] = useState([])
   const [requestEvidence, setRequestEvidence] = useState([])
@@ -1069,6 +1070,7 @@ export default function AdminSystemControlPage() {
       }
 
       setAnomaly(data.anomaly || null)
+      setRegression(data.regression || null)
       setRequestEvidence(Array.isArray(data.evidence) ? data.evidence : [])
       setProviderState(data.providers || null)
       setUpdatedAt(Date.now())
