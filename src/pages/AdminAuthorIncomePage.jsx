@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL =
@@ -171,6 +171,7 @@ export default function AdminAuthorIncomePage() {
   const [detailData, setDetailData] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailMessage, setDetailMessage] = useState('')
+  const reconcilePromiseRef = useRef(null)
 
   const summary = data?.summary || {}
   const items = Array.isArray(data?.items) ? data.items : []
@@ -217,23 +218,22 @@ export default function AdminAuthorIncomePage() {
       try {
         const token = getAdminToken()
 
-        if (!sessionStorage.getItem('shadow_author_income_reconciled_v1')) {
-          const repair = await fetch(
+        if (!reconcilePromiseRef.current) {
+          reconcilePromiseRef.current = fetch(
             `${API_URL}/api/admin/income/author-income/reconcile`,
             {
               method: 'POST',
               headers: { Authorization: `Bearer ${token}` },
-              signal: controller.signal,
             }
-          ).catch(() => null)
-
-          if (repair?.ok) {
-            sessionStorage.setItem(
-              'shadow_author_income_reconciled_v1',
-              '1'
-            )
-          }
+          )
+            .then(readResponse)
+            .catch((error) => {
+              reconcilePromiseRef.current = null
+              throw error
+            })
         }
+
+        await reconcilePromiseRef.current
 
         const params = new URLSearchParams({
           page: String(page),
