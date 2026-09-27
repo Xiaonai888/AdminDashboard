@@ -5,6 +5,93 @@ import ImageDropZone from '../components/common/ImageDropZone';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
 const RECORDS_PER_PAGE = 20;
+const BANNER_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const BANNER_OPTIMIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+}
+
+async function optimizeBannerImage(file) {
+  if (!file?.type?.startsWith('image/')) throw new Error('Please choose an image file.');
+  if (file.size > BANNER_IMAGE_MAX_BYTES) throw new Error('Banner image must be 5 MB or smaller.');
+
+  const type = String(file.type || '').toLowerCase();
+  if (!BANNER_OPTIMIZABLE_TYPES.has(type)) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+  let image;
+
+  try {
+    image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('Failed to read banner image.'));
+      element.src = objectUrl;
+    });
+
+    const sourceWidth = Number(image.naturalWidth || image.width || 0);
+    const sourceHeight = Number(image.naturalHeight || image.height || 0);
+    if (!sourceWidth || !sourceHeight) return file;
+
+    const maxWidth = 1920;
+    const maxHeight = 1200;
+    const targetBytes = 650 * 1024;
+    const minOptimizeBytes = 800 * 1024;
+
+    if (
+      file.size <= minOptimizeBytes &&
+      sourceWidth <= maxWidth &&
+      sourceHeight <= maxHeight
+    ) {
+      return file;
+    }
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return file;
+
+    const baseScale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight);
+    const qualities = [0.92, 0.88, 0.84, 0.8, 0.76];
+    let scale = baseScale;
+    let bestBlob = null;
+
+    try {
+      while (scale >= Math.min(baseScale, 0.5)) {
+        const width = Math.max(1, Math.round(sourceWidth * scale));
+        const height = Math.max(1, Math.round(sourceHeight * scale));
+
+        canvas.width = width;
+        canvas.height = height;
+        context.clearRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        for (const quality of qualities) {
+          const blob = await canvasToBlob(canvas, 'image/webp', quality);
+          if (!blob) continue;
+          if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob;
+          if (blob.size <= targetBytes) break;
+        }
+
+        if (bestBlob?.size <= targetBytes || scale <= 0.5) break;
+        scale *= 0.82;
+      }
+    } finally {
+      canvas.width = 1;
+      canvas.height = 1;
+    }
+
+    if (!bestBlob || bestBlob.size >= file.size * 0.9) return file;
+
+    const name = `${String(file.name || 'banner').replace(/\.[^.]+$/, '') || 'banner'}.webp`;
+    return new File([bestBlob], name, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 
 const BANNER_SECTIONS = {
   shadow_spotlight: {
@@ -234,7 +321,10 @@ export default function BannerSystem() {
     setLinkUrl(activeConfig.defaultLink);
     setIsActive(true);
     setSelectedFile(null);
-    setLocalPreviewUrl('');
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return '';
+    });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -254,7 +344,10 @@ export default function BannerSystem() {
     setLinkUrl(banner?.link_url || activeConfig.defaultLink);
     setIsActive(banner?.is_active ?? true);
     setSelectedFile(null);
-    setLocalPreviewUrl('');
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return '';
+    });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -266,20 +359,36 @@ export default function BannerSystem() {
     await fetchRecords(recordPage, activeConfig.sectionKey);
   };
 
-  const handleFileChange = (event) => {
-    const file = event.target.files?.[0];
+  const selectBannerFile = (file) => {
     if (!file) return;
 
+    if (!file.type?.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Please choose an image file.' });
+      return;
+    }
+
+    if (file.size > BANNER_IMAGE_MAX_BYTES) {
+      setMessage({ type: 'error', text: 'Banner image must be 5 MB or smaller.' });
+      return;
+    }
+
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(file);
+    });
     setSelectedFile(file);
-    setLocalPreviewUrl(URL.createObjectURL(file));
+    setMessage(null);
+  };
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    selectBannerFile(file);
   };
 
   const handleDroppedFiles = (files) => {
-  const file = files?.[0];
-  if (!file) return;
-  setSelectedFile(file);
-  setLocalPreviewUrl(URL.createObjectURL(file));
-};
+    selectBannerFile(files?.[0]);
+  };
 
   const handleSaveBanner = async () => {
     if (!selectedBanner && !selectedFile) {
@@ -294,7 +403,8 @@ export default function BannerSystem() {
       const formData = new FormData();
 
       if (selectedFile) {
-        formData.append('image', selectedFile);
+        const optimizedFile = await optimizeBannerImage(selectedFile);
+        formData.append('image', optimizedFile);
       }
 
       formData.append('section_key', activeConfig.sectionKey);
@@ -327,7 +437,10 @@ export default function BannerSystem() {
         text: `${activeConfig.titlePrefix} ${selectedSlot} saved successfully.`,
       });
       setSelectedFile(null);
-      setLocalPreviewUrl('');
+      setLocalPreviewUrl((previous) => {
+        if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+        return '';
+      });
 
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -396,7 +509,10 @@ export default function BannerSystem() {
     setLinkUrl(banner?.link_url || activeConfig.defaultLink);
     setIsActive(banner?.is_active ?? true);
     setSelectedFile(null);
-    setLocalPreviewUrl('');
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return '';
+    });
     setMessage(null);
 
     if (fileInputRef.current) {
