@@ -6,6 +6,147 @@ import { uploadMediaLibraryWithProgress } from '../utils/uploadMediaLibraryWithP
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const MEDIA_CACHE_MS = 10 * 60 * 1000
+const MEDIA_IMAGE_MAX_BYTES = 20 * 1024 * 1024
+const FOLDER_COVER_MAX_BYTES = 5 * 1024 * 1024
+
+const MEDIA_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+])
+
+function replaceExtension(name, extension) {
+  const clean = String(name || 'image').replace(/\.[^.]+$/, '') || 'image'
+  return `${clean}.${extension}`
+}
+
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve) => canvas.toBlob(resolve, type, quality))
+}
+
+async function loadImageForOptimization(file) {
+  const objectUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error('Failed to read image.'))
+      element.src = objectUrl
+    })
+
+    return { image, objectUrl }
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl)
+    throw error
+  }
+}
+
+async function optimizeMediaLibraryImage(file, { cover = false } = {}) {
+  if (!file || !MEDIA_IMAGE_TYPES.has(String(file.type || '').toLowerCase())) {
+    throw new Error('Only JPEG, PNG, WEBP, GIF or AVIF images are allowed.')
+  }
+
+  const sourceLimit = cover ? FOLDER_COVER_MAX_BYTES : MEDIA_IMAGE_MAX_BYTES
+  if (file.size > sourceLimit) {
+    throw new Error(cover ? 'Folder cover must be 5 MB or smaller.' : 'Each image must be 20 MB or smaller.')
+  }
+
+  if (String(file.type || '').toLowerCase() === 'image/gif') return file
+
+  const minOptimizeBytes = cover ? 500 * 1024 : 1100 * 1024
+  const maxWidth = cover ? 1200 : 1920
+  const maxHeight = cover ? 1200 : 2400
+  const targetBytes = cover ? 420 * 1024 : 900 * 1024
+
+  let loaded
+
+  try {
+    loaded = await loadImageForOptimization(file)
+  } catch {
+    return file
+  }
+
+  const { image, objectUrl } = loaded
+  const sourceWidth = Number(image.naturalWidth || image.width || 0)
+  const sourceHeight = Number(image.naturalHeight || image.height || 0)
+
+  if (!sourceWidth || !sourceHeight) {
+    URL.revokeObjectURL(objectUrl)
+    return file
+  }
+
+  if (file.size <= minOptimizeBytes && sourceWidth <= maxWidth && sourceHeight <= maxHeight) {
+    URL.revokeObjectURL(objectUrl)
+    return file
+  }
+
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+
+  if (!context) {
+    URL.revokeObjectURL(objectUrl)
+    return file
+  }
+
+  let scale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight)
+  const qualities = [0.9, 0.86, 0.82, 0.78, 0.74]
+  let bestBlob = null
+
+  try {
+    for (let pass = 0; pass < 4; pass += 1) {
+      const width = Math.max(1, Math.round(sourceWidth * scale))
+      const height = Math.max(1, Math.round(sourceHeight * scale))
+      canvas.width = width
+      canvas.height = height
+      context.clearRect(0, 0, width, height)
+      context.drawImage(image, 0, 0, width, height)
+
+      for (const quality of qualities) {
+        const blob = await canvasToBlob(canvas, 'image/webp', quality)
+        if (!blob) continue
+        if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob
+        if (blob.size <= targetBytes) break
+      }
+
+      if (bestBlob?.size <= targetBytes || scale <= 0.5) break
+      scale *= 0.82
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+    canvas.width = 1
+    canvas.height = 1
+  }
+
+  if (!bestBlob || bestBlob.size >= file.size * 0.9) return file
+
+  return new File([bestBlob], replaceExtension(file.name, 'webp'), {
+    type: 'image/webp',
+    lastModified: Date.now(),
+  })
+}
+
+async function optimizeMediaLibraryBatch(files, concurrency = 2) {
+  const input = Array.from(files || [])
+  const output = new Array(input.length)
+  let cursor = 0
+
+  const worker = async () => {
+    while (cursor < input.length) {
+      const index = cursor
+      cursor += 1
+      output[index] = await optimizeMediaLibraryImage(input[index])
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, concurrency), input.length || 1) }, () => worker())
+  )
+
+  return output
+}
 let mediaCache = { token: null, folders: null, foldersAt: 0, foldersPromise: null, records: new Map(), pending: new Map(), selectedFolderId: '', versions: new Map() }
 
 function getMediaCache() {
@@ -607,8 +748,9 @@ export default function ShadowMediaLibraryPage() {
       let saved = folderFromApi(data.folder)
 
       if (folder.coverFile) {
+        const optimizedCover = await optimizeMediaLibraryImage(folder.coverFile, { cover: true })
         const formData = new FormData()
-        formData.append('cover', folder.coverFile)
+        formData.append('cover', optimizedCover)
 
         const coverData = await apiRequest(
           `/api/admin/media-library/folders/${saved.id}/cover`,
@@ -698,23 +840,17 @@ export default function ShadowMediaLibraryPage() {
       return
     }
 
-    const allowedTypes = new Set([
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'image/gif',
-      'image/avif',
-    ])
-    const maxSize = 20 * 1024 * 1024
     const selected = Array.from(files || [])
-    const invalidTypeCount = selected.filter((file) => !allowedTypes.has(file.type)).length
-    const oversizedCount = selected.filter((file) => allowedTypes.has(file.type) && file.size > maxSize).length
+    const invalidTypeCount = selected.filter((file) => !MEDIA_IMAGE_TYPES.has(file.type)).length
+    const oversizedCount = selected.filter(
+      (file) => MEDIA_IMAGE_TYPES.has(file.type) && file.size > MEDIA_IMAGE_MAX_BYTES
+    ).length
 
     setUploads((current) => {
       const remainingSlots = Math.max(0, 20 - current.length)
       const accepted = selected
-        .filter((file) => allowedTypes.has(file.type))
-        .filter((file) => file.size <= maxSize)
+        .filter((file) => MEDIA_IMAGE_TYPES.has(file.type))
+        .filter((file) => file.size <= MEDIA_IMAGE_MAX_BYTES)
         .slice(0, remainingSlots)
 
       if (!accepted.length) {
@@ -796,11 +932,15 @@ export default function ShadowMediaLibraryPage() {
     setUploading(true)
 
     try {
+      const optimizedFiles = await optimizeMediaLibraryBatch(
+        uploads.map((item) => item.file),
+        2
+      )
       const uploaded = await uploadMediaLibraryWithProgress({
-  apiUrl: API_URL,
-  token: getAdminToken(),
-  files: uploads.map((item) => item.file),
-})
+        apiUrl: API_URL,
+        token: getAdminToken(),
+        files: optimizedFiles,
+      })
 
       const uploadedImages = uploaded.images || []
       if (uploadedImages.length !== uploads.length) {
