@@ -15,6 +15,127 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
 
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, type, quality)
+  })
+}
+
+async function loadImageFile(file) {
+  const objectUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error('Failed to read image.'))
+      element.src = objectUrl
+    })
+
+    return { image, objectUrl }
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl)
+    throw error
+  }
+}
+
+function replaceExtension(name, extension) {
+  const clean = String(name || 'image').replace(/\.[^.]+$/, '') || 'image'
+  return `${clean}.${extension}`
+}
+
+async function optimizeMusicImageFile(file, shape) {
+  const type = String(file?.type || '').toLowerCase()
+
+  if (!ACCEPTED_TYPES.has(type)) {
+    throw new Error('Please choose JPEG, PNG, WEBP, GIF or AVIF.')
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('Image must be 20 MB or smaller.')
+  }
+
+  if (type === 'image/gif') return file
+
+  const isBanner = shape === 'banner'
+  const maxWidth = isBanner ? 1920 : 1200
+  const maxHeight = isBanner ? 1200 : 1200
+  const targetBytes = (isBanner ? 650 : 450) * 1024
+  const minOptimizeBytes = (isBanner ? 800 : 600) * 1024
+
+  let loaded
+
+  try {
+    loaded = await loadImageFile(file)
+  } catch {
+    return file
+  }
+
+  const { image, objectUrl } = loaded
+  const sourceWidth = Number(image.naturalWidth || image.width || 0)
+  const sourceHeight = Number(image.naturalHeight || image.height || 0)
+
+  if (!sourceWidth || !sourceHeight) {
+    URL.revokeObjectURL(objectUrl)
+    return file
+  }
+
+  if (
+    file.size <= minOptimizeBytes &&
+    sourceWidth <= maxWidth &&
+    sourceHeight <= maxHeight
+  ) {
+    URL.revokeObjectURL(objectUrl)
+    return file
+  }
+
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+
+  if (!context) {
+    URL.revokeObjectURL(objectUrl)
+    return file
+  }
+
+  const baseScale = Math.min(1, maxWidth / sourceWidth, maxHeight / sourceHeight)
+  const qualities = [0.9, 0.86, 0.82, 0.78, 0.74]
+  let scale = baseScale
+  let bestBlob = null
+
+  try {
+    while (scale >= Math.min(baseScale, 0.5)) {
+      const width = Math.max(1, Math.round(sourceWidth * scale))
+      const height = Math.max(1, Math.round(sourceHeight * scale))
+
+      canvas.width = width
+      canvas.height = height
+      context.clearRect(0, 0, width, height)
+      context.drawImage(image, 0, 0, width, height)
+
+      for (const quality of qualities) {
+        const blob = await canvasToBlob(canvas, 'image/webp', quality)
+        if (!blob) continue
+        if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob
+        if (blob.size <= targetBytes) break
+      }
+
+      if (bestBlob?.size <= targetBytes || scale <= 0.5) break
+      scale *= 0.82
+    }
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+    canvas.width = 1
+    canvas.height = 1
+  }
+
+  if (!bestBlob || bestBlob.size >= file.size * 0.9) return file
+
+  return new File([bestBlob], replaceExtension(file.name, 'webp'), {
+    type: 'image/webp',
+    lastModified: Date.now(),
+  })
+}
+
 export default function MusicImageUpload({
   value = '',
   onChange,
@@ -49,8 +170,9 @@ export default function MusicImageUpload({
     setError('')
 
     try {
+      const optimizedFile = await optimizeMusicImageFile(file, shape)
       const form = new FormData()
-      form.append('images', file)
+      form.append('images', optimizedFile)
 
       const response = await fetch(`${API_URL}/api/admin/media-library/upload`, {
         method: 'POST',
