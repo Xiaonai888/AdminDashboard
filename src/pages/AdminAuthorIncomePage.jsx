@@ -168,17 +168,24 @@ function getPresetRange(key) {
 
 function ReverseIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 991 990.26" aria-hidden="true">
       <path
-        d="M8 4v15M5 7l3-3 3 3M16 20V5M13 17l3 3 3-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d="M294.44,259.81c-3.04-.79-3.51,1.26-5.27,2.61-13.46,10.32-25.01,26.57-36.79,38.67-43.3,44.41-87.71,87.81-130.75,132.49-72.42,56.93-160.05-31.24-103.6-103.6L326.92,15.87c52.21-34.61,110.74-2.4,115.02,58.71,4.9,69.91-1.64,148.89-1.92,219.36-.81,207.68.8,415.37.06,623.05-7.16,87.69-118.74,100.14-144.81,18.51-6.03-154.72-1.62-311.03-.75-465.91.39-69.92-.44-139.88-.08-209.77Z"
+        fill="currentColor"
+      />
+      <path
+        d="M699.85,737.13l172.8-173.78c65.9-51.24,150.5,26.44,105.9,97.13-102.13,106.38-206.92,210.8-311.22,315.27-50.98,34.86-108.82,1.13-113.22-58.68-5.8-78.82,1.62-169.48,1.91-249.18.7-198.93-.65-397.88-.15-596.81,7.12-91.33,130.74-95.8,145.53-6.77l-1.55,672.81Z"
+        fill="currentColor"
       />
     </svg>
   )
+}
+
+function customBoundary(value) {
+  if (!value) return ''
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
+    ? `${value}:00+07:00`
+    : value
 }
 
 function authorIdFor(item) {
@@ -427,7 +434,10 @@ export default function AdminAuthorIncomePage() {
 
   function currentRange() {
     if (rangeKey === 'custom') {
-      return { from: customFrom, to: customTo }
+      return {
+        from: customBoundary(customFrom),
+        to: customBoundary(customTo),
+      }
     }
 
     return getPresetRange(rangeKey)
@@ -696,7 +706,7 @@ export default function AdminAuthorIncomePage() {
             <div className="author-income-custom-range">
               <input
                 className="author-income-input"
-                type="date"
+                type="datetime-local"
                 value={customFrom}
                 max={customTo || undefined}
                 onChange={(event) =>
@@ -707,7 +717,7 @@ export default function AdminAuthorIncomePage() {
               <span className="author-income-range-arrow">→</span>
               <input
                 className="author-income-input"
-                type="date"
+                type="datetime-local"
                 value={customTo}
                 min={customFrom || undefined}
                 onChange={(event) =>
