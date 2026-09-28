@@ -15,15 +15,19 @@ const styles = `
   .author-income-card-label { color: #64748B; font-size: 11px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; }
   .author-income-card-value { margin-top: 8px; color: #0F172A; font-size: 24px; font-weight: 950; letter-spacing: -0.04em; white-space: nowrap; }
   .author-income-card-sub { margin-top: 6px; color: #94A3B8; font-size: 11px; font-weight: 800; line-height: 1.45; }
-  .author-income-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 150px 145px 190px 42px auto; gap: 9px; align-items: center; }
-  .author-income-input, .author-income-select, .author-income-button, .author-income-reverse { height: 42px; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font: inherit; font-size: 12px; font-weight: 800; outline: none; }
+  .author-income-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 150px 145px 190px 42px 92px auto; gap: 9px; align-items: center; }
+  .author-income-input, .author-income-select, .author-income-button, .author-income-reverse, .author-income-sort-test { height: 42px; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font: inherit; font-size: 12px; font-weight: 800; outline: none; }
   .author-income-input, .author-income-select { width: 100%; padding: 0 11px; }
-  .author-income-input:focus, .author-income-select:focus, .author-income-reverse:focus { border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10); }
+  .author-income-input:focus, .author-income-select:focus, .author-income-reverse:focus, .author-income-sort-test:focus { border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10); }
   .author-income-button { padding: 0 15px; color: #4338CA; border-color: #C7D2FE; background: #EEF2FF; cursor: pointer; white-space: nowrap; }
   .author-income-reverse { width: 42px; padding: 0; display: inline-grid; place-items: center; cursor: pointer; color: #475569; transition: transform .15s ease, border-color .15s ease, color .15s ease; }
   .author-income-reverse:hover { color: #4338CA; border-color: #C7D2FE; }
   .author-income-reverse:active { transform: scale(.95); }
-  .author-income-reverse svg { width: 17px; height: 17px; display: block; }
+  .author-income-reverse svg { width: 17px; height: 17px; display: block; transition: transform .18s ease; }
+  .author-income-reverse.is-asc svg { transform: scaleX(-1); }
+  .author-income-sort-test { padding: 0 10px; cursor: pointer; color: #4338CA; border-color: #C7D2FE; background: #F8FAFF; white-space: nowrap; }
+  .author-income-sort-test:hover { background: #EEF2FF; }
+  .author-income-sort-test:active { transform: scale(.97); }
   .author-income-custom-range { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
   .author-income-custom-range .author-income-input { width: 160px; }
   .author-income-range-arrow { color: #94A3B8; font-size: 11px; font-weight: 900; }
@@ -89,6 +93,7 @@ const styles = `
     .author-income-pager { display: grid; grid-template-columns: 1fr 1fr; }
     .author-income-button { width: 100%; }
     .author-income-reverse { width: 42px; }
+    .author-income-sort-test { width: 100%; }
     .author-income-custom-range { grid-column: 1; display: grid; grid-template-columns: 1fr auto 1fr; justify-content: stretch; }
     .author-income-custom-range .author-income-input { width: 100%; }
     .author-income-drawer { width: 100vw; }
@@ -676,7 +681,9 @@ export default function AdminAuthorIncomePage() {
           </select>
 
           <button
-            className="author-income-reverse"
+            className={`author-income-reverse ${
+              sortDirection === 'asc' ? 'is-asc' : ''
+            }`}
             type="button"
             onClick={toggleSortDirection}
             disabled={loading}
@@ -685,6 +692,7 @@ export default function AdminAuthorIncomePage() {
                 ? 'Reverse to low to high'
                 : 'Reverse to top to low'
             }
+            aria-pressed={sortDirection === 'asc'}
             title={
               sortDirection === 'desc'
                 ? 'Top → Low'
@@ -692,6 +700,17 @@ export default function AdminAuthorIncomePage() {
             }
           >
             <ReverseIcon />
+          </button>
+
+          <button
+            className="author-income-sort-test"
+            type="button"
+            onClick={toggleSortDirection}
+            disabled={loading}
+            aria-label="Test reverse sort"
+            title="Test reverse sort"
+          >
+            {sortDirection === 'desc' ? 'Test ↓' : 'Test ↑'}
           </button>
 
           <button
