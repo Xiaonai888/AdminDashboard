@@ -997,6 +997,7 @@ const AdminDashboard = () => {
     let ignore = false
     let lastOnlineRefreshAt = 0
     let lastGeneralRefreshAt = 0
+    let midnightTimer = null
     let activeDayKey =
       getCambodiaDate().toISOString().slice(0, 10)
 
@@ -1114,6 +1115,43 @@ const AdminDashboard = () => {
       })
     }
 
+    const scheduleMidnightRefresh = () => {
+      if (midnightTimer) {
+        window.clearTimeout(midnightTimer)
+      }
+
+      const cambodiaNow = getCambodiaDate()
+      const nextDayUtc = Date.UTC(
+        cambodiaNow.getUTCFullYear(),
+        cambodiaNow.getUTCMonth(),
+        cambodiaNow.getUTCDate() + 1
+      )
+      const nextMidnight =
+        nextDayUtc - CAMBODIA_OFFSET_MS
+      const delay = Math.max(
+        1000,
+        nextMidnight - Date.now() + 250
+      )
+
+      midnightTimer = window.setTimeout(() => {
+        if (controller.signal.aborted) return
+
+        activeDayKey =
+          getCambodiaDate().toISOString().slice(0, 10)
+        lastGeneralRefreshAt = 0
+        setIncomeSummary((current) => ({
+          today: 0,
+          yesterday: Number(current.today || 0),
+        }))
+
+        if (!document.hidden) {
+          refreshGeneral({ force: true })
+        }
+
+        scheduleMidnightRefresh()
+      }, delay)
+    }
+
     const refreshAfterResume = () => {
       if (
         document.hidden ||
@@ -1132,6 +1170,11 @@ const AdminDashboard = () => {
 
       if (dayChanged) {
         activeDayKey = currentDayKey
+        lastGeneralRefreshAt = 0
+        setIncomeSummary((current) => ({
+          today: 0,
+          yesterday: Number(current.today || 0),
+        }))
       }
 
       refreshOnline({
@@ -1164,6 +1207,7 @@ const AdminDashboard = () => {
     refreshOnline({ force: true })
     refreshGeneral({ force: true })
     loadAdminProfile()
+    scheduleMidnightRefresh()
 
     window.addEventListener(
       'online',
@@ -1181,6 +1225,10 @@ const AdminDashboard = () => {
     return () => {
       ignore = true
       controller.abort()
+
+      if (midnightTimer) {
+        window.clearTimeout(midnightTimer)
+      }
 
       window.removeEventListener(
         'online',
