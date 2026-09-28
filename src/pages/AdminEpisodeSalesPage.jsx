@@ -65,7 +65,10 @@ const styles = `
     justify-content: flex-end;
   }
 
-  .episode-sales-input {
+  .episode-sales-input,
+  .episode-sales-range-select,
+  .episode-sales-sort-select,
+  .episode-sales-reverse {
     height: 44px;
     border: 1px solid #D8E0F0;
     border-radius: 14px;
@@ -75,6 +78,60 @@ const styles = `
     font-size: 13px;
     font-weight: 800;
     outline: none;
+  }
+
+  .episode-sales-range-select,
+  .episode-sales-sort-select {
+    cursor: pointer;
+  }
+
+  .episode-sales-reverse {
+    width: 44px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+
+  .episode-sales-reverse:hover {
+    border-color: #A5B4FC;
+    background: #EEF2FF;
+  }
+
+  .episode-sales-reverse:active {
+    transform: scale(.95);
+  }
+
+  .episode-sales-reverse svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+    color: #4F46E5;
+    transition: transform .18s ease;
+  }
+
+  .episode-sales-reverse.is-asc svg {
+    transform: rotate(180deg);
+  }
+
+  .episode-sales-custom-range {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .episode-sales-custom-range .episode-sales-input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .episode-sales-range-arrow {
+    color: #64748B;
+    font-size: 12px;
+    font-weight: 950;
   }
 
   .episode-sales-button {
@@ -457,7 +514,9 @@ const styles = `
     .episode-sales-button,
     .episode-sales-input,
     .episode-sales-chip,
-    .episode-sales-select {
+    .episode-sales-select,
+    .episode-sales-range-select,
+    .episode-sales-sort-select {
       width: 100%;
       box-sizing: border-box;
     }
@@ -523,6 +582,100 @@ function daysAgoInput(days) {
     date.getDate() - Math.max(0, days)
   )
   return inputDate(date)
+}
+
+function getCambodiaDateParts() {
+  const parts = new Intl.DateTimeFormat(
+    'en-US',
+    {
+      timeZone: 'Asia/Phnom_Penh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }
+  ).formatToParts(new Date())
+
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  )
+
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+  }
+}
+
+function utcDateInput(date) {
+  return `${date.getUTCFullYear()}-${String(
+    date.getUTCMonth() + 1
+  ).padStart(2, '0')}-${String(
+    date.getUTCDate()
+  ).padStart(2, '0')}`
+}
+
+function episodeSalesPresetRange(key) {
+  if (key === 'all') {
+    return { from: '', to: '' }
+  }
+
+  const { year, month, day } =
+    getCambodiaDateParts()
+  const today = new Date(
+    Date.UTC(year, month - 1, day)
+  )
+  let fromDate = new Date(today)
+
+  if (key === 'week') {
+    const mondayOffset =
+      (today.getUTCDay() + 6) % 7
+    fromDate.setUTCDate(
+      today.getUTCDate() - mondayOffset
+    )
+  } else if (key === 'month') {
+    fromDate = new Date(
+      Date.UTC(year, month - 1, 1)
+    )
+  } else if (key === 'year') {
+    fromDate = new Date(
+      Date.UTC(year, 0, 1)
+    )
+  }
+
+  return {
+    from: utcDateInput(fromDate),
+    to: utcDateInput(today),
+  }
+}
+
+function episodeSalesCustomBoundary(value) {
+  if (!value) return ''
+
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(
+    value
+  )
+    ? `${value}:00+07:00`
+    : value
+}
+
+function ReverseIcon() {
+  return (
+    <svg
+      viewBox="0 0 991 990.26"
+      aria-hidden="true"
+    >
+      <path
+        d="M294.44,259.81c-3.04-.79-3.51,1.26-5.27,2.61-13.46,10.32-25.01,26.57-36.79,38.67-43.3,44.41-87.71,87.81-130.75,132.49-72.42,56.93-160.05-31.24-103.6-103.6L326.92,15.87c52.21-34.61,110.74-2.4,115.02,58.71,4.9,69.91-1.64,148.89-1.92,219.36-.81,207.68.8,415.37.06,623.05-7.16,87.69-118.74,100.14-144.81,18.51-6.03-154.72-1.62-311.03-.75-465.91.39-69.92-.44-139.88-.08-209.77Z"
+        fill="currentColor"
+      />
+      <path
+        d="M699.85,737.13l172.8-173.78c65.9-51.24,150.5,26.44,105.9,97.13-102.13,106.38-206.92,210.8-311.22,315.27-50.98,34.86-108.82,1.13-113.22-58.68-5.8-78.82,1.62-169.48,1.91-249.18.7-198.93-.65-397.88-.15-596.81,7.12-91.33,130.74-95.8,145.53-6.77l-1.55,672.81Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
 }
 
 function formatDateTime(value) {
@@ -708,10 +861,18 @@ function parseSseBlock(block) {
 
 export default function AdminEpisodeSalesPage() {
   const navigate = useNavigate()
-  const [from, setFrom] =
-    useState(monthStartInput())
-  const [to, setTo] =
-    useState(todayInput())
+  const [rangeKey, setRangeKey] =
+    useState('all')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [customFrom, setCustomFrom] =
+    useState('')
+  const [customTo, setCustomTo] =
+    useState('')
+  const [sortField, setSortField] =
+    useState('latest')
+  const [sortDirection, setSortDirection] =
+    useState('desc')
   const [search, setSearch] =
     useState('')
   const [searchQuery, setSearchQuery] =
@@ -758,7 +919,8 @@ export default function AdminEpisodeSalesPage() {
 
   async function fetchEpisodeSales(
     signal,
-    forceReconcile = false
+    forceReconcile = false,
+    rangeOverride = null
   ) {
     try {
       setLoading(true)
@@ -822,9 +984,17 @@ export default function AdminEpisodeSalesPage() {
       }
 
       const params = new URLSearchParams()
+      const activeFrom =
+        rangeOverride?.from ?? from
+      const activeTo =
+        rangeOverride?.to ?? to
 
-      if (from) params.set('from', from)
-      if (to) params.set('to', to)
+      if (activeFrom) {
+        params.set('from', activeFrom)
+      }
+      if (activeTo) {
+        params.set('to', activeTo)
+      }
       if (searchQuery) {
         params.set('q', searchQuery)
       }
@@ -832,6 +1002,10 @@ export default function AdminEpisodeSalesPage() {
         params.set('status', status)
       }
 
+      params.set(
+        'sort',
+        `${sortField}_${sortDirection}`
+      )
       params.set('page', String(page))
       params.set('limit', String(PAGE_SIZE))
 
@@ -926,6 +1100,8 @@ export default function AdminEpisodeSalesPage() {
     to,
     searchQuery,
     status,
+    sortField,
+    sortDirection,
     page,
     eventRefreshKey,
   ])
@@ -1079,23 +1255,77 @@ export default function AdminEpisodeSalesPage() {
     }
   }, [])
 
-  function applyRange(key) {
-    if (key === 'today') {
-      const today = todayInput()
-      setFrom(today)
-      setTo(today)
-    } else if (key === '7d') {
-      setFrom(daysAgoInput(6))
-      setTo(todayInput())
-    } else if (key === '30d') {
-      setFrom(daysAgoInput(29))
-      setTo(todayInput())
-    } else if (key === 'month') {
-      setFrom(monthStartInput())
-      setTo(todayInput())
+  function handleRangeChange(event) {
+    const nextKey = event.target.value
+    setRangeKey(nextKey)
+    setPage(1)
+
+    if (nextKey === 'custom') return
+
+    const nextRange =
+      episodeSalesPresetRange(nextKey)
+    setFrom(nextRange.from)
+    setTo(nextRange.to)
+  }
+
+  function handleSortFieldChange(event) {
+    setSortField(event.target.value)
+    setPage(1)
+  }
+
+  function toggleSortDirection() {
+    setSortDirection((current) =>
+      current === 'desc' ? 'asc' : 'desc'
+    )
+    setPage(1)
+  }
+
+  function getSelectedRange() {
+    if (rangeKey !== 'custom') {
+      return episodeSalesPresetRange(rangeKey)
     }
 
+    if (!customFrom || !customTo) {
+      setMessage(
+        'Choose both custom start and end date & time.'
+      )
+      return null
+    }
+
+    const nextFrom =
+      episodeSalesCustomBoundary(customFrom)
+    const nextTo =
+      episodeSalesCustomBoundary(customTo)
+
+    if (
+      new Date(nextFrom).getTime() >=
+      new Date(nextTo).getTime()
+    ) {
+      setMessage(
+        'Custom start date must be before end date.'
+      )
+      return null
+    }
+
+    return {
+      from: nextFrom,
+      to: nextTo,
+    }
+  }
+
+  function refreshEpisodeSales() {
+    const nextRange = getSelectedRange()
+    if (!nextRange) return
+
+    setFrom(nextRange.from)
+    setTo(nextRange.to)
     setPage(1)
+
+    fetchEpisodeSales(
+      undefined,
+      true,
+      nextRange
+    )
   }
 
   function exportCsv() {
@@ -1149,40 +1379,12 @@ export default function AdminEpisodeSalesPage() {
 
     anchor.href = url
     anchor.download =
-      `episode-sales-${from}-to-${to}.csv`
+      `episode-sales-${from || 'all'}-to-${to || 'all'}.csv`
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
     URL.revokeObjectURL(url)
   }
-
-  const rangeKey = useMemo(() => {
-    const today = todayInput()
-
-    if (from === today && to === today) {
-      return 'today'
-    }
-    if (
-      from === daysAgoInput(6) &&
-      to === today
-    ) {
-      return '7d'
-    }
-    if (
-      from === daysAgoInput(29) &&
-      to === today
-    ) {
-      return '30d'
-    }
-    if (
-      from === monthStartInput() &&
-      to === today
-    ) {
-      return 'month'
-    }
-
-    return ''
-  }, [from, to])
 
   return (
     <AdminLayout>
@@ -1208,24 +1410,57 @@ export default function AdminEpisodeSalesPage() {
             </div>
 
             <div className="episode-sales-actions">
-              <input
-                className="episode-sales-input"
-                type="date"
-                value={from}
-                onChange={(event) => {
-                  setFrom(event.target.value)
-                  setPage(1)
-                }}
-              />
-              <input
-                className="episode-sales-input"
-                type="date"
-                value={to}
-                onChange={(event) => {
-                  setTo(event.target.value)
-                  setPage(1)
-                }}
-              />
+              <select
+                className="episode-sales-range-select"
+                value={rangeKey}
+                onChange={handleRangeChange}
+                aria-label="Episode sales time range"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+                <option value="custom">Custom Date & Time</option>
+              </select>
+
+              <select
+                className="episode-sales-sort-select"
+                value={sortField}
+                onChange={handleSortFieldChange}
+                aria-label="Sort episode sales by"
+              >
+                <option value="latest">Latest</option>
+                <option value="paid_diamonds">Paid Diamonds</option>
+                <option value="author_earnings">Author Earnings</option>
+                <option value="platform_income">Platform Income</option>
+              </select>
+
+              <button
+                className={`episode-sales-reverse ${
+                  sortDirection === 'asc'
+                    ? 'is-asc'
+                    : ''
+                }`}
+                type="button"
+                onClick={toggleSortDirection}
+                aria-label={
+                  sortDirection === 'desc'
+                    ? 'Reverse to low to high'
+                    : 'Reverse to top to low'
+                }
+                aria-pressed={
+                  sortDirection === 'asc'
+                }
+                title={
+                  sortDirection === 'desc'
+                    ? 'Top → Low'
+                    : 'Low → Top'
+                }
+              >
+                <ReverseIcon />
+              </button>
+
               <button
                 className="episode-sales-button"
                 type="button"
@@ -1234,21 +1469,49 @@ export default function AdminEpisodeSalesPage() {
               >
                 Export
               </button>
+
               <button
                 className="episode-sales-button primary"
                 type="button"
-                onClick={() =>
-                  fetchEpisodeSales(
-                    undefined,
-                    true
-                  )
-                }
+                onClick={refreshEpisodeSales}
                 disabled={loading}
               >
                 {loading
                   ? 'Loading...'
                   : 'Refresh'}
               </button>
+
+              {rangeKey === 'custom' ? (
+                <div className="episode-sales-custom-range">
+                  <input
+                    className="episode-sales-input"
+                    type="datetime-local"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(event) =>
+                      setCustomFrom(
+                        event.target.value
+                      )
+                    }
+                    aria-label="Custom start date"
+                  />
+                  <span className="episode-sales-range-arrow">
+                    →
+                  </span>
+                  <input
+                    className="episode-sales-input"
+                    type="datetime-local"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(event) =>
+                      setCustomTo(
+                        event.target.value
+                      )
+                    }
+                    aria-label="Custom end date"
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -1364,43 +1627,6 @@ export default function AdminEpisodeSalesPage() {
             />
 
             <div className="episode-sales-filters">
-              <button
-                className={`episode-sales-chip ${rangeKey === 'today' ? 'active' : ''}`}
-                onClick={() =>
-                  applyRange('today')
-                }
-                type="button"
-              >
-                Today
-              </button>
-              <button
-                className={`episode-sales-chip ${rangeKey === '7d' ? 'active' : ''}`}
-                onClick={() =>
-                  applyRange('7d')
-                }
-                type="button"
-              >
-                7D
-              </button>
-              <button
-                className={`episode-sales-chip ${rangeKey === '30d' ? 'active' : ''}`}
-                onClick={() =>
-                  applyRange('30d')
-                }
-                type="button"
-              >
-                30D
-              </button>
-              <button
-                className={`episode-sales-chip ${rangeKey === 'month' ? 'active' : ''}`}
-                onClick={() =>
-                  applyRange('month')
-                }
-                type="button"
-              >
-                This Month
-              </button>
-
               <select
                 className="episode-sales-select"
                 value={status}
