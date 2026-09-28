@@ -64,12 +64,14 @@ const styles = `
 
   .income-filter {
     display: grid;
-    grid-template-columns: 160px 160px 110px;
+    grid-template-columns: 155px 175px 42px 110px;
     gap: 10px;
     align-items: center;
   }
 
-  .income-input {
+  .income-input,
+  .income-select,
+  .income-reverse {
     height: 42px;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 14px;
@@ -81,8 +83,65 @@ const styles = `
     outline: none;
   }
 
+  .income-select {
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .income-select option {
+    color: #0F172A;
+    background: #FFFFFF;
+  }
+
   .income-input::-webkit-calendar-picker-indicator {
     filter: invert(1);
+  }
+
+  .income-reverse {
+    width: 42px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    cursor: pointer;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+
+  .income-reverse:hover {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .income-reverse:active {
+    transform: scale(.95);
+  }
+
+  .income-reverse svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+    transition: transform .18s ease;
+  }
+
+  .income-reverse.is-asc svg {
+    transform: rotate(180deg);
+  }
+
+  .income-custom-range {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .income-custom-range .income-input {
+    width: 100%;
+  }
+
+  .income-range-arrow {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 12px;
+    font-weight: 950;
   }
 
   .income-button {
@@ -451,7 +510,7 @@ const styles = `
     }
 
     .income-filter {
-      grid-template-columns: 1fr 1fr 110px;
+      grid-template-columns: 1fr 1fr 42px 110px;
     }
   }
 
@@ -484,6 +543,7 @@ const styles = `
     }
 
     .income-input,
+    .income-select,
     .income-button,
     .income-withdraw-action,
     .income-payout-field,
@@ -588,6 +648,111 @@ function getMonthStartInputValue() {
   return `${year}-${String(month).padStart(2, '0')}-01`
 }
 
+
+function inputDateValue(date) {
+  return `${date.getUTCFullYear()}-${String(
+    date.getUTCMonth() + 1
+  ).padStart(2, '0')}-${String(
+    date.getUTCDate()
+  ).padStart(2, '0')}`
+}
+
+function getIncomePresetRange(key) {
+  if (key === 'all') {
+    return { from: '', to: '' }
+  }
+
+  const { year, month, day } =
+    getCambodiaDateParts()
+  const today = new Date(
+    Date.UTC(year, month - 1, day)
+  )
+  let fromDate = new Date(today)
+
+  if (key === 'week') {
+    const mondayOffset =
+      (today.getUTCDay() + 6) % 7
+    fromDate.setUTCDate(
+      today.getUTCDate() - mondayOffset
+    )
+  } else if (key === 'month') {
+    fromDate = new Date(
+      Date.UTC(year, month - 1, 1)
+    )
+  } else if (key === 'year') {
+    fromDate = new Date(
+      Date.UTC(year, 0, 1)
+    )
+  }
+
+  return {
+    from: inputDateValue(fromDate),
+    to: inputDateValue(today),
+  }
+}
+
+function customBoundary(value) {
+  if (!value) return ''
+
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(
+    value
+  )
+    ? `${value}:00+07:00`
+    : value
+}
+
+function sourceRecordCount(source) {
+  return Number(
+    source?.gift_transaction_count ||
+    source?.order_count ||
+    0
+  )
+}
+
+function sourceSortValue(source, field) {
+  if (field === 'gross_sales') {
+    return Number(source?.gross_sales_usd || 0)
+  }
+
+  if (field === 'author_earnings') {
+    return Number(
+      source?.author_earnings_usd || 0
+    )
+  }
+
+  if (field === 'pending_payout') {
+    return Number(
+      source?.pending_payout_usd || 0
+    )
+  }
+
+  if (field === 'records') {
+    return sourceRecordCount(source)
+  }
+
+  return Number(
+    source?.platform_income_usd || 0
+  )
+}
+
+function ReverseIcon() {
+  return (
+    <svg
+      viewBox="0 0 991 990.26"
+      aria-hidden="true"
+    >
+      <path
+        d="M294.44,259.81c-3.04-.79-3.51,1.26-5.27,2.61-13.46,10.32-25.01,26.57-36.79,38.67-43.3,44.41-87.71,87.81-130.75,132.49-72.42,56.93-160.05-31.24-103.6-103.6L326.92,15.87c52.21-34.61,110.74-2.4,115.02,58.71,4.9,69.91-1.64,148.89-1.92,219.36-.81,207.68.8,415.37.06,623.05-7.16,87.69-118.74,100.14-144.81,18.51-6.03-154.72-1.62-311.03-.75-465.91.39-69.92-.44-139.88-.08-209.77Z"
+        fill="currentColor"
+      />
+      <path
+        d="M699.85,737.13l172.8-173.78c65.9-51.24,150.5,26.44,105.9,97.13-102.13,106.38-206.92,210.8-311.22,315.27-50.98,34.86-108.82,1.13-113.22-58.68-5.8-78.82,1.62-169.48,1.91-249.18.7-198.93-.65-397.88-.15-596.81,7.12-91.33,130.74-95.8,145.53-6.77l-1.55,672.81Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 function getPreviousMonthValue() {
   const { year, month } = getCambodiaDateParts()
   const previousMonth = new Date(
@@ -635,10 +800,18 @@ function payoutPaymentText(payout) {
 
 export default function AdminIncomePage() {
   const navigate = useNavigate()
-  const [from, setFrom] =
-    useState(getMonthStartInputValue())
-  const [to, setTo] =
-    useState(getTodayInputValue())
+  const [rangeKey, setRangeKey] =
+    useState('all')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [customFrom, setCustomFrom] =
+    useState('')
+  const [customTo, setCustomTo] =
+    useState('')
+  const [sortField, setSortField] =
+    useState('platform_income')
+  const [sortDirection, setSortDirection] =
+    useState('desc')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -667,6 +840,25 @@ export default function AdminIncomePage() {
     sources,
     'author_store'
   )
+  const sortedSources = useMemo(() => {
+    const direction =
+      sortDirection === 'asc' ? 1 : -1
+
+    return [...sources].sort((a, b) => {
+      const first =
+        sourceSortValue(a, sortField)
+      const second =
+        sourceSortValue(b, sortField)
+
+      if (first !== second) {
+        return (first - second) * direction
+      }
+
+      return sourceName(a.source).localeCompare(
+        sourceName(b.source)
+      )
+    })
+  }, [sources, sortField, sortDirection])
 
   const mainCards = useMemo(
     () => [
@@ -739,15 +931,25 @@ export default function AdminIncomePage() {
     [summary, authorStore.order_count]
   )
 
-  async function fetchIncome() {
+  async function fetchIncome(
+    rangeOverride = null
+  ) {
     try {
       setLoading(true)
       setMessage('')
 
       const params = new URLSearchParams()
+      const activeFrom =
+        rangeOverride?.from ?? from
+      const activeTo =
+        rangeOverride?.to ?? to
 
-      if (from) params.set('from', from)
-      if (to) params.set('to', to)
+      if (activeFrom) {
+        params.set('from', activeFrom)
+      }
+      if (activeTo) {
+        params.set('to', activeTo)
+      }
 
       const response = await fetch(
         `${API_URL}/api/admin/income/summary?${params.toString()}`,
@@ -884,6 +1086,63 @@ export default function AdminIncomePage() {
     setSelectedPayout(payout)
   }
 
+  function handleRangeChange(event) {
+    const nextKey = event.target.value
+    setRangeKey(nextKey)
+
+    if (nextKey === 'custom') return
+
+    const nextRange =
+      getIncomePresetRange(nextKey)
+    setFrom(nextRange.from)
+    setTo(nextRange.to)
+    fetchIncome(nextRange)
+  }
+
+  function toggleSortDirection() {
+    setSortDirection((current) =>
+      current === 'desc' ? 'asc' : 'desc'
+    )
+  }
+
+  async function handleIncomeRefresh() {
+    let nextRange =
+      getIncomePresetRange(rangeKey)
+
+    if (rangeKey === 'custom') {
+      if (!customFrom || !customTo) {
+        setMessage(
+          'Choose both custom start and end date & time.'
+        )
+        return
+      }
+
+      const nextFrom =
+        customBoundary(customFrom)
+      const nextTo =
+        customBoundary(customTo)
+
+      if (
+        new Date(nextFrom).getTime() >=
+        new Date(nextTo).getTime()
+      ) {
+        setMessage(
+          'Custom start date must be before end date.'
+        )
+        return
+      }
+
+      nextRange = {
+        from: nextFrom,
+        to: nextTo,
+      }
+    }
+
+    setFrom(nextRange.from)
+    setTo(nextRange.to)
+    await fetchIncome(nextRange)
+  }
+
   async function refreshAll() {
     setSuccess('')
     await Promise.all([
@@ -949,29 +1208,100 @@ export default function AdminIncomePage() {
               </div>
 
               <div className="income-filter">
-                <input
-                  className="income-input"
-                  type="date"
-                  value={from}
+                <select
+                  className="income-select"
+                  value={rangeKey}
+                  onChange={handleRangeChange}
+                  aria-label="Income time range"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="year">This Year</option>
+                  <option value="custom">Custom Date & Time</option>
+                </select>
+
+                <select
+                  className="income-select"
+                  value={sortField}
                   onChange={(event) =>
-                    setFrom(event.target.value)
+                    setSortField(event.target.value)
                   }
-                />
-                <input
-                  className="income-input"
-                  type="date"
-                  value={to}
-                  onChange={(event) =>
-                    setTo(event.target.value)
+                  aria-label="Sort income sources by"
+                >
+                  <option value="platform_income">Platform Income</option>
+                  <option value="gross_sales">Gross Sales</option>
+                  <option value="author_earnings">Author Earnings</option>
+                  <option value="pending_payout">Pending Payout</option>
+                  <option value="records">Records</option>
+                </select>
+
+                <button
+                  className={`income-reverse ${
+                    sortDirection === 'asc'
+                      ? 'is-asc'
+                      : ''
+                  }`}
+                  type="button"
+                  onClick={toggleSortDirection}
+                  aria-label={
+                    sortDirection === 'desc'
+                      ? 'Reverse to low to high'
+                      : 'Reverse to top to low'
                   }
-                />
+                  aria-pressed={
+                    sortDirection === 'asc'
+                  }
+                  title={
+                    sortDirection === 'desc'
+                      ? 'Top → Low'
+                      : 'Low → Top'
+                  }
+                >
+                  <ReverseIcon />
+                </button>
+
                 <button
                   className="income-button"
                   type="button"
-                  onClick={refreshAll}
+                  onClick={handleIncomeRefresh}
+                  disabled={loading}
                 >
-                  Refresh
+                  {loading ? 'Loading...' : 'Refresh'}
                 </button>
+
+                {rangeKey === 'custom' ? (
+                  <div className="income-custom-range">
+                    <input
+                      className="income-input"
+                      type="datetime-local"
+                      value={customFrom}
+                      max={customTo || undefined}
+                      onChange={(event) =>
+                        setCustomFrom(
+                          event.target.value
+                        )
+                      }
+                      aria-label="Custom start date"
+                    />
+                    <span className="income-range-arrow">
+                      →
+                    </span>
+                    <input
+                      className="income-input"
+                      type="datetime-local"
+                      value={customTo}
+                      min={customFrom || undefined}
+                      onChange={(event) =>
+                        setCustomTo(
+                          event.target.value
+                        )
+                      }
+                      aria-label="Custom end date"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -1099,7 +1429,7 @@ export default function AdminIncomePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sources.map((source) => (
+                        {sortedSources.map((source) => (
                         <tr
   key={source.source}
   onClick={() => {
