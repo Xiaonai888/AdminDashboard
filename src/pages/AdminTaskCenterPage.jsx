@@ -681,7 +681,7 @@ export default function AdminTaskCenterPage() {
         </div>
       </div>
     </>
-  ) : selectedMission ? (
+  ) : readingMissionView === 'editor' && selectedMission ? (
     <>
       <div className="panel-header">
         <div>
