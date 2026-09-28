@@ -15,11 +15,18 @@ const styles = `
   .author-income-card-label { color: #64748B; font-size: 11px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; }
   .author-income-card-value { margin-top: 8px; color: #0F172A; font-size: 24px; font-weight: 950; letter-spacing: -0.04em; white-space: nowrap; }
   .author-income-card-sub { margin-top: 6px; color: #94A3B8; font-size: 11px; font-weight: 800; line-height: 1.45; }
-  .author-income-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 145px 145px 150px 145px 190px auto; gap: 9px; align-items: center; }
-  .author-income-input, .author-income-select, .author-income-button { height: 42px; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font: inherit; font-size: 12px; font-weight: 800; outline: none; }
+  .author-income-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 150px 145px 190px 42px auto; gap: 9px; align-items: center; }
+  .author-income-input, .author-income-select, .author-income-button, .author-income-reverse { height: 42px; border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; color: #0F172A; font: inherit; font-size: 12px; font-weight: 800; outline: none; }
   .author-income-input, .author-income-select { width: 100%; padding: 0 11px; }
-  .author-income-input:focus, .author-income-select:focus { border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10); }
+  .author-income-input:focus, .author-income-select:focus, .author-income-reverse:focus { border-color: #A5B4FC; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10); }
   .author-income-button { padding: 0 15px; color: #4338CA; border-color: #C7D2FE; background: #EEF2FF; cursor: pointer; white-space: nowrap; }
+  .author-income-reverse { width: 42px; padding: 0; display: inline-grid; place-items: center; cursor: pointer; color: #475569; transition: transform .15s ease, border-color .15s ease, color .15s ease; }
+  .author-income-reverse:hover { color: #4338CA; border-color: #C7D2FE; }
+  .author-income-reverse:active { transform: scale(.95); }
+  .author-income-reverse svg { width: 17px; height: 17px; display: block; }
+  .author-income-custom-range { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .author-income-custom-range .author-income-input { width: 160px; }
+  .author-income-range-arrow { color: #94A3B8; font-size: 11px; font-weight: 900; }
   .author-income-button.secondary { color: #475569; border-color: #E2E8F0; background: #FFFFFF; }
   .author-income-button:disabled { opacity: .5; cursor: not-allowed; }
   .author-income-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -81,6 +88,9 @@ const styles = `
     .author-income-footer, .author-income-detail-footer { align-items: stretch; flex-direction: column; }
     .author-income-pager { display: grid; grid-template-columns: 1fr 1fr; }
     .author-income-button { width: 100%; }
+    .author-income-reverse { width: 42px; }
+    .author-income-custom-range { grid-column: 1; display: grid; grid-template-columns: 1fr auto 1fr; justify-content: stretch; }
+    .author-income-custom-range .author-income-input { width: 100%; }
     .author-income-drawer { width: 100vw; }
     .author-income-field { border-right: 0; }
   }
@@ -121,6 +131,56 @@ function formatDateTime(value) {
   })
 }
 
+function inputDateValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getPresetRange(key) {
+  if (key === 'all' || key === 'custom') {
+    return { from: '', to: '' }
+  }
+
+  const today = new Date()
+  const to = inputDateValue(today)
+  let fromDate = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  )
+
+  if (key === 'week') {
+    const mondayOffset = (fromDate.getDay() + 6) % 7
+    fromDate.setDate(fromDate.getDate() - mondayOffset)
+  } else if (key === 'month') {
+    fromDate = new Date(today.getFullYear(), today.getMonth(), 1)
+  } else if (key === 'year') {
+    fromDate = new Date(today.getFullYear(), 0, 1)
+  }
+
+  return {
+    from: inputDateValue(fromDate),
+    to,
+  }
+}
+
+function ReverseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M8 4v15M5 7l3-3 3 3M16 20V5M13 17l3 3 3-3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function authorIdFor(item) {
   return item?.author_page_id || item?.author_user_id || ''
 }
@@ -146,11 +206,13 @@ async function readResponse(response) {
 
 export default function AdminAuthorIncomePage() {
   const [draftSearch, setDraftSearch] = useState('')
-  const [draftFrom, setDraftFrom] = useState('')
-  const [draftTo, setDraftTo] = useState('')
+  const [rangeKey, setRangeKey] = useState('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
   const [draftShareSource, setDraftShareSource] = useState('')
   const [draftStatus, setDraftStatus] = useState('all')
-  const [draftSort, setDraftSort] = useState('author_earned_desc')
+  const [sortField, setSortField] = useState('author_earned')
+  const [sortDirection, setSortDirection] = useState('desc')
 
   const [filters, setFilters] = useState({
     q: '',
@@ -220,23 +282,23 @@ export default function AdminAuthorIncomePage() {
 
         let reconcileWarning = ''
 
-if (!reconcilePromiseRef.current) {
-  reconcilePromiseRef.current = fetch(
-    `${API_URL}/api/admin/income/author-income/reconcile`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  ).then(readResponse)
-}
+        if (!reconcilePromiseRef.current) {
+          reconcilePromiseRef.current = fetch(
+            `${API_URL}/api/admin/income/author-income/reconcile`,
+            {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          ).then(readResponse)
+        }
 
-try {
-  await reconcilePromiseRef.current
-} catch (error) {
-  reconcilePromiseRef.current = null
-  reconcileWarning =
-    error.message || 'Author income repair failed'
-}
+        try {
+          await reconcilePromiseRef.current
+        } catch (error) {
+          reconcilePromiseRef.current = null
+          reconcileWarning =
+            error.message || 'Author income repair failed'
+        }
 
         const params = new URLSearchParams({
           page: String(page),
@@ -261,11 +323,11 @@ try {
         )
 
         const result = await readResponse(response)
-setData(result)
+        setData(result)
 
-if (reconcileWarning) {
-  setMessage(`Repair warning: ${reconcileWarning}`)
-}
+        if (reconcileWarning) {
+          setMessage(`Repair warning: ${reconcileWarning}`)
+        }
       } catch (error) {
         if (error.name !== 'AbortError') {
           setMessage(
@@ -363,27 +425,89 @@ if (reconcileWarning) {
     }
   }, [selectedAuthor])
 
+  function currentRange() {
+    if (rangeKey === 'custom') {
+      return { from: customFrom, to: customTo }
+    }
+
+    return getPresetRange(rangeKey)
+  }
+
   function applyFilters(event) {
     event.preventDefault()
+    const range = currentRange()
+
+    if (
+      rangeKey === 'custom' &&
+      range.from &&
+      range.to &&
+      range.from > range.to
+    ) {
+      setMessage('Custom start date must be before end date')
+      return
+    }
+
     setPage(1)
     setSelectedAuthor(null)
     setFilters({
       q: draftSearch.trim(),
-      from: draftFrom,
-      to: draftTo,
+      from: range.from,
+      to: range.to,
       share_source: draftShareSource,
       status: draftStatus,
-      sort: draftSort,
+      sort: `${sortField}_${sortDirection}`,
     })
+  }
+
+  function handleRangeChange(event) {
+    const nextKey = event.target.value
+    setRangeKey(nextKey)
+
+    if (nextKey === 'custom') return
+
+    const range = getPresetRange(nextKey)
+    setPage(1)
+    setSelectedAuthor(null)
+    setFilters((current) => ({
+      ...current,
+      from: range.from,
+      to: range.to,
+    }))
+  }
+
+  function handleSortFieldChange(event) {
+    const nextField = event.target.value
+    setSortField(nextField)
+    setPage(1)
+    setSelectedAuthor(null)
+    setFilters((current) => ({
+      ...current,
+      sort: `${nextField}_${sortDirection}`,
+    }))
+  }
+
+  function toggleSortDirection() {
+    const nextDirection =
+      sortDirection === 'desc' ? 'asc' : 'desc'
+
+    setSortDirection(nextDirection)
+    setPage(1)
+    setSelectedAuthor(null)
+    setFilters((current) => ({
+      ...current,
+      sort: `${sortField}_${nextDirection}`,
+    }))
   }
 
   function resetFilters() {
     setDraftSearch('')
-    setDraftFrom('')
-    setDraftTo('')
+    setRangeKey('all')
+    setCustomFrom('')
+    setCustomTo('')
     setDraftShareSource('')
     setDraftStatus('all')
-    setDraftSort('author_earned_desc')
+    setSortField('author_earned')
+    setSortDirection('desc')
     setPage(1)
     setSelectedAuthor(null)
     setFilters({
@@ -489,19 +613,19 @@ if (reconcileWarning) {
             placeholder="Search author / username"
           />
 
-          <input
-            className="author-income-input"
-            type="date"
-            value={draftFrom}
-            onChange={(event) => setDraftFrom(event.target.value)}
-          />
-
-          <input
-            className="author-income-input"
-            type="date"
-            value={draftTo}
-            onChange={(event) => setDraftTo(event.target.value)}
-          />
+          <select
+            className="author-income-select"
+            value={rangeKey}
+            onChange={handleRangeChange}
+            aria-label="Author income time range"
+          >
+            <option value="all">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+            <option value="custom">Custom Date & Time</option>
+          </select>
 
           <select
             className="author-income-select"
@@ -530,15 +654,35 @@ if (reconcileWarning) {
 
           <select
             className="author-income-select"
-            value={draftSort}
-            onChange={(event) => setDraftSort(event.target.value)}
+            value={sortField}
+            onChange={handleSortFieldChange}
+            aria-label="Sort author income by"
           >
-            <option value="author_earned_desc">Author Earned</option>
-            <option value="paid_diamonds_desc">Paid Diamonds</option>
-            <option value="platform_earned_desc">Platform Earned</option>
-            <option value="transactions_desc">Transactions</option>
-            <option value="latest_desc">Latest Income</option>
+            <option value="author_earned">Author Earned</option>
+            <option value="paid_diamonds">Paid Diamonds</option>
+            <option value="platform_earned">Platform Earned</option>
+            <option value="transactions">Transactions</option>
+            <option value="latest">Latest Income</option>
           </select>
+
+          <button
+            className="author-income-reverse"
+            type="button"
+            onClick={toggleSortDirection}
+            disabled={loading}
+            aria-label={
+              sortDirection === 'desc'
+                ? 'Reverse to low to high'
+                : 'Reverse to top to low'
+            }
+            title={
+              sortDirection === 'desc'
+                ? 'Top → Low'
+                : 'Low → Top'
+            }
+          >
+            <ReverseIcon />
+          </button>
 
           <button
             className="author-income-button"
@@ -547,6 +691,32 @@ if (reconcileWarning) {
           >
             Apply
           </button>
+
+          {rangeKey === 'custom' ? (
+            <div className="author-income-custom-range">
+              <input
+                className="author-income-input"
+                type="date"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={(event) =>
+                  setCustomFrom(event.target.value)
+                }
+                aria-label="Custom start date"
+              />
+              <span className="author-income-range-arrow">→</span>
+              <input
+                className="author-income-input"
+                type="date"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={(event) =>
+                  setCustomTo(event.target.value)
+                }
+                aria-label="Custom end date"
+              />
+            </div>
+          ) : null}
         </form>
 
         <div className="author-income-meta">
