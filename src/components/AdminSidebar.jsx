@@ -281,7 +281,6 @@ const navSections = [
       { path: '/payment', label: 'Payment', icon: 'M21 12V7H5v10h16v-5z M5 7l8 5 8-5 M7 17h10' },
       { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
       { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5-5 5 5 M12 5v12' },
-      { path: '/history', label: 'History', icon: 'M12 8v4l3 3 M21 12a9 9 0 1 1-3-6.7 M21 3v6h-6' },
     ],
   },
   {
