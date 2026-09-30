@@ -861,7 +861,7 @@ const AdminDashboard = () => {
     try {
       setActivityLogLoading(true);
       const token = getAdminToken();
-      const response = await fetch(`${API_URL}/api/admin/activity-logs?page=1&limit=3`, {
+      const response = await fetch(`${API_URL}/api/admin/activity-logs?page=1&limit=3&source=activity`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'X-Admin-Name': 'Admin',
@@ -1646,7 +1646,7 @@ const AdminDashboard = () => {
 
               <section className="card-panel">
                 <div className="panel-header">
-                  <h4>Admin Activity Log</h4>
+                  <h4>Admin Activity History</h4>
                 </div>
                 <div className="log-list">
                   {activityLogLoading ? (
