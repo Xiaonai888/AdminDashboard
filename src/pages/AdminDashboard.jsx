@@ -861,7 +861,7 @@ const AdminDashboard = () => {
     try {
       setActivityLogLoading(true);
       const token = getAdminToken();
-      const response = await fetch(`${API_URL}/api/slides/records?page=1&limit=3`, {
+      const response = await fetch(`${API_URL}/api/admin/activity-logs?page=1&limit=3`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'X-Admin-Name': 'Admin',
