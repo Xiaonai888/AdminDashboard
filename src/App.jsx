@@ -191,7 +191,7 @@ export default function App() {
         <Route path="/income/author-page" element={<ProtectedPage><AdminAuthorPageIncomePage /></ProtectedPage>} />
         <Route path="/author-library" element={<ProtectedPage><AdminAuthorLibraryPage /></ProtectedPage>} />
         <Route path="/income/shadow-mall" element={<ProtectedPage><AdminShadowMallIncomePage /></ProtectedPage>} />
-        <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
+        <Route path="/history" element={<ProtectedPage><AdminActivityLogsPage /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
         <Route path="/withdraw" element={<ProtectedPage><AdminWithdrawalPage /></ProtectedPage>} />
