@@ -1,254 +1,260 @@
-import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const LOGS_PER_PAGE = 20
-const ADMIN_DISPLAY_NAME = 'Xiaonai Xiao'
-const ADMIN_ROLE = 'Owner'
-const FILTERS = ['ALL', 'CREATE', 'UPDATE', 'VISIBILITY', 'DELETE', 'PAYMENT', 'GENRE', 'COMMENT']
+const CACHE_TTL_MS = 60 * 1000
+const ACTION_OPTIONS = ['ALL', 'CREATE', 'UPDATE', 'DELETE', 'PAYMENT', 'SECURITY']
+const DAY_OPTIONS = [7, 30, 90]
 
 const styles = `
-  .logs-page {
+  .history-page {
     min-height: 100%;
-    background: radial-gradient(circle at top right, rgba(79, 70, 229, .08), transparent 28%), #F8FAFC;
-    padding: 28px;
-    border-radius: 24px;
+    padding: 4px 0 28px;
   }
 
-  .logs-shell {
-    max-width: 1180px;
+  .history-shell {
+    max-width: 1440px;
     margin: 0 auto;
   }
 
-  .top-row {
+  .history-heading-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 22px;
+    gap: 18px;
+    margin-bottom: 20px;
   }
 
-  .page-title h1 {
+  .history-heading h2 {
     margin: 0;
     color: #0F172A;
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: -.04em;
-    line-height: 1.15;
+    font-size: 30px;
+    font-weight: 950;
+    letter-spacing: -0.04em;
   }
 
-  .page-title p {
-    margin-top: 7px;
+  .history-heading p {
+    margin: 7px 0 0;
     color: #64748B;
-    font-size: 14px;
-  }
-
-  .back-btn,
-  .black-btn {
-    border: 0;
-    border-radius: 13px;
-    background: #000000;
-    color: #FFFFFF;
-    padding: 12px 16px;
-    font: inherit;
     font-size: 13px;
-    font-weight: 900;
-    cursor: pointer;
-    box-shadow: 0 12px 26px rgba(0, 0, 0, .16);
-    transition: transform .15s ease, opacity .15s ease;
+    font-weight: 650;
   }
 
-  .back-btn:hover,
-  .black-btn:hover {
-    opacity: .9;
-    transform: translateY(-1px);
-  }
-
-  .black-btn:disabled {
-    opacity: .5;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .tools-card {
-    margin-bottom: 18px;
-    border: 1px solid #E2E8F0;
-    border-radius: 22px;
-    background: #FFFFFF;
-    padding: 18px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
-  }
-
-  .tools-grid {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 14px;
+  .retention-pill {
+    display: inline-flex;
     align-items: center;
-  }
-
-  .search-box {
-    width: 100%;
-    border: 1px solid #CBD5E1;
-    border-radius: 15px;
-    background: #F8FAFC;
-    color: #0F172A;
-    padding: 14px 15px;
-    font: inherit;
-    font-size: 14px;
-    outline: none;
-  }
-
-  .search-box:focus {
-    border-color: #111827;
-    background: #FFFFFF;
-    box-shadow: 0 0 0 3px rgba(15, 23, 42, .08);
-  }
-
-  .filter-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 14px;
-  }
-
-  .filter-btn {
-    border: 1px solid #E2E8F0;
+    gap: 7px;
+    border: 1px solid #DDD6FE;
     border-radius: 999px;
-    background: #FFFFFF;
-    color: #475569;
-    padding: 10px 13px;
-    font: inherit;
+    background: #F5F3FF;
+    color: #6D28D9;
+    padding: 9px 13px;
     font-size: 12px;
-    font-weight: 900;
-    cursor: pointer;
-    transition: background .15s ease, color .15s ease, border-color .15s ease;
-  }
-
-  .filter-btn:hover {
-    background: #F8FAFC;
-  }
-
-  .filter-btn.active {
-    border-color: #000000;
-    background: #000000;
-    color: #FFFFFF;
-  }
-
-  .logs-card {
-    overflow: hidden;
-    border: 1px solid #E2E8F0;
-    border-radius: 22px;
-    background: #FFFFFF;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
-  }
-
-  .logs-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 20px 22px;
-    border-bottom: 1px solid #E2E8F0;
-  }
-
-  .logs-card-header h2 {
-    margin: 0;
-    color: #0F172A;
-    font-size: 17px;
-    font-weight: 900;
-  }
-
-  .logs-card-header p {
-    margin-top: 4px;
-    color: #64748B;
-    font-size: 12.5px;
-  }
-
-  .count-pill {
-    border-radius: 999px;
-    background: #F1F5F9;
-    color: #334155;
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 900;
+    font-weight: 850;
     white-space: nowrap;
   }
 
-  .table-head {
+  .summary-grid {
     display: grid;
-    grid-template-columns: 150px minmax(280px, 1fr) 180px 190px;
-    gap: 16px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .summary-card {
+    min-height: 118px;
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    background: #FFFFFF;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  }
+
+  .summary-card.total { background: linear-gradient(135deg, #FFFFFF, #F5F3FF); }
+  .summary-card.security { background: linear-gradient(135deg, #FFFFFF, #EFF6FF); }
+  .summary-card.payment { background: linear-gradient(135deg, #FFFFFF, #ECFDF5); }
+  .summary-card.critical { background: linear-gradient(135deg, #FFFFFF, #FFF1F2); }
+
+  .summary-label {
+    color: #64748B;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .summary-value {
+    margin-top: 10px;
+    color: #0F172A;
+    font-size: 27px;
+    font-weight: 950;
+    line-height: 1;
+  }
+
+  .summary-note {
+    margin-top: 9px;
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .filters-card {
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    background: #FFFFFF;
+    padding: 15px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+  }
+
+  .filters-main {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 170px 170px auto;
+    gap: 10px;
     align-items: center;
-    padding: 12px 22px;
+  }
+
+  .history-search-wrap {
+    display: flex;
+    min-width: 0;
+  }
+
+  .history-search {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    border: 1px solid #CBD5E1;
+    border-right: 0;
+    border-radius: 12px 0 0 12px;
+    background: #FFFFFF;
+    color: #0F172A;
+    padding: 0 13px;
+    font: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .history-search:focus {
+    border-color: #8B5CF6;
+    box-shadow: inset 0 0 0 1px #8B5CF6;
+  }
+
+  .search-btn,
+  .refresh-btn {
+    height: 42px;
+    border: 0;
+    background: #6D5DFB;
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .search-btn {
+    min-width: 76px;
+    border-radius: 0 12px 12px 0;
+  }
+
+  .refresh-btn {
+    min-width: 84px;
+    border-radius: 12px;
+  }
+
+  .search-btn:disabled,
+  .refresh-btn:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+  }
+
+  .history-select {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #CBD5E1;
+    border-radius: 12px;
+    background: #FFFFFF;
+    color: #334155;
+    padding: 0 11px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    outline: none;
+  }
+
+  .days-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .day-btn {
+    height: 36px;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #475569;
+    padding: 0 14px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 850;
+    cursor: pointer;
+  }
+
+  .day-btn.active {
+    border-color: #8B5CF6;
+    background: #F5F3FF;
+    color: #6D28D9;
+  }
+
+  .history-table-card {
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    background: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  }
+
+  .history-table-scroll {
+    overflow-x: auto;
+  }
+
+  .history-head,
+  .history-row {
+    display: grid;
+    grid-template-columns: 150px 120px 150px minmax(190px, 1fr) minmax(260px, 1.35fr) 145px;
+    gap: 14px;
+    align-items: center;
+    min-width: 1040px;
+  }
+
+  .history-head {
+    padding: 13px 18px;
     border-bottom: 1px solid #E2E8F0;
     background: #F8FAFC;
     color: #64748B;
-    font-size: 11px;
-    font-weight: 900;
-    letter-spacing: .55px;
-    text-transform: uppercase;
-  }
-
-  .log-row {
-    display: grid;
-    grid-template-columns: 150px minmax(280px, 1fr) 180px 190px;
-    gap: 16px;
-    align-items: center;
-    padding: 17px 22px;
-    border-bottom: 1px solid #F1F5F9;
-    transition: background .15s ease;
-  }
-
-  .log-row:last-child {
-    border-bottom: 0;
-  }
-
-  .log-row:hover {
-    background: #FAFBFF;
-  }
-
-  .action-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: max-content;
-    min-width: 94px;
-    border-radius: 999px;
-    padding: 7px 11px;
     font-size: 11px;
     font-weight: 900;
     letter-spacing: .35px;
     text-transform: uppercase;
   }
 
-  .action-pill.create { background: #D1FAE5; color: #047857; }
-  .action-pill.update { background: #EEF2FF; color: #4F46E5; }
-  .action-pill.visibility { background: #FEF3C7; color: #B45309; }
-  .action-pill.delete { background: #FEE2E2; color: #DC2626; }
-  .action-pill.payment { background: #E0F2FE; color: #0369A1; }
-  .action-pill.genre { background: #F3E8FF; color: #7E22CE; }
-  .action-pill.comment { background: #F1F5F9; color: #334155; }
-  .action-pill.default { background: #F1F5F9; color: #475569; }
-
-  .activity-main strong {
-    display: block;
-    margin-bottom: 5px;
-    color: #0F172A;
-    font-size: 14px;
+  .history-row {
+    padding: 15px 18px;
+    border-bottom: 1px solid #F1F5F9;
   }
 
-  .activity-main span {
-    display: block;
-    color: #475569;
-    font-size: 13px;
-    line-height: 1.45;
+  .history-row:last-child {
+    border-bottom: 0;
   }
 
-  .actor-box {
+  .history-row:hover {
+    background: #FCFCFF;
+  }
+
+  .actor {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     min-width: 0;
   }
 
@@ -257,241 +263,192 @@ const styles = `
     place-items: center;
     width: 34px;
     height: 34px;
-    flex-shrink: 0;
+    flex: 0 0 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #111827, #4F46E5);
-    color: #FFFFFF;
+    background: #EDE9FE;
+    color: #6D28D9;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 950;
   }
 
   .actor-name {
     overflow: hidden;
     color: #0F172A;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 900;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .actor-role {
-    margin-top: 2px;
-    color: #64748B;
-    font-size: 11.5px;
-    font-weight: 700;
+  .action-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: max-content;
+    max-width: 100%;
+    min-width: 78px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 10.5px;
+    font-weight: 950;
+    text-transform: uppercase;
   }
 
-  .time {
+  .action-pill.create { background: #F3E8FF; color: #7E22CE; }
+  .action-pill.update { background: #DBEAFE; color: #1D4ED8; }
+  .action-pill.delete { background: #FEE2E2; color: #DC2626; }
+  .action-pill.payment { background: #D1FAE5; color: #047857; }
+  .action-pill.security { background: #EDE9FE; color: #6D28D9; }
+  .action-pill.visibility { background: #FEF3C7; color: #B45309; }
+  .action-pill.default { background: #F1F5F9; color: #475569; }
+
+  .module-text,
+  .target-text,
+  .details-text {
+    min-width: 0;
+    color: #334155;
+    font-size: 12.5px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .module-text {
+    font-weight: 850;
+  }
+
+  .target-text {
+    color: #0F172A;
+    font-weight: 850;
+  }
+
+  .time-text {
     color: #64748B;
-    font-size: 12px;
+    font-size: 11.5px;
     line-height: 1.45;
     text-align: right;
   }
 
   .empty-state {
-    padding: 34px 20px;
+    padding: 46px 20px;
     color: #64748B;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 750;
     text-align: center;
   }
 
-  .footer-row {
+  .history-footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 16px 20px;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
     border-top: 1px solid #E2E8F0;
+    background: #FFFFFF;
+  }
+
+  .footer-note {
+    color: #94A3B8;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .page-btn {
+    min-width: 38px;
+    height: 36px;
     border: 1px solid #E2E8F0;
-    border-radius: 12px;
+    border-radius: 10px;
     background: #FFFFFF;
-    color: #0F172A;
-    padding: 10px 14px;
+    color: #334155;
+    padding: 0 11px;
     font: inherit;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
     cursor: pointer;
   }
 
-  .page-btn.primary {
-    border-color: #000000;
-    background: #000000;
+  .page-btn.current {
+    border-color: #8B5CF6;
+    background: #8B5CF6;
     color: #FFFFFF;
   }
 
   .page-btn:disabled {
-    opacity: .45;
+    opacity: .42;
     cursor: not-allowed;
   }
 
-  .page-info {
-    color: #475569;
+  .error-box {
+    margin-bottom: 14px;
+    border: 1px solid #FECACA;
+    border-radius: 13px;
+    background: #FEF2F2;
+    color: #B91C1C;
+    padding: 11px 13px;
     font-size: 12px;
-    font-weight: 900;
+    font-weight: 800;
   }
 
-  @media (max-width: 980px) {
-    .logs-page,
-    .logs-shell {
-      min-width: 0;
+  @media (max-width: 1050px) {
+    .summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .logs-page {
-      padding: 18px;
+    .filters-main {
+      grid-template-columns: 1fr 1fr;
     }
+  }
 
-    .top-row,
-    .tools-grid,
-    .logs-card-header {
-      align-items: flex-start;
-      grid-template-columns: 1fr;
-    }
-
-    .top-row,
-    .logs-card-header {
+  @media (max-width: 700px) {
+    .history-heading-row {
       flex-direction: column;
     }
 
-    .top-row > div,
-    .logs-card-header > div {
-      min-width: 0;
+    .history-heading h2 {
+      font-size: 25px;
     }
 
-    .page-title h1 {
-      overflow-wrap: anywhere;
-    }
-
-    .page-title p,
-    .logs-card-header p,
-    .activity-main strong,
-    .activity-main span,
-    .time,
-    .empty-state,
-    .page-info {
-      overflow-wrap: anywhere;
-      word-break: break-word;
-    }
-
-    .black-btn,
-    .back-btn {
-      width: 100%;
-      min-width: 0;
-    }
-
-    .search-box {
-      min-width: 0;
-      box-sizing: border-box;
-    }
-
-    .filter-row {
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      overscroll-behavior-x: contain;
-      padding-bottom: 4px;
-      scrollbar-width: none;
-    }
-
-    .filter-row::-webkit-scrollbar {
-      display: none;
-    }
-
-    .filter-btn {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-
-    .logs-card {
-      min-width: 0;
-    }
-
-    .count-pill {
-      max-width: 100%;
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-
-    .table-head {
-      display: none;
-    }
-
-    .log-row {
-      grid-template-columns: 1fr;
+    .summary-grid {
+      grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
 
-    .log-row > div {
-      min-width: 0;
+    .summary-card {
+      min-height: 104px;
+      padding: 14px;
     }
 
-    .actor-name {
-      white-space: normal;
-      overflow-wrap: anywhere;
+    .summary-value {
+      font-size: 23px;
     }
 
-    .time {
-      text-align: left;
+    .filters-main {
+      grid-template-columns: 1fr;
     }
 
-    .footer-row {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      justify-content: stretch;
-    }
-
-    .page-btn {
+    .refresh-btn {
       width: 100%;
-      min-width: 0;
-      min-height: 40px;
     }
 
-    .page-info {
-      align-self: center;
-      text-align: center;
+    .history-footer {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .pagination {
+      width: 100%;
+      justify-content: space-between;
     }
   }
 
-  @media (max-width: 600px) {
-    .logs-page {
-      padding: 14px;
-      border-radius: 20px;
-    }
-
-    .page-title h1 {
-      font-size: 24px;
-    }
-
-    .tools-card,
-    .logs-card {
-      border-radius: 18px;
-    }
-
-    .tools-card {
-      padding: 14px;
-    }
-
-    .logs-card-header,
-    .log-row {
-      padding-left: 15px;
-      padding-right: 15px;
-    }
-
-    .action-pill {
-      max-width: 100%;
-      min-width: 0;
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-
-    .footer-row {
+  @media (max-width: 480px) {
+    .summary-grid {
       grid-template-columns: 1fr;
-      padding: 14px 15px;
-    }
-
-    .page-info {
-      order: -1;
     }
   }
 `
@@ -500,251 +457,428 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
 }
 
+function cacheKey({ page, action, actor, search, days }) {
+  return `shadow_admin_history:${page}:${action}:${actor}:${search}:${days}`
+}
+
+function readCache(key) {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > CACHE_TTL_MS) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+    return parsed.data || null
+  } catch {
+    return null
+  }
+}
+
+function writeCache(key, data) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }))
+  } catch {
+    return
+  }
+}
+
 function getActionClass(record) {
   const action = String(record?.action || '').toLowerCase()
   const section = String(record?.section_key || '').toLowerCase()
 
-  if (action.includes('payment')) return 'payment'
-  if (section.includes('genre')) return 'genre'
-  if (section === 'comments') return 'comment'
-  if (action === 'create') return 'create'
-  if (action === 'update') return 'update'
-  if (action === 'delete') return 'delete'
-  if (action === 'visibility') return 'visibility'
-
+  if (action.includes('security') || section.includes('security') || section.includes('guard')) return 'security'
+  if (action.includes('payment') || action.includes('payout') || action.includes('withdraw')) return 'payment'
+  if (action.includes('delete') || action.includes('remove') || action.includes('hide')) return 'delete'
+  if (action.includes('create') || action.includes('add')) return 'create'
+  if (action.includes('update') || action.includes('edit') || action.includes('change')) return 'update'
+  if (action.includes('visibility')) return 'visibility'
   return 'default'
 }
 
 function getActorInitial(name) {
-  const cleanName = String(name || ADMIN_DISPLAY_NAME).trim()
-  return cleanName.charAt(0).toUpperCase() || 'A'
+  return String(name || 'A').trim().charAt(0).toUpperCase() || 'A'
 }
 
-function getDisplayActorName(actor) {
-  if (!actor || actor === 'Admin') return ADMIN_DISPLAY_NAME
-  return actor
+function formatModule(value) {
+  const clean = String(value || 'system').replace(/[_-]+/g, ' ').trim()
+  return clean.replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-function formatTime(value) {
-  if (!value) return '-'
-  return new Date(value).toLocaleString()
+function formatDate(value) {
+  if (!value) return { date: '-', time: '' }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return { date: '-', time: '' }
+
+  return {
+    date: date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }),
+    time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+  }
 }
 
-function formatMainTitle(record) {
-  return record?.slide_title || (record?.order_index ? `Slide ${record.order_index}` : 'System activity')
+function defaultSummary() {
+  return {
+    total: 0,
+    security: 0,
+    payment: 0,
+    critical: 0,
+  }
 }
 
 export default function AdminActivityLogsPage() {
-  const navigate = useNavigate()
   const [logs, setLogs] = useState([])
+  const [actors, setActors] = useState([])
+  const [summary, setSummary] = useState(defaultSummary())
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [searchText, setSearchText] = useState('')
-  const [actionFilter, setActionFilter] = useState('ALL')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [action, setAction] = useState('ALL')
+  const [actor, setActor] = useState('ALL')
+  const [days, setDays] = useState(90)
+  const [error, setError] = useState('')
 
-  const fetchLogs = async (
-    nextPage = page,
-    nextAction = actionFilter,
-    nextSearch = searchText
-  ) => {
+  const applyResponse = useCallback((data, fallbackPage = 1) => {
+    setLogs(Array.isArray(data?.records) ? data.records : [])
+    setActors(Array.isArray(data?.actors) ? data.actors : [])
+    setSummary(data?.summary || defaultSummary())
+    setPage(Number(data?.page || fallbackPage))
+    setTotalPages(Math.max(Number(data?.total_pages || data?.totalPages || 1), 1))
+  }, [])
+
+  const fetchLogs = useCallback(async ({
+    nextPage = 1,
+    nextAction = action,
+    nextActor = actor,
+    nextSearch = search,
+    nextDays = days,
+    force = false,
+  } = {}) => {
+    const request = {
+      page: nextPage,
+      action: nextAction,
+      actor: nextActor,
+      search: nextSearch,
+      days: nextDays,
+    }
+
+    const key = cacheKey(request)
+
+    if (!force) {
+      const cached = readCache(key)
+      if (cached) {
+        applyResponse(cached, nextPage)
+        setError('')
+        return
+      }
+    }
+
     try {
       setLoading(true)
+      setError('')
 
       const token = getAdminToken()
       const params = new URLSearchParams({
         page: String(nextPage),
         limit: String(LOGS_PER_PAGE),
         action: nextAction,
+        actor: nextActor,
         search: nextSearch,
+        days: String(nextDays),
       })
 
-      const response = await fetch(
-        `${API_URL}/api/admin/activity-logs?${params.toString()}`,
-        {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            'X-Admin-Name': ADMIN_DISPLAY_NAME,
-          },
-        }
-      )
+      if (force) params.set('refresh', '1')
+
+      const response = await fetch(`${API_URL}/api/admin/activity-logs?${params.toString()}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
 
       const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Failed to load logs')
+      if (!response.ok || data?.ok === false) {
+        throw new Error(data?.message || 'Failed to load history')
       }
 
-      setLogs(data.records || [])
-      setPage(data.page || nextPage)
-      setTotalPages(data.total_pages || data.totalPages || 1)
-      setTotal(data.total || 0)
-    } catch {
-      setLogs([])
-      setTotal(0)
-      setTotalPages(1)
+      writeCache(key, data)
+      applyResponse(data, nextPage)
+    } catch (requestError) {
+      setError(requestError?.message || 'Failed to load history')
     } finally {
       setLoading(false)
     }
+  }, [action, actor, search, days, applyResponse])
+
+  useEffect(() => {
+    fetchLogs({
+      nextPage: 1,
+      nextAction: action,
+      nextActor: actor,
+      nextSearch: search,
+      nextDays: days,
+    })
+  }, [action, actor, search, days, fetchLogs])
+
+  const visiblePages = useMemo(() => {
+    const pages = []
+    const start = Math.max(1, page - 2)
+    const end = Math.min(totalPages, start + 4)
+
+    for (let value = start; value <= end; value += 1) {
+      pages.push(value)
+    }
+
+    return pages
+  }, [page, totalPages])
+
+  const submitSearch = () => {
+    const nextSearch = searchInput.trim()
+    setPage(1)
+    setSearch(nextSearch)
   }
 
-  useEffect(() => {
-    fetchLogs(1, actionFilter, searchText)
-  }, [])
+  const changeAction = (event) => {
+    setPage(1)
+    setAction(event.target.value)
+  }
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      fetchLogs(1, actionFilter, searchText)
-    }, 350)
+  const changeActor = (event) => {
+    setPage(1)
+    setActor(event.target.value)
+  }
 
-    return () => window.clearTimeout(timer)
-  }, [searchText, actionFilter])
+  const changeDays = (value) => {
+    setPage(1)
+    setDays(value)
+  }
+
+  const goToPage = (nextPage) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return
+
+    fetchLogs({
+      nextPage,
+      nextAction: action,
+      nextActor: actor,
+      nextSearch: search,
+      nextDays: days,
+    })
+  }
+
+  const refresh = () => {
+    fetchLogs({
+      nextPage: page,
+      nextAction: action,
+      nextActor: actor,
+      nextSearch: search,
+      nextDays: days,
+      force: true,
+    })
+  }
 
   return (
     <AdminLayout
-      title="Admin Activity Logs"
-      subtitle="View actions across content, payments, moderation, and system activity."
+      title="History"
+      subtitle="Admin activity history"
     >
       <style>{styles}</style>
 
-      <div className="logs-page">
-        <div className="logs-shell">
-          <div className="top-row">
-            <div className="page-title">
-              <h1>Admin Activity Logs</h1>
-              <p>
-                View admin actions across slides, comments, genres, payments, and recent
-                system activity.
-              </p>
+      <div className="history-page">
+        <div className="history-shell">
+          <div className="history-heading-row">
+            <div className="history-heading">
+              <h2>Admin History</h2>
+              <p>Track recent admin activity without realtime polling.</p>
             </div>
 
-            <button
-              className="back-btn"
-              type="button"
-              onClick={() => navigate('/admin')}
-            >
-              ← Back to Dashboard
-            </button>
+            <div className="retention-pill">
+              <span>◷</span>
+              <span>Retention: 90 days</span>
+            </div>
           </div>
 
-          <section className="tools-card">
-            <div className="tools-grid">
-              <input
-                className="search-box"
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Search action, title, payment order, Trx ID, actor, or detail..."
-              />
+          <div className="summary-grid">
+            <div className="summary-card total">
+              <div className="summary-label">Total Records</div>
+              <div className="summary-value">{summary.total || 0}</div>
+              <div className="summary-note">Selected period</div>
+            </div>
+
+            <div className="summary-card security">
+              <div className="summary-label">Security Actions</div>
+              <div className="summary-value">{summary.security || 0}</div>
+              <div className="summary-note">Access and security activity</div>
+            </div>
+
+            <div className="summary-card payment">
+              <div className="summary-label">Payment & Payout</div>
+              <div className="summary-value">{summary.payment || 0}</div>
+              <div className="summary-note">Financial admin activity</div>
+            </div>
+
+            <div className="summary-card critical">
+              <div className="summary-label">Critical Changes</div>
+              <div className="summary-value">{summary.critical || 0}</div>
+              <div className="summary-note">Delete, security and payment changes</div>
+            </div>
+          </div>
+
+          <div className="filters-card">
+            <div className="filters-main">
+              <div className="history-search-wrap">
+                <input
+                  className="history-search"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') submitSearch()
+                  }}
+                  placeholder="Search admin, action, target..."
+                />
+                <button
+                  type="button"
+                  className="search-btn"
+                  onClick={submitSearch}
+                  disabled={loading}
+                >
+                  Search
+                </button>
+              </div>
+
+              <select className="history-select" value={actor} onChange={changeActor}>
+                <option value="ALL">All Admins</option>
+                {actors.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+
+              <select className="history-select" value={action} onChange={changeAction}>
+                {ACTION_OPTIONS.map((item) => (
+                  <option key={item} value={item}>
+                    {item === 'ALL' ? 'All Actions' : item}
+                  </option>
+                ))}
+              </select>
 
               <button
-                className="black-btn"
                 type="button"
-                onClick={() => fetchLogs(page, actionFilter, searchText)}
+                className="refresh-btn"
+                onClick={refresh}
                 disabled={loading}
               >
                 {loading ? 'Loading...' : 'Refresh'}
               </button>
             </div>
 
-            <div className="filter-row">
-              {FILTERS.map((item) => (
+            <div className="days-row">
+              {DAY_OPTIONS.map((value) => (
                 <button
-                  key={item}
+                  key={value}
                   type="button"
-                  className={`filter-btn ${actionFilter === item ? 'active' : ''}`}
-                  onClick={() => {
-                    setActionFilter(item)
-                    setPage(1)
-                  }}
+                  className={`day-btn ${days === value ? 'active' : ''}`}
+                  onClick={() => changeDays(value)}
                 >
-                  {item}
+                  {value} Days
                 </button>
               ))}
             </div>
-          </section>
+          </div>
 
-          <section className="logs-card">
-            <div className="logs-card-header">
-              <div>
-                <h2>All Logs</h2>
-                <p>
-                  Showing {logs.length} record(s). Full history is paginated by 20
-                  records per page.
-                </p>
+          {error ? <div className="error-box">{error}</div> : null}
+
+          <section className="history-table-card">
+            <div className="history-table-scroll">
+              <div className="history-head">
+                <div>Admin</div>
+                <div>Action</div>
+                <div>Module</div>
+                <div>Target</div>
+                <div>Details</div>
+                <div style={{ textAlign: 'right' }}>Time</div>
               </div>
 
-              <div className="count-pill">{total} total</div>
-            </div>
-
-            <div className="table-head">
-              <div>Action</div>
-              <div>Activity</div>
-              <div>Actor</div>
-              <div style={{ textAlign: 'right' }}>Time</div>
-            </div>
-
-            <div className="log-table">
-              {loading ? (
-                <div className="empty-state">Loading admin activity logs...</div>
+              {loading && logs.length === 0 ? (
+                <div className="empty-state">Loading history...</div>
               ) : logs.length === 0 ? (
-                <div className="empty-state">No logs found.</div>
+                <div className="empty-state">No history found.</div>
               ) : (
-                logs.map((log) => {
-                  const actorName = getDisplayActorName(log.actor)
+                logs.map((record) => {
+                  const actorName = record?.actor || 'Admin'
+                  const time = formatDate(record?.created_at)
 
                   return (
-                    <div className="log-row" key={log.id}>
+                    <div className="history-row" key={record.id}>
+                      <div className="actor">
+                        <div className="actor-avatar">{getActorInitial(actorName)}</div>
+                        <div className="actor-name" title={actorName}>{actorName}</div>
+                      </div>
+
                       <div>
-                        <span className={`action-pill ${getActionClass(log)}`}>
-                          {log.action || 'LOG'}
+                        <span className={`action-pill ${getActionClass(record)}`}>
+                          {record?.action || 'LOG'}
                         </span>
                       </div>
 
-                      <div className="activity-main">
-                        <strong>{formatMainTitle(log)}</strong>
-                        <span>{log.details || 'No detail'}</span>
+                      <div className="module-text">
+                        {formatModule(record?.section_key)}
                       </div>
 
-                      <div className="actor-box">
-                        <div className="actor-avatar">
-                          {getActorInitial(actorName)}
-                        </div>
-                        <div>
-                          <div className="actor-name">{actorName}</div>
-                          <div className="actor-role">{ADMIN_ROLE}</div>
-                        </div>
+                      <div className="target-text">
+                        {record?.slide_title || 'System activity'}
                       </div>
 
-                      <div className="time">{formatTime(log.created_at)}</div>
+                      <div className="details-text">
+                        {record?.details || '—'}
+                      </div>
+
+                      <div className="time-text">
+                        <div>{time.time}</div>
+                        <div>{time.date}</div>
+                      </div>
                     </div>
                   )
                 })
               )}
             </div>
 
-            <div className="footer-row">
-              <button
-                className="page-btn"
-                type="button"
-                disabled={page <= 1 || loading}
-                onClick={() => fetchLogs(page - 1, actionFilter, searchText)}
-              >
-                Previous
-              </button>
+            <div className="history-footer">
+              <div className="footer-note">
+                20 records per page · Loaded on demand
+              </div>
 
-              <span className="page-info">
-                Page {page} / {totalPages}
-              </span>
+              <div className="pagination">
+                <button
+                  type="button"
+                  className="page-btn"
+                  disabled={page <= 1 || loading}
+                  onClick={() => goToPage(page - 1)}
+                >
+                  ‹
+                </button>
 
-              <button
-                className="page-btn primary"
-                type="button"
-                disabled={page >= totalPages || loading}
-                onClick={() => fetchLogs(page + 1, actionFilter, searchText)}
-              >
-                Next
-              </button>
+                {visiblePages.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`page-btn ${value === page ? 'current' : ''}`}
+                    disabled={loading}
+                    onClick={() => goToPage(value)}
+                  >
+                    {value}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  className="page-btn"
+                  disabled={page >= totalPages || loading}
+                  onClick={() => goToPage(page + 1)}
+                >
+                  ›
+                </button>
+              </div>
             </div>
           </section>
         </div>
