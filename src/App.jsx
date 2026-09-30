@@ -191,14 +191,13 @@ export default function App() {
         <Route path="/income/author-page" element={<ProtectedPage><AdminAuthorPageIncomePage /></ProtectedPage>} />
         <Route path="/author-library" element={<ProtectedPage><AdminAuthorLibraryPage /></ProtectedPage>} />
         <Route path="/income/shadow-mall" element={<ProtectedPage><AdminShadowMallIncomePage /></ProtectedPage>} />
-        <Route path="/history" element={<ProtectedPage><AdminActivityLogsPage /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
         <Route path="/withdraw" element={<ProtectedPage><AdminWithdrawalPage /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><AdminRankingPage /></ProtectedPage>} />
         <Route path="/event" element={<ProtectedPage permission="monthly_vote.view"><AdminEventPage /></ProtectedPage>} />
         <Route path="/monthly-vote" element={<ProtectedPage><AdminMonthlyVotePage /></ProtectedPage>} />
-        <Route path="/admin/activity-logs" element={<Navigate to="/history" replace />} />
+        <Route path="/admin/activity-logs" element={<ProtectedPage><AdminActivityLogsPage /></ProtectedPage>} />
         <Route path="/admin/change-password" element={<ProtectedPage><ChangePasswordPage /></ProtectedPage>} />
         <Route path="/admin/settings" element={<ProtectedPage><AdminSettingsPage /></ProtectedPage>} />
         <Route path="/genres" element={<ProtectedPage><GenreManagementPage /></ProtectedPage>} />
