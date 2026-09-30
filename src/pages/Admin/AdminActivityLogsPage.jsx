@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const LOGS_PER_PAGE = 20
+const CACHE_TTL_MS = 60 * 1000
 const ADMIN_DISPLAY_NAME = 'Xiaonai Xiao'
 const ADMIN_ROLE = 'Owner'
-const FILTERS = ['ALL', 'CREATE', 'UPDATE', 'VISIBILITY', 'DELETE', 'PAYMENT', 'GENRE', 'COMMENT']
+const FILTERS = ['ALL', 'HISTORY', 'CREATE', 'UPDATE', 'VISIBILITY', 'DELETE', 'PAYMENT', 'GENRE', 'COMMENT']
 
 const styles = `
   .logs-page {
@@ -500,6 +500,33 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
 }
 
+function getCacheKey(page, action, search) {
+  return `admin_activity_logs:${page}:${action}:${search}`
+}
+
+function readCache(key) {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > CACHE_TTL_MS) {
+      sessionStorage.removeItem(key)
+      return null
+    }
+    return parsed.data || null
+  } catch {
+    return null
+  }
+}
+
+function writeCache(key, data) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }))
+  } catch {
+    return
+  }
+}
+
 function getActionClass(record) {
   const action = String(record?.action || '').toLowerCase()
   const section = String(record?.section_key || '').toLowerCase()
@@ -535,7 +562,6 @@ function formatMainTitle(record) {
 }
 
 export default function AdminActivityLogsPage() {
-  const navigate = useNavigate()
   const [logs, setLogs] = useState([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -547,8 +573,22 @@ export default function AdminActivityLogsPage() {
   const fetchLogs = async (
     nextPage = page,
     nextAction = actionFilter,
-    nextSearch = searchText
+    nextSearch = searchText,
+    force = false
   ) => {
+    const cacheKey = getCacheKey(nextPage, nextAction, nextSearch)
+
+    if (!force) {
+      const cached = readCache(cacheKey)
+      if (cached) {
+        setLogs(cached.records || [])
+        setPage(cached.page || nextPage)
+        setTotalPages(cached.total_pages || cached.totalPages || 1)
+        setTotal(cached.total || 0)
+        return
+      }
+    }
+
     try {
       setLoading(true)
 
@@ -556,7 +596,8 @@ export default function AdminActivityLogsPage() {
       const params = new URLSearchParams({
         page: String(nextPage),
         limit: String(LOGS_PER_PAGE),
-        action: nextAction,
+        action: nextAction === 'HISTORY' ? 'ALL' : nextAction,
+        source: nextAction === 'HISTORY' ? 'activity' : 'all',
         search: nextSearch,
       })
 
@@ -576,6 +617,7 @@ export default function AdminActivityLogsPage() {
         throw new Error(data.message || 'Failed to load logs')
       }
 
+      writeCache(cacheKey, data)
       setLogs(data.records || [])
       setPage(data.page || nextPage)
       setTotalPages(data.total_pages || data.totalPages || 1)
@@ -588,10 +630,6 @@ export default function AdminActivityLogsPage() {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    fetchLogs(1, actionFilter, searchText)
-  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -618,14 +656,6 @@ export default function AdminActivityLogsPage() {
                 system activity.
               </p>
             </div>
-
-            <button
-              className="back-btn"
-              type="button"
-              onClick={() => navigate('/admin')}
-            >
-              ← Back to Dashboard
-            </button>
           </div>
 
           <section className="tools-card">
@@ -640,7 +670,7 @@ export default function AdminActivityLogsPage() {
               <button
                 className="black-btn"
                 type="button"
-                onClick={() => fetchLogs(page, actionFilter, searchText)}
+                onClick={() => fetchLogs(page, actionFilter, searchText, true)}
                 disabled={loading}
               >
                 {loading ? 'Loading...' : 'Refresh'}
