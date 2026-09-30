@@ -44,8 +44,6 @@ const PATH_PERMISSION = {
   '/event': 'monthly_vote.view',
   '/ranking': 'ranking.view',
   '/monthly-vote': 'monthly_vote.view',
-  '/history': 'history.view',
-
   '/category': 'category.view',
   '/rule': 'roles.view',
   '/account': 'accounts.view',
