@@ -67,7 +67,6 @@ export default function App() {
         <Route path="/account" element={<ProtectedPage><ComingSoon title="Account" /></ProtectedPage>} />
         <Route path="/block-list" element={<ProtectedPage><ComingSoon title="Block List" /></ProtectedPage>} />
         <Route path="/income" element={<ProtectedPage><ComingSoon title="Income" /></ProtectedPage>} />
-        <Route path="/history" element={<ProtectedPage><ComingSoon title="History" /></ProtectedPage>} />
         <Route path="/deposit" element={<ProtectedPage><ComingSoon title="Deposit" /></ProtectedPage>} />
         <Route path="/withdraw" element={<ProtectedPage><ComingSoon title="Withdraw" /></ProtectedPage>} />
         <Route path="/ranking" element={<ProtectedPage><ComingSoon title="Ranking" /></ProtectedPage>} />
