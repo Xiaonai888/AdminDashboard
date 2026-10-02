@@ -7,6 +7,62 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://shadow-backend-kucw.onrender.com'
 const PAYOUT_WORKFLOW_READY = import.meta.env.VITE_STORY_PAYOUT_WORKFLOW_READY === 'true'
+const incomeSummaryInFlight = new Map()
+
+async function requestIncomeSummary(url, headers) {
+  const authKey = String(
+    headers?.Authorization ||
+    headers?.authorization ||
+    ''
+  )
+  const requestKey = `${url}|${authKey}`
+  const existing =
+    incomeSummaryInFlight.get(requestKey)
+
+  if (existing) {
+    return existing
+  }
+
+  const request = (async () => {
+    const response = await fetch(url, {
+      headers,
+    })
+
+    const result =
+      await response.json().catch(() => ({}))
+
+    if (
+      !response.ok ||
+      result.ok === false
+    ) {
+      throw new Error(
+        result.message ||
+        'Failed to load income summary'
+      )
+    }
+
+    return result
+  })()
+
+  incomeSummaryInFlight.set(
+    requestKey,
+    request
+  )
+
+  try {
+    return await request
+  } finally {
+    if (
+      incomeSummaryInFlight.get(
+        requestKey
+      ) === request
+    ) {
+      incomeSummaryInFlight.delete(
+        requestKey
+      )
+    }
+  }
+}
 
 const styles = `
   .income-page {
@@ -951,24 +1007,16 @@ export default function AdminIncomePage() {
         params.set('to', activeTo)
       }
 
-      const response = await fetch(
-        `${API_URL}/api/admin/income/summary?${params.toString()}`,
-        {
-          headers: authHeaders(),
-        }
-      )
+      const url =
+  `${API_URL}/api/admin/income/summary?${params.toString()}`
 
-      const result =
-        await response.json().catch(() => ({}))
+const result =
+  await requestIncomeSummary(
+    url,
+    authHeaders()
+  )
 
-      if (!response.ok || result.ok === false) {
-        throw new Error(
-          result.message ||
-            'Failed to load income summary'
-        )
-      }
-
-      setData(result)
+setData(result)
     } catch (error) {
       setMessage(
         error.message ||
