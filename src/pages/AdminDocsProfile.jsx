@@ -24,18 +24,49 @@ export default function AdminDocsProfile({ studioApp }) {
   const [notice, setNotice] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
+  const [summary, setSummary] = useState(null)
   const imageInput = useRef(null)
 
   useEffect(() => {
     let active = true
+
     request(`/api/admin/apps/${APP_KEY}`)
-      .then(data => { if (active) { setApp(data.app); setName(data.app?.name || 'Shadow Docs') } })
-      .catch(err => { if (active) setError(err.message) })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+      .then(data => {
+        if (active) {
+          setApp(data.app)
+          setName(data.app?.name || 'Shadow Docs')
+        }
+      })
+      .catch(err => {
+        if (active) setError(err.message)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    fetch(`${API_URL}/api/public/apps`, { cache: 'no-cache' })
+      .then(async response => {
+        if (!response.ok) throw new Error('App summary unavailable')
+        return response.json()
+      })
+      .then(data => {
+        if (!active || data.ok !== true || !Array.isArray(data.apps)) return
+        setSummary({
+          count: data.apps.length,
+          visible: data.apps.filter(item => item && !item.hidden).length,
+          disabled: data.apps.filter(item => item && item.disabled).length,
+        })
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
   }, [])
 
-  useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview) }, [imagePreview])
+  useEffect(() => () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+  }, [imagePreview])
 
   function stageImage(file) {
     if (!file) return
@@ -72,20 +103,29 @@ export default function AdminDocsProfile({ studioApp }) {
   }
 
   function patch(fields, successText) {
-    return run(() => request(`/api/admin/apps/${APP_KEY}`, { method: 'PATCH', body: JSON.stringify(fields) }), successText)
+    return run(() => request(`/api/admin/apps/${APP_KEY}`, {
+      method: 'PATCH',
+      body: JSON.stringify(fields),
+    }), successText)
   }
 
   function uploadImage() {
     if (!imageFile) return
     const form = new FormData()
     form.append('profile', imageFile)
-    return run(() => request(`/api/admin/apps/${APP_KEY}/profile`, { method: 'POST', body: form }), 'Image uploaded.')
+    return run(() => request(`/api/admin/apps/${APP_KEY}/profile`, {
+      method: 'POST',
+      body: form,
+    }), 'Image uploaded.')
   }
 
   const preview = imagePreview || app?.profile || ''
-  const count = Number(Boolean(studioApp)) + Number(Boolean(app))
-  const visible = Number(Boolean(studioApp && !studioApp.hidden)) + Number(Boolean(app && !app.hidden))
-  const disabled = Number(Boolean(studioApp?.disabled)) + Number(Boolean(app?.disabled))
+  const fallbackCount = Number(Boolean(studioApp)) + Number(Boolean(app))
+  const fallbackVisible = Number(Boolean(studioApp && !studioApp.hidden)) + Number(Boolean(app && !app.hidden))
+  const fallbackDisabled = Number(Boolean(studioApp?.disabled)) + Number(Boolean(app?.disabled))
+  const count = summary?.count ?? fallbackCount
+  const visible = summary?.visible ?? fallbackVisible
+  const disabled = summary?.disabled ?? fallbackDisabled
 
   return (
     <>
@@ -120,37 +160,143 @@ export default function AdminDocsProfile({ studioApp }) {
         .docs-admin-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
         @media(max-width:630px){.docs-admin-overview{gap:8px}.docs-admin-stat{padding:12px}.docs-admin-stat strong{font-size:21px}.docs-admin-heading{flex-direction:column}.docs-admin-body{grid-template-columns:1fr;gap:14px}.docs-admin-image{width:116px;height:116px}}
       `}</style>
+
       <section className="docs-admin-overview" aria-label="App summary">
-        <div className="docs-admin-stat"><span>Total Apps</span><strong>{loading ? '…' : count}</strong></div>
-        <div className="docs-admin-stat"><span>Visible Apps</span><strong>{loading ? '…' : visible}</strong></div>
-        <div className="docs-admin-stat"><span>Disabled Apps</span><strong>{loading ? '…' : disabled}</strong></div>
+        <div className="docs-admin-stat"><span>Total Apps</span><strong>{loading && !summary ? '…' : count}</strong></div>
+        <div className="docs-admin-stat"><span>Visible Apps</span><strong>{loading && !summary ? '…' : visible}</strong></div>
+        <div className="docs-admin-stat"><span>Disabled Apps</span><strong>{loading && !summary ? '…' : disabled}</strong></div>
       </section>
+
       <section className="docs-admin-card" aria-label="Shadow Docs settings">
         <div className="docs-admin-heading">
-          <div><h2>Shadow Docs</h2><p>Write, design and publish books · App key: shadow-docs</p></div>
-          {app && <div className="docs-admin-tags"><span className={`docs-admin-tag ${app.hidden ? 'off' : ''}`}>{app.hidden ? 'Hidden' : 'Visible'}</span><span className={`docs-admin-tag ${app.disabled ? 'stop' : ''}`}>{app.disabled ? 'Disabled' : 'Enabled'}</span></div>}
+          <div>
+            <h2>Shadow Docs</h2>
+            <p>Write, design and publish books · App key: shadow-docs</p>
+          </div>
+          {app && (
+            <div className="docs-admin-tags">
+              <span className={`docs-admin-tag ${app.hidden ? 'off' : ''}`}>{app.hidden ? 'Hidden' : 'Visible'}</span>
+              <span className={`docs-admin-tag ${app.disabled ? 'stop' : ''}`}>{app.disabled ? 'Disabled' : 'Enabled'}</span>
+            </div>
+          )}
         </div>
+
         {loading ? <p className="docs-admin-message">Loading Shadow Docs…</p> : null}
         {error ? <p className="docs-admin-message error" role="alert">{error}</p> : null}
         {notice ? <p className="docs-admin-message" role="status">{notice}</p> : null}
-        {app && <div className="docs-admin-body">
-          <div className="docs-admin-image">{preview ? <img src={preview} alt={app.name || 'Shadow Docs'} /> : <span>SD</span>}</div>
-          <div>
-            <label className="docs-admin-label" htmlFor="docs-admin-name">APP NAME</label>
-            <input id="docs-admin-name" className="docs-admin-input" value={name} maxLength={100} disabled={busy} onChange={event => setName(event.target.value)} />
-            <div className="docs-admin-actions">
-              <button type="button" className="docs-admin-btn primary" disabled={busy || !name.trim() || name.trim() === app.name} onClick={() => patch({ name: name.trim() }, 'Name saved.')}>Save Name</button>
-              <button type="button" className="docs-admin-btn" disabled={busy} onClick={() => imageInput.current?.click()}>Choose Image</button>
-              {imageFile && <button type="button" className="docs-admin-btn primary" disabled={busy} onClick={uploadImage}>Upload Image</button>}
-              {imageFile && <button type="button" className="docs-admin-btn" disabled={busy} onClick={() => { setImageFile(null); setImagePreview('') }}>Cancel Image</button>}
-              {app.profile && !imageFile && <button type="button" className="docs-admin-btn danger" disabled={busy} onClick={() => run(() => request(`/api/admin/apps/${APP_KEY}/profile`, { method: 'DELETE' }), 'Image removed.')}>Remove Image</button>}
-              <button type="button" className={`docs-admin-btn ${app.hidden ? 'primary' : 'warning'}`} disabled={busy} onClick={() => patch({ hidden: !app.hidden }, app.hidden ? 'App shown.' : 'App hidden.')}>{app.hidden ? 'Show App' : 'Hide App'}</button>
-              <button type="button" className={`docs-admin-btn ${app.disabled ? 'primary' : 'danger'}`} disabled={busy} onClick={() => patch({ disabled: !app.disabled }, app.disabled ? 'App enabled.' : 'App disabled.')}>{app.disabled ? 'Enable App' : 'Disable App'}</button>
+
+        {app && (
+          <div className="docs-admin-body">
+            <div className="docs-admin-image">
+              {preview ? <img src={preview} alt={app.name || 'Shadow Docs'} /> : <span>SD</span>}
             </div>
-            <p className="docs-admin-hint">Hide controls whether the app appears in the App list. Disable will block access when website app settings are connected. Neither action deletes local books.</p>
-            <input ref={imageInput} className="docs-admin-sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" onChange={event => { stageImage(event.target.files?.[0]); event.target.value = '' }} />
+
+            <div>
+              <label className="docs-admin-label" htmlFor="docs-admin-name">APP NAME</label>
+              <input
+                id="docs-admin-name"
+                className="docs-admin-input"
+                value={name}
+                maxLength={100}
+                disabled={busy}
+                onChange={event => setName(event.target.value)}
+              />
+
+              <div className="docs-admin-actions">
+                <button
+                  type="button"
+                  className="docs-admin-btn primary"
+                  disabled={busy || !name.trim() || name.trim() === app.name}
+                  onClick={() => patch({ name: name.trim() }, 'Name saved.')}
+                >
+                  Save Name
+                </button>
+
+                <button
+                  type="button"
+                  className="docs-admin-btn"
+                  disabled={busy}
+                  onClick={() => imageInput.current?.click()}
+                >
+                  Choose Image
+                </button>
+
+                {imageFile && (
+                  <button type="button" className="docs-admin-btn primary" disabled={busy} onClick={uploadImage}>
+                    Upload Image
+                  </button>
+                )}
+
+                {imageFile && (
+                  <button
+                    type="button"
+                    className="docs-admin-btn"
+                    disabled={busy}
+                    onClick={() => {
+                      setImageFile(null)
+                      setImagePreview('')
+                    }}
+                  >
+                    Cancel Image
+                  </button>
+                )}
+
+                {app.profile && !imageFile && (
+                  <button
+                    type="button"
+                    className="docs-admin-btn danger"
+                    disabled={busy}
+                    onClick={() => run(
+                      () => request(`/api/admin/apps/${APP_KEY}/profile`, { method: 'DELETE' }),
+                      'Image removed.'
+                    )}
+                  >
+                    Remove Image
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className={`docs-admin-btn ${app.hidden ? 'primary' : 'warning'}`}
+                  disabled={busy}
+                  onClick={() => patch(
+                    { hidden: !app.hidden },
+                    app.hidden ? 'App shown.' : 'App hidden.'
+                  )}
+                >
+                  {app.hidden ? 'Show App' : 'Hide App'}
+                </button>
+
+                <button
+                  type="button"
+                  className={`docs-admin-btn ${app.disabled ? 'primary' : 'danger'}`}
+                  disabled={busy}
+                  onClick={() => patch(
+                    { disabled: !app.disabled },
+                    app.disabled ? 'App enabled.' : 'App disabled.'
+                  )}
+                >
+                  {app.disabled ? 'Enable App' : 'Disable App'}
+                </button>
+              </div>
+
+              <p className="docs-admin-hint">
+                Hide controls whether the app appears in the App list. Disable will block access when website app settings are connected. Neither action deletes local books.
+              </p>
+
+              <input
+                ref={imageInput}
+                className="docs-admin-sr-only"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                onChange={event => {
+                  stageImage(event.target.files?.[0])
+                  event.target.value = ''
+                }}
+              />
+            </div>
           </div>
-        </div>}
+        )}
       </section>
     </>
   )
