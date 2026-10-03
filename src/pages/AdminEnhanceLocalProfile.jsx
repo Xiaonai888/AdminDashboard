@@ -111,6 +111,8 @@ export default function AdminEnhanceLocalProfile() {
   }
 
   const preview = imagePreview || app?.profile || ''
+  const displayName = app?.name || name.trim() || 'Enhance Local'
+  const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'EL'
 
   return (
     <section className="enhance-admin-card">
@@ -144,7 +146,7 @@ export default function AdminEnhanceLocalProfile() {
 
       <div className="enhance-admin-head">
         <div>
-          <h2 className="enhance-admin-title">Enhance Local</h2>
+          <h2 className="enhance-admin-title">{displayName}</h2>
           <p className="enhance-admin-copy">Local image enhancement app · App key: enhance-local</p>
         </div>
 
@@ -160,7 +162,7 @@ export default function AdminEnhanceLocalProfile() {
         ) : null}
       </div>
 
-      {loading ? <p className="enhance-admin-message">Loading Enhance Local…</p> : null}
+      {loading ? <p className="enhance-admin-message">Loading app…</p> : null}
       {error ? <p className="enhance-admin-message error" role="alert">{error}</p> : null}
       {notice ? <p className="enhance-admin-message" role="status">{notice}</p> : null}
 
@@ -172,7 +174,7 @@ export default function AdminEnhanceLocalProfile() {
             disabled={busy}
             onClick={() => imageInput.current?.click()}
           >
-            {preview ? <img src={preview} alt={app.name || 'Enhance Local'} /> : <span>EL</span>}
+            {preview ? <img src={preview} alt={displayName} /> : <span>{initials}</span>}
           </button>
 
           <div>
@@ -265,7 +267,7 @@ export default function AdminEnhanceLocalProfile() {
             </div>
 
             <p className="enhance-admin-hint">
-              Hide removes Enhance Local from Me &gt; App. Disable blocks access without deleting anything saved locally on the reader device.
+              Hide removes this app from Me &gt; App. Disable blocks access without deleting anything saved locally on the reader device.
             </p>
 
             <input
