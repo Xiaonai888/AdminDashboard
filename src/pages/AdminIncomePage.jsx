@@ -40,23 +40,23 @@ async function requestIncomeSummary(
   }
 
   const request = (async () => {
-  const requestUrl = new URL(url)
+    const requestUrl = new URL(url)
 
-  requestUrl.searchParams.set(
-    'load_source',
-    source
-  )
-  requestUrl.searchParams.set(
-    'client_instance',
-    getIncomeClientInstance()
-  )
+    requestUrl.searchParams.set(
+      'load_source',
+      source
+    )
+    requestUrl.searchParams.set(
+      'client_instance',
+      getIncomeClientInstance()
+    )
 
-  const response = await fetch(
-    requestUrl.toString(),
-    {
-      headers,
-    }
-  )
+    const response = await fetch(
+      requestUrl.toString(),
+      {
+        headers,
+      }
+    )
 
     const result =
       await response.json().catch(() => ({}))
@@ -1018,9 +1018,9 @@ export default function AdminIncomePage() {
   )
 
   async function fetchIncome(
-  rangeOverride = null,
-  source = 'unknown'
-) {
+    rangeOverride = null,
+    source = 'unknown'
+  ) {
     try {
       setLoading(true)
       setMessage('')
@@ -1039,16 +1039,16 @@ export default function AdminIncomePage() {
       }
 
       const url =
-  `${API_URL}/api/admin/income/summary?${params.toString()}`
+        `${API_URL}/api/admin/income/summary?${params.toString()}`
 
-const result =
-  await requestIncomeSummary(
-    url,
-    authHeaders(),
-    source
-  )
+      const result =
+        await requestIncomeSummary(
+          url,
+          authHeaders(),
+          source
+        )
 
-setData(result)
+      setData(result)
     } catch (error) {
       setMessage(
         error.message ||
@@ -1147,7 +1147,7 @@ setData(result)
 
       await Promise.all([
         fetchPayouts(),
-        fetchIncome(),
+        fetchIncome(null, 'payout-generate'),
       ])
     } catch (error) {
       setMessage(
@@ -1176,7 +1176,7 @@ setData(result)
       getIncomePresetRange(nextKey)
     setFrom(nextRange.from)
     setTo(nextRange.to)
-    fetchIncome(nextRange)
+    fetchIncome(nextRange, 'range-change')
   }
 
   function toggleSortDirection() {
@@ -1220,13 +1220,16 @@ setData(result)
 
     setFrom(nextRange.from)
     setTo(nextRange.to)
-    await fetchIncome(nextRange)
+    await fetchIncome(
+      nextRange,
+      'manual-refresh'
+    )
   }
 
   async function refreshAll() {
     setSuccess('')
     await Promise.all([
-      fetchIncome(),
+      fetchIncome(null, 'mount'),
       fetchPayouts(),
     ])
   }
@@ -1265,7 +1268,10 @@ setData(result)
         onPaid={async () => {
           setSelectedPayout(null)
           setSuccess('Payout recorded with receipt.')
-          await Promise.all([fetchPayouts(), fetchIncome()])
+          await Promise.all([
+            fetchPayouts(),
+            fetchIncome(null, 'payout-paid'),
+          ])
         }}
       />
 
