@@ -43,6 +43,7 @@ import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminBalancePage from './pages/AdminBalancePage';
 import AdminAuthorIncomePage from './pages/AdminAuthorIncomePage';
 import AdminAuthorLibraryPage from './pages/AdminAuthorLibraryPage';
+import AdminDiscoverControlPage from './pages/AdminDiscoverControlPage';
 import AdminGoogleAdsPage from './pages/AdminGoogleAdsPage';
 import AdminSearchInsightsPage from './pages/AdminSearchInsightsPage';
 import AdminMusicPage from './pages/AdminMusicPage';
@@ -190,6 +191,7 @@ export default function App() {
         <Route path="/income/diamond-gifts" element={<ProtectedPage><AdminDiamondGiftsPage /></ProtectedPage>} />
         <Route path="/income/author-page" element={<ProtectedPage><AdminAuthorPageIncomePage /></ProtectedPage>} />
         <Route path="/author-library" element={<ProtectedPage><AdminAuthorLibraryPage /></ProtectedPage>} />
+        <Route path="/discover-control" element={<ProtectedPage permission="income.view"><AdminDiscoverControlPage /></ProtectedPage>} />
         <Route path="/income/shadow-mall" element={<ProtectedPage><AdminShadowMallIncomePage /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
         <Route path="/deposit" element={<Navigate to="/payment" replace />} />
