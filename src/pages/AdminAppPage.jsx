@@ -3,6 +3,7 @@ import AdminLayout from '../components/AdminLayout'
 import ImageDropZone from '../components/common/ImageDropZone'
 import AdminDocsProfile from './AdminDocsProfile'
 import AdminEnhanceLocalProfile from './AdminEnhanceLocalProfile'
+import AdminPicToArtProfile from './AdminPicToArtProfile'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -789,6 +790,7 @@ export default function AdminAppPage() {
         ) : null}
         <AdminDocsProfile studioApp={app} />
         <AdminEnhanceLocalProfile />
+        <AdminPicToArtProfile />
         <section className="app-admin-card">
           <div className="app-admin-head">
             <div>
