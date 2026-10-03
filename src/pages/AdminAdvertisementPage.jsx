@@ -5,6 +5,7 @@ import ImageDropZone from '../components/common/ImageDropZone'
 import OpeningAdRotationManager from '../components/OpeningAdRotationManager'
 import FreeUnlockAdRotationManager from '../components/FreeUnlockAdRotationManager'
 import MeAdRotationManager from '../components/MeAdRotationManager'
+import ShadowStudioAdManager from '../components/ShadowStudioAdManager'
 
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -765,6 +766,16 @@ const defaultSettings = {
     frequency: 'once_per_session',
     badge: 'NEW',
   },
+  studio: {
+    title: 'Shadow Studio Ad',
+    enabled: false,
+    imageUrl: '',
+    linkUrl: '',
+    durationSeconds: 0,
+    closeAfterSeconds: 0,
+    frequency: 'every_visit',
+    badge: '',
+  },
 }
 const tabInfo = {
   splash: {
@@ -786,6 +797,11 @@ const tabInfo = {
     label: 'Me Ads',
     help: 'Shows only when users open the Me page. Use a vertical advertisement image.',
     previewClass: 'me-ad',
+  },
+  studio: {
+    label: 'Shadow Studio Ad',
+    help: 'Manage up to 7 wide header ads shown above the Shadow Studio tools.',
+    previewClass: 'studio-ad',
   },
 }
 
@@ -893,6 +909,7 @@ export default function AdminAdvertisementPage() {
         opening: { ...defaultSettings.opening },
         freeUnlock: { ...defaultSettings.freeUnlock },
         me: { ...defaultSettings.me },
+        studio: { ...defaultSettings.studio },
       }
 
       ;(data.advertisements || []).forEach((item) => {
@@ -1118,7 +1135,7 @@ export default function AdminAdvertisementPage() {
         <section className="content-body">
           <div className="page-title-row">
             <h1>Advertisement Management</h1>
-            <p>Control splash logo ad, opening ad, free unlock ad, and Me page ad from one place.</p>
+            <p>Control splash logo ad, opening ad, free unlock ad, Me page ad, and Shadow Studio header ads from one place.</p>
           </div>
 
           <div className="tabs">
@@ -1137,6 +1154,7 @@ export default function AdminAdvertisementPage() {
           {activeTab === 'opening' ? <OpeningAdRotationManager /> : null}
 {activeTab === 'freeUnlock' ? <FreeUnlockAdRotationManager /> : null}
 {activeTab === 'me' ? <MeAdRotationManager /> : null}
+{activeTab === 'studio' ? <ShadowStudioAdManager /> : null}
 
 <div
   className="shell"
