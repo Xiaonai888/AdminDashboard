@@ -7,11 +7,6 @@ const SEARCH_LIMIT = 20
 
 const styles = `
   .dc-page{max-width:1180px;margin:0 auto;color:#0f172a}
-  .dc-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
-  .dc-stat{border:1px solid #e2e8f0;border-radius:18px;background:#fff;padding:16px;display:flex;align-items:center;gap:13px;box-shadow:0 8px 24px rgba(15,23,42,.035)}
-  .dc-stat-icon{width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:grid;place-items:center;font-size:20px;font-weight:900;flex-shrink:0}
-  .dc-stat span{display:block;color:#64748b;font-size:11px;font-weight:800}
-  .dc-stat strong{display:block;margin-top:2px;font-size:21px;font-weight:950;letter-spacing:-.03em}
   .dc-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
   .dc-card{border:1px solid #e2e8f0;border-radius:20px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.035);overflow:hidden}
   .dc-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 18px;border-bottom:1px solid #eef2f7}
@@ -53,7 +48,7 @@ const styles = `
   .dc-pin input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.10)}
   .dc-modal-actions{display:flex;justify-content:flex-end;gap:9px}
   .dc-modal-error{margin:0 0 12px;border-radius:11px;background:#fef2f2;color:#b91c1c;padding:9px 11px;font-size:11px;font-weight:800}
-  @media(max-width:820px){.dc-stats{grid-template-columns:1fr}.dc-row{grid-template-columns:minmax(0,1fr) auto}.dc-row>.dc-meta{display:none}}
+  @media(max-width:820px){.dc-row{grid-template-columns:minmax(0,1fr) auto}.dc-row>.dc-meta{display:none}}
   @media(max-width:540px){.dc-card-head{align-items:flex-start;flex-direction:column}.dc-search-wrap,.dc-results{padding-left:14px;padding-right:14px}.dc-row{gap:8px}.dc-pin{gap:5px}.dc-pin input{height:44px}}
 `
 
@@ -302,21 +297,6 @@ export default function AdminDiscoverControlPage() {
       <style>{styles}</style>
 
       <div className="dc-page">
-        <div className="dc-stats">
-          <div className="dc-stat">
-            <div className="dc-stat-icon">◎</div>
-            <div><span>Selected Authors</span><strong>{selected.length} / {MAX_SELECTED}</strong></div>
-          </div>
-          <div className="dc-stat">
-            <div className="dc-stat-icon">⌕</div>
-            <div><span>Search Limit</span><strong>{SEARCH_LIMIT}</strong></div>
-          </div>
-          <div className="dc-stat">
-            <div className="dc-stat-icon">⌑</div>
-            <div><span>Security</span><strong>Passkey</strong></div>
-          </div>
-        </div>
-
         <div className="dc-grid">
           <section className="dc-card">
             <div className="dc-card-head">
