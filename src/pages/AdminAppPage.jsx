@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import ImageDropZone from '../components/common/ImageDropZone'
 import AdminDocsProfile from './AdminDocsProfile'
+import AdminEnhanceLocalProfile from './AdminEnhanceLocalProfile'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -787,6 +788,7 @@ export default function AdminAppPage() {
           <div className="app-admin-status error">{error}</div>
         ) : null}
         <AdminDocsProfile studioApp={app} />
+        <AdminEnhanceLocalProfile />
         <section className="app-admin-card">
           <div className="app-admin-head">
             <div>
