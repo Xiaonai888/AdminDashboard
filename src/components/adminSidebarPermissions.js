@@ -39,6 +39,7 @@ const PATH_PERMISSION = {
   '/income': 'income.view',
   '/author-income': 'income.view',
   '/author-library': 'income.view',
+  '/discover-control': 'income.view',
   '/google-ads': 'income.view',
   '/withdraw': 'withdraw.view',
   '/event': 'monthly_vote.view',
