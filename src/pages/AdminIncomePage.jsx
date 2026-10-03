@@ -9,7 +9,23 @@ const API_URL =
 const PAYOUT_WORKFLOW_READY = import.meta.env.VITE_STORY_PAYOUT_WORKFLOW_READY === 'true'
 const incomeSummaryInFlight = new Map()
 
-async function requestIncomeSummary(url, headers) {
+function getIncomeClientInstance() {
+  const key = 'shadow_admin_income_client_instance'
+  let value = sessionStorage.getItem(key)
+
+  if (!value) {
+    value = crypto.randomUUID()
+    sessionStorage.setItem(key, value)
+  }
+
+  return value
+}
+
+async function requestIncomeSummary(
+  url,
+  headers,
+  source = 'unknown'
+) {
   const authKey = String(
     headers?.Authorization ||
     headers?.authorization ||
@@ -24,9 +40,23 @@ async function requestIncomeSummary(url, headers) {
   }
 
   const request = (async () => {
-    const response = await fetch(url, {
+  const requestUrl = new URL(url)
+
+  requestUrl.searchParams.set(
+    'load_source',
+    source
+  )
+  requestUrl.searchParams.set(
+    'client_instance',
+    getIncomeClientInstance()
+  )
+
+  const response = await fetch(
+    requestUrl.toString(),
+    {
       headers,
-    })
+    }
+  )
 
     const result =
       await response.json().catch(() => ({}))
@@ -988,8 +1018,9 @@ export default function AdminIncomePage() {
   )
 
   async function fetchIncome(
-    rangeOverride = null
-  ) {
+  rangeOverride = null,
+  source = 'unknown'
+) {
     try {
       setLoading(true)
       setMessage('')
@@ -1013,7 +1044,8 @@ export default function AdminIncomePage() {
 const result =
   await requestIncomeSummary(
     url,
-    authHeaders()
+    authHeaders(),
+    source
   )
 
 setData(result)
