@@ -452,6 +452,7 @@ const ICONS = {
   spam_guard: 'M3 5h18v14H3z M3 7l9 7 9-7',
   security_gate: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
   tamper_guard: 'M5 5c0-2 14-2 14 0s-14 2-14 0z M5 5v14c0 2 14 2 14 0V5 M5 12c0 2 14 2 14 0',
+  security_supervisor: 'M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z M9 12l2 2 4-5',
   control_plane: 'M12 3v5 M5 21v-5h14v5 M5 16v-4h14v4 M12 8H6v4 M12 8h6v4',
   response_assistant: 'M6 3h12v18H6z M9 8h6 M9 12h6 M9 16h4',
   sensitive_path_guard: 'M3 6h7l2 2h9v11H3z',
@@ -534,8 +535,8 @@ export default function AdminSecurityCenterPage() {
     return [
       {
         label: 'Total Guards',
-        value: summary.total_guards ?? 8,
-        note: 'All security guards',
+        value: summary.total_guards ?? 9,
+        note: '8 defenders + Security Supervisor',
         icon: ICONS.guards,
       },
       {
