@@ -200,6 +200,97 @@ function ReaderDetailsDrawer({ item, onClose }) {
   )
 }
 
+function StoryDetailsDrawer({ item, onClose }) {
+  if (!item) return null
+
+  const story = item.story || {}
+  const readers = Array.isArray(item.readers) ? item.readers : []
+
+  return (
+    <div className="readers-today-drawer-layer" onMouseDown={onClose}>
+      <aside className="readers-today-drawer story-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="readers-today-drawer-top">
+          <div>
+            <div className="readers-today-kicker">Story Details</div>
+            <h3>{story.title || 'Untitled story'}</h3>
+          </div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+
+        <div className="readers-today-story-profile">
+          <StoryCover story={story} large />
+          <div className="readers-today-story-profile-copy">
+            <div className="readers-today-story-title">{story.title || 'Untitled story'}</div>
+            <div className="readers-today-muted">
+              {story.main_genre || '-'} · {story.story_language || '-'} · {storyTypeLabel(story.story_type)}
+            </div>
+            <div className="readers-today-story-tags">
+              {story.is_adult ? <span className="readers-today-badge adult">18+</span> : <span className="readers-today-badge general">General</span>}
+              <span className="readers-today-badge neutral">{story.status || '-'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="readers-today-story-summary-card">
+          <span>Readers Today</span>
+          <strong>{formatNumber(item.readers_today)}</strong>
+          <small>Unique readers who read this story today</small>
+        </div>
+
+        <div className="readers-today-section-title">Readers who read this story today</div>
+        <div className="readers-today-muted">See who opened this story today, their latest episode, progress and last read time.</div>
+
+        <div className="readers-today-detail-table-wrap">
+          <table className="readers-today-detail-table">
+            <thead>
+              <tr>
+                <th>Reader</th>
+                <th>Latest Episode</th>
+                <th>Progress</th>
+                <th>Last Read</th>
+              </tr>
+            </thead>
+            <tbody>
+              {readers.map((row) => {
+                const reader = row.reader || {}
+                const episode = row.episode || {}
+                const progress = Math.max(0, Math.min(100, Number(row.reading_percent || 0)))
+
+                return (
+                  <tr key={`${reader.id || 'reader'}-${episode.id || row.episode_number || 'episode'}`}>
+                    <td>
+                      <div className="readers-today-person-cell compact">
+                        <ReaderAvatar reader={reader} />
+                        <div>
+                          <strong>{reader.name || 'Reader'}</strong>
+                          <span>@{reader.username || 'no_username'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="readers-today-episode-cell">
+                        <strong>EP {episode.episode_number || row.episode_number || '-'}</strong>
+                        <span>{episode.title || '-'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="readers-today-progress-cell">
+                        <div><span style={{ width: `${progress}%` }} /></div>
+                        <strong>{progress}%</strong>
+                      </div>
+                    </td>
+                    <td>{formatDateTime(row.last_read_at)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
 export default function AdminReadersTodayPage() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -240,6 +331,7 @@ export default function AdminReadersTodayPage() {
           page: String(page),
           limit: String(PAGE_SIZE),
           q: debouncedSearch,
+          view: 'story',
         })
 
         const response = await fetch(`${API_URL}/api/admin/community/readers/today?${params.toString()}`, {
@@ -326,58 +418,61 @@ export default function AdminReadersTodayPage() {
           />
         </div>
 
+        <div className="readers-today-tabs">
+          <button type="button" className="active">▣ By Story</button>
+          <button type="button" disabled>♙ By Reader</button>
+          <button type="button" disabled>▥ Daily Readers</button>
+        </div>
+
         <div className="readers-today-panel">
           <div className="readers-today-toolbar">
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search reader, username, email, story, episode, or ID..."
+              placeholder="Search story title, genre, language, type, or ID..."
             />
             <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>
               Refresh
             </button>
           </div>
 
+          <div className="readers-today-helper-row">
+            <span>One row per story · Stories that had at least one reader today</span>
+            <strong>{formatNumber(summary.stories_read_today)} stories read today</strong>
+          </div>
+
           <div className="readers-today-table-wrap">
             {loading ? (
               <div className="readers-today-loading">
                 <span className="readers-today-spinner" />
-                <span>Loading readers today...</span>
+                <span>Loading stories read today...</span>
               </div>
             ) : items.length ? (
-              <table className="readers-today-table">
+              <table className="readers-today-table story-view">
                 <thead>
                   <tr>
-                    <th>Reader</th>
                     <th>Story</th>
-                    <th>Latest Episode</th>
-                    <th>Birth / Age</th>
-                    <th>Last Read</th>
-                    <th>Progress</th>
+                    <th>Readers Today</th>
+                    <th>Latest Activity</th>
+                    <th>Episode Range</th>
+                    <th>Average Progress</th>
                     <th>Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => {
-                    const reader = item.reader || {}
                     const story = item.story || {}
-                    const episode = item.episode || {}
-                    const progress = Math.max(0, Math.min(100, Number(item.reading_percent || 0)))
+                    const progress = Math.max(0, Math.min(100, Number(item.average_progress || 0)))
+                    const minEpisode = Number(item.min_episode_number || 0)
+                    const maxEpisode = Number(item.max_episode_number || 0)
+                    const episodeRange = minEpisode && maxEpisode
+                      ? minEpisode === maxEpisode
+                        ? `EP ${maxEpisode}`
+                        : `EP ${minEpisode} – ${maxEpisode}`
+                      : '-'
 
                     return (
-                      <tr key={`${reader.id || 'reader'}-${story.id || item.id}`} onClick={() => setSelectedItem(item)}>
-                        <td>
-                          <div className="readers-today-person-cell">
-                            <ReaderAvatar reader={reader} />
-                            <div>
-                              <div className="readers-today-name-row">
-                                <strong>{reader.name || 'Reader'}</strong>
-                                {item.active_last_10_minutes ? <span className="readers-today-live-dot" title="Active in last 10 minutes" /> : null}
-                              </div>
-                              <span>@{reader.username || 'no_username'}</span>
-                            </div>
-                          </div>
-                        </td>
+                      <tr key={story.id || item.id} onClick={() => setSelectedItem(item)}>
                         <td>
                           <div className="readers-today-story-cell">
                             <StoryCover story={story} />
@@ -388,18 +483,15 @@ export default function AdminReadersTodayPage() {
                           </div>
                         </td>
                         <td>
-                          <div className="readers-today-episode-cell">
-                            <strong>EP {episode.episode_number || item.episode_number || '-'}</strong>
-                            <span>{episode.title || '-'}</span>
-                          </div>
+                          <strong className="readers-today-count-value">{formatNumber(item.readers_today)}</strong>
                         </td>
+                        <td>{formatDateTime(item.latest_activity_at)}</td>
                         <td>
-                          <div className="readers-today-age-cell">
-                            <strong>{formatDateOnly(reader.date_of_birth)}</strong>
-                            <span>{Number.isFinite(reader.age) ? `${reader.age} years old` : 'Age unknown'}</span>
+                          <div className="readers-today-episode-cell">
+                            <strong>{episodeRange}</strong>
+                            <span>Latest: EP {item.latest_episode_number || '-'}</span>
                           </div>
                         </td>
-                        <td>{formatDateTime(item.last_read_at)}</td>
                         <td>
                           <div className="readers-today-progress-cell">
                             <div><span style={{ width: `${progress}%` }} /></div>
@@ -415,7 +507,7 @@ export default function AdminReadersTodayPage() {
                               setSelectedItem(item)
                             }}
                           >
-                            +
+                            ›
                           </button>
                         </td>
                       </tr>
@@ -426,15 +518,15 @@ export default function AdminReadersTodayPage() {
             ) : (
               <div className="readers-today-empty">
                 <div>📚</div>
-                <strong>No readers found today</strong>
-                <span>Reading activity will appear here when readers open stories.</span>
+                <strong>No stories read today</strong>
+                <span>Stories will appear here when readers open them today.</span>
               </div>
             )}
           </div>
 
           <div className="readers-today-pagination">
             <div>
-              Page {data.page || 1} of {data.total_pages || 1} · {formatNumber(data.total)} reading records
+              Page {data.page || 1} of {data.total_pages || 1} · {formatNumber(data.total)} stories
             </div>
             <div>
               <button
@@ -456,7 +548,7 @@ export default function AdminReadersTodayPage() {
         </div>
       </div>
 
-      <ReaderDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
+      <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
     </AdminLayout>
   )
 }
@@ -472,18 +564,26 @@ const styles = `
   .readers-today-summary-label { color: #64748B; font-size: 12px; font-weight: 900; }
   .readers-today-summary-value { margin-top: 8px; color: #0F172A; font-size: 27px; font-weight: 950; }
   .readers-today-summary-text { margin-top: 4px; color: #64748B; font-size: 12px; font-weight: 750; }
+  .readers-today-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 190px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
+  .readers-today-tabs button { min-height: 38px; border: 0; border-radius: 10px; background: transparent; color: #64748B; padding: 0 18px; font-size: 12px; font-weight: 900; cursor: pointer; }
+  .readers-today-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 6px 14px rgba(79, 70, 229, 0.18); }
+  .readers-today-tabs button:disabled { cursor: default; opacity: 0.55; }
   .readers-today-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
   .readers-today-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 14px; border-bottom: 1px solid #E2E8F0; }
   .readers-today-toolbar input { min-width: 0; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 12px; padding: 11px 12px; color: #0F172A; font-weight: 750; outline: none; }
   .readers-today-toolbar input:focus { border-color: #4F46E5; background: #FFFFFF; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
   .readers-today-toolbar button, .readers-today-pagination button { border: 0; border-radius: 12px; background: #EEF2FF; color: #4F46E5; padding: 10px 13px; font-weight: 900; cursor: pointer; }
+  .readers-today-helper-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #E2E8F0; color: #64748B; font-size: 11.5px; font-weight: 750; }
+  .readers-today-helper-row strong { color: #4F46E5; font-weight: 900; }
   .readers-today-table-wrap { min-height: 420px; overflow-x: auto; }
   .readers-today-table { width: 100%; min-width: 1120px; border-collapse: collapse; }
+  .readers-today-table.story-view { min-width: 980px; }
   .readers-today-table th { background: #F8FAFC; color: #64748B; font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; padding: 12px 14px; border-bottom: 1px solid #E2E8F0; }
   .readers-today-table td { padding: 13px 14px; border-bottom: 1px solid #F1F5F9; vertical-align: middle; color: #334155; font-size: 13px; font-weight: 700; }
   .readers-today-table tbody tr { cursor: pointer; }
   .readers-today-table tbody tr:hover td { background: #F8FAFC; }
   .readers-today-person-cell, .readers-today-story-cell { display: flex; align-items: center; gap: 11px; min-width: 190px; }
+  .readers-today-person-cell.compact { min-width: 170px; }
   .readers-today-person-cell strong, .readers-today-story-cell strong, .readers-today-episode-cell strong, .readers-today-age-cell strong { display: block; color: #0F172A; font-weight: 950; }
   .readers-today-person-cell span, .readers-today-story-cell span, .readers-today-episode-cell span, .readers-today-age-cell span { display: block; margin-top: 3px; color: #64748B; font-size: 11.5px; font-weight: 750; }
   .readers-today-avatar { width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #EEF2FF; color: #4F46E5; font-size: 14px; font-weight: 950; }
@@ -493,14 +593,15 @@ const styles = `
   .readers-today-cover.large { width: 76px; height: 102px; border-radius: 13px; font-size: 30px; }
   .readers-today-name-row { display: flex; align-items: center; gap: 7px; }
   .readers-today-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #10B981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.13); }
-  .readers-today-episode-cell { min-width: 165px; max-width: 230px; }
+  .readers-today-episode-cell { min-width: 145px; max-width: 230px; }
   .readers-today-episode-cell span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .readers-today-age-cell { min-width: 125px; }
+  .readers-today-count-value { color: #0F172A; font-size: 17px; font-weight: 950; }
   .readers-today-progress-cell { display: flex; align-items: center; gap: 9px; min-width: 105px; }
   .readers-today-progress-cell > div { width: 68px; height: 7px; border-radius: 999px; background: #E2E8F0; overflow: hidden; }
   .readers-today-progress-cell > div > span { display: block; height: 100%; border-radius: inherit; background: #4F46E5; }
   .readers-today-progress-cell strong { color: #4F46E5; font-size: 12px; }
-  .readers-today-detail-button { width: 32px; height: 32px; border: 0; border-radius: 10px; background: #EEF2FF; color: #4F46E5; font-size: 18px; font-weight: 950; cursor: pointer; }
+  .readers-today-detail-button { width: 32px; height: 32px; border: 0; border-radius: 10px; background: #EEF2FF; color: #4F46E5; font-size: 22px; font-weight: 950; cursor: pointer; }
   .readers-today-loading, .readers-today-empty { min-height: 320px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #64748B; font-weight: 850; }
   .readers-today-empty div { font-size: 34px; }
   .readers-today-empty strong { color: #0F172A; font-size: 16px; }
@@ -511,6 +612,7 @@ const styles = `
   .readers-today-pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
   .readers-today-drawer-layer { position: fixed; inset: 0; z-index: 1300; display: flex; justify-content: flex-end; background: rgba(15, 23, 42, 0.38); }
   .readers-today-drawer { width: min(680px, 100%); height: 100vh; overflow-y: auto; background: #FFFFFF; padding: 22px; box-shadow: -20px 0 50px rgba(15, 23, 42, 0.16); }
+  .readers-today-drawer.story-drawer { width: min(760px, 100%); }
   .readers-today-drawer-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 18px; }
   .readers-today-drawer-top h3 { margin: 3px 0 0; color: #0F172A; font-size: 20px; }
   .readers-today-drawer-top button { width: 34px; height: 34px; border: 0; border-radius: 50%; background: #F1F5F9; color: #475569; font-size: 22px; cursor: pointer; }
@@ -537,13 +639,25 @@ const styles = `
   .readers-today-id-list > div:last-child { border-bottom: 0; }
   .readers-today-id-list span { color: #64748B; font-size: 11px; font-weight: 900; }
   .readers-today-id-list strong { color: #0F172A; font-size: 12px; word-break: break-all; }
+  .readers-today-story-summary-card { margin-top: 14px; padding: 15px 16px; border: 1px solid #E0E7FF; border-radius: 16px; background: #F8FAFF; display: grid; gap: 4px; }
+  .readers-today-story-summary-card span { color: #64748B; font-size: 11px; font-weight: 900; }
+  .readers-today-story-summary-card strong { color: #4F46E5; font-size: 25px; font-weight: 950; }
+  .readers-today-story-summary-card small { color: #64748B; font-size: 11px; font-weight: 750; }
+  .readers-today-detail-table-wrap { margin-top: 12px; overflow-x: auto; border: 1px solid #E2E8F0; border-radius: 16px; }
+  .readers-today-detail-table { width: 100%; min-width: 650px; border-collapse: collapse; }
+  .readers-today-detail-table th { padding: 10px 12px; background: #F8FAFC; color: #64748B; font-size: 10px; font-weight: 950; text-transform: uppercase; text-align: left; border-bottom: 1px solid #E2E8F0; }
+  .readers-today-detail-table td { padding: 11px 12px; color: #334155; font-size: 12px; font-weight: 750; border-bottom: 1px solid #F1F5F9; vertical-align: middle; }
+  .readers-today-detail-table tr:last-child td { border-bottom: 0; }
   @keyframes readersTodaySpin { to { transform: rotate(360deg); } }
   @media (max-width: 980px) {
     .readers-today-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
   @media (max-width: 640px) {
     .readers-today-summary { grid-template-columns: 1fr; }
+    .readers-today-tabs { grid-template-columns: repeat(3, minmax(120px, 1fr)); width: 100%; overflow-x: auto; }
+    .readers-today-tabs button { padding: 0 10px; white-space: nowrap; }
     .readers-today-toolbar { grid-template-columns: 1fr; }
+    .readers-today-helper-row { align-items: flex-start; flex-direction: column; }
     .readers-today-pagination { align-items: flex-start; flex-direction: column; }
     .readers-today-detail-grid { grid-template-columns: 1fr; }
     .readers-today-drawer { padding: 18px; }
