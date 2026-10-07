@@ -467,7 +467,11 @@ export default function PaymentControlPage() {
                         <td>{formatNumber(item.bonus_gems)}</td>
                         <td><div className="pay-id">{item.order_id || '-'}</div></td>
                         <td><div className="pay-id">{item.aba_trx_id || '-'}</div></td>
-                        <td><div className="pay-reason">{item.match_reason || item.admin_note || '-'}</div></td>
+                        <td><div className="pay-reason">
+  {item.match_reason || item.admin_note || '-'}
+  {item.telegram_report?.status ? <><br/><strong>Telegram: {item.telegram_report.status}</strong></> : null}
+  {item.telegram_report?.last_error ? <><br/>{item.telegram_report.last_error}</> : null}
+</div></td>
                         <td>{formatDate(item.created_at)}</td>
                         <td>
                           <div className="pay-actions">
