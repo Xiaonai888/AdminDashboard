@@ -291,7 +291,106 @@ function StoryDetailsDrawer({ item, onClose }) {
   )
 }
 
+function ReaderGroupDetailsDrawer({ item, onClose }) {
+  if (!item) return null
+
+  const reader = item.reader || {}
+  const stories = Array.isArray(item.stories) ? item.stories : []
+  const activeNow = stories.some((row) => row.active_last_10_minutes)
+
+  return (
+    <div className="readers-today-drawer-layer" onMouseDown={onClose}>
+      <aside className="readers-today-drawer story-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="readers-today-drawer-top">
+          <div>
+            <div className="readers-today-kicker">Reader Details</div>
+            <h3>{reader.name || 'Reader'}</h3>
+          </div>
+          <button type="button" onClick={onClose}>×</button>
+        </div>
+
+        <div className="readers-today-reader-profile">
+          <ReaderAvatar reader={reader} large />
+          <div>
+            <div className="readers-today-profile-name">{reader.name || 'Reader'}</div>
+            <div className="readers-today-muted">@{reader.username || 'no_username'}</div>
+            <div className="readers-today-profile-badges">
+              <span className="readers-today-badge reader">Reader</span>
+              {reader.is_author ? <span className="readers-today-badge author">Author</span> : null}
+              {activeNow ? <span className="readers-today-badge live">Active now</span> : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="readers-today-detail-grid" style={{ marginTop: 12 }}>
+          <DetailItem label="Age" value={Number.isFinite(reader.age) ? `${reader.age} years old` : 'Not provided'} />
+          <DetailItem label="Gender" value={formatGender(reader.gender, reader.custom_gender)} />
+          <DetailItem label="Email" value={reader.email || '-'} />
+          <DetailItem label="Joined" value={formatDateTime(reader.joined_at)} />
+        </div>
+
+        <div className="readers-today-story-summary-card">
+          <span>Stories Read Today</span>
+          <strong>{formatNumber(item.stories_read_today)}</strong>
+          <small>Total stories this reader opened today</small>
+        </div>
+
+        <div className="readers-today-section-title">Stories read by this reader today</div>
+        <div className="readers-today-muted">See which stories this reader opened today and how far they read.</div>
+
+        <div className="readers-today-detail-table-wrap">
+          <table className="readers-today-detail-table">
+            <thead>
+              <tr>
+                <th>Story</th>
+                <th>Latest Episode</th>
+                <th>Progress</th>
+                <th>Last Read</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stories.map((row) => {
+                const story = row.story || {}
+                const episode = row.episode || {}
+                const progress = Math.max(0, Math.min(100, Number(row.reading_percent || 0)))
+
+                return (
+                  <tr key={`${story.id || 'story'}-${episode.id || row.episode_number || 'episode'}`}>
+                    <td>
+                      <div className="readers-today-story-cell">
+                        <StoryCover story={story} />
+                        <div>
+                          <strong>{story.title || 'Untitled story'}</strong>
+                          <span>{story.main_genre || '-'} · {story.story_language || '-'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="readers-today-episode-cell">
+                        <strong>EP {episode.episode_number || row.episode_number || '-'}</strong>
+                        <span>{episode.title || '-'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="readers-today-progress-cell">
+                        <div><span style={{ width: `${progress}%` }} /></div>
+                        <strong>{progress}%</strong>
+                      </div>
+                    </td>
+                    <td>{formatDateTime(row.last_read_at)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+  )
+}
+
 export default function AdminReadersTodayPage() {
+  const [activeTab, setActiveTab] = useState('story')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -331,7 +430,7 @@ export default function AdminReadersTodayPage() {
           page: String(page),
           limit: String(PAGE_SIZE),
           q: debouncedSearch,
-          view: 'story',
+          view: activeTab,
         })
 
         const response = await fetch(`${API_URL}/api/admin/community/readers/today?${params.toString()}`, {
@@ -377,10 +476,21 @@ export default function AdminReadersTodayPage() {
     return () => {
       alive = false
     }
-  }, [page, debouncedSearch, refreshKey])
+  }, [activeTab, page, debouncedSearch, refreshKey])
+
+  function switchTab(tab) {
+    if (tab === activeTab) return
+    setActiveTab(tab)
+    setSearch('')
+    setDebouncedSearch('')
+    setPage(1)
+    setSelectedItem(null)
+    setError('')
+  }
 
   const summary = data.summary || {}
   const items = Array.isArray(data.items) ? data.items : []
+  const isStoryTab = activeTab === 'story'
 
   return (
     <AdminLayout
@@ -419,8 +529,20 @@ export default function AdminReadersTodayPage() {
         </div>
 
         <div className="readers-today-tabs">
-          <button type="button" className="active">▣ By Story</button>
-          <button type="button" disabled>♙ By Reader</button>
+          <button
+            type="button"
+            className={activeTab === 'story' ? 'active' : ''}
+            onClick={() => switchTab('story')}
+          >
+            ▣ By Story
+          </button>
+          <button
+            type="button"
+            className={activeTab === 'reader' ? 'active' : ''}
+            onClick={() => switchTab('reader')}
+          >
+            ♙ By Reader
+          </button>
           <button type="button" disabled>▥ Daily Readers</button>
         </div>
 
@@ -429,7 +551,11 @@ export default function AdminReadersTodayPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search story title, genre, language, type, or ID..."
+              placeholder={
+                isStoryTab
+                  ? 'Search story title, genre, language, type, or ID...'
+                  : 'Search reader name, username, email, or ID...'
+              }
             />
             <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>
               Refresh
@@ -437,96 +563,175 @@ export default function AdminReadersTodayPage() {
           </div>
 
           <div className="readers-today-helper-row">
-            <span>One row per story · Stories that had at least one reader today</span>
-            <strong>{formatNumber(summary.stories_read_today)} stories read today</strong>
+            <span>
+              {isStoryTab
+                ? 'One row per story · Stories that had at least one reader today'
+                : 'One row per reader · Each row shows all reading activity for that reader today'}
+            </span>
+            <strong>
+              {isStoryTab
+                ? `${formatNumber(summary.stories_read_today)} stories read today`
+                : `${formatNumber(summary.readers_today)} readers today`}
+            </strong>
           </div>
 
           <div className="readers-today-table-wrap">
             {loading ? (
               <div className="readers-today-loading">
                 <span className="readers-today-spinner" />
-                <span>Loading stories read today...</span>
+                <span>{isStoryTab ? 'Loading stories read today...' : 'Loading readers today...'}</span>
               </div>
             ) : items.length ? (
-              <table className="readers-today-table story-view">
-                <thead>
-                  <tr>
-                    <th>Story</th>
-                    <th>Readers Today</th>
-                    <th>Latest Activity</th>
-                    <th>Episode Range</th>
-                    <th>Average Progress</th>
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => {
-                    const story = item.story || {}
-                    const progress = Math.max(0, Math.min(100, Number(item.average_progress || 0)))
-                    const minEpisode = Number(item.min_episode_number || 0)
-                    const maxEpisode = Number(item.max_episode_number || 0)
-                    const episodeRange = minEpisode && maxEpisode
-                      ? minEpisode === maxEpisode
-                        ? `EP ${maxEpisode}`
-                        : `EP ${minEpisode} – ${maxEpisode}`
-                      : '-'
+              isStoryTab ? (
+                <table className="readers-today-table story-view">
+                  <thead>
+                    <tr>
+                      <th>Story</th>
+                      <th>Readers Today</th>
+                      <th>Latest Activity</th>
+                      <th>Episode Range</th>
+                      <th>Average Progress</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const story = item.story || {}
+                      const progress = Math.max(0, Math.min(100, Number(item.average_progress || 0)))
+                      const minEpisode = Number(item.min_episode_number || 0)
+                      const maxEpisode = Number(item.max_episode_number || 0)
+                      const episodeRange = minEpisode && maxEpisode
+                        ? minEpisode === maxEpisode
+                          ? `EP ${maxEpisode}`
+                          : `EP ${minEpisode} – ${maxEpisode}`
+                        : '-'
 
-                    return (
-                      <tr key={story.id || item.id} onClick={() => setSelectedItem(item)}>
-                        <td>
-                          <div className="readers-today-story-cell">
-                            <StoryCover story={story} />
-                            <div>
-                              <strong>{story.title || 'Untitled story'}</strong>
-                              <span>{story.main_genre || '-'} · {story.story_language || '-'}</span>
+                      return (
+                        <tr key={story.id || item.id} onClick={() => setSelectedItem(item)}>
+                          <td>
+                            <div className="readers-today-story-cell">
+                              <StoryCover story={story} />
+                              <div>
+                                <strong>{story.title || 'Untitled story'}</strong>
+                                <span>{story.main_genre || '-'} · {story.story_language || '-'}</span>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td>
-                          <strong className="readers-today-count-value">{formatNumber(item.readers_today)}</strong>
-                        </td>
-                        <td>{formatDateTime(item.latest_activity_at)}</td>
-                        <td>
-                          <div className="readers-today-episode-cell">
-                            <strong>{episodeRange}</strong>
-                            <span>Latest: EP {item.latest_episode_number || '-'}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="readers-today-progress-cell">
-                            <div><span style={{ width: `${progress}%` }} /></div>
-                            <strong>{progress}%</strong>
-                          </div>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="readers-today-detail-button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              setSelectedItem(item)
-                            }}
-                          >
-                            ›
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td>
+                            <strong className="readers-today-count-value">{formatNumber(item.readers_today)}</strong>
+                          </td>
+                          <td>{formatDateTime(item.latest_activity_at)}</td>
+                          <td>
+                            <div className="readers-today-episode-cell">
+                              <strong>{episodeRange}</strong>
+                              <span>Latest: EP {item.latest_episode_number || '-'}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="readers-today-progress-cell">
+                              <div><span style={{ width: `${progress}%` }} /></div>
+                              <strong>{progress}%</strong>
+                            </div>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="readers-today-detail-button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setSelectedItem(item)
+                              }}
+                            >
+                              ›
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="readers-today-table story-view">
+                  <thead>
+                    <tr>
+                      <th>Reader</th>
+                      <th>Stories Read Today</th>
+                      <th>Latest Activity</th>
+                      <th>Latest Story</th>
+                      <th>Average Progress</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const reader = item.reader || {}
+                      const story = item.latest_story || {}
+                      const progress = Math.max(0, Math.min(100, Number(item.average_progress || 0)))
+
+                      return (
+                        <tr key={reader.id || item.id} onClick={() => setSelectedItem(item)}>
+                          <td>
+                            <div className="readers-today-person-cell">
+                              <ReaderAvatar reader={reader} />
+                              <div>
+                                <strong>{reader.name || 'Reader'}</strong>
+                                <span>@{reader.username || 'no_username'}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <strong className="readers-today-count-value">{formatNumber(item.stories_read_today)}</strong>
+                          </td>
+                          <td>{formatDateTime(item.latest_activity_at)}</td>
+                          <td>
+                            <div className="readers-today-story-cell">
+                              <StoryCover story={story} />
+                              <div>
+                                <strong>{story.title || 'Untitled story'}</strong>
+                                <span>Latest: EP {item.latest_episode_number || '-'}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="readers-today-progress-cell">
+                              <div><span style={{ width: `${progress}%` }} /></div>
+                              <strong>{progress}%</strong>
+                            </div>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="readers-today-detail-button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                setSelectedItem(item)
+                              }}
+                            >
+                              ›
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )
             ) : (
               <div className="readers-today-empty">
-                <div>📚</div>
-                <strong>No stories read today</strong>
-                <span>Stories will appear here when readers open them today.</span>
+                <div>{isStoryTab ? '📚' : '👤'}</div>
+                <strong>{isStoryTab ? 'No stories read today' : 'No readers found today'}</strong>
+                <span>
+                  {isStoryTab
+                    ? 'Stories will appear here when readers open them today.'
+                    : 'Readers will appear here when they read stories today.'}
+                </span>
               </div>
             )}
           </div>
 
           <div className="readers-today-pagination">
             <div>
-              Page {data.page || 1} of {data.total_pages || 1} · {formatNumber(data.total)} stories
+              Page {data.page || 1} of {data.total_pages || 1} · {formatNumber(data.total)} {isStoryTab ? 'stories' : 'readers'}
             </div>
             <div>
               <button
@@ -548,7 +753,11 @@ export default function AdminReadersTodayPage() {
         </div>
       </div>
 
-      <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
+      {isStoryTab ? (
+        <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
+      ) : (
+        <ReaderGroupDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
+      )}
     </AdminLayout>
   )
 }
