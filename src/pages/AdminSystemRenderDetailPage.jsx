@@ -25,6 +25,18 @@ const data = (mb) => {
     : `${value.toFixed(2)} MB`
 }
 
+const duration = (seconds) => {
+  const value = Math.floor(num(seconds))
+  const days = Math.floor(value / 86400)
+  const hours = Math.floor((value % 86400) / 3600)
+  const minutes = Math.floor((value % 3600) / 60)
+
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m`
+  return `${value}s`
+}
+
 const auth = (method = 'GET') => ({
   method,
   credentials: 'include',
@@ -264,14 +276,94 @@ const css = `
     font-weight: 800;
   }
 
+  .memory-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .memory-card {
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #EEF2F7;
+    border-radius: 14px;
+    background: #FFFFFF;
+  }
+
+  .memory-value {
+    margin-top: 7px;
+    color: #0F172A;
+    font-size: 20px;
+    line-height: 1;
+    font-weight: 950;
+    letter-spacing: -0.025em;
+  }
+
+  .memory-note {
+    margin-top: 7px;
+    color: #94A3B8;
+    font-size: 8px;
+    line-height: 1.45;
+    font-weight: 800;
+  }
+
+  .memory-meter {
+    height: 8px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: #F1F5F9;
+    overflow: hidden;
+  }
+
+  .memory-meter-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: #8B5CF6;
+  }
+
+  .runtime-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: #F8FAFC;
+    color: #64748B;
+    font-size: 8px;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+
+  .runtime-badge.safe {
+    background: #ECFDF5;
+    color: #047857;
+  }
+
+  .runtime-badge.warning {
+    background: #FFF7ED;
+    color: #C2410C;
+  }
+
+  .runtime-badge.protect,
+  .runtime-badge.critical,
+  .runtime-badge.emergency {
+    background: #FEF2F2;
+    color: #B91C1C;
+  }
+
   @media (max-width: 1180px) {
+    .memory-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
     .cards {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 900px) {
-    .cards {
+    .cards,
+    .memory-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -281,7 +373,8 @@ const css = `
   }
 
   @media (max-width: 600px) {
-    .cards {
+    .cards,
+    .memory-grid {
       grid-template-columns: 1fr;
     }
 
@@ -298,6 +391,7 @@ const css = `
 export default function AdminSystemRenderDetailPage() {
   const [usage, setUsage] = useState(null)
   const [providers, setProviders] = useState(null)
+  const [runtime, setRuntime] = useState(null)
   const [loading, setLoading] = useState(false)
   const [forcing, setForcing] = useState(false)
   const [error, setError] = useState('')
@@ -324,6 +418,7 @@ export default function AdminSystemRenderDetailPage() {
 
       setUsage(payload.usage || null)
       setProviders(payload.providers || null)
+      setRuntime(payload.runtime || null)
       setLastLoadedAt(Date.now())
       setError('')
     } catch (loadError) {
@@ -394,6 +489,20 @@ export default function AdminSystemRenderDetailPage() {
       )
     }
   }, [lastLoadedAt, load])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (
+        document.visibilityState === 'visible' &&
+        !loading &&
+        !forcing
+      ) {
+        load()
+      }
+    }, 30 * 1000)
+
+    return () => window.clearInterval(interval)
+  }, [forcing, load, loading])
 
   const rows = useMemo(
     () =>
@@ -522,6 +631,21 @@ export default function AdminSystemRenderDetailPage() {
         ).toLocaleString()}`
       : 'Provider window unavailable'
 
+  const runtimeProcess = runtime?.process || null
+  const runtimeContainer = runtime?.container || null
+  const runtimeGuard = runtime?.guard || null
+  const runtimeEventLoop = runtime?.event_loop || null
+  const runtimeInspectables = Array.isArray(runtime?.inspectables)
+    ? runtime.inspectables
+    : []
+  const memoryPressure = String(
+    runtime?.pressure || 'unknown'
+  ).toLowerCase()
+  const containerUsage = Math.min(
+    100,
+    num(runtimeContainer?.usage_percent)
+  )
+
   return (
     <AdminLayout
       title="Render Detail"
@@ -580,6 +704,204 @@ export default function AdminSystemRenderDetailPage() {
             Render returned bandwidth data with an unsupported unit. Local Shadow measurements remain available.
           </div>
         ) : null}
+
+        <section className="block">
+          <div className="head">
+            <strong>Live Runtime Memory</strong>
+            <span>
+              {runtime?.generated_at
+                ? `Updated ${new Date(runtime.generated_at).toLocaleTimeString()} · auto refresh 30s`
+                : 'Waiting for runtime snapshot'}
+            </span>
+          </div>
+
+          {runtime ? (
+            <>
+              <div className="memory-grid">
+                <div className="memory-card">
+                  <div className="label">Process RSS</div>
+                  <div className="memory-value">
+                    {data(runtimeProcess?.rss_mb)}
+                  </div>
+                  <div className="memory-note">
+                    Total RAM held by the main Node process
+                  </div>
+                </div>
+
+                <div className="memory-card">
+                  <div className="label">Heap Used / Total</div>
+                  <div className="memory-value">
+                    {data(runtimeProcess?.heap_used_mb)}
+                  </div>
+                  <div className="memory-note">
+                    {data(runtimeProcess?.heap_total_mb)} allocated · {data(runtimeProcess?.heap_limit_mb)} V8 limit
+                  </div>
+                </div>
+
+                <div className="memory-card">
+                  <div className="label">Non-Heap RSS</div>
+                  <div className="memory-value">
+                    {data(runtimeProcess?.non_heap_rss_estimate_mb)}
+                  </div>
+                  <div className="memory-note">
+                    RSS estimate outside allocated V8 heap
+                  </div>
+                </div>
+
+                <div className="memory-card">
+                  <div className="label">External / Buffers</div>
+                  <div className="memory-value">
+                    {data(runtimeProcess?.external_mb)}
+                  </div>
+                  <div className="memory-note">
+                    {data(runtimeProcess?.array_buffers_mb)} Array Buffers
+                  </div>
+                </div>
+
+                <div className="memory-card">
+                  <div className="label">Container RAM</div>
+                  <div className="memory-value">
+                    {data(runtimeContainer?.total_mb)}
+                  </div>
+                  <div className="memory-note">
+                    {containerUsage.toFixed(1)}% of {data(runtimeContainer?.limit_mb)} · {data(runtimeContainer?.available_mb)} available
+                  </div>
+                  <div className="memory-meter">
+                    <div
+                      className="memory-meter-fill"
+                      style={{ width: `${containerUsage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid" style={{ padding: '0 12px 12px' }}>
+                <section className="block">
+                  <div className="head">
+                    <strong>Memory Guard</strong>
+                    <span className={`runtime-badge ${memoryPressure}`}>
+                      {memoryPressure}
+                    </span>
+                  </div>
+
+                  <div className="rows">
+                    <div className="row">
+                      <div className="row-main">
+                        <strong>Guard State</strong>
+                        <span>Warning / Protect / Critical / Emergency</span>
+                      </div>
+                      <div className="row-value">
+                        {runtimeGuard
+                          ? `${runtimeGuard.warning ? 'W' : '—'} / ${runtimeGuard.blocked ? 'P' : '—'} / ${runtimeGuard.critical ? 'C' : '—'} / ${runtimeGuard.emergency ? 'E' : '—'}`
+                          : '—'}
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="row-main">
+                        <strong>PID / Uptime</strong>
+                        <span>Main backend Node process</span>
+                      </div>
+                      <div className="row-value">
+                        {runtime?.pid
+                          ? `${runtime.pid} · ${duration(runtime.uptime_seconds)}`
+                          : '—'}
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="row-main">
+                        <strong>Container Source</strong>
+                        <span>Memory measurement source</span>
+                      </div>
+                      <div className="row-value">
+                        {runtimeContainer?.source || '—'}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="block">
+                  <div className="head">
+                    <strong>Event Loop</strong>
+                    <span>Since previous runtime snapshot</span>
+                  </div>
+
+                  <div className="rows">
+                    <div className="row">
+                      <div className="row-main">
+                        <strong>Utilization</strong>
+                        <span>Node event-loop activity</span>
+                      </div>
+                      <div className="row-value">
+                        {num(runtimeEventLoop?.utilization_percent).toFixed(2)}%
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="row-main">
+                        <strong>Active</strong>
+                        <span>Measured active event-loop time</span>
+                      </div>
+                      <div className="row-value">
+                        {num(runtimeEventLoop?.active_ms).toFixed(1)} ms
+                      </div>
+                    </div>
+
+                    <div className="row">
+                      <div className="row-main">
+                        <strong>Idle</strong>
+                        <span>Measured idle event-loop time</span>
+                      </div>
+                      <div className="row-value">
+                        {num(runtimeEventLoop?.idle_ms).toFixed(1)} ms
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              <section className="block" style={{ margin: '0 12px 12px' }}>
+                <div className="head">
+                  <strong>Runtime Components</strong>
+                  <span>
+                    {runtimeInspectables.length} registered
+                  </span>
+                </div>
+
+                <div className="rows">
+                  {runtimeInspectables.length > 0 ? (
+                    runtimeInspectables.map((item) => (
+                      <div className="row" key={item.name}>
+                        <div className="row-main">
+                          <strong>{item.name}</strong>
+                          <span>
+                            Mode: {item.mode || 'unknown'} · State: {item.state || 'unknown'}
+                          </span>
+                        </div>
+                        <div className="row-value">
+                          {item.memory_mb != null
+                            ? data(item.memory_mb)
+                            : item.entries != null
+                              ? `${fmt(item.entries)} entries`
+                              : item.state || '—'}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty">
+                      No cache, worker, SSE, or background component has been registered yet. This is the next RAM-inspection step.
+                    </div>
+                  )}
+                </div>
+              </section>
+            </>
+          ) : (
+            <div className="empty">
+              Runtime memory data is not available yet. Deploy the backend Runtime Memory Inspector first.
+            </div>
+          )}
+        </section>
 
         <div className="cards">
           <div className="card">
