@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import DailyReadersSection from '../components/DailyReadersSection'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -418,6 +419,12 @@ export default function AdminReadersTodayPage() {
   }, [search])
 
   useEffect(() => {
+    if (activeTab === 'daily') {
+      setLoading(false)
+      setError('')
+      return undefined
+    }
+
     let alive = true
 
     async function loadReadersToday() {
@@ -491,6 +498,7 @@ export default function AdminReadersTodayPage() {
   const summary = data.summary || {}
   const items = Array.isArray(data.items) ? data.items : []
   const isStoryTab = activeTab === 'story'
+  const isDailyTab = activeTab === 'daily'
 
   return (
     <AdminLayout
@@ -543,9 +551,18 @@ export default function AdminReadersTodayPage() {
           >
             ♙ By Reader
           </button>
-          <button type="button" disabled>▥ Daily Readers</button>
+          <button
+            type="button"
+            className={activeTab === 'daily' ? 'active' : ''}
+            onClick={() => switchTab('daily')}
+          >
+            ▥ Daily Readers
+          </button>
         </div>
 
+        {isDailyTab ? (
+          <DailyReadersSection />
+        ) : (
         <div className="readers-today-panel">
           <div className="readers-today-toolbar">
             <input
@@ -751,13 +768,16 @@ export default function AdminReadersTodayPage() {
             </div>
           </div>
         </div>
+        )}
       </div>
 
-      {isStoryTab ? (
-        <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
-      ) : (
-        <ReaderGroupDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
-      )}
+      {!isDailyTab ? (
+        isStoryTab ? (
+          <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
+        ) : (
+          <ReaderGroupDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
+        )
+      ) : null}
     </AdminLayout>
   )
 }
