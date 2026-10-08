@@ -2169,6 +2169,7 @@ const [filter, setFilter] = useState(initialFilter)
     { key: 'high_risk', label: 'High Risk' },
     { key: 'humans', label: 'Humans' },
     { key: 'bots', label: 'Suspected Bots' },
+    { key: 'visitor_growth', label: '▥ Visitor Growth' },
   ]
 
   const currentFilters =
