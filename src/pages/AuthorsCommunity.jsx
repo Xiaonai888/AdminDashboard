@@ -3,6 +3,7 @@ import AdminLayout from '../components/AdminLayout'
 import AuthorBooksModal from '../components/AuthorBooksModal'
 import ReaderCountryWorldMap from '../components/ReaderCountryWorldMap'
 import ReaderGrowthSection from '../components/ReaderGrowthSection'
+import VisitorGrowthSection from '../components/VisitorGrowthSection'
 import { useSearchParams } from 'react-router-dom'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -2019,8 +2020,8 @@ const [filter, setFilter] = useState(initialFilter)
   useEffect(() => {
     let alive = true
 
-    if (['countries', 'growth'].includes(activeTab)) {
-      setListLoading(false)
+    if (['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth')) {
+  setListLoading(false)
       return () => {
         alive = false
       }
@@ -2361,7 +2362,7 @@ const [filter, setFilter] = useState(initialFilter)
           </div>
         </section>
 
-        {!['countries', 'growth'].includes(activeTab) ? (
+        {!['countries', 'growth'].includes(activeTab) && !(activeTab === 'visitors' && filter === 'visitor_growth') ? (
           <section className="community-cards">
             {cards.map((card) => (
               <div className="community-card" key={card.label}>
@@ -2386,7 +2387,7 @@ const [filter, setFilter] = useState(initialFilter)
               <button type="button" className={activeTab === 'growth' ? 'active' : ''} onClick={() => switchTab('growth')}>↗ Growth</button>
             </div>
 
-            {!['countries', 'growth'].includes(activeTab) ? (
+            {!['countries', 'growth'].includes(activeTab) && !(activeTab === 'visitors' && filter === 'visitor_growth') ? (
               <div className="community-search-wrap">
                 <span>⌕</span>
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
@@ -2396,7 +2397,7 @@ const [filter, setFilter] = useState(initialFilter)
             )}
           </div>
 
-          {!['countries', 'growth'].includes(activeTab) ? (
+          {!['countries', 'growth'].includes(activeTab) && !(activeTab === 'visitors' && filter === 'visitor_growth') ? (
             <>
               <div className="community-filter-row">
                 {currentFilters.map((item) => (
@@ -2415,8 +2416,9 @@ const [filter, setFilter] = useState(initialFilter)
                 ))}
               </div>
 
-              <div className="community-quick-stats">
-                {quickStats.map((stat) => (
+              {filter !== 'visitor_growth' || activeTab !== 'visitors' ? (
+<div className="community-quick-stats">
+  {quickStats.map((stat) => (
                   <div className="community-quick-stat" key={stat.label}>
                     <span>{stat.label}</span>
                     <strong>{formatNumber(stat.value)}</strong>
@@ -2456,7 +2458,7 @@ const [filter, setFilter] = useState(initialFilter)
             </div>
           ) : null}
 
-          {error && !['countries', 'growth'].includes(activeTab) ? (
+          {error && !['countries', 'growth'].includes(activeTab) && !(activeTab === 'visitors' && filter === 'visitor_growth') ? (
             <div className="community-alert">
               <strong>Real API error:</strong> {error}
             </div>
@@ -2466,8 +2468,10 @@ const [filter, setFilter] = useState(initialFilter)
   <CountriesSection />
 ) : activeTab === 'growth' ? (
   <ReaderGrowthSection />
+) : activeTab === 'visitors' && filter === 'visitor_growth' ? (
+  <VisitorGrowthSection />
 ) : activeTab === 'visitors' ? (
-            <div className="community-table-wrap">
+  <div className="community-table-wrap">
               <table className="community-table visitor-table">
                 <thead>
                   <tr>
@@ -2607,7 +2611,7 @@ const [filter, setFilter] = useState(initialFilter)
             </div>
           )}
 
-          {!['countries', 'growth'].includes(activeTab) ? (
+          {!['countries', 'growth'].includes(activeTab) && !(activeTab === 'visitors' && filter === 'visitor_growth') ? (
             <div className="community-pagination">
               <button type="button" disabled={!pagination.has_prev || listLoading} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
               <span>Page {pagination.page} of {pagination.total_pages}</span>
