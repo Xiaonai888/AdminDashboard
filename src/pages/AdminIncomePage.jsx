@@ -887,9 +887,9 @@ function payoutPaymentText(payout) {
 export default function AdminIncomePage() {
   const navigate = useNavigate()
   const [rangeKey, setRangeKey] =
-    useState('all')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+    useState('today')
+const [from, setFrom] = useState(() => getIncomePresetRange('today').from)
+const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   const [customFrom, setCustomFrom] =
     useState('')
   const [customTo, setCustomTo] =
