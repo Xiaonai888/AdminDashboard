@@ -420,7 +420,7 @@ export default function AdminReadersTodayPage() {
   }, [search])
 
   useEffect(() => {
-    if (activeTab === 'daily') {
+    if (activeTab === 'daily' || activeTab === 'trend') {
       setLoading(false)
       setError('')
       return undefined
@@ -500,6 +500,7 @@ export default function AdminReadersTodayPage() {
   const items = Array.isArray(data.items) ? data.items : []
   const isStoryTab = activeTab === 'story'
   const isDailyTab = activeTab === 'daily'
+  const isTrendTab = activeTab === 'trend'
 
   return (
     <AdminLayout
@@ -559,10 +560,19 @@ export default function AdminReadersTodayPage() {
           >
             ▥ Daily Readers
           </button>
+          <button
+            type="button"
+            className={activeTab === 'trend' ? 'active' : ''}
+            onClick={() => switchTab('trend')}
+          >
+            ↗ Reader Trend
+          </button>
         </div>
 
         {isDailyTab ? (
           <DailyReadersSection />
+        ) : isTrendTab ? (
+          <ReaderTrendSection />
         ) : (
         <div className="readers-today-panel">
           <div className="readers-today-toolbar">
@@ -772,7 +782,7 @@ export default function AdminReadersTodayPage() {
         )}
       </div>
 
-      {!isDailyTab ? (
+      {!isDailyTab && !isTrendTab ? (
         isStoryTab ? (
           <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
         ) : (
@@ -794,10 +804,13 @@ const styles = `
   .readers-today-summary-label { color: #64748B; font-size: 12px; font-weight: 900; }
   .readers-today-summary-value { margin-top: 8px; color: #0F172A; font-size: 27px; font-weight: 950; }
   .readers-today-summary-text { margin-top: 4px; color: #64748B; font-size: 12px; font-weight: 750; }
-  .readers-today-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 190px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
+  .readers-today-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 190px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
   .readers-today-tabs button { min-height: 38px; border: 0; border-radius: 10px; background: transparent; color: #64748B; padding: 0 18px; font-size: 12px; font-weight: 900; cursor: pointer; }
   .readers-today-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 6px 14px rgba(79, 70, 229, 0.18); }
   .readers-today-tabs button:disabled { cursor: default; opacity: 0.55; }
+  .dark .readers-today-tabs, [data-theme="dark"] .readers-today-tabs, .dark-mode .readers-today-tabs { background: #1E293B; border-color: #334155; }
+  .dark .readers-today-tabs button, [data-theme="dark"] .readers-today-tabs button, .dark-mode .readers-today-tabs button { color: #CBD5E1; }
+  .dark .readers-today-tabs button.active, [data-theme="dark"] .readers-today-tabs button.active, .dark-mode .readers-today-tabs button.active { color: #FFFFFF; }
   .readers-today-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
   .readers-today-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 14px; border-bottom: 1px solid #E2E8F0; }
   .readers-today-toolbar input { min-width: 0; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 12px; padding: 11px 12px; color: #0F172A; font-weight: 750; outline: none; }
@@ -884,7 +897,8 @@ const styles = `
   }
   @media (max-width: 640px) {
     .readers-today-summary { grid-template-columns: 1fr; }
-    .readers-today-tabs { grid-template-columns: repeat(3, minmax(120px, 1fr)); width: 100%; overflow-x: auto; }
+    .readers-today-tabs { display: flex; width: 100%; overflow-x: auto; }
+    .readers-today-tabs button { flex: 0 0 auto; }
     .readers-today-tabs button { padding: 0 10px; white-space: nowrap; }
     .readers-today-toolbar { grid-template-columns: 1fr; }
     .readers-today-helper-row { align-items: flex-start; flex-direction: column; }
