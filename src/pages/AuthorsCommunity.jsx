@@ -2102,7 +2102,7 @@ const [filter, setFilter] = useState(initialFilter)
   }, [activeTab, page, debouncedSearch, filter, refreshKey])
 
   useEffect(() => {
-    if (['countries', 'growth'].includes(activeTab)) return undefined
+    if (['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth')) return undefined
 
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') {
@@ -2121,7 +2121,7 @@ const [filter, setFilter] = useState(initialFilter)
         refreshWhenVisible
       )
     }
-  }, [activeTab])
+  }, [activeTab, filter])
 
   function switchTab(tab) {
     setActiveTab(tab)
@@ -2393,11 +2393,11 @@ const [filter, setFilter] = useState(initialFilter)
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={searchPlaceholder} />
               </div>
             ) : (
-              <div className="community-country-tab-note">Cached snapshot · no live reader query</div>
+              <div className="community-country-tab-note">Cached snapshot · no live {activeTab === 'visitors' ? 'visitor' : 'reader'} query</div>
             )}
           </div>
 
-          {!['countries', 'growth'].includes(activeTab) && !(activeTab === 'visitors' && filter === 'visitor_growth') ? (
+          {!['countries', 'growth'].includes(activeTab) ? (
             <>
               <div className="community-filter-row">
                 {currentFilters.map((item) => (
@@ -2416,15 +2416,16 @@ const [filter, setFilter] = useState(initialFilter)
                 ))}
               </div>
 
-              {filter !== 'visitor_growth' || activeTab !== 'visitors' ? (
-<div className="community-quick-stats">
-  {quickStats.map((stat) => (
+              {!(activeTab === 'visitors' && filter === 'visitor_growth') ? (
+                <div className="community-quick-stats">
+                  {quickStats.map((stat) => (
                   <div className="community-quick-stat" key={stat.label}>
                     <span>{stat.label}</span>
                     <strong>{formatNumber(stat.value)}</strong>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : null}
             </>
           ) : null}
 
@@ -2621,7 +2622,7 @@ const [filter, setFilter] = useState(initialFilter)
         </section>
       </div>
 
-      {['countries', 'growth'].includes(activeTab) ? null : activeTab === 'visitors' ? (
+      {['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth') ? null : activeTab === 'visitors' ? (
         <VisitorDetailDrawer visitor={selectedItem} onClose={() => setSelectedItem(null)} />
       ) : (
         <UserDetailDrawer
