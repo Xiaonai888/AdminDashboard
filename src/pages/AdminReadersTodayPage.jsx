@@ -1,3 +1,4 @@
+import ReaderTrendSection from '../components/ReaderTrendSection'
 import React, { useEffect, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import DailyReadersSection from '../components/DailyReadersSection'
