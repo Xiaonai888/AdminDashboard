@@ -769,6 +769,34 @@ const styles = `
       min-width: 760px;
     }
   }
+
+  .sc-guest-panel { padding: 16px; display: grid; gap: 14px; }
+  .sc-guest-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+  .sc-guest-kpi { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 13px; padding: 13px; display: grid; gap: 7px; }
+  .sc-guest-kpi span { font-size: 10px; color: #64748B; font-weight: 750; }
+  .sc-guest-kpi strong { font-size: 19px; font-weight: 900; color: #0F172A; }
+  .sc-guest-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+  .sc-guest-controls input, .sc-guest-controls select { padding: 10px 11px; border: 1px solid #CBD5E1; border-radius: 10px; background: #FFFFFF; color: #0F172A; font-size: 12px; font: inherit; }
+  .sc-guest-controls input { min-width: 180px; flex: 1; }
+  .sc-guest-table-wrap { overflow-x: auto; border: 1px solid #E2E8F0; border-radius: 12px; }
+  .sc-guest-table { width: 100%; min-width: 825px; border-collapse: collapse; font-size: 11px; }
+  .sc-guest-table th { background: #F8FAFC; color: #475569; font-size: 10px; text-align: left; white-space: nowrap; }
+  .sc-guest-table td, .sc-guest-table th { padding: 12px 10px; border-bottom: 1px solid #E2E8F0; }
+  .sc-guest-table tr:last-child td { border-bottom: 0; }
+  .sc-guest-route { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; color: #334155; }
+  .sc-guest-guide { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sc-guest-pill { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid #DDD6FE; background: #F5F3FF; color: #6D28D9; font-size: 10px; padding: 5px 9px; font-weight: 850; white-space: nowrap; }
+  .sc-guest-pill.safe { color: #047857; border-color: #A7F3D0; background: #ECFDF5; }
+  .sc-guest-pill.review { color: #92400E; border-color: #FDE68A; background: #FFFBEB; }
+  .sc-guest-pill.private { color: #B91C1C; border-color: #FECACA; background: #FEF2F2; }
+  .sc-guest-note { font-size: 11px; color: #64748B; line-height: 1.65; }
+  .sc-guest-more { justify-self: center; padding: 9px 15px; border: 1px solid #CBD5E1; background: #FFFFFF; border-radius: 10px; color: #334155; cursor: pointer; font-weight: 800; }
+  :is(.dark, [data-theme="dark"]) .sc-guest-kpi, :is(.dark, [data-theme="dark"]) .sc-guest-table th { background: #1E293B; border-color: #334155; }
+  :is(.dark, [data-theme="dark"]) .sc-guest-kpi strong, :is(.dark, [data-theme="dark"]) .sc-guest-route { color: #F1F5F9; }
+  :is(.dark, [data-theme="dark"]) .sc-guest-kpi span, :is(.dark, [data-theme="dark"]) .sc-guest-note { color: #CBD5E1; }
+  :is(.dark, [data-theme="dark"]) .sc-guest-table-wrap, :is(.dark, [data-theme="dark"]) .sc-guest-table td, :is(.dark, [data-theme="dark"]) .sc-guest-table th { border-color: #334155; }
+  :is(.dark, [data-theme="dark"]) .sc-guest-controls input, :is(.dark, [data-theme="dark"]) .sc-guest-controls select, :is(.dark, [data-theme="dark"]) .sc-guest-more { background: #1E293B; border-color: #475569; color: #F1F5F9; }
+  @media (max-width: 760px) { .sc-guest-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sc-guest-panel { padding: 12px; } }
 `
 
 function getToken() {
@@ -1014,6 +1042,122 @@ function statusClass(status) {
     : 'open'
 }
 
+function guestRouteRecommendation(route) {
+  const target = String(route || '').toLowerCase().split('?')[0]
+  if (/^(?:get|head) \/(?:health(?:\/|$)|api\/(?:public|books|genres|slides|advertisements|discover-search|discover-stories|shadow-mall|events)(?:\/|$))/.test(target)) {
+    return { text: 'Public read', tone: 'safe', detail: 'Keep available with suitable cache and rate limits' }
+  }
+  if (/^(?:post|put) \/api\/(?:visitors|discover-search\/(?:analytics|click))(?:\/|$)/.test(target)) {
+    return { text: 'Public tracking', tone: 'review', detail: 'Keep bounded; review repeated database writes' }
+  }
+  if (/^\w+ \/api\/(?:tasks|reader-presence|reading-progress|purchase|unlocks|admin|notifications|mails|reader\/library|monthly-vote)(?:\/|$)/.test(target)) {
+    return { text: 'Login expected', tone: 'private', detail: 'Check that unauthenticated requests are rejected before expensive work' }
+  }
+  return { text: 'Review', tone: 'review', detail: 'Verify access rules before changing any protection' }
+}
+
+function GuestRequestControlPanel({ snapshot, loading }) {
+  const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState(false)
+  const totals = snapshot?.totals || {}
+  const routes = Array.isArray(snapshot?.routes) ? snapshot.routes : []
+  const filtered = routes.filter((item) => {
+    const advice = guestRouteRecommendation(item.route)
+    return (filter === 'all' || advice.tone === filter) &&
+      String(item.route || '').toLowerCase().includes(search.trim().toLowerCase())
+  })
+  const visible = expanded ? filtered : filtered.slice(0, 20)
+
+  return (
+    <section className="sc-block">
+      <div className="sc-block-head">
+        <div className="sc-block-title-wrap">
+          <span className="sc-icon purple">♙</span>
+          <div>
+            <div className="sc-block-title">Guest Request Control</div>
+            <div className="sc-block-subtitle">Requests without Authorization headers · Last {number(snapshot?.window_minutes) || 60} minutes · Read-only</div>
+          </div>
+        </div>
+        <span className="sc-guest-pill">Monitoring only</span>
+      </div>
+      <div className="sc-guest-panel">
+        <div className="sc-guest-kpis">
+          {[
+            ['Guest Requests', totals.requests],
+            ['Supabase Calls', totals.supabase_calls],
+            ['Allowed 2xx–3xx', totals.allowed],
+            ['Rejected 401/403/429', totals.denied],
+            ['Server Errors 5xx', totals.errors_5xx],
+          ].map(([label, value]) => (
+            <div className="sc-guest-kpi" key={label}>
+              <span>{label}</span>
+              <strong>{snapshot ? formatNumber(value) : '—'}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="sc-guest-note">
+          This measures requests with no Authorization header, not verified account status. Counts are held in Render memory, reset on restart, and cover at most 60 minutes. Recommendations below are guidance, not actual access permissions or automatic blocking.
+        </div>
+        <div className="sc-guest-guide">
+          <span className="sc-guest-pill safe">Public read: usually allow</span>
+          <span className="sc-guest-pill review">Tracking: limit requests</span>
+          <span className="sc-guest-pill private">Account-only: login required</span>
+        </div>
+        <div className="sc-guest-controls">
+          <input
+            aria-label="Search guest routes"
+            placeholder="Search API route..."
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); setExpanded(false) }}
+          />
+          <select aria-label="Guest route recommendations" value={filter} onChange={(event) => { setFilter(event.target.value); setExpanded(false) }}>
+            <option value="all">All recommendations</option>
+            <option value="safe">Public reads</option>
+            <option value="private">Login expected</option>
+            <option value="review">Review needed</option>
+          </select>
+        </div>
+        <div className="sc-guest-table-wrap">
+          <table className="sc-guest-table">
+            <thead><tr>
+              <th>Route</th><th>Requests</th><th>Supabase</th><th>DB / Req</th><th>Allowed</th><th>Rejected</th><th>4xx / 5xx</th><th>Guidance</th>
+            </tr></thead>
+            <tbody>
+              {visible.map((item) => {
+                const advice = guestRouteRecommendation(item.route)
+                return (
+                  <tr key={item.route}>
+                    <td className="sc-guest-route">{item.route}</td>
+                    <td>{formatNumber(item.requests)}</td>
+                    <td>{formatNumber(item.supabase_calls)}</td>
+                    <td>{number(item.requests) ? (number(item.supabase_calls) / number(item.requests)).toFixed(2) : '0.00'}</td>
+                    <td>{formatNumber(item.allowed)}</td>
+                    <td>{formatNumber(item.denied)}</td>
+                    <td>{formatNumber(item.errors_4xx)} / {formatNumber(item.errors_5xx)}</td>
+                    <td><span className={`sc-guest-pill ${advice.tone}`} title={advice.detail}>{advice.text}</span></td>
+                  </tr>
+                )
+              })}
+              {!visible.length && (
+                <tr><td colSpan={8} className="sc-empty">
+                  {snapshot ? 'No matching routes recorded in the current in-memory window.' : loading ? 'Loading guest request measurements...' : 'Guest request measurements are not available yet. Confirm the backend is deployed.'}
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length > 20 && (
+          <button type="button" className="sc-guest-more" onClick={() => setExpanded((value) => !value)}>
+            {expanded ? 'Show first 20' : `Show all ${filtered.length} routes`}
+          </button>
+        )}
+        <div className="sc-guest-note">Only the top 60 routes are supplied by the backend snapshot, ranked by Supabase Calls. The existing System Control refresh updates this panel without any additional API request.</div>
+      </div>
+    </section>
+  )
+}
+
 export default function AdminSystemControlPage() {
   const navigate = useNavigate()
   const initialCustomFrom = toLocalInputValue(
@@ -1026,6 +1170,7 @@ export default function AdminSystemControlPage() {
   const [providerState, setProviderState] = useState(null)
   const [incidents, setIncidents] = useState([])
   const [requestEvidence, setRequestEvidence] = useState([])
+  const [guestRequestSnapshot, setGuestRequestSnapshot] = useState(null)
   const [historyReport, setHistoryReport] = useState(null)
   const [rangeKey, setRangeKey] = useState('24h')
   const [customFrom, setCustomFrom] = useState(initialCustomFrom)
@@ -1072,6 +1217,7 @@ export default function AdminSystemControlPage() {
       setAnomaly(data.anomaly || null)
       setRegression(data.regression || null)
       setRequestEvidence(Array.isArray(data.evidence) ? data.evidence : [])
+      setGuestRequestSnapshot(data.guest_requests || null)
       setProviderState(data.providers || null)
       setUpdatedAt(Date.now())
       setError('')
@@ -2002,6 +2148,7 @@ export default function AdminSystemControlPage() {
           </div>
         </section>
 
+        <GuestRequestControlPanel snapshot={guestRequestSnapshot} loading={loading} />
         <AdminRequestEvidencePanel evidence={requestEvidence} />
         <section className="sc-block">
           <div className="sc-block-head">
