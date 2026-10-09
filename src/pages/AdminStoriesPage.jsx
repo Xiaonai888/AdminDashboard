@@ -6,6 +6,44 @@ import StoryLibraryPanel from '../components/StoryLibraryPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
+const STORIES_CACHE_TTL = 5 * 60 * 1000
+const storiesRequestCache = new Map()
+
+function clearStoriesRequestCache() {
+  storiesRequestCache.clear()
+}
+
+async function getCachedStoriesData(url, token) {
+  const cacheKey = `${token || ''}:${url}`
+  const existing = storiesRequestCache.get(cacheKey)
+  if (existing?.value && existing.expiresAt > Date.now()) return existing.value
+  if (existing?.promise) return existing.promise
+
+  const entry = {}
+  const promise = fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  }).then(async (response) => {
+    const data = await response.json().catch(() => ({}))
+    const value = { response: { ok: response.ok, status: response.status }, data }
+    if (storiesRequestCache.get(cacheKey) === entry) {
+      if (response.ok && data.ok !== false) {
+        storiesRequestCache.set(cacheKey, { value, expiresAt: Date.now() + STORIES_CACHE_TTL })
+        if (storiesRequestCache.size > 60) storiesRequestCache.delete(storiesRequestCache.keys().next().value)
+      } else {
+        storiesRequestCache.delete(cacheKey)
+      }
+    }
+    return value
+  }).catch((error) => {
+    if (storiesRequestCache.get(cacheKey) === entry) storiesRequestCache.delete(cacheKey)
+    throw error
+  })
+
+  entry.promise = promise
+  storiesRequestCache.set(cacheKey, entry)
+  return promise
+}
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
@@ -659,6 +697,7 @@ export default function AdminStoriesPage() {
 
   function handleExpiredAdminToken(response, data) {
     if (response.status !== 401) return false
+    clearStoriesRequestCache()
     sessionStorage.removeItem('shadow_admin_token')
     localStorage.removeItem('shadow_admin_token')
     sessionStorage.removeItem('shadow_admin_user')
@@ -706,8 +745,7 @@ export default function AdminStoriesPage() {
       try {
         setSummaryLoading(true)
         const token = getAdminToken()
-        const response = await fetch(`${API_URL}/api/admin/stories/overview`, { headers: { Authorization: `Bearer ${token}` } })
-        const data = await response.json().catch(() => ({}))
+        const { response, data } = await getCachedStoriesData(`${API_URL}/api/admin/stories/overview`, token)
         if (handleExpiredAdminToken(response, data)) return
 if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load overview')
         if (!alive) return
@@ -751,8 +789,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
           q: debouncedSearch,
         })
 
-        const response = await fetch(`${API_URL}/api/admin/stories?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } })
-        const data = await response.json().catch(() => ({}))
+        const { response, data } = await getCachedStoriesData(`${API_URL}/api/admin/stories?${params.toString()}`, token)
         if (handleExpiredAdminToken(response, data)) return
 if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load stories')
         if (!alive) return
@@ -789,8 +826,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
       try {
         setDetailsLoading(true)
         const token = getAdminToken()
-        const response = await fetch(`${API_URL}/api/admin/stories/${selectedStory.id}`, { headers: { Authorization: `Bearer ${token}` } })
-        const data = await response.json().catch(() => ({}))
+        const { response, data } = await getCachedStoriesData(`${API_URL}/api/admin/stories/${selectedStory.id}`, token)
         if (handleExpiredAdminToken(response, data)) return
 if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load story details')
         if (!alive) return
@@ -876,6 +912,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
 if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to save moderation action')
 
       closeAction()
+      clearStoriesRequestCache()
       setRefreshKey((value) => value + 1)
     } catch (err) {
       setError(err.message || 'Failed to save moderation action')
@@ -897,6 +934,12 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
           <SummaryCard label="Deleted by Authors" value={summaryLoading ? 0 : summary.deleted_by_authors} tone="yellow" text="Protected archive period" />
           <SummaryCard label="Restricted / Disabled" value={summaryLoading ? 0 : Number(summary.restricted_stories || 0) + Number(summary.disabled_stories || 0)} tone="red" text="Policy enforcement" />
           <SummaryCard label="Warnings" value={summaryLoading ? 0 : summary.warned_stories} tone="purple" text="Policy warning records" />
+        </div>
+
+        <div className="story-admin-lifecycle-summary">
+          <SummaryCard label="Total New" value={summaryLoading ? 0 : summary.new_stories} tone="blue" text="Stories with 1 episode" />
+          <SummaryCard label="Ongoing" value={summaryLoading ? 0 : summary.ongoing_stories} tone="teal" text="Unfinished stories with 2+ episodes" />
+          <SummaryCard label="Completed" value={summaryLoading ? 0 : summary.completed_stories} tone="orange" text="Finished stories" />
         </div>
 
         <div className="story-admin-panel">
@@ -955,7 +998,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             <select value={genre} onChange={(event) => { setGenre(event.target.value); setPage(1) }}>
               {genreOptions.map((item) => <option key={item} value={item}>{item === 'all' ? 'All Genres' : item}</option>)}
             </select>
-            <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Refresh</button>
+            <button type="button" onClick={() => { clearStoriesRequestCache(); setRefreshKey((value) => value + 1) }}>Refresh</button>
           </div>
 
           <div className="story-admin-table-wrap" hidden={activeTab === 'updates' || activeTab === 'library'}>
@@ -1081,11 +1124,15 @@ const styles = `
   .story-admin-page { display: flex; flex-direction: column; gap: 18px; }
   .story-admin-alert { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; border-radius: 14px; padding: 12px 14px; font-weight: 850; font-size: 13px; }
   .story-admin-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+  .story-admin-lifecycle-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
   .story-admin-card { background: #fff; border: 1px solid #E2E8F0; border-radius: 18px; padding: 18px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
   .story-admin-card.green { background: #F0FDF4; border-color: #BBF7D0; }
   .story-admin-card.yellow { background: #FFFBEB; border-color: #FDE68A; }
   .story-admin-card.red { background: #FEF2F2; border-color: #FECACA; }
   .story-admin-card.purple { background: #F5F3FF; border-color: #DDD6FE; }
+  .story-admin-card.blue { background: #EFF6FF; border-color: #BFDBFE; }
+  .story-admin-card.teal { background: #F0FDFA; border-color: #99F6E4; }
+  .story-admin-card.orange { background: #FFF7ED; border-color: #FED7AA; }
   .story-admin-card-label { color: #64748B; font-size: 12px; font-weight: 900; }
   .story-admin-card-value { margin-top: 8px; color: #0F172A; font-size: 26px; font-weight: 950; }
   .story-admin-card-text { margin-top: 4px; color: #64748B; font-size: 12px; font-weight: 750; }
@@ -1177,6 +1224,7 @@ const styles = `
   }
 
   @media (max-width: 760px) {
+    .story-admin-lifecycle-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .story-admin-page {
       min-width: 0;
       gap: 14px;
@@ -1360,6 +1408,7 @@ const styles = `
   }
 
   @media (max-width: 520px) {
+    .story-admin-lifecycle-summary { grid-template-columns: 1fr; }
     .story-admin-summary {
       grid-template-columns: 1fr;
     }
