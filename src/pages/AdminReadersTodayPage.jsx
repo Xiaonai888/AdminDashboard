@@ -393,6 +393,7 @@ function ReaderGroupDetailsDrawer({ item, onClose }) {
 
 export default function AdminReadersTodayPage() {
   const [activeTab, setActiveTab] = useState('story')
+  const [sortOrder, setSortOrder] = useState('desc')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -439,6 +440,7 @@ export default function AdminReadersTodayPage() {
           limit: String(PAGE_SIZE),
           q: debouncedSearch,
           view: activeTab,
+          order: sortOrder,
         })
 
         const response = await fetch(`${API_URL}/api/admin/community/readers/today?${params.toString()}`, {
@@ -484,7 +486,7 @@ export default function AdminReadersTodayPage() {
     return () => {
       alive = false
     }
-  }, [activeTab, page, debouncedSearch, refreshKey])
+  }, [activeTab, page, debouncedSearch, refreshKey, sortOrder])
 
   function switchTab(tab) {
     if (tab === activeTab) return
@@ -585,9 +587,29 @@ export default function AdminReadersTodayPage() {
                   : 'Search reader name, username, email, or ID...'
               }
             />
-            <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>
-              Refresh
-            </button>
+            <div className="readers-today-toolbar-actions">
+              <button type="button" onClick={() => setRefreshKey((value) => value + 1)}>
+                Refresh
+              </button>
+              <button
+                type="button"
+                title={sortOrder === 'desc' ? 'High to Low' : 'Low to High'}
+                aria-label={sortOrder === 'desc' ? 'Sort high to low' : 'Sort low to high'}
+                onClick={() => {
+                  setSortOrder((value) => value === 'desc' ? 'asc' : 'desc')
+                  setPage(1)
+                  setSelectedItem(null)
+                }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m3 16 4 4 4-4" />
+                  <path d="M7 20V4" />
+                  <path d="m21 8-4-4-4 4" />
+                  <path d="M17 4v16" />
+                </svg>
+                {sortOrder === 'desc' ? 'High → Low' : 'Low → High'}
+              </button>
+            </div>
           </div>
 
           <div className="readers-today-helper-row">
@@ -813,6 +835,8 @@ const styles = `
   .dark .readers-today-tabs button.active, [data-theme="dark"] .readers-today-tabs button.active, .dark-mode .readers-today-tabs button.active { color: #FFFFFF; }
   .readers-today-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
   .readers-today-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 14px; border-bottom: 1px solid #E2E8F0; }
+  .readers-today-toolbar-actions { display: flex; align-items: center; gap: 8px; }
+  .readers-today-toolbar-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
   .readers-today-toolbar input { min-width: 0; border: 1px solid #E2E8F0; background: #F8FAFC; border-radius: 12px; padding: 11px 12px; color: #0F172A; font-weight: 750; outline: none; }
   .readers-today-toolbar input:focus { border-color: #4F46E5; background: #FFFFFF; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
   .readers-today-toolbar button, .readers-today-pagination button { border: 0; border-radius: 12px; background: #EEF2FF; color: #4F46E5; padding: 10px 13px; font-weight: 900; cursor: pointer; }
@@ -901,6 +925,7 @@ const styles = `
     .readers-today-tabs button { flex: 0 0 auto; }
     .readers-today-tabs button { padding: 0 10px; white-space: nowrap; }
     .readers-today-toolbar { grid-template-columns: 1fr; }
+    .readers-today-toolbar-actions button { flex: 1; }
     .readers-today-helper-row { align-items: flex-start; flex-direction: column; }
     .readers-today-pagination { align-items: flex-start; flex-direction: column; }
     .readers-today-detail-grid { grid-template-columns: 1fr; }
