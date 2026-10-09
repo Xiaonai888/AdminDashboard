@@ -61,7 +61,9 @@ export default function AdminSectionRankPanel({ apiUrl, token }) {
 
   const rankedRows = useMemo(() => {
     return [...rows]
-      .sort((a, b) => {
+        .sort((a, b) => {
+        if (a.sectionKey === 'short_completed') return 1
+        if (b.sectionKey === 'short_completed') return -1
         const userDiff = Number(b?.uniqueUsers || 0) - Number(a?.uniqueUsers || 0)
         if (userDiff !== 0) return userDiff
 
