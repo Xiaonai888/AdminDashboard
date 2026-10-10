@@ -37,7 +37,12 @@ export default function AdminGenreRankPanel() {
         setLoading(true)
         setError('')
 
-        const response = await fetch(`${API_URL}/api/admin/ranking/genres`, {
+        const endpoint = refreshKey > 0
+          ? `${API_URL}/api/admin/ranking/genres?refresh=1`
+          : `${API_URL}/api/admin/ranking/genres`
+
+        const response = await fetch(endpoint, {
+          cache: 'no-store',
           headers: {
             Authorization: `Bearer ${getAdminToken()}`,
           },
@@ -91,13 +96,18 @@ export default function AdminGenreRankPanel() {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #E2E8F0', flexWrap: 'wrap' }}>
         <div>
           <div className="ranking-title">
-            {enabled ? 'Main Genre popularity by total story views' : 'Genre Rank is disabled'}
+            {enabled ? 'Genre and Relationship Group popularity by total story views' : 'Genre Rank is disabled'}
           </div>
           <div className="ranking-muted">
             {enabled
               ? `Updated ${formatDateTime(meta.generated_at)} · Cache ${Math.round(meta.cache_ttl_seconds / 60)} min · ${meta.cached ? 'Cached data' : 'Fresh data'}`
               : 'Enable Genre Rank from Ranking Settings to show results.'}
           </div>
+          {enabled ? (
+            <div className="ranking-muted">
+              BG, BL, GL and LGBTQ+ are counted from relationship tags. Categories can overlap, so View Share totals may exceed 100%.
+            </div>
+          ) : null}
         </div>
         <button type="button" className="ranking-btn" style={{ padding: '0 16px' }} onClick={() => setRefreshKey((value) => value + 1)}>
           Refresh
@@ -109,7 +119,7 @@ export default function AdminGenreRankPanel() {
           <thead>
             <tr>
               <th>Rank</th>
-              <th>Main Genre</th>
+              <th>Genre / Group</th>
               <th>Stories</th>
               <th>Total Views</th>
               <th>Avg Views</th>
@@ -124,7 +134,9 @@ export default function AdminGenreRankPanel() {
                 <td><span className="ranking-rank">#{genre.rank}</span></td>
                 <td>
                   <div className="ranking-title">{genre.genre}</div>
-                  <div className="ranking-muted">Main Genre</div>
+                  <div className="ranking-muted">
+                    {genre.category_type === 'relationship' ? 'Relationship Group' : 'Main Genre'}
+                  </div>
                 </td>
                 <td>{formatNumber(genre.story_count)}</td>
                 <td><span className="ranking-score">{formatNumber(genre.total_views)}</span></td>
@@ -143,7 +155,7 @@ export default function AdminGenreRankPanel() {
             <div className="ranking-empty-title">{enabled ? 'No Genre Rank data' : 'Genre Rank is disabled'}</div>
             <div className="ranking-empty-text">
               {enabled
-                ? 'No published Main Genre data was found.'
+                ? 'No published Genre or Relationship Group data was found.'
                 : 'Enable Genre Rank from Ranking Settings to show results.'}
             </div>
           </div>
