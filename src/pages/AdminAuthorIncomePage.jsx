@@ -902,7 +902,6 @@ export default function AdminAuthorIncomePage() {
                   setPage((current) => current + 1)
                 }
               >
-                              >
                 Next
               </button>
             </div>
