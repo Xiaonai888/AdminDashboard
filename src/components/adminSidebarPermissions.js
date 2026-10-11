@@ -35,6 +35,7 @@ const PATH_PERMISSION = {
   '/block-list': 'block_list.view',
   '/spam-guard': 'spam_guard.view',
 
+  '/payment-recovery': 'payment.view',
   '/payment': 'payment.view',
   '/income': 'income.view',
   '/author-income': 'income.view',
