@@ -101,6 +101,155 @@ async function fetchPeriod(options) {
   }
 }
 
+async function fetchPeriodDetail(options) {
+  const token = adminToken()
+  const params = new URLSearchParams({
+    scope: options.scope,
+    id: options.id,
+    period: options.period,
+    order: options.order,
+    sort: options.sort,
+    page: String(options.page),
+  })
+  if (options.period === 'custom') {
+    params.set('from', options.from)
+    params.set('to', options.to)
+  }
+  const key = `${khDay()}|${token}|detail|${params.toString()}`
+  if (options.refresh) params.set('refresh', '1')
+  const cached = responseCache.get(key)
+  if (!options.refresh && cached && cached.expires > Date.now()) return cached.data
+  if (activeRequests.has(key)) return activeRequests.get(key)
+  const task = (async () => {
+    const response = await fetch(`${API_URL}/api/admin/community/readers/period/detail?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await response.json().catch(() => ({}))
+    if (response.status === 401) {
+      sessionStorage.removeItem('shadow_admin_token')
+      localStorage.removeItem('shadow_admin_token')
+      sessionStorage.removeItem('shadow_admin_user')
+      localStorage.removeItem('shadow_admin_user')
+      window.location.assign('/login')
+      throw new Error('Admin session expired')
+    }
+    if (!response.ok || data.ok !== true || !Array.isArray(data.items)) {
+      throw new Error(data.message || 'Unable to load period detail')
+    }
+    pruneCache()
+    responseCache.set(key, { data, expires: Date.now() + 5 * 60 * 1000 })
+    return data
+  })()
+  activeRequests.set(key, task)
+  try {
+    return await task
+  } finally {
+    if (activeRequests.get(key) === task) activeRequests.delete(key)
+  }
+}
+
+function PeriodDetailDrawer({ scope, selected, report, onClose }) {
+  const [page, setPage] = useState(1)
+  const [sort, setSort] = useState('episodes')
+  const [order, setOrder] = useState('top')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [detail, setDetail] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const lastRefreshed = useRef(0)
+
+  useEffect(() => {
+    let alive = true
+    setLoading(true)
+    setError('')
+    setDetail(null)
+    const forceRefresh = refreshKey > lastRefreshed.current
+    if (forceRefresh) lastRefreshed.current = refreshKey
+    fetchPeriodDetail({
+      scope,
+      id: selected.id,
+      period: report.period,
+      from: report.date_from,
+      to: report.date_to,
+      page,
+      sort,
+      order,
+      refresh: forceRefresh,
+    }).then((data) => {
+      if (alive) setDetail(data)
+    }).catch((failure) => {
+      if (alive) setError(failure.message || 'Unable to load detail')
+    }).finally(() => {
+      if (alive) setLoading(false)
+    })
+    return () => { alive = false }
+  }, [scope, selected.id, report.period, report.date_from, report.date_to, page, sort, order, refreshKey])
+
+  const detailRows = Array.isArray(detail?.items) ? detail.items : []
+  const detailTotal = Number(detail?.total || 0)
+  const detailPages = Math.max(1, Math.ceil(detailTotal / PAGE_SIZE))
+
+  return (
+    <div className="reader-period-overlay" role="presentation" onMouseDown={onClose}>
+      <aside className="reader-period-drawer" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="reader-period-drawer-head">
+          <div><small>{scope === 'story' ? 'Story readers' : 'Stories read'}</small><h3>{selected.name || 'Unknown'}</h3></div>
+          <button type="button" aria-label="Close details" onClick={onClose}>×</button>
+        </div>
+        <div className="reader-period-drawer-grid">
+          <div><span>Current period</span><strong>{number(selected.count)}</strong></div>
+          <div><span>Previous period</span><strong>{number(selected.previous_count)}</strong></div>
+          <div><span>Change</span><Change value={selected.change} previous={selected.previous_count} current={selected.count}/></div>
+          <div><span>Counted views</span><strong>{number(selected.views)}</strong></div>
+          {scope === 'reader' ? <div><span>Unique episodes</span><strong>{number(selected.episodes)}</strong></div> : null}
+        </div>
+        <div className="reader-period-detail-head">
+          <strong>{scope === 'story' ? 'Readers in this story' : 'Stories read by this reader'}</strong>
+          <span>{report.date_from} → {report.date_to}</span>
+        </div>
+        <div className="reader-period-detail-controls">
+          <select aria-label="Detail rank" value={sort} onChange={(event) => { setPage(1); setSort(event.target.value) }}>
+            <option value="episodes">Episodes</option>
+            <option value="views">Counted Views</option>
+            <option value="change">Episode Change</option>
+          </select>
+          <button type="button" onClick={() => { setPage(1); setOrder((current) => current === 'top' ? 'low' : 'top') }}>⇅ {order === 'top' ? 'High → Low' : 'Low → High'}</button>
+          <button type="button" title="Refresh detail" onClick={() => setRefreshKey((value) => value + 1)}>↻</button>
+        </div>
+        {loading ? <div className="reader-period-detail-message">Loading details…</div> : null}
+        {error ? <div className="reader-period-error" role="alert">{error}</div> : null}
+        {detail && !loading ? (
+          <>
+            <div className="reader-period-detail-list">
+              {detailRows.length ? detailRows.map((item) => (
+                <div className="reader-period-detail-item" key={item.id}>
+                  <div className={`reader-period-image ${scope === 'story' ? 'avatar' : 'cover'}`}>
+                    {item.image_url ? <img src={item.image_url} alt="" onError={(event) => { event.currentTarget.style.display = 'none' }} /> : scope === 'story' ? '👤' : '📖'}
+                  </div>
+                  <div className="reader-period-detail-info">
+                    <strong title={item.name}>{item.name || item.id}</strong>
+                    <small>{item.subtitle ? `${item.subtitle} · ` : ''}{number(item.episodes)} episodes · {number(item.views)} views · {number(item.active_days)} active days</small>
+                    <small>Previous: {number(item.previous_episodes)} episodes</small>
+                  </div>
+                  <div className="reader-period-detail-diff"><Change value={item.change} previous={item.previous_episodes} current={item.episodes} /></div>
+                </div>
+              )) : <div className="reader-period-detail-message">No recorded details for this period.</div>}
+            </div>
+            <div className="reader-period-footer reader-period-detail-footer">
+              <span>Page {page} of {detailPages} · {number(detailTotal)} total</span>
+              <div>
+                <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Previous</button>
+                <button type="button" disabled={page >= detailPages} onClick={() => setPage((current) => current + 1)}>Next</button>
+              </div>
+            </div>
+          </>
+        ) : null}
+        <p className="reader-period-drawer-note">Daily activity is counted from the recorded episode views. Episodes reflect distinct episodes, not repeat page opens.</p>
+      </aside>
+    </div>
+  )
+}
+
 function Change({ value, previous, current }) {
   const amount = Number(value || 0)
   const tone = percentageTone(amount)
@@ -270,20 +419,14 @@ export default function ReaderPeriodSection({ scope }) {
           </div>
         </div>
       ) : null}
-      {selected ? (
-        <div className="reader-period-overlay" role="presentation" onMouseDown={() => setSelected(null)}>
-          <aside className="reader-period-drawer" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="reader-period-drawer-head"><div><small>{scope === 'story' ? 'Story summary' : 'Reader summary'}</small><h3>{selected.name || 'Unknown'}</h3></div><button type="button" aria-label="Close details" onClick={() => setSelected(null)}>×</button></div>
-            <div className="reader-period-drawer-grid">
-              <div><span>Current period</span><strong>{number(selected.count)}</strong></div>
-              <div><span>Previous period</span><strong>{number(selected.previous_count)}</strong></div>
-              <div><span>Change</span><Change value={selected.change} previous={selected.previous_count} current={selected.count}/></div>
-              <div><span>Counted views</span><strong>{number(selected.views)}</strong></div>
-              {scope === 'reader' ? <div><span>Unique episodes</span><strong>{number(selected.episodes)}</strong></div> : null}
-            </div>
-            <p className="reader-period-drawer-note">This comparison is based on recorded daily episode activity. Individual {scope === 'story' ? 'reader' : 'story'} records for the selected period will be available after the period detail API is connected. Today's detailed activity remains accessible through Today's Details.</p>
-          </aside>
-        </div>
+      {selected && result ? (
+        <PeriodDetailDrawer
+          key={`${scope}:${selected.id}:${result.date_from}:${result.date_to}`}
+          scope={scope}
+          selected={selected}
+          report={result}
+          onClose={() => setSelected(null)}
+        />
       ) : null}
     </div>
   )
@@ -359,4 +502,23 @@ const periodStyles = `
 .dark .reader-period-table td,.dark .reader-period-meta,.dark .reader-period-drawer-head{border-color:#334155;color:#cbd5e1}
 .dark .reader-period-filters input,.dark .reader-period-filters select,[data-theme="dark"] .reader-period-filters input,[data-theme="dark"] .reader-period-filters select{background:#1e293b;color:#f8fafc;border-color:#475569}
 @media(max-width:680px){.reader-period-heading{align-items:flex-start}.reader-period-filters label{flex:1 1 130px}.reader-period-filters .reader-period-search{flex:1 1 100%}.reader-period-control-buttons{width:100%}.reader-period-control-buttons button{flex:1}.reader-period-footer{flex-wrap:wrap}.reader-period-drawer{padding:16px}}
+.reader-period-detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-top:22px;margin-bottom:11px}
+.reader-period-detail-head strong{font-size:13px;color:#0f172a}
+.reader-period-detail-head span{color:#64748b;font-size:11px}
+.reader-period-detail-controls{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.reader-period-detail-controls select,.reader-period-detail-controls button{min-height:34px;border:1px solid #cbd5e1;background:#fff;border-radius:8px;color:#334155;font-size:11px;padding:0 9px;cursor:pointer}
+.reader-period-detail-controls select{flex:1 1 125px}
+.reader-period-detail-list{border:1px solid #e2e8f0;border-radius:11px;overflow:hidden}
+.reader-period-detail-item{display:flex;gap:10px;padding:11px 9px;align-items:center;border-bottom:1px solid #f1f5f9}
+.reader-period-detail-item:last-child{border-bottom:0}
+.reader-period-detail-info{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.reader-period-detail-info strong{color:#0f172a;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px}
+.reader-period-detail-info small{color:#64748b;font-size:10px;line-height:1.4}
+.reader-period-detail-diff{min-width:65px;text-align:right}
+.reader-period-detail-diff .reader-period-change{align-items:flex-end}
+.reader-period-detail-message{padding:24px;text-align:center;color:#64748b;font-size:12px}
+.reader-period-detail-footer{padding:13px 0}
+.dark .reader-period-detail-list,.dark .reader-period-detail-item,.dark .reader-period-detail-controls select,.dark .reader-period-detail-controls button{border-color:#334155}
+.dark .reader-period-detail-controls select,.dark .reader-period-detail-controls button,[data-theme="dark"] .reader-period-detail-controls select{background:#1e293b;color:#e2e8f0}
+.dark .reader-period-detail-info strong,.dark .reader-period-detail-head strong{color:#f8fafc}
 `
