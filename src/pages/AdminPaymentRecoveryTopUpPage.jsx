@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -20,7 +20,7 @@ const styles = `
   .recovery-stat-value { display: block; margin-top: 7px; font-size: 25px; font-weight: 900; }
   .recovery-section-head { padding: 18px 20px; display: flex; justify-content: space-between; gap: 14px; align-items: center; border-bottom: 1px solid #E2E8F0; }
   .recovery-section-head h3 { margin: 0 0 4px; font-size: 16px; font-weight: 900; }
-  .recovery-controls { display: grid; grid-template-columns: minmax(200px, 1fr) 160px 150px 135px auto; gap: 9px; padding: 17px 20px; }
+  .recovery-controls { display: grid; grid-template-columns: minmax(180px, 1fr) 155px 125px 145px auto auto; gap: 9px; padding: 17px 20px; }
   .recovery-input { width: 100%; min-width: 0; min-height: 41px; background: #FFFFFF; color: #0F172A; border: 1px solid #D8E2EF; border-radius: 11px; font: inherit; font-size: 13px; padding: 0 12px; outline: none; }
   .recovery-input:focus { border-color: #4F46E5; box-shadow: 0 0 0 3px #EEF2FF; }
   .recovery-button { min-height: 41px; background: #FFFFFF; color: #4338CA; border: 1px solid #C7D2FE; border-radius: 11px; padding: 0 14px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
@@ -78,49 +78,72 @@ export default function AdminPaymentRecoveryTopUpPage() {
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState('')
   const [selectedId, setSelectedId] = useState('')
+  const [page, setPage] = useState(1)
+  const [hasNext, setHasNext] = useState(false)
+  const [hasPrev, setHasPrev] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [appliedFilters, setAppliedFilters] = useState({ q: '', status: 'all', amount: '', date: '' })
 
   const loadPayments = useCallback(async (signal) => {
     const token = sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
     if (!token) {
       setError('Admin login required.')
+      setPayments([])
+      setHasNext(false)
+      setHasPrev(false)
       return
     }
     setLoading(true)
     setError('')
     try {
-      const response = await fetch(`${API_URL}/api/admin/purchases/manual?status=all&limit=200`, {
+      const params = new URLSearchParams({ page: String(page), limit: '20', status: appliedFilters.status })
+      if (appliedFilters.q) params.set('q', appliedFilters.q)
+      if (appliedFilters.amount) params.set('amount', appliedFilters.amount)
+      if (appliedFilters.date) params.set('date', appliedFilters.date)
+      const response = await fetch(`${API_URL}/api/admin/purchases/recovery?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
         signal,
       })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load payment orders.')
-      if (!signal?.aborted) setPayments(Array.isArray(data.payments) ? data.payments : [])
+      if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to search payment orders.')
+      if (signal?.aborted) return
+      setPayments(Array.isArray(data.payments) ? data.payments : [])
+      setHasNext(Boolean(data.has_next))
+      setHasPrev(Boolean(data.has_prev))
     } catch (requestError) {
-      if (!signal?.aborted) setError(requestError.message || 'Unable to load payments.')
+      if (signal?.aborted) return
+      setPayments([])
+      setHasNext(false)
+      setHasPrev(false)
+      setError(requestError.message || 'Unable to search payments.')
     } finally {
       if (!signal?.aborted) setLoading(false)
     }
-  }, [])
+  }, [page, appliedFilters])
 
   useEffect(() => {
+    if (activeTab !== 'recovery') return undefined
     const controller = new AbortController()
     loadPayments(controller.signal)
     return () => controller.abort()
-  }, [loadPayments])
+  }, [activeTab, loadPayments, refreshKey])
 
-  const filtered = useMemo(() => {
-    const key = query.trim().toLocaleLowerCase()
-    return payments.filter((payment) => {
-      const matchText = [
-        payment.user?.name, payment.user?.username, payment.user?.email, payment.user_id,
-        payment.order_id, payment.aba_trx_id, payment.payer_name, payment.status,
-      ].filter(Boolean).join(' ').toLocaleLowerCase()
-      const matchStatus = status === 'all' || (status === 'released' ? isReleased(payment) : status === 'unreleased' ? !isReleased(payment) : payment.status === status)
-      const matchAmount = amount === '' || Number(payment.amount_usd ?? payment.package_usd ?? 0) === Number(amount)
-      const matchDate = !date || new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Phnom_Penh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(payment.created_at)) === date
-      return (!key || matchText.includes(key)) && matchStatus && matchAmount && matchDate
-    })
-  }, [payments, query, status, amount, date])
+  function searchPayments(event) {
+    event.preventDefault()
+    setSelectedId('')
+    setPage(1)
+    setAppliedFilters({ q: query.trim(), status, amount: amount.trim(), date })
+  }
+
+  function clearFilters() {
+    setQuery('')
+    setStatus('all')
+    setAmount('')
+    setDate('')
+    setSelectedId('')
+    setPage(1)
+    setAppliedFilters({ q: '', status: 'all', amount: '', date: '' })
+  }
 
   const selected = payments.find((payment) => payment.id === selectedId)
   const releasedCount = payments.filter(isReleased).length
@@ -147,31 +170,32 @@ export default function AdminPaymentRecoveryTopUpPage() {
         {activeTab === 'recovery' ? (
           <>
             <div className="recovery-stats">
-              <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Recent orders loaded</span><strong className="recovery-stat-value">{payments.length}</strong></div>
-              <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Marked released</span><strong className="recovery-stat-value">{releasedCount}</strong></div>
-              <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Not marked released</span><strong className="recovery-stat-value">{payments.length - releasedCount}</strong></div>
+              <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Orders on this page</span><strong className="recovery-stat-value">{payments.length}</strong></div>
+              <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Released on this page</span><strong className="recovery-stat-value">{releasedCount}</strong></div>
+              <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Not released on this page</span><strong className="recovery-stat-value">{payments.length - releasedCount}</strong></div>
             </div>
             <section className="recovery-card">
               <div className="recovery-section-head">
-                <div><h3>Payment orders</h3><div className="recovery-muted">Search by Reader, Author, Username, User ID, Order ID, or payer name.</div></div>
-                <button className="recovery-button" type="button" disabled={loading} onClick={() => loadPayments()}>{loading ? 'Loading...' : 'Refresh'}</button>
+                <div><h3>Payment orders</h3><div className="recovery-muted">Search database by Reader, Author, Username, User ID, Order ID, or payer name.</div></div>
+                <button className="recovery-button" type="button" disabled={loading} onClick={() => setRefreshKey((key) => key + 1)}>{loading ? 'Loading...' : 'Refresh'}</button>
               </div>
-              <div className="recovery-controls">
+              <form className="recovery-controls" onSubmit={searchPayments}>
                 <input className="recovery-input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search account, order, payer..." aria-label="Search payment orders" />
                 <select className="recovery-input" value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter payment status">
                   <option value="all">All statuses</option><option value="released">Released</option><option value="unreleased">Not released</option><option value="waiting_payment">Waiting</option><option value="pending_review">Need review</option><option value="expired">Expired</option><option value="cancelled">Cancelled</option>
                 </select>
                 <input className="recovery-input" value={amount} onChange={(event) => setAmount(event.target.value)} type="number" min="0" step="0.01" placeholder="USD amount" aria-label="Filter payment amount" />
                 <input className="recovery-input" value={date} onChange={(event) => setDate(event.target.value)} type="date" aria-label="Filter payment date in Cambodia" />
-                <button className="recovery-button" type="button" onClick={() => { setQuery(''); setStatus('all'); setAmount(''); setDate('') }}>Clear</button>
-              </div>
-              <p className="recovery-notice">This list searches only the latest 200 payment-link orders. It does not show every historical order or prove receipt of bank funds. Verify the ABA transaction before release.</p>
+                <button className="recovery-button" type="submit" disabled={loading}>Search</button>
+                <button className="recovery-button" type="button" onClick={clearFilters} disabled={loading}>Clear</button>
+              </form>
+              <p className="recovery-notice">Search runs on the payment database, 20 orders per page. Without a name or Order ID, results are limited to the last 30 days. A payment record does not prove that the bank received funds. Verify ABA before release.</p>
               {error ? <p className="recovery-error">{error}</p> : null}
               <div className="recovery-table-wrap">
                 <table className="recovery-table">
                   <thead><tr><th>Account</th><th>Order ID</th><th>Amount</th><th>Diamonds</th><th>Status</th><th>Created (KH)</th><th></th></tr></thead>
                   <tbody>
-                    {filtered.map((payment) => (
+                    {payments.map((payment) => (
                       <tr key={payment.id} className={selectedId === payment.id ? 'recovery-row-active' : ''}>
                         <td><strong>{displayName(payment)}</strong><div className="recovery-sub">@{payment.user?.username || 'unknown'} · {payment.purchase_type || 'diamonds'}</div></td>
                         <td><strong>{payment.order_id || '—'}</strong><div className="recovery-sub">{payment.payer_name || 'Payer not recorded'}</div></td>
@@ -184,7 +208,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
                     ))}
                   </tbody>
                 </table>
-                {!loading && !filtered.length ? <div className="recovery-empty">No matching orders in the latest 200 records.</div> : null}
+                {!loading && !payments.length ? <div className="recovery-empty">No payment orders found for these filters.</div> : null}
               </div>
               {selected ? (
                 <div className="recovery-detail">
@@ -204,7 +228,13 @@ export default function AdminPaymentRecoveryTopUpPage() {
                   <button className="recovery-button" type="button" disabled>Release with Passkey — not enabled</button>
                 </div>
               ) : null}
-              <div className="recovery-footer"><span className="recovery-muted">Showing {filtered.length} of {payments.length} loaded orders</span><span className="recovery-muted">Refresh manually to check for newer orders.</span></div>
+              <div className="recovery-footer">
+                <span className="recovery-muted">Page {page} · {payments.length} orders shown</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button type="button" className="recovery-button" disabled={loading || !hasPrev} onClick={() => { setSelectedId(''); setPage((current) => Math.max(1, current - 1)) }}>Previous</button>
+                  <button type="button" className="recovery-button" disabled={loading || !hasNext} onClick={() => { setSelectedId(''); setPage((current) => current + 1) }}>Next</button>
+                </div>
+              </div>
             </section>
           </>
         ) : (
