@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminAuthorPageAuthorIncomeTab from './AdminAuthorPageAuthorIncomeTab'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -217,6 +218,7 @@ async function readResponse(response) {
 }
 
 export default function AdminAuthorIncomePage() {
+  const [incomeTab, setIncomeTab] = useState('episode')
   const [draftSearch, setDraftSearch] = useState('')
   const [rangeKey, setRangeKey] = useState('all')
   const [customFrom, setCustomFrom] = useState('')
@@ -557,7 +559,17 @@ export default function AdminAuthorIncomePage() {
     >
       <style>{styles}</style>
 
-      <div className="author-income-page">
+      <nav role="tablist" aria-label="Income category" style={{display:'flex',gap:8,marginBottom:18,flexWrap:'wrap'}}>
+  {[['episode','Episode Sales'],['book','Author Page Book/PDF']].map(([value,label]) => (
+    <button key={value} type="button" role="tab" aria-selected={incomeTab===value}
+      className={`author-income-button ${incomeTab===value?'':'secondary'}`}
+      onClick={()=>{setIncomeTab(value);setSelectedAuthor(null)}}>
+      {label}
+    </button>
+  ))}
+</nav>
+
+      <div className="author-income-page" style={{display:incomeTab==='episode'?undefined:'none'}}>
         <section className="author-income-summary">
           <div className="author-income-card">
             <div className="author-income-card-label">Paid Diamonds</div>
@@ -890,12 +902,17 @@ export default function AdminAuthorIncomePage() {
                   setPage((current) => current + 1)
                 }
               >
+                              >
                 Next
               </button>
             </div>
           </div>
         </section>
       </div>
+
+      {incomeTab === 'book' ? (
+        <AdminAuthorPageAuthorIncomeTab />
+      ) : null}
 
       {selectedAuthor ? (
         <div
