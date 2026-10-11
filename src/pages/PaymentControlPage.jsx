@@ -475,7 +475,7 @@ export default function PaymentControlPage() {
                         <td>{formatDate(item.created_at)}</td>
                         <td>
                           <div className="pay-actions">
-                            <button type="button" className="pay-action confirm" disabled={!canReview || disabled} onClick={() => reviewPayment(item, 'confirm')}>Approve</button>
+                            <button type="button" className="pay-action confirm" disabled={!canReview || disabled} onClick={() => navigate('/payment-recovery')}>Approve with Passkey</button>
                             <button type="button" className="pay-action reject" disabled={!canReview || disabled} onClick={() => reviewPayment(item, 'reject')}>Reject</button>
                           </div>
                         </td>
