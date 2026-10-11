@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import DailyReadersSection from '../components/DailyReadersSection'
 import ReaderRankingSection from '../components/ReaderRankingSection'
+import ReaderPeriodSection from '../components/ReaderPeriodSection'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -393,6 +394,7 @@ function ReaderGroupDetailsDrawer({ item, onClose }) {
 
 export default function AdminReadersTodayPage() {
   const [activeTab, setActiveTab] = useState('story')
+  const [showTodayDetails, setShowTodayDetails] = useState(false)
   const [sortOrder, setSortOrder] = useState('desc')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -421,7 +423,7 @@ export default function AdminReadersTodayPage() {
   }, [search])
 
   useEffect(() => {
-    if (activeTab === 'daily' || activeTab === 'ranking') {
+    if (activeTab === 'daily' || activeTab === 'ranking' || !showTodayDetails) {
       setLoading(false)
       setError('')
       return undefined
@@ -486,11 +488,12 @@ export default function AdminReadersTodayPage() {
     return () => {
       alive = false
     }
-  }, [activeTab, page, debouncedSearch, refreshKey, sortOrder])
+  }, [activeTab, showTodayDetails, page, debouncedSearch, refreshKey, sortOrder])
 
   function switchTab(tab) {
     if (tab === activeTab) return
     setActiveTab(tab)
+    setShowTodayDetails(false)
     setSearch('')
     setDebouncedSearch('')
     setPage(1)
@@ -514,6 +517,7 @@ export default function AdminReadersTodayPage() {
       <div className="readers-today-page">
         {error ? <div className="readers-today-alert">{error}</div> : null}
 
+        {showTodayDetails && (activeTab === 'story' || activeTab === 'reader') ? (
         <div className="readers-today-summary">
           <SummaryCard
             label="Readers Today"
@@ -539,6 +543,7 @@ export default function AdminReadersTodayPage() {
             tone="yellow"
           />
         </div>
+        ) : null}
 
         <div className="readers-today-tabs">
           <button
@@ -571,10 +576,19 @@ export default function AdminReadersTodayPage() {
           </button>
         </div>
 
+        {!isDailyTab && !isRankingTab ? (
+          <div className="readers-today-mode-switch">
+            <button type="button" className={!showTodayDetails ? 'active' : ''} onClick={() => { setShowTodayDetails(false); setSelectedItem(null) }}>Period Comparison</button>
+            <button type="button" className={showTodayDetails ? 'active' : ''} onClick={() => { setShowTodayDetails(true); setSelectedItem(null) }}>Today's Details</button>
+          </div>
+        ) : null}
+
         {isDailyTab ? (
           <DailyReadersSection />
         ) : isRankingTab ? (
           <ReaderRankingSection />
+        ) : !showTodayDetails ? (
+          <ReaderPeriodSection key={activeTab} scope={activeTab} />
         ) : (
         <div className="readers-today-panel">
           <div className="readers-today-toolbar">
@@ -804,7 +818,7 @@ export default function AdminReadersTodayPage() {
         )}
       </div>
 
-      {!isDailyTab && !isRankingTab ? (
+      {!isDailyTab && !isRankingTab && showTodayDetails ? (
         isStoryTab ? (
           <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
         ) : (
@@ -816,6 +830,12 @@ export default function AdminReadersTodayPage() {
 }
 
 const styles = `
+  .readers-today-mode-switch { display: flex; gap: 5px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 12px; background: #F8FAFC; width: fit-content; max-width: 100%; }
+  .readers-today-mode-switch button { cursor: pointer; border: 0; background: transparent; color: #64748B; padding: 10px 16px; font-size: 12px; font-weight: 850; border-radius: 8px; }
+  .readers-today-mode-switch button.active { background: #4F46E5; color: #fff; }
+  .dark .readers-today-mode-switch, [data-theme="dark"] .readers-today-mode-switch { background: #1E293B; border-color: #334155; }
+  .dark .readers-today-mode-switch button, [data-theme="dark"] .readers-today-mode-switch button { color: #CBD5E1; }
+  .dark .readers-today-mode-switch button.active, [data-theme="dark"] .readers-today-mode-switch button.active { color: white; }
   .readers-today-page { display: flex; flex-direction: column; gap: 18px; }
   .readers-today-alert { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; border-radius: 14px; padding: 12px 14px; font-size: 13px; font-weight: 850; }
   .readers-today-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
