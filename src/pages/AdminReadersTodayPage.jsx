@@ -1,4 +1,3 @@
-import ReaderTrendSection from '../components/ReaderTrendSection'
 import React, { useEffect, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import DailyReadersSection from '../components/DailyReadersSection'
@@ -422,7 +421,7 @@ export default function AdminReadersTodayPage() {
   }, [search])
 
   useEffect(() => {
-    if (activeTab === 'daily' || activeTab === 'trend' || activeTab === 'ranking') {
+    if (activeTab === 'daily' || activeTab === 'ranking') {
       setLoading(false)
       setError('')
       return undefined
@@ -503,7 +502,6 @@ export default function AdminReadersTodayPage() {
   const items = Array.isArray(data.items) ? data.items : []
   const isStoryTab = activeTab === 'story'
   const isDailyTab = activeTab === 'daily'
-  const isTrendTab = activeTab === 'trend'
   const isRankingTab = activeTab === 'ranking'
 
   return (
@@ -566,13 +564,6 @@ export default function AdminReadersTodayPage() {
           </button>
           <button
             type="button"
-            className={activeTab === 'trend' ? 'active' : ''}
-            onClick={() => switchTab('trend')}
-          >
-            ↗ Reader Trend
-          </button>
-          <button
-            type="button"
             className={activeTab === 'ranking' ? 'active' : ''}
             onClick={() => switchTab('ranking')}
           >
@@ -582,8 +573,6 @@ export default function AdminReadersTodayPage() {
 
         {isDailyTab ? (
           <DailyReadersSection />
-        ) : isTrendTab ? (
-          <ReaderTrendSection />
         ) : isRankingTab ? (
           <ReaderRankingSection />
         ) : (
@@ -815,7 +804,7 @@ export default function AdminReadersTodayPage() {
         )}
       </div>
 
-      {!isDailyTab && !isTrendTab && !isRankingTab ? (
+      {!isDailyTab && !isRankingTab ? (
         isStoryTab ? (
           <StoryDetailsDrawer item={selectedItem} onClose={() => setSelectedItem(null)} />
         ) : (
@@ -837,7 +826,7 @@ const styles = `
   .readers-today-summary-label { color: #64748B; font-size: 12px; font-weight: 900; }
   .readers-today-summary-value { margin-top: 8px; color: #0F172A; font-size: 27px; font-weight: 950; }
   .readers-today-summary-text { margin-top: 4px; color: #64748B; font-size: 12px; font-weight: 750; }
-  .readers-today-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 175px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
+  .readers-today-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 175px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
   .readers-today-tabs button { min-height: 38px; border: 0; border-radius: 10px; background: transparent; color: #64748B; padding: 0 18px; font-size: 12px; font-weight: 900; cursor: pointer; }
   .readers-today-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 6px 14px rgba(79, 70, 229, 0.18); }
   .readers-today-tabs button:disabled { cursor: default; opacity: 0.55; }
