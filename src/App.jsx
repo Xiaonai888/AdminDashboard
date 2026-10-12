@@ -72,6 +72,7 @@ import AdminMonthlyVotePage from './pages/AdminMonthlyVotePage'
 import AdminEventPage from './pages/AdminEventPage'
 import AdminRolesPage from './pages/AdminRolesPage'
 import AdminStaffAccountsPage from './pages/AdminStaffAccountsPage'
+import AdminDeviceOfflineControlPage from './pages/AdminDeviceOfflineControlPage';
 
 
 function ComingSoon({ title }) {
@@ -192,6 +193,7 @@ export default function App() {
         <Route path="/income/diamond-gifts" element={<ProtectedPage><AdminDiamondGiftsPage /></ProtectedPage>} />
         <Route path="/income/author-page" element={<ProtectedPage><AdminAuthorPageIncomePage /></ProtectedPage>} />
         <Route path="/author-library" element={<ProtectedPage><AdminAuthorLibraryPage /></ProtectedPage>} />
+        <Route path="/device-offline-control" element={<ProtectedPage permission="system_control.manage"><AdminDeviceOfflineControlPage /></ProtectedPage>} />
         <Route path="/discover-control" element={<ProtectedPage permission="income.view"><AdminDiscoverControlPage /></ProtectedPage>} />
         <Route path="/income/shadow-mall" element={<ProtectedPage><AdminShadowMallIncomePage /></ProtectedPage>} />
         <Route path="/payment" element={<ProtectedPage><PaymentControlPage /></ProtectedPage>} />
