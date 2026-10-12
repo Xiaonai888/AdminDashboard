@@ -654,6 +654,9 @@ export default function AdminSystemProblemReportsPage() {
   const [error, setError] =
     useState('')
 
+  const [loadError, setLoadError] =
+    useState('')
+
   const [
     updatedAt,
     setUpdatedAt,
@@ -661,6 +664,9 @@ export default function AdminSystemProblemReportsPage() {
 
   const lastLoadedAtRef =
     useRef(0)
+
+  const activeRequestRef =
+    useRef(null)
 
   const currentRange = useCallback(() => {
     return getRange(
@@ -707,86 +713,104 @@ export default function AdminSystemProblemReportsPage() {
       const token = getToken()
 
       if (!token) {
-        setError(
-          'Admin token is missing.'
-        )
+        setLoadError('Admin token is missing.')
         return
       }
 
       const range = currentRange()
-      const rangeError =
-        validateRange(range)
+      const rangeError = validateRange(range)
 
       if (rangeError) {
-        setError(rangeError)
+        setLoadError(rangeError)
         return
       }
+
+      activeRequestRef.current?.abort()
+      const controller = new AbortController()
+      activeRequestRef.current = controller
 
       try {
         setLoading(true)
 
-        const params =
-          new URLSearchParams({
-            limit: '200',
-            from: new Date(
-              range.from
-            ).toISOString(),
-            to: new Date(
-              range.to
-            ).toISOString(),
-          })
+        const params = new URLSearchParams({
+          limit: '200',
+          from: new Date(range.from).toISOString(),
+        })
 
-        const response = await fetch(
-          `${API_URL}/api/admin/system-control/incidents?${params}`,
-          auth()
-        )
+        if (rangeKey === 'custom') {
+          params.set('to', new Date(range.to).toISOString())
+        }
 
-        const payload =
-          await response
-            .json()
-            .catch(() => ({}))
+        const requestIncidents = async () => {
+          const response = await fetch(
+            `${API_URL}/api/admin/system-control/incidents?${params}`,
+            {
+              ...auth(),
+              signal: controller.signal,
+            }
+          )
+          const payload = await response.json().catch(() => ({}))
+          return { response, payload }
+        }
+
+        let { response, payload } = await requestIncidents()
+        let usedClockFallback = false
 
         if (
-          !response.ok ||
-          payload?.ok !== true
+          response.status === 400 &&
+          params.has('to') &&
+          String(payload?.message || '').includes(
+            'Incident date range must include past or current time'
+          )
         ) {
+          params.delete('to')
+          const retry = await requestIncidents()
+          response = retry.response
+          payload = retry.payload
+          usedClockFallback = true
+        }
+
+        if (!response.ok || payload?.ok !== true) {
           throw new Error(
-            payload?.message ||
-              'Failed to load incident reports.'
+            payload?.message || 'Failed to load incident reports.'
           )
         }
 
-        setItems(
-          Array.isArray(
-            payload.incidents
-          )
-            ? payload.incidents
-            : []
-        )
+        if (!Array.isArray(payload.incidents)) {
+          throw new Error('Invalid incident reports response.')
+        }
+
+        if (controller.signal.aborted) return
+
+        const nextItems = usedClockFallback
+          ? payload.incidents.filter((item) => {
+              const seenAt = Date.parse(item.last_seen_at || '')
+              return Number.isFinite(seenAt) &&
+                seenAt >= range.from &&
+                seenAt <= range.to
+            })
+          : payload.incidents
 
         const now = Date.now()
-
-        setUpdatedAt(
-          new Date(now)
-        )
-
-        lastLoadedAtRef.current =
-          now
-
+        setItems(nextItems)
+        setUpdatedAt(new Date(now))
+        lastLoadedAtRef.current = now
+        setLoadError('')
         setError('')
-      } catch (loadError) {
-        setError(
-          loadError?.message ||
-            'Failed to load incident reports.'
-        )
+      } catch (loadErrorValue) {
+        if (!controller.signal.aborted) {
+          setLoadError(
+            loadErrorValue?.message || 'Failed to load incident reports.'
+          )
+        }
       } finally {
-        setLoading(false)
+        if (activeRequestRef.current === controller) {
+          activeRequestRef.current = null
+          setLoading(false)
+        }
       }
     },
-    [
-      currentRange,
-      validateRange,
-    ]
+    [currentRange, validateRange, rangeKey]
   )
 
   useEffect(() => {
@@ -814,6 +838,7 @@ export default function AdminSystemProblemReportsPage() {
         'visibilitychange',
         onVisibility
       )
+      activeRequestRef.current?.abort()
     }
   }, [load])
 
@@ -836,6 +861,8 @@ export default function AdminSystemProblemReportsPage() {
     )
 
   const visible = useMemo(() => {
+    if (loadError) return []
+
     const search =
       query.trim().toLowerCase()
 
@@ -875,6 +902,7 @@ export default function AdminSystemProblemReportsPage() {
     items,
     query,
     statusFilter,
+    loadError,
   ])
 
   const selectedLabel =
@@ -1058,6 +1086,8 @@ export default function AdminSystemProblemReportsPage() {
 
   const downloadFilteredCsv =
     useCallback(() => {
+      if (loadError) return
+
       const header = [
         'id',
         'severity',
@@ -1134,7 +1164,7 @@ export default function AdminSystemProblemReportsPage() {
           URL.revokeObjectURL(url),
         1000
       )
-    }, [visible])
+    }, [visible, loadError])
 
   return (
     <AdminLayout
@@ -1260,7 +1290,7 @@ export default function AdminSystemProblemReportsPage() {
 
             <span className="pr-meta">
               {rangeLabel} ·{' '}
-              {items.length} reports ·
+              {loadError ? '—' : items.length} reports ·
               Updated{' '}
               {updatedAt
                 ? updatedAt.toLocaleTimeString(
@@ -1372,9 +1402,9 @@ export default function AdminSystemProblemReportsPage() {
           </div>
         </div>
 
-        {error ? (
+        {loadError || error ? (
           <div className="pr-error">
-            {error}
+            {loadError || error}
           </div>
         ) : null}
 
@@ -1401,7 +1431,7 @@ export default function AdminSystemProblemReportsPage() {
                 </div>
 
                 <div className="pr-card-value">
-                  {countByStatus(
+                  {loadError ? '—' : countByStatus(
                     option.key
                   )}
                 </div>
@@ -1509,7 +1539,7 @@ export default function AdminSystemProblemReportsPage() {
               </div>
             ))}
 
-            {!visible.length ? (
+            {!visible.length && !loadError && !loading ? (
               <div className="pr-empty">
                 No matching incident reports in this time range.
               </div>
