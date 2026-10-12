@@ -198,6 +198,7 @@ const navSections = [
       { path: '/payment-recovery', label: 'Payment Recovery & Top-Up', icon: 'M12 2v20 M7 7h10 M7 17h10 M4 12h16' },
       { path: '/balance', label: 'Balance', icon: 'M20 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2z M16 13h4 M4 7V5a2 2 0 0 1 2-2h12v4' },
       { path: '/author-income', label: 'Author Income', icon: 'M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M4 22a8 8 0 0 1 16 0' },
+      { path: '/device-offline-control', label: 'Device Offline Control', icon: 'M4 5h16v12H4z M9 21h6 M12 17v4' },
       { path: '/author-library', label: 'Author Library', icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z' },
       { path: '/discover-control', label: 'Discover Control', icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M9 12l2 2 4-5' },
       { path: '/google-ads', label: 'Google Ads', icon: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5' },
