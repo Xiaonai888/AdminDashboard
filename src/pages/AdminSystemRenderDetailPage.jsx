@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminRenderMonthlyPanel from '../components/AdminRenderMonthlyPanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -704,6 +705,8 @@ export default function AdminSystemRenderDetailPage() {
             Render returned bandwidth data with an unsupported unit. Local Shadow measurements remain available.
           </div>
         ) : null}
+
+        <AdminRenderMonthlyPanel />
 
         <section className="block">
           <div className="head">
