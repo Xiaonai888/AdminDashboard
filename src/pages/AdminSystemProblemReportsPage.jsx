@@ -535,6 +535,146 @@ const css = `
     font-weight: 850;
   }
 
+  .pr-recent-body {
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .pr-recent-actions {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+  }
+
+  .pr-recent-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    color: #475569;
+    font-size: 10px;
+    font-weight: 750;
+  }
+
+  .pr-recent-stats strong {
+    color: #1E293B;
+    font-size: 15px;
+  }
+
+  .pr-recent-note {
+    color: #64748B;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .pr-recent-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .pr-recent-row {
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    background: #FFFFFF;
+    color: #334155;
+    min-width: 0;
+  }
+
+  .pr-recent-row summary {
+    display: grid;
+    grid-template-columns: 54px minmax(120px, 2fr) minmax(90px, 0.7fr) 85px minmax(110px, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    cursor: pointer;
+    list-style: none;
+    font-size: 11px;
+  }
+
+  .pr-recent-row summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .pr-recent-row summary:hover {
+    background: #F8FAFC;
+  }
+
+  .pr-recent-code {
+    width: fit-content;
+    padding: 5px 7px;
+    border-radius: 7px;
+    background: #FFF7ED;
+    color: #9A3412;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pr-recent-code.server {
+    background: #FEF2F2;
+    color: #B91C1C;
+  }
+
+  .pr-recent-code.ok {
+    background: #EFF6FF;
+    color: #1D4ED8;
+  }
+
+  .pr-recent-route {
+    overflow-wrap: anywhere;
+    color: #1E293B;
+    font-weight: 750;
+  }
+
+  .pr-recent-count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+  }
+
+  .pr-recent-row-detail {
+    border-top: 1px solid #EEF2F7;
+    padding: 12px 14px;
+    display: grid;
+    gap: 8px;
+    font-size: 10px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+
+  .pr-recent-row-detail strong {
+    color: #1E293B;
+  }
+
+  .pr-recent-sample {
+    padding: 9px 11px;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
+    background: #FFFBEB;
+    color: #92400E;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .pr-recent-empty {
+    padding: 20px 12px;
+    text-align: center;
+    font-size: 11px;
+    color: #64748B;
+  }
+
+  @media (max-width: 800px) {
+    .pr-recent-row summary {
+      grid-template-columns: 48px minmax(0, 1fr) 65px;
+      gap: 8px;
+    }
+
+    .pr-recent-provider,
+    .pr-recent-seen {
+      display: none;
+    }
+  }
+
   @media (max-width: 1250px) {
     .pr-cards {
       grid-template-columns:
@@ -667,6 +807,67 @@ export default function AdminSystemProblemReportsPage() {
 
   const activeRequestRef =
     useRef(null)
+
+  const [recentMinutes, setRecentMinutes] = useState(60)
+  const [recentData, setRecentData] = useState(null)
+  const [recentLoading, setRecentLoading] = useState(false)
+  const [recentError, setRecentError] = useState('')
+  const [recentUpdatedAt, setRecentUpdatedAt] = useState(null)
+  const recentAbortRef = useRef(null)
+  const recentLastLoadedAtRef = useRef(0)
+
+  const loadRecent = useCallback(async () => {
+    if (!getToken()) {
+      setRecentError('Admin token is missing.')
+      return
+    }
+
+    recentAbortRef.current?.abort()
+    const controller = new AbortController()
+    recentAbortRef.current = controller
+    recentLastLoadedAtRef.current = Date.now()
+    setRecentLoading(true)
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/system-control/diagnostics/recent-errors?minutes=${recentMinutes}`,
+        { ...auth(), signal: controller.signal }
+      )
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || payload?.ok !== true || !Array.isArray(payload.errors)) {
+        throw new Error(payload?.message || `Unable to load recent errors (HTTP ${response.status}).`)
+      }
+      if (controller.signal.aborted) return
+      setRecentData(payload)
+      setRecentError('')
+      setRecentUpdatedAt(new Date())
+      recentLastLoadedAtRef.current = Date.now()
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setRecentError(error?.message || 'Unable to load recent errors.')
+      }
+    } finally {
+      if (recentAbortRef.current === controller) {
+        recentAbortRef.current = null
+        setRecentLoading(false)
+      }
+    }
+  }, [recentMinutes])
+
+  useEffect(() => {
+    void loadRecent()
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' &&
+          Date.now() - recentLastLoadedAtRef.current >= 2 * 60 * 1000) {
+        void loadRecent()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      recentAbortRef.current?.abort()
+    }
+  }, [loadRecent])
 
   const currentRange = useCallback(() => {
     return getRange(
@@ -1439,6 +1640,93 @@ export default function AdminSystemProblemReportsPage() {
             )
           )}
         </div>
+
+        <section className="pr-block" aria-label="Recent request errors">
+          <div className="pr-head">
+            <div>
+              <div className="pr-head-title">Recent Errors</div>
+              <div className="pr-head-sub">
+                HTTP failures and database/provider errors captured by Backend
+              </div>
+            </div>
+            <div className="pr-recent-actions">
+              <select
+                className="pr-select"
+                aria-label="Recent error time range"
+                value={recentMinutes}
+                onChange={(event) => setRecentMinutes(Number(event.target.value))}
+              >
+                <option value={60}>Last 60 minutes</option>
+                <option value={120}>Last 120 minutes</option>
+              </select>
+              <button
+                type="button"
+                className="pr-btn"
+                disabled={recentLoading}
+                onClick={loadRecent}
+              >
+                {recentLoading ? 'Loading…' : 'Refresh Errors'}
+              </button>
+            </div>
+          </div>
+          <div className="pr-recent-body">
+            {recentError ? (
+              <div className="pr-error" role="alert">{recentError}</div>
+            ) : null}
+            {recentData ? (
+              <>
+                <div className="pr-recent-stats">
+                  <span><strong>{Number(recentData.total_observed || 0).toLocaleString()}</strong> recorded failures</span>
+                  <span><strong>{Number(recentData.affected_routes || 0).toLocaleString()}</strong> affected routes</span>
+                  <span>{Array.isArray(recentData.errors) ? recentData.errors.length : 0} groups shown</span>
+                  <span>Updated {formatDate(recentUpdatedAt)}</span>
+                </div>
+                <div className="pr-recent-note">
+                  Source: Backend process memory · Approximate 15-minute buckets ·
+                  Available for up to 2 hours · History is not complete and resets on Render restart.
+                  {recentData.has_more ? ' Only the top 50 error groups are shown.' : ''}
+                </div>
+              </>
+            ) : null}
+            {recentLoading && !recentData ? (
+              <div className="pr-recent-empty">Loading recent errors…</div>
+            ) : null}
+            {!recentLoading && !recentError && recentData?.errors?.length === 0 ? (
+              <div className="pr-recent-empty">No errors recorded in the available Backend memory window.</div>
+            ) : null}
+            {recentData?.errors?.length > 0 ? (
+              <div className="pr-recent-list">
+                {recentData.errors.map((entry, index) => (
+                  <details
+                    className="pr-recent-row"
+                    key={`${entry.route || ''}:${entry.http_status || 0}:${entry.provider || ''}:${entry.target || ''}:${index}`}
+                  >
+                    <summary>
+                      <span className={`pr-recent-code ${Number(entry.http_status) >= 500 ? 'server' : Number(entry.http_status) < 400 ? 'ok' : ''}`}>
+                        {entry.http_status ?? '—'}
+                      </span>
+                      <span className="pr-recent-route">{entry.route || 'Unknown route'}</span>
+                      <span className="pr-recent-provider">{entry.provider || 'APPLICATION'}</span>
+                      <span className="pr-recent-count">{Number(entry.count || 0).toLocaleString()} times</span>
+                      <span className="pr-recent-seen">{formatDate(entry.last_seen_at)}</span>
+                    </summary>
+                    <div className="pr-recent-row-detail">
+                      <div><strong>Last error:</strong> {formatDate(entry.last_seen_at)}</div>
+                      <div><strong>First error:</strong> {formatDate(entry.first_seen_at)}</div>
+                      <div><strong>Failure class:</strong> {labelize(entry.error_class)}</div>
+                      <div><strong>Provider:</strong> {entry.provider || 'APPLICATION'}</div>
+                      <div><strong>Target:</strong> {entry.target || '—'}</div>
+                      <div><strong>External failures:</strong> {Number(entry.external_error_count || 0).toLocaleString()}</div>
+                      <div><strong>Sample request ID:</strong> {entry.sample_request_id || '—'}</div>
+                      <div><strong>Sample error:</strong></div>
+                      <div className="pr-recent-sample">{entry.sample_error || `HTTP ${entry.http_status ?? 'unknown'}`}</div>
+                    </div>
+                  </details>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
 
         <section className="pr-block">
           <div className="pr-head">
