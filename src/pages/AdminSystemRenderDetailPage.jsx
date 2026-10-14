@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminRenderMonthlyPanel from '../components/AdminRenderMonthlyPanel'
 
@@ -389,6 +389,9 @@ const css = `
   }
 `
 
+const SNAPSHOT_AUTO_REFRESH_MS = 2 * 60 * 1000
+const SNAPSHOT_ERROR_BACKOFF_MS = 5 * 60 * 1000
+
 export default function AdminSystemRenderDetailPage() {
   const [usage, setUsage] = useState(null)
   const [providers, setProviders] = useState(null)
@@ -397,8 +400,16 @@ export default function AdminSystemRenderDetailPage() {
   const [forcing, setForcing] = useState(false)
   const [error, setError] = useState('')
   const [lastLoadedAt, setLastLoadedAt] = useState(0)
+  const snapshotInFlightRef = useRef(false)
+  const nextAutoSnapshotAtRef = useRef(0)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (manual = false) => {
+    if (snapshotInFlightRef.current) return
+    if (!manual && Date.now() < nextAutoSnapshotAtRef.current) return
+
+    snapshotInFlightRef.current = true
+    nextAutoSnapshotAtRef.current = Date.now() + SNAPSHOT_AUTO_REFRESH_MS
+
     try {
       setLoading(true)
 
@@ -413,7 +424,7 @@ export default function AdminSystemRenderDetailPage() {
       if (!response.ok || !payload.ok) {
         throw new Error(
           payload.message ||
-            'Failed to load Render usage.'
+            `Failed to load Render usage (HTTP ${response.status}).`
         )
       }
 
@@ -423,11 +434,13 @@ export default function AdminSystemRenderDetailPage() {
       setLastLoadedAt(Date.now())
       setError('')
     } catch (loadError) {
+      nextAutoSnapshotAtRef.current = Date.now() + SNAPSHOT_ERROR_BACKOFF_MS
       setError(
         loadError?.message ||
           'Failed to load Render usage.'
       )
     } finally {
+      snapshotInFlightRef.current = false
       setLoading(false)
     }
   }, [])
@@ -453,6 +466,7 @@ export default function AdminSystemRenderDetailPage() {
 
       setProviders(payload.providers || null)
       setLastLoadedAt(Date.now())
+      nextAutoSnapshotAtRef.current = Date.now() + SNAPSHOT_AUTO_REFRESH_MS
       setError('')
     } catch (refreshError) {
       setError(
@@ -465,16 +479,16 @@ export default function AdminSystemRenderDetailPage() {
   }, [])
 
   useEffect(() => {
-    load()
+    void load(true)
   }, [load])
 
   useEffect(() => {
     const onVisible = () => {
       if (
         document.visibilityState === 'visible' &&
-        Date.now() - lastLoadedAt >= 60 * 1000
+        Date.now() - lastLoadedAt >= SNAPSHOT_AUTO_REFRESH_MS
       ) {
-        load()
+        void load()
       }
     }
 
@@ -498,9 +512,9 @@ export default function AdminSystemRenderDetailPage() {
         !loading &&
         !forcing
       ) {
-        load()
+        void load()
       }
-    }, 30 * 1000)
+    }, SNAPSHOT_AUTO_REFRESH_MS)
 
     return () => window.clearInterval(interval)
   }, [forcing, load, loading])
@@ -671,7 +685,7 @@ export default function AdminSystemRenderDetailPage() {
             <button
               type="button"
               className="btn"
-              onClick={load}
+              onClick={() => void load(true)}
               disabled={loading || forcing}
             >
               {loading ? 'Loading…' : 'Reload'}
@@ -713,7 +727,7 @@ export default function AdminSystemRenderDetailPage() {
             <strong>Live Runtime Memory</strong>
             <span>
               {runtime?.generated_at
-                ? `Updated ${new Date(runtime.generated_at).toLocaleTimeString()} · auto refresh 30s`
+                ? `Updated ${new Date(runtime.generated_at).toLocaleTimeString()} · auto refresh 2m`
                 : 'Waiting for runtime snapshot'}
             </span>
           </div>
