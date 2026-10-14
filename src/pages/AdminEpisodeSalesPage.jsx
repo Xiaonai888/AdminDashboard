@@ -357,6 +357,30 @@ const styles = `
     color: #16A34A;
   }
 
+  .episode-sales-money-button {
+    color: inherit;
+    font: inherit;
+    font-weight: inherit;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+  }
+
+  .episode-sales-money-button:hover,
+  .episode-sales-money-button:focus-visible {
+    text-decoration-color: currentColor;
+  }
+
+  .episode-sales-money-button:focus-visible {
+    outline: 2px solid #6366F1;
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
   .episode-sales-status {
     display: inline-flex;
     align-items: center;
@@ -859,6 +883,127 @@ function parseSseBlock(block) {
   }
 }
 
+function formatEpisodeEventDuration(seconds) {
+  if (seconds === null || seconds === undefined) return 'Not recorded'
+  const value = Number(seconds)
+  if (!Number.isFinite(value)) return 'Not recorded'
+  if (value <= 0) return 'Ended'
+  const wholeMinutes = Math.ceil(value / 60)
+  const days = Math.floor(wholeMinutes / 1440)
+  const hours = Math.floor((wholeMinutes % 1440) / 60)
+  const minutes = wholeMinutes % 60
+  return days > 0 ? `${days}d ${hours}h` : hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+}
+
+function EpisodeSalesEventPopup({ popup, onClose }) {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const result = popup.data || {}
+  const verified = Array.isArray(result.events) ? result.events : []
+  const unverified = Array.isArray(result.unverified_events) ? result.unverified_events : []
+  const events = [
+    ...verified.map((event) => ({ ...event, verified: true })),
+    ...unverified.map((event) => ({ ...event, verified: false })),
+  ]
+  const sectionStyle = {
+    padding: 15,
+    border: '1px solid #E2E8F0',
+    borderRadius: 15,
+    background: '#FFFFFF',
+  }
+  const smallStyle = { color: '#64748B', fontSize: 12, lineHeight: 1.6 }
+  const numberStyle = { color: '#0F172A', fontSize: 21, fontWeight: 900 }
+
+  return (
+    <div
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+      style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(15,23,42,.58)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Revenue Events"
+        style={{ width: 'min(100%, 600px)', maxHeight: 'min(86vh, 850px)', overflowY: 'auto', borderRadius: 22, padding: 20, background: '#F8FAFC', boxShadow: '0 24px 70px rgba(15,23,42,.24)' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 19, fontWeight: 900, color: '#0F172A' }}>Revenue Events</div>
+            <div style={smallStyle}>Events that applied or may have applied at the time of purchase.</div>
+            <div style={smallStyle}>{popup.item ? `${authorName(popup.item)} · ${formatDateTime(popup.item.created_at)}` : ''}</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close event details" style={{ border: '1px solid #E2E8F0', borderRadius: 10, background: '#FFFFFF', color: '#334155', fontSize: 20, width: 34, height: 34, cursor: 'pointer', flexShrink: 0 }}>×</button>
+        </div>
+
+        {popup.loading ? (
+          <div style={sectionStyle}>Loading event details...</div>
+        ) : popup.error ? (
+          <div style={{ ...sectionStyle, color: '#B91C1C' }}>{popup.error}</div>
+        ) : (
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ ...sectionStyle, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12 }}>
+              <div>
+                <div style={smallStyle}>Recorded author share</div>
+                <div style={{ ...numberStyle, color: '#16A34A' }}>{Number(result.recorded_author_share_percent || 0).toFixed(2)}%</div>
+                <div style={smallStyle}>{formatUsd(popup.item?.author_earnings_usd)}</div>
+              </div>
+              <div>
+                <div style={smallStyle}>Recorded platform share</div>
+                <div style={numberStyle}>{Number(result.recorded_platform_share_percent || 0).toFixed(2)}%</div>
+                <div style={smallStyle}>{formatUsd(popup.item?.platform_income_usd)}</div>
+              </div>
+            </div>
+
+            <div style={sectionStyle}>
+              <div style={{ fontSize: 13, fontWeight: 850, color: '#0F172A', marginBottom: 5 }}>How the share was selected</div>
+              <div style={smallStyle}>Recorded source: {result.recorded_share_source || 'Not recorded'}</div>
+              <div style={smallStyle}>Quest Stage {result.stage?.stage_number ?? '—'}: {result.stage?.share_percent == null ? 'Not recorded' : `${result.stage.share_percent}%`}</div>
+              <div style={smallStyle}>Highest verifiable share including Stage: {Number(result.best_verified_share_percent || 0)}%</div>
+              {result.matches_verified_floor === false ? (
+                <div style={{ marginTop: 7, color: '#B91C1C', fontSize: 12, fontWeight: 750 }}>Recorded share is lower than a verified active share. Please investigate.</div>
+              ) : null}
+              {result.history_complete === false ? (
+                <div style={{ marginTop: 7, color: '#92400E', fontSize: 12 }}>Some event history cannot be verified from the available records. The highest verified share may not tell the full story.</div>
+              ) : null}
+            </div>
+
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#0F172A', marginTop: 3 }}>Event history at purchase ({events.length})</div>
+            {events.length === 0 ? (
+              <div style={sectionStyle}>No event could be confirmed for this purchase. The Quest Stage may still apply.</div>
+            ) : events.map((event, index) => (
+              <div style={sectionStyle} key={`${event.key || 'event'}-${index}`}>
+                <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ color: '#0F172A', fontSize: 14, fontWeight: 850 }}>{event.name || event.key || 'Event'}</div>
+                  <div style={{ color: '#4F46E5', fontSize: 16, fontWeight: 900 }}>{Number(event.author_share_percent || 0)}%</div>
+                </div>
+                <div style={{ ...smallStyle, fontWeight: 750, color: event.verified ? '#15803D' : '#B45309' }}>
+                  {event.verified ? 'Verified at purchase' : `Not fully verified: ${String(event.verification || 'history_unavailable').replace(/_/g, ' ')}`}
+                </div>
+                <div style={smallStyle}>Author {Number(event.author_share_percent || 0)}% · Platform {Number(event.platform_share_percent || 0)}%</div>
+                <div style={smallStyle}>Start: {formatDateTime(event.started_at)}</div>
+                <div style={smallStyle}>End: {formatDateTime(event.ends_at)}</div>
+                <div style={smallStyle}>Time left when purchased: {formatEpisodeEventDuration(event.remaining_seconds_at_purchase)}</div>
+                <div style={smallStyle}>Time left now: {formatEpisodeEventDuration(event.remaining_seconds_now)}</div>
+              </div>
+            ))}
+
+            <div style={{ color: '#64748B', fontSize: 11, lineHeight: 1.6 }}>
+              All event times use Cambodia time. Current remaining time is measured when details are opened. This view does not change earnings.
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
 export default function AdminEpisodeSalesPage() {
   const navigate = useNavigate()
   const [rangeKey, setRangeKey] =
@@ -893,6 +1038,50 @@ export default function AdminEpisodeSalesPage() {
     useRef(null)
   const reconcilePromiseRef =
     useRef(null)
+
+  const [eventPopup, setEventPopup] = useState({
+    open: false,
+    loading: false,
+    error: '',
+    item: null,
+    data: null,
+  })
+  const eventPopupRequest = useRef(null)
+
+  useEffect(() => () => eventPopupRequest.current?.abort(), [])
+
+  async function openEventPopup(item) {
+    if (!item?.purchase_key) return
+    eventPopupRequest.current?.abort()
+    const controller = new AbortController()
+    eventPopupRequest.current = controller
+    setSelectedKey(item.purchase_key)
+    setEventPopup({ open: true, loading: true, error: '', item, data: null })
+
+    try {
+      const query = new URLSearchParams({ event_purchase_key: item.purchase_key })
+      const response = await fetch(
+        `${API_URL}/api/admin/income/episode-sales?${query.toString()}`,
+        { headers: authHeaders(), signal: controller.signal }
+      )
+      const details = await response.json().catch(() => ({}))
+      if (!response.ok || details.ok === false) {
+        throw new Error(details.message || 'Failed to load revenue events')
+      }
+      if (!controller.signal.aborted) {
+        setEventPopup({ open: true, loading: false, error: '', item, data: details })
+      }
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setEventPopup({ open: true, loading: false, error: error.message || 'Failed to load revenue events', item, data: null })
+      }
+    }
+  }
+
+  function closeEventPopup() {
+    eventPopupRequest.current?.abort()
+    setEventPopup((previous) => ({ ...previous, open: false }))
+  }
 
   const transactions =
     data?.transactions || []
@@ -1784,14 +1973,34 @@ export default function AdminEpisodeSalesPage() {
                                   </div>
                                 </td>
                                 <td className="episode-sales-money good">
-                                  {formatUsd(
-                                    item.author_earnings_usd
-                                  )}
+                                  <button
+                                    type="button"
+                                    className="episode-sales-money-button"
+                                    aria-label="View revenue events for author earnings"
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      openEventPopup(item)
+                                    }}
+                                  >
+                                    {formatUsd(
+                                      item.author_earnings_usd
+                                    )}
+                                  </button>
                                 </td>
                                 <td className="episode-sales-money">
-                                  {formatUsd(
-                                    item.platform_income_usd
-                                  )}
+                                  <button
+                                    type="button"
+                                    className="episode-sales-money-button"
+                                    aria-label="View revenue events for platform income"
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      openEventPopup(item)
+                                    }}
+                                  >
+                                    {formatUsd(
+                                      item.platform_income_usd
+                                    )}
+                                  </button>
                                 </td>
                                 <td>
                                   <span
@@ -2187,6 +2396,12 @@ export default function AdminEpisodeSalesPage() {
           </div>
         </div>
       </div>
+      {eventPopup.open && (
+        <EpisodeSalesEventPopup
+          popup={eventPopup}
+          onClose={closeEventPopup}
+        />
+      )}
     </AdminLayout>
   )
 }
