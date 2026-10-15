@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminAuthorPageAuthorIncomeTab from './AdminAuthorPageAuthorIncomeTab'
+import AdminAuthorIncomeExportBar from '../components/AdminAuthorIncomeExportBar'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -954,6 +955,7 @@ export default function AdminAuthorIncomePage() {
             </div>
 
             <div className="author-income-drawer-body">
+              <AdminAuthorIncomeExportBar authorId={authorIdFor(selectedAuthor)} status={filters.status} shareSource={filters.share_source} />
               <section className="author-income-detail-summary">
                 <div className="author-income-detail-card">
                   <div className="author-income-detail-label">Paid Diamonds</div>
