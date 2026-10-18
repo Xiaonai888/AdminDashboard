@@ -908,6 +908,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   const [payoutStatus, setPayoutStatus] =
     useState('all')
   const [payouts, setPayouts] = useState([])
+  const [payoutLoaded, setPayoutLoaded] = useState(false)
   const [payoutSummary, setPayoutSummary] =
     useState({})
   const [payoutLoading, setPayoutLoading] =
@@ -1094,6 +1095,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
 
       setPayouts(result.payouts || [])
       setPayoutSummary(result.summary || {})
+      setPayoutLoaded(true)
     } catch (error) {
       setMessage(
         error.message ||
@@ -1227,12 +1229,9 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   }
 
   async function refreshAll() {
-    setSuccess('')
-    await Promise.all([
-      fetchIncome(null, 'mount'),
-      fetchPayouts(),
-    ])
-  }
+  setSuccess('')
+  await fetchIncome(null, 'mount')
+}
 
   useEffect(() => {
     refreshAll()
@@ -1744,7 +1743,11 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
                   <div className="income-empty">
                     Loading payouts...
                   </div>
-                ) : payouts.length === 0 ? (
+                ) : !payoutLoaded ? (
+  <div className="income-empty">
+    Click Filter to load payouts.
+  </div>
+) : payouts.length === 0 ? (
                   <div className="income-empty">
                     No payouts found for this filter.
                   </div>
