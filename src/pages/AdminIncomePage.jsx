@@ -1,5 +1,5 @@
 import AdminStoryPayoutConfirmModal from '../components/AdminStoryPayoutConfirmModal'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
@@ -902,6 +902,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState('')
+  const incomeRangeTimerRef = useRef(null)
 
   const [payoutMonth, setPayoutMonth] =
     useState(getPreviousMonthValue())
