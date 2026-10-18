@@ -2,6 +2,7 @@ import AdminStoryPayoutConfirmModal from '../components/AdminStoryPayoutConfirmM
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import useAdminIncomeEventRefreshKey from '../hooks/useAdminIncomeEventRefreshKey'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -31,7 +32,7 @@ async function requestIncomeSummary(
     headers?.authorization ||
     ''
   )
-  const requestKey = `${url}|${authKey}`
+  const requestKey = `${url}|${authKey}|${source === 'manual-refresh' ? 'fresh' : 'cached'}`
   const existing =
     incomeSummaryInFlight.get(requestKey)
 
@@ -903,6 +904,12 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState('')
   const incomeRangeTimerRef = useRef(null)
+  const incomeRequestRef = useRef(0)
+  const incomeFetchRef = useRef(null)
+  const lastIncomeEventRef = useRef(0)
+  const incomeWasHiddenRef = useRef(false)
+  const [incomeVisible, setIncomeVisible] = useState(() => !document.hidden)
+  const incomeEventRefreshKey = useAdminIncomeEventRefreshKey(API_URL, incomeVisible ? '*' : '')
 
   const [payoutMonth, setPayoutMonth] =
     useState(getPreviousMonthValue())
@@ -1023,44 +1030,72 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
     rangeOverride = null,
     source = 'unknown'
   ) {
+    const requestId = ++incomeRequestRef.current
+
     try {
       setLoading(true)
       setMessage('')
 
       const params = new URLSearchParams()
-      const activeFrom =
-        rangeOverride?.from ?? from
-      const activeTo =
-        rangeOverride?.to ?? to
+      const activeFrom = rangeOverride?.from ?? from
+      const activeTo = rangeOverride?.to ?? to
 
-      if (activeFrom) {
-        params.set('from', activeFrom)
-      }
-      if (activeTo) {
-        params.set('to', activeTo)
-      }
+      if (activeFrom) params.set('from', activeFrom)
+      if (activeTo) params.set('to', activeTo)
 
       const url =
         `${API_URL}/api/admin/income/summary?${params.toString()}`
 
-      const result =
-        await requestIncomeSummary(
-          url,
-          authHeaders(),
-          source
-        )
-
-      setData(result)
-    } catch (error) {
-      setMessage(
-        error.message ||
-          'Failed to load income summary'
+      const result = await requestIncomeSummary(
+        url,
+        authHeaders(),
+        source
       )
-      setData(null)
+
+      if (incomeRequestRef.current === requestId) {
+        setData(result)
+      }
+    } catch (error) {
+      if (incomeRequestRef.current === requestId) {
+        setMessage(error.message || 'Failed to load income summary')
+        setData(null)
+      }
     } finally {
-      setLoading(false)
+      if (incomeRequestRef.current === requestId) {
+        setLoading(false)
+      }
     }
   }
+
+  incomeFetchRef.current = fetchIncome
+
+  useEffect(() => {
+    if (
+      !incomeVisible ||
+      incomeEventRefreshKey === 0 ||
+      incomeEventRefreshKey === lastIncomeEventRef.current
+    ) return
+
+    lastIncomeEventRef.current = incomeEventRefreshKey
+    incomeFetchRef.current?.(null, 'manual-refresh')
+  }, [incomeEventRefreshKey, incomeVisible])
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      const visible = !document.hidden
+      setIncomeVisible(visible)
+
+      if (!visible) {
+        incomeWasHiddenRef.current = true
+      } else if (incomeWasHiddenRef.current) {
+        incomeWasHiddenRef.current = false
+        incomeFetchRef.current?.(null, 'visibility-resume')
+      }
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [])
 
   async function fetchPayouts() {
     try {
