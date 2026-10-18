@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import AdminPageRequestWatch from '../components/AdminPageRequestWatch'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -171,6 +172,7 @@ function areaPath(values, width = 900, height = 230) {
 
 export default function AdminSystemUsageAnalyticsPage() {
   const [usage, setUsage] = useState(null)
+  const [pageRequests, setPageRequests] = useState(null)
   const [history, setHistory] = useState([])
   const [view, setView] = useState('provider')
   const [loading, setLoading] = useState(false)
@@ -210,6 +212,7 @@ export default function AdminSystemUsageAnalyticsPage() {
 
       const next = data.usage || null
       setUsage(next)
+      setPageRequests(data.page_requests || null)
       setUpdatedAt(Date.now())
       setError('')
 
@@ -583,6 +586,8 @@ export default function AdminSystemUsageAnalyticsPage() {
             </div>
           </div>
         </section>
+
+        <AdminPageRequestWatch snapshot={pageRequests} />
 
         <section className="sua-block">
           <div className="sua-head">
