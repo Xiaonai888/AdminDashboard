@@ -166,6 +166,40 @@ function ProtectedPage({ children, permission = '' }) {
   );
 }
 
+if (typeof window !== 'undefined' && !window.__shadowAdminPageAttributionInstalled) {
+  window.__shadowAdminPageAttributionInstalled = true
+  const originalFetch = window.fetch.bind(window)
+  const apiOrigin = new URL(
+    import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com',
+    window.location.origin
+  ).origin
+
+  window.fetch = (input, init) => {
+    try {
+      const requestUrl = new URL(
+        input instanceof Request ? input.url : String(input),
+        window.location.origin
+      )
+      if (requestUrl.origin === apiOrigin && requestUrl.pathname.startsWith('/api/')) {
+        const headers = new Headers(
+          init?.headers || (input instanceof Request ? input.headers : undefined)
+        )
+        if (headers.has('Authorization') && !headers.has('X-Shadow-Page')) {
+          const page = window.location.pathname.toLowerCase()
+            .replace(/\/[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}(?=\/|$)/g, '/:id')
+            .replace(/\/\d+(?=\/|$)/g, '/:id')
+            .replace(/[^/a-z0-9_:.-]/g, '_')
+            .slice(0, 160)
+          headers.set('X-Shadow-Page', `ADMIN:${page || '/'}`)
+          return originalFetch(input, { ...init, headers })
+        }
+      }
+    } catch {}
+    return originalFetch(input, init)
+  }
+}
+
+
 export default function App() {
   return (
     <Router>
