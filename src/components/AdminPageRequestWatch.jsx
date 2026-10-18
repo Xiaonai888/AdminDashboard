@@ -1,6 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 const PAGE_SIZE = 20
+const HISTORY_PERIODS = [
+  { label: 'Last 1 hour', minutes: 60 },
+  { label: 'Last 6 hours', minutes: 360 },
+  { label: 'Last 24 hours', minutes: 1440 },
+  { label: 'Last 7 days', minutes: 10080 },
+]
+const HISTORY_BUCKET_MS = 15 * 60 * 1000
+const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
 function amount(value) {
   const number = Number(value)
@@ -35,8 +43,16 @@ export default function AdminPageRequestWatch({ snapshot }) {
   const [search, setSearch] = useState('')
   const [selectedPage, setSelectedPage] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const pages = useMemo(() => Array.isArray(snapshot?.pages) ? snapshot.pages : [], [snapshot])
-  const routes = useMemo(() => Array.isArray(snapshot?.routes) ? snapshot.routes : [], [snapshot])
+  const [historyMinutes, setHistoryMinutes] = useState(60)
+  const [historyResult, setHistoryResult] = useState(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const historyCache = useRef(new Map())
+  const historyController = useRef(null)
+  const historyRequestId = useRef(0)
+  const activeSnapshot = historyResult?.snapshot || snapshot
+  const pages = useMemo(() => Array.isArray(activeSnapshot?.pages) ? activeSnapshot.pages : [], [activeSnapshot])
+  const routes = useMemo(() => Array.isArray(activeSnapshot?.routes) ? activeSnapshot.routes : [], [activeSnapshot])
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase()
     return pages.filter((row) => String(row.page || '').toLowerCase().includes(query))
@@ -45,8 +61,90 @@ export default function AdminPageRequestWatch({ snapshot }) {
   const safePage = Math.min(currentPage, pageCount)
   const shownPages = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
   const selectedRoutes = useMemo(() => routes.filter((row) => row.page === selectedPage), [routes, selectedPage])
-  const totals = snapshot?.totals || {}
+  const totals = activeSnapshot?.totals || {}
   const warnings = pages.filter((row) => reviewReasons(row).length > 0).length
+
+  useEffect(() => () => {
+    historyRequestId.current += 1
+    historyController.current?.abort()
+  }, [])
+
+  const clearHistory = () => {
+    historyRequestId.current += 1
+    historyController.current?.abort()
+    historyController.current = null
+    setHistoryLoading(false)
+    setHistoryResult(null)
+    setHistoryError('')
+    setSelectedPage('')
+    setCurrentPage(1)
+  }
+
+  const loadHistory = async () => {
+    if (historyLoading) return
+    const token = sessionStorage.getItem('shadow_admin_token') ||
+      localStorage.getItem('shadow_admin_token') || ''
+    if (!token) {
+      setHistoryError('Admin token is missing.')
+      return
+    }
+
+    const endMs = Math.floor(Date.now() / HISTORY_BUCKET_MS) * HISTORY_BUCKET_MS
+    const fromMs = endMs - historyMinutes * 60 * 1000
+    const cacheKey = `${historyMinutes}:${endMs}`
+    const cached = historyCache.current.get(cacheKey)
+    setHistoryError('')
+    if (cached) {
+      setHistoryResult(cached)
+      setSelectedPage('')
+      setCurrentPage(1)
+      return
+    }
+
+    historyController.current?.abort()
+    const controller = new AbortController()
+    historyController.current = controller
+    const requestId = ++historyRequestId.current
+    setHistoryLoading(true)
+
+    try {
+      const query = new URLSearchParams({
+        from: new Date(fromMs).toISOString(),
+        to: new Date(endMs).toISOString(),
+      })
+      const response = await fetch(`${API_URL}/api/admin/system-control/history?${query}`, {
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.ok !== true || !data.history?.page_requests) {
+        throw new Error(data.message || 'Page request history is unavailable.')
+      }
+      if (historyRequestId.current !== requestId) return
+      const result = {
+        snapshot: data.history.page_requests,
+        periodMinutes: historyMinutes,
+        requestedAt: endMs,
+      }
+      historyCache.current.set(cacheKey, result)
+      if (historyCache.current.size > 4) {
+        historyCache.current.delete(historyCache.current.keys().next().value)
+      }
+      setHistoryResult(result)
+      setSelectedPage('')
+      setCurrentPage(1)
+    } catch (error) {
+      if (historyRequestId.current === requestId && error?.name !== 'AbortError') {
+        setHistoryError(error?.message || 'Failed to load page request history.')
+      }
+    } finally {
+      if (historyRequestId.current === requestId) {
+        setHistoryLoading(false)
+        historyController.current = null
+      }
+    }
+  }
 
   return (
     <section className="sua-block">
@@ -54,13 +152,42 @@ export default function AdminPageRequestWatch({ snapshot }) {
         <div>
           <div className="sua-title">Page Request Watch</div>
           <div className="sua-sub">
-            Admin and Web pages · Last {numberText(snapshot?.window_minutes || 60)} minutes · Monitoring only
+            {historyResult
+              ? `Stored history · ${HISTORY_PERIODS.find((item) => item.minutes === historyResult.periodMinutes)?.label || 'Selected range'} · 15-minute snapshots`
+              : `Admin and Web pages · Last ${numberText(snapshot?.window_minutes || 60)} minutes · Live memory · Monitoring only`}
           </div>
         </div>
         <span className="sua-pill">{numberText(warnings)} pages to review</span>
       </div>
 
       <div style={{ padding: 12, display: 'grid', gap: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+          <label className="sua-muted" htmlFor="sua-page-watch-history-period">History range</label>
+          <select
+            id="sua-page-watch-history-period"
+            value={historyMinutes}
+            onChange={(event) => setHistoryMinutes(Number(event.target.value))}
+            disabled={historyLoading}
+            style={{ minHeight: 35, border: '1px solid #CBD5E1', borderRadius: 9, padding: '5px 8px', fontSize: 11, background: 'var(--shadow-bg-primary, #fff)', color: 'inherit' }}
+          >
+            {HISTORY_PERIODS.map((item) => <option key={item.minutes} value={item.minutes}>{item.label}</option>)}
+          </select>
+          <button type="button" className="sua-btn" disabled={historyLoading} onClick={loadHistory}>
+            {historyLoading ? 'Loading history…' : 'Load History'}
+          </button>
+          {historyResult ? (
+            <button type="button" className="sua-btn" onClick={clearHistory}>Back to Live</button>
+          ) : null}
+          <span className="sua-muted">History loads only when you click; repeat ranges use session cache.</span>
+        </div>
+        {historyError ? <div className="sua-error" role="alert">{historyError}</div> : null}
+        {historyResult ? (
+          <div className="sua-sub">
+            {`Stored intervals: ${numberText(historyResult.snapshot?.stored_windows || 0)} · Window: ${new Date(historyResult.snapshot.from).toLocaleString()} – ${new Date(historyResult.snapshot.to).toLocaleString()}`}
+            {historyResult.snapshot?.partial ? ' · Partial coverage: some intervals have no stored detail.' : ' · Available stored intervals covered.'}
+            {' '}Totals include all measured rows in stored snapshots; page and route lists are capped per interval.
+          </div>
+        ) : null}
         <div className="sua-summary">
           {[
             ['API Requests', totals.requests],
@@ -131,7 +258,7 @@ export default function AdminPageRequestWatch({ snapshot }) {
               })}
             </tbody>
           </table>
-          {!snapshot ? (
+          {!activeSnapshot ? (
             <div className="sua-empty">Page statistics are not available in the current System Control snapshot.</div>
           ) : filtered.length === 0 ? (
             <div className="sua-empty">No page requests matched this search in the available window.</div>
@@ -177,7 +304,7 @@ export default function AdminPageRequestWatch({ snapshot }) {
         ) : null}
 
         <div className="sua-sub">
-          Review flags are indicators, not limits. DB rows are counted only when Supabase provides a measurable Content-Range; zero does not prove that no records were read. Data is kept in backend memory and resets on restart. No requests are blocked by this panel.
+          Review flags are indicators, not limits. DB rows are counted only when Supabase provides a measurable Content-Range; zero does not prove that no records were read. Live data resets on backend restart; stored history uses available 15-minute snapshots and may have gaps. Old aggregated rollups do not contain page details. No requests are blocked by this panel.
         </div>
       </div>
     </section>
