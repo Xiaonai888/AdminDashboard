@@ -1172,14 +1172,19 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   function handleRangeChange(event) {
     const nextKey = event.target.value
     setRangeKey(nextKey)
+    clearTimeout(incomeRangeTimerRef.current)
+    incomeRangeTimerRef.current = null
 
     if (nextKey === 'custom') return
 
-    const nextRange =
-      getIncomePresetRange(nextKey)
+    const nextRange = getIncomePresetRange(nextKey)
     setFrom(nextRange.from)
     setTo(nextRange.to)
-    fetchIncome(nextRange, 'range-change')
+
+    incomeRangeTimerRef.current = setTimeout(() => {
+      incomeRangeTimerRef.current = null
+      fetchIncome(nextRange, 'range-change')
+    }, 350)
   }
 
   function toggleSortDirection() {
@@ -1189,6 +1194,8 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   }
 
   async function handleIncomeRefresh() {
+    clearTimeout(incomeRangeTimerRef.current)
+    incomeRangeTimerRef.current = null
     let nextRange =
       getIncomePresetRange(rangeKey)
 
@@ -1236,6 +1243,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
 
   useEffect(() => {
     refreshAll()
+    return () => clearTimeout(incomeRangeTimerRef.current)
   }, [])
 
   return (
