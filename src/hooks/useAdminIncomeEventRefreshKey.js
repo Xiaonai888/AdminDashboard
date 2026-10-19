@@ -212,10 +212,8 @@ export default function useAdminIncomeEventRefreshKey(
                 parseSseBlock(block)
 
               if (
-                message?.event ===
-                  'income-change' &&
-                message.data?.source ===
-                  sourceName
+                message?.event === 'income-change' &&
+                (sourceName === '*' || message.data?.source === sourceName)
               ) {
                 scheduleRefresh()
               }
