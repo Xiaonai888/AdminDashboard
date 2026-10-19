@@ -287,6 +287,8 @@ export default function AdminAuthorIncomePage() {
   )
 
   useEffect(() => {
+    if (incomeTab !== 'episode') return undefined
+
     const controller = new AbortController()
 
     async function load() {
@@ -359,7 +361,7 @@ export default function AdminAuthorIncomePage() {
 
     load()
     return () => controller.abort()
-  }, [requestKey])
+  }, [requestKey, incomeTab])
 
   useEffect(() => {
     if (!selectedAuthor) return undefined
