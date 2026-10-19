@@ -64,6 +64,7 @@ import AdminSecurityCenterPage from './pages/AdminSecurityCenterPage';
 import AdminLoginGuardPage from './pages/AdminLoginGuardPage';
 import AdminReportCenterPage from './pages/AdminReportCenterPage';
 import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
+import AdminPromotionInsightsPage from './pages/AdminPromotionInsightsPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
 import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
@@ -299,6 +300,11 @@ export default function App() {
           path="/shadow-mall/promotion"
           element={<ProtectedPage><ShadowMallPromotionPage /></ProtectedPage>}
         />
+
+        <Route
+  path="/shadow-mall/promotion/insights"
+  element={<ProtectedPage><AdminPromotionInsightsPage /></ProtectedPage>}
+/>
 
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
