@@ -191,6 +191,19 @@ function createProgressView(fileCount, totalBytes) {
       bar.style.width = `${safeProgress}%`
       status.textContent = 'Sending all images in one batch...'
     },
+    updateDirect(loadedBytes, fileIndex, totalFiles, stage) {
+      const safeBytes = Math.max(0, Math.min(totalBytes, Number(loadedBytes || 0)))
+      const progress = totalBytes ? Math.min(99, Math.round(safeBytes / totalBytes * 100)) : 0
+      card.classList.remove('shadow-upload-progress-processing')
+      percent.textContent = `${progress}%`
+      size.textContent = `${formatMegabytes(safeBytes)} / ${formatMegabytes(totalBytes)}`
+      bar.style.width = `${progress}%`
+      status.textContent = stage === 'fallback'
+        ? `Using existing upload service for remaining images (${fileIndex}/${totalFiles})...`
+        : stage === 'finalizing'
+          ? `Saving image ${fileIndex} of ${totalFiles} to Cloudflare...`
+          : `Uploading image ${fileIndex} of ${totalFiles} directly to Cloudflare...`
+    },
     showProcessing() {
       card.classList.add('shadow-upload-progress-processing')
       percent.textContent = '100%'
@@ -217,7 +230,151 @@ function createProgressView(fileCount, totalBytes) {
   }
 }
 
-export function uploadMediaLibraryWithProgress({
+const DIRECT_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const DIRECT_MEDIA_MAX_BYTES = 5 * 1024 * 1024
+let directUnavailableUntil = 0
+
+function uploadError(message, status = 0, code = '') {
+  const error = new Error(message)
+  error.status = status
+  error.code = code
+  return error
+}
+
+async function readMediaResponse(response, fallbackMessage) {
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || result.ok === false) {
+    throw uploadError(
+      result.message || fallbackMessage,
+      response.status,
+      result.code || ''
+    )
+  }
+  return result
+}
+
+function uploadDirectImageBytes(url, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', url)
+    xhr.setRequestHeader('Content-Type', file.type)
+    xhr.timeout = 180000
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && event.total) {
+        onProgress(Math.min(file.size, event.loaded))
+      }
+    })
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(file.size)
+        resolve()
+      } else {
+        reject(uploadError('Cloudflare R2 rejected the image', xhr.status))
+      }
+    })
+    xhr.addEventListener('error', () => reject(uploadError('Cannot connect to Cloudflare R2')))
+    xhr.addEventListener('timeout', () => reject(uploadError('Cloudflare R2 upload timed out', 408)))
+    xhr.addEventListener('abort', () => reject(uploadError('Image upload was canceled', 0, 'DIRECT_UPLOAD_CANCELED')))
+    xhr.send(file)
+  })
+}
+
+async function uploadImageDirect(apiUrl, token, file, onProgress) {
+  const initResponse = await fetch(`${apiUrl}/api/media-direct/admin/init`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      category: 'admin_media_library',
+      mime_type: file.type,
+      file_size: file.size,
+    }),
+  })
+  const init = await readMediaResponse(initResponse, 'Cannot start direct image upload')
+  if (!init.upload_url || !init.upload_token) {
+    throw uploadError('Cloudflare upload session is unavailable', 503)
+  }
+
+  await uploadDirectImageBytes(init.upload_url, file, onProgress)
+
+  const finalizeResponse = await fetch(`${apiUrl}/api/media-direct/admin/finalize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ upload_token: init.upload_token }),
+  })
+  const result = await readMediaResponse(finalizeResponse, 'Cannot finish direct image upload')
+  const imageUrl = result.image_url || result.imageUrl || ''
+  const storageKey = result.path || result.storage_key || ''
+  if (!imageUrl || !storageKey) {
+    throw uploadError('Cloudflare returned an incomplete image reference', 503)
+  }
+  return {
+    original_name: file.name,
+    image_url: imageUrl,
+    storage_key: storageKey,
+  }
+}
+
+function uploadImagesThroughRender(apiUrl, token, files, onProgress) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('images', file))
+
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${apiUrl}/api/admin/media-library/upload`)
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    xhr.timeout = 300000
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && event.total) {
+        onProgress(Math.min(1, event.loaded / event.total))
+      }
+    })
+    xhr.addEventListener('load', () => {
+      let data = {}
+      try {
+        data = JSON.parse(xhr.responseText || '{}')
+      } catch {
+        data = {}
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data.ok !== false) {
+        const images = Array.isArray(data.images) ? data.images : []
+        if (images.length === files.length && images.every((item) => item?.image_url && item?.storage_key)) {
+          onProgress(1)
+          resolve(images)
+        } else {
+          reject(uploadError('Existing upload service returned incomplete images'))
+        }
+      } else {
+        reject(uploadError(data.message || 'Failed to upload images', xhr.status))
+      }
+    })
+    xhr.addEventListener('error', () => reject(uploadError('Network error while uploading images')))
+    xhr.addEventListener('timeout', () => reject(uploadError('Existing upload service timed out', 408)))
+    xhr.addEventListener('abort', () => reject(uploadError('Image upload was canceled', 0, 'DIRECT_UPLOAD_CANCELED')))
+    xhr.send(formData)
+  })
+}
+
+function canUseDirectUpload(file) {
+  return DIRECT_MEDIA_TYPES.has(file?.type) &&
+    Number.isSafeInteger(file.size) &&
+    file.size >= 16 &&
+    file.size <= DIRECT_MEDIA_MAX_BYTES
+}
+
+function canTryExistingService(error) {
+  if (error?.code === 'DIRECT_UPLOAD_CANCELED') return false
+  const status = Number(error?.status || 0)
+  return ![400, 401, 403, 413, 415, 422, 429].includes(status)
+}
+
+export async function uploadMediaLibraryWithProgress({
   apiUrl,
   token,
   files,
@@ -229,70 +386,66 @@ export function uploadMediaLibraryWithProgress({
   )
   const view = createProgressView(selectedFiles.length, totalBytes)
 
-  return new Promise((resolve, reject) => {
-    const formData = new FormData()
-    selectedFiles.forEach((file) => formData.append('images', file))
+  try {
+    if (!selectedFiles.length) throw uploadError('Please choose at least one image')
+    if (!token) throw uploadError('Please log in again before uploading images', 401)
 
-    const xhr = new XMLHttpRequest()
-    xhr.open('POST', `${apiUrl}/api/admin/media-library/upload`)
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    const results = new Array(selectedFiles.length)
+    const pendingLegacy = []
+    let completedBytes = 0
+    let directEnabled = Date.now() >= directUnavailableUntil
+    const baseUrl = String(apiUrl || '').replace(/\/+$/, '')
 
-    xhr.upload.addEventListener('progress', (event) => {
-      if (!event.lengthComputable || !event.total) return
-
-      const ratio = Math.max(0, Math.min(1, event.loaded / event.total))
-      const estimatedLoadedBytes = Math.min(
-        totalBytes,
-        Math.round(totalBytes * ratio)
-      )
-
-      view.updateUpload(ratio * 100, estimatedLoadedBytes)
-
-      if (ratio >= 1) {
-        view.showProcessing()
+    for (let index = 0; index < selectedFiles.length; index += 1) {
+      const file = selectedFiles[index]
+      if (!directEnabled || !canUseDirectUpload(file)) {
+        pendingLegacy.push(index)
+        continue
       }
-    })
-
-    xhr.upload.addEventListener('load', () => {
-      view.showProcessing()
-    })
-
-    xhr.addEventListener('load', () => {
-      let data = {}
 
       try {
-        data = JSON.parse(xhr.responseText || '{}')
-      } catch {
-        data = {}
+        view.updateDirect(completedBytes, index + 1, selectedFiles.length, 'uploading')
+        const uploaded = await uploadImageDirect(baseUrl, token, file, (uploadedBytes) => {
+          view.updateDirect(completedBytes + uploadedBytes, index + 1, selectedFiles.length, 'uploading')
+        })
+        results[index] = uploaded
+        completedBytes += file.size
+        view.updateDirect(completedBytes, index + 1, selectedFiles.length, 'finalizing')
+      } catch (error) {
+        if (!canTryExistingService(error)) throw error
+        directEnabled = false
+        directUnavailableUntil = Date.now() + 60000
+        pendingLegacy.push(index)
       }
+    }
 
-      if (xhr.status >= 200 && xhr.status < 300 && data.ok !== false) {
-        view.showSuccess()
-        view.remove(900)
-        resolve(data)
-        return
-      }
+    if (pendingLegacy.length) {
+      const legacyFiles = pendingLegacy.map((index) => selectedFiles[index])
+      const legacyBytes = legacyFiles.reduce((sum, file) => sum + file.size, 0)
+      view.updateDirect(completedBytes, selectedFiles.length - pendingLegacy.length, selectedFiles.length, 'fallback')
+      const uploaded = await uploadImagesThroughRender(baseUrl, token, legacyFiles, (ratio) => {
+        view.updateDirect(
+          completedBytes + Math.round(legacyBytes * ratio),
+          selectedFiles.length - pendingLegacy.length,
+          selectedFiles.length,
+          'fallback'
+        )
+      })
+      pendingLegacy.forEach((index, offset) => {
+        results[index] = uploaded[offset]
+      })
+    }
 
-      const message = data.message || 'Failed to upload images'
-      view.showError(message)
-      view.remove(2200)
-      reject(new Error(message))
-    })
+    if (results.some((item) => !item?.image_url || !item?.storage_key)) {
+      throw uploadError('Some images could not be uploaded. Please try again.')
+    }
 
-    xhr.addEventListener('error', () => {
-      const message = 'Network error while uploading images'
-      view.showError(message)
-      view.remove(2200)
-      reject(new Error(message))
-    })
-
-    xhr.addEventListener('abort', () => {
-      const message = 'Image upload was cancelled'
-      view.showError(message)
-      view.remove(1800)
-      reject(new Error(message))
-    })
-
-    xhr.send(formData)
-  })
+    view.showSuccess()
+    view.remove(900)
+    return { ok: true, images: results }
+  } catch (error) {
+    view.showError(error?.message || 'Failed to upload images')
+    view.remove(2200)
+    throw error
+  }
 }
