@@ -83,6 +83,7 @@ export default function AdminAuthorLibraryPage() {
     setLoading(true); setError('')
     try {
       const params = new URLSearchParams({ type, q: search, page: String(page) })
+      if (force) params.set('refresh', '1')
       const response = await fetch(`${API}/api/admin/income/author-library?${params}`, { headers: headers(), cache: 'no-store' })
       const body = await response.json().catch(() => ({}))
       if (!response.ok || !body.ok || !Array.isArray(body.items)) throw new Error(body.message || 'Unable to load Author Library')
