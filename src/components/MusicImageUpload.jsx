@@ -15,6 +15,108 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
 
+
+const DIRECT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const DIRECT_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+let directUploadRetryAfter = 0
+
+async function readUploadResponse(response, fallbackMessage) {
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.message || fallbackMessage)
+    error.httpStatus = response.status
+    error.code = data.code || ''
+    throw error
+  }
+  return data
+}
+
+async function uploadMusicImageThroughRender(file, token) {
+  const form = new FormData()
+  form.append('images', file)
+
+  const response = await fetch(`${API_URL}/api/admin/media-library/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+
+  const data = await readUploadResponse(response, 'Image upload failed')
+  const imageUrl = data.images?.[0]?.image_url || ''
+  if (!imageUrl) throw new Error('Image URL was not returned')
+  return imageUrl
+}
+
+async function uploadMusicImageDirect(file, token) {
+  let stage = 'init'
+
+  try {
+    const initResponse = await fetch(`${API_URL}/api/media-direct/admin/init`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        category: 'admin_music_image',
+        mime_type: file.type,
+        file_size: file.size,
+      }),
+    })
+    const init = await readUploadResponse(initResponse, 'Direct image upload could not start')
+    if (!init.upload_url || !init.upload_token) {
+      const error = new Error('Direct image upload is not available')
+      error.httpStatus = 503
+      throw error
+    }
+
+    stage = 'transfer'
+    const uploadResponse = await fetch(init.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    if (!uploadResponse.ok) {
+      const error = new Error('Cloudflare R2 could not save the image')
+      error.httpStatus = uploadResponse.status
+      throw error
+    }
+
+    stage = 'finalize'
+    const finalResponse = await fetch(`${API_URL}/api/media-direct/admin/finalize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ upload_token: init.upload_token }),
+    })
+    const result = await readUploadResponse(finalResponse, 'Direct image upload could not finish')
+    const imageUrl = result.image_url || result.imageUrl || ''
+    if (!imageUrl) throw new Error('Direct image upload returned no URL')
+    return imageUrl
+  } catch (error) {
+    const status = Number(error?.httpStatus || 0)
+    if (stage !== 'transfer' && [400, 401, 403, 413, 415, 422, 429].includes(status)) {
+      throw error
+    }
+    directUploadRetryAfter = Date.now() + 60000
+    return uploadMusicImageThroughRender(file, token)
+  }
+}
+
+async function uploadMusicImageWithFallback(file, token) {
+  if (
+    !DIRECT_IMAGE_TYPES.has(file.type) ||
+    file.size < 16 ||
+    file.size > DIRECT_IMAGE_MAX_BYTES ||
+    Date.now() < directUploadRetryAfter
+  ) {
+    return uploadMusicImageThroughRender(file, token)
+  }
+  return uploadMusicImageDirect(file, token)
+}
+
 function canvasToBlob(canvas, type, quality) {
   return new Promise((resolve) => {
     canvas.toBlob(resolve, type, quality)
@@ -171,26 +273,7 @@ export default function MusicImageUpload({
 
     try {
       const optimizedFile = await optimizeMusicImageFile(file, shape)
-      const form = new FormData()
-      form.append('images', optimizedFile)
-
-      const response = await fetch(`${API_URL}/api/admin/media-library/upload`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: form,
-      })
-
-      const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || 'Image upload failed')
-      }
-
-      const imageUrl = data.images?.[0]?.image_url || ''
-      if (!imageUrl) throw new Error('Image URL was not returned')
-
+      const imageUrl = await uploadMusicImageWithFallback(optimizedFile, token)
       onChange?.(imageUrl)
     } catch (uploadError) {
       setError(uploadError.message || 'Image upload failed')
