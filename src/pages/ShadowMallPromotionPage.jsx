@@ -1074,6 +1074,7 @@ export default function ShadowMallPromotionPage() {
     { label: 'Review Orders', path: '/shadow-mall/orders' },
     { label: 'Author Orders', path: '/author-store/review' },
     { label: 'Promotion', path: '/shadow-mall/promotion', active: true },
+    { label: 'Promotion Insights', path: '/shadow-mall/promotion/insights' },
     { label: 'Publishers', path: '/shadow-mall/publishers' },
   ]
 
