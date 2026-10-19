@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ImageCropModal, { createCroppedImageFile } from './ImageCropModal'
 import ImageDropZone from './common/ImageDropZone'
+import useAdvertisementDraft from './useAdvertisementDraft'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const SHADOW_LOGO_URL = 'https://shadowerabook.site/assets/Icons/Logo%20Shadow%202.svg'
@@ -49,6 +50,7 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   const dragIdRef=useRef(null)
   const loadSequenceRef=useRef(0)
   const modeTransitionRef=useRef(false)
+  const {placement,draft,hasChanges,stageMove,clearDraft,getDraft,preview}=useAdvertisementDraft(apiPrefix)
   const [settings,setSettings]=useState(normalizeSettings(null))
   const [items,setItems]=useState([])
   const [queueItems,setQueueItems]=useState([])
@@ -85,6 +87,8 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   const [openMoreId,setOpenMoreId]=useState(null)
 
   const loopItems=queueItems
+  const displayedItems=useMemo(()=>preview(items,items[0]?.sort_order??null),[items,draft,preview])
+  const canReorder=libraryTab==='active'&&filter==='all'&&!search
   const manualSelectedItem=manualItem
 
   const liveInfo=useMemo(()=>{if(!settings.enabled)return{liveId:null,nextId:null,remaining:0};if(settings.mode==='manual')return{liveId:manualSelectedItem?.enabled?Number(manualSelectedItem.id):null,nextId:null,remaining:0};if(!loopItems.length)return{liveId:null,nextId:null,remaining:0};const started=new Date(settings.rotationStartedAt||now).getTime();const step=Math.max(60,Number(settings.rotateEverySeconds||3600))*1000;const elapsed=Math.max(0,now-started);const index=Math.floor(elapsed/step)%loopItems.length;const remaining=Math.max(0,Math.ceil((step-(elapsed%step))/1000));return{liveId:Number(loopItems[index]?.id||0)||null,nextId:loopItems.length>1?Number(loopItems[(index+1)%loopItems.length]?.id||0):null,remaining}},[settings,loopItems,manualSelectedItem,now])
