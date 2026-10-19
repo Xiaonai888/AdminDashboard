@@ -4,6 +4,10 @@ import AdminLayout from '../components/AdminLayout'
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const categories = ['All', 'Female', 'Male', 'Couple', 'Fantasy', 'Other']
 
+const GALLERY_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const GALLERY_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+let galleryDirectRetryAfter = 0
+
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
 }
@@ -42,6 +46,91 @@ async function apiRequest(path, options = {}) {
   return data
 }
 
+
+async function uploadGalleryFilesThroughRender(files) {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('images', file))
+  const result = await apiRequest('/api/admin/chat-story-gallery/upload', {
+    method: 'POST',
+    body: formData,
+  })
+  const uploaded = Array.isArray(result.images) ? result.images : []
+  if (uploaded.length !== files.length || uploaded.some((item) => !item?.image_url)) {
+    throw new Error('Some images were not uploaded. Please try again.')
+  }
+  return uploaded
+}
+
+async function uploadGalleryImageThroughRender(file) {
+  const images = await uploadGalleryFilesThroughRender([file])
+  return images[0]
+}
+
+async function requestGalleryDirect(path, body) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(body),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.message || 'Direct image upload failed')
+    error.status = response.status
+    error.code = data.code || ''
+    throw error
+  }
+  return data
+}
+
+async function uploadGalleryImageWithFallback(file) {
+  if (!file || !file.size || file.size > GALLERY_MAX_IMAGE_BYTES) {
+    throw new Error('Each image must be 5 MB or smaller')
+  }
+  if (!GALLERY_DIRECT_TYPES.has(file.type) || Date.now() < galleryDirectRetryAfter) {
+    return uploadGalleryImageThroughRender(file)
+  }
+
+  let stage = 'init'
+  try {
+    const init = await requestGalleryDirect('/api/media-direct/admin/init', {
+      category: 'admin_chat_gallery',
+      mime_type: file.type,
+      file_size: file.size,
+    })
+    if (!init.upload_url || !init.upload_token) {
+      const error = new Error('Direct image upload is unavailable')
+      error.status = 503
+      throw error
+    }
+
+    stage = 'transfer'
+    const transfer = await fetch(init.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    if (!transfer.ok) {
+      const error = new Error('Cloudflare R2 could not receive the image')
+      error.status = transfer.status
+      throw error
+    }
+
+    stage = 'finalize'
+    const result = await requestGalleryDirect('/api/media-direct/admin/finalize', {
+      upload_token: init.upload_token,
+    })
+    const url = result.image_url || result.imageUrl || ''
+    if (!url) throw new Error('Direct image upload returned no image URL')
+    return { original_name: file.name, image_url: url }
+  } catch (error) {
+    if (stage !== 'transfer' && [400, 401, 403, 413, 415, 422, 429].includes(Number(error?.status))) {
+      throw error
+    }
+    galleryDirectRetryAfter = Date.now() + 60000
+    return uploadGalleryImageThroughRender(file)
+  }
+}
+
 function AddImagesModal({
   open,
   items,
@@ -51,6 +140,7 @@ function AddImagesModal({
   onRemove,
   onClose,
   onSave,
+  uploadProgress,
 }) {
   const inputRef = useRef(null)
 
@@ -153,7 +243,7 @@ function AddImagesModal({
             disabled={!items.length || loading}
             onClick={onSave}
           >
-            {loading ? 'Uploading...' : `Save ${items.length || ''} Image${items.length === 1 ? '' : 's'}`}
+            {loading ? (uploadProgress === items.length ? 'Saving...' : `Uploading... ${uploadProgress}/${items.length}`) : `Save ${items.length || ''} Image${items.length === 1 ? '' : 's'}`}
           </button>
         </div>
       </div>
@@ -207,6 +297,7 @@ export default function ChatStoryGalleryPage() {
   const [uploads, setUploads] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [busyId, setBusyId] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -291,20 +382,45 @@ export default function ChatStoryGalleryPage() {
     setSaving(true)
     setError('')
     setMessage('')
+    setUploadProgress(0)
 
     try {
-      const formData = new FormData()
-      uploads.forEach((item) => formData.append('images', item.file))
+      if (uploads.some((item) => !item.file?.size || item.file.size > GALLERY_MAX_IMAGE_BYTES)) {
+        throw new Error('Each image must be 5 MB or smaller')
+      }
 
-      const uploadData = await apiRequest('/api/admin/chat-story-gallery/upload', {
-        method: 'POST',
-        body: formData,
-      })
+      const uploadedImages = new Array(uploads.length)
+      if (Date.now() < galleryDirectRetryAfter) {
+        const batch = await uploadGalleryFilesThroughRender(uploads.map((item) => item.file))
+        batch.forEach((image, index) => { uploadedImages[index] = image })
+        setUploadProgress(uploads.length)
+      } else {
+        uploadedImages[0] = await uploadGalleryImageWithFallback(uploads[0].file)
+        setUploadProgress(1)
 
-      const uploadedImages = Array.isArray(uploadData.images) ? uploadData.images : []
-
-      if (uploadedImages.length !== uploads.length) {
-        throw new Error('Some images were not uploaded. Please try again.')
+        if (Date.now() < galleryDirectRetryAfter) {
+          const remaining = uploads.slice(1)
+          if (remaining.length) {
+            const batch = await uploadGalleryFilesThroughRender(remaining.map((item) => item.file))
+            batch.forEach((image, index) => { uploadedImages[index + 1] = image })
+          }
+          setUploadProgress(uploads.length)
+        } else {
+          let nextIndex = 1
+          let completed = 1
+          const workers = Array.from({ length: Math.min(3, uploads.length - 1) }, async () => {
+            while (nextIndex < uploads.length) {
+              const index = nextIndex
+              nextIndex += 1
+              uploadedImages[index] = await uploadGalleryImageWithFallback(uploads[index].file)
+              completed += 1
+              setUploadProgress(completed)
+            }
+          })
+          const settled = await Promise.allSettled(workers)
+          const failed = settled.find((item) => item.status === 'rejected')
+          if (failed) throw failed.reason
+        }
       }
 
       const created = []
@@ -992,6 +1108,7 @@ export default function ChatStoryGalleryPage() {
         open={modalOpen}
         items={uploads}
         loading={saving}
+        uploadProgress={uploadProgress}
         onAddFiles={addFiles}
         onUpdate={updateUpload}
         onRemove={removeUpload}
