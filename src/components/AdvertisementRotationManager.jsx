@@ -50,7 +50,7 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   const dragIdRef=useRef(null)
   const loadSequenceRef=useRef(0)
   const modeTransitionRef=useRef(false)
-  const {placement,draft,hasChanges,stageMove,clearDraft,getDraft,preview}=useAdvertisementDraft(apiPrefix)
+  const {placement,draft,hasChanges,stageSettings,stageItem,stageMove,clearDraft,getDraft,preview}=useAdvertisementDraft(apiPrefix)
   const [settings,setSettings]=useState(normalizeSettings(null))
   const [items,setItems]=useState([])
   const [queueItems,setQueueItems]=useState([])
@@ -86,10 +86,34 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   const [previewItem,setPreviewItem]=useState(null)
   const [openMoreId,setOpenMoreId]=useState(null)
 
-  const loopItems=queueItems
   const displayedItems=useMemo(()=>preview(items,items[0]?.sort_order??null),[items,draft,preview])
   const canReorder=libraryTab==='active'&&filter==='all'&&!search
-  const manualSelectedItem=manualItem
+  const loopItems=useMemo(()=>{
+    const patches=new Map(draft.items.map(item=>[Number(item.id),item]))
+    const merged=new Map()
+    for(const item of queueItems){
+      const patch=patches.get(Number(item.id))||{}
+      merged.set(Number(item.id),{...item,...patch})
+    }
+    for(const item of displayedItems){
+      const id=Number(item.id)
+      const old=merged.get(id)
+      if(item.in_loop||old)merged.set(id,{...(old||{}),...item})
+    }
+    const order=new Map(displayedItems.map(item=>[Number(item.id),Number(item.sort_order)]))
+    return [...merged.values()].filter(item=>item.enabled&&item.in_loop)
+      .sort((a,b)=>(order.get(Number(a.id))??Number(a.sort_order??0))-(order.get(Number(b.id))??Number(b.sort_order??0)))
+      .slice(0,Math.max(1,Number(settings.maxAds||1)))
+  },[queueItems,displayedItems,draft,settings.maxAds])
+  const manualSelectedItem=useMemo(()=>{
+    const id=Number(settings.manualAdId||0)
+    if(!id)return null
+    const candidate=displayedItems.find(item=>Number(item.id)===id)||
+      (Number(manualItem?.id)===id?manualItem:null)||
+      loopItems.find(item=>Number(item.id)===id)
+    if(!candidate)return null
+    return {...candidate,...(draft.items.find(item=>Number(item.id)===id)||{})}
+  },[settings.manualAdId,displayedItems,manualItem,loopItems,draft])
 
   const liveInfo=useMemo(()=>{if(!settings.enabled)return{liveId:null,nextId:null,remaining:0};if(settings.mode==='manual')return{liveId:manualSelectedItem?.enabled?Number(manualSelectedItem.id):null,nextId:null,remaining:0};if(!loopItems.length)return{liveId:null,nextId:null,remaining:0};const started=new Date(settings.rotationStartedAt||now).getTime();const step=Math.max(60,Number(settings.rotateEverySeconds||3600))*1000;const elapsed=Math.max(0,now-started);const index=Math.floor(elapsed/step)%loopItems.length;const remaining=Math.max(0,Math.ceil((step-(elapsed%step))/1000));return{liveId:Number(loopItems[index]?.id||0)||null,nextId:loopItems.length>1?Number(loopItems[(index+1)%loopItems.length]?.id||0):null,remaining}},[settings,loopItems,manualSelectedItem,now])
   const currentItem=useMemo(()=>settings.mode==='manual'?(settings.enabled&&manualSelectedItem?.enabled?manualSelectedItem:null):loopItems.find(item=>Number(item.id)===Number(liveInfo.liveId))||null,[settings.mode,settings.enabled,manualSelectedItem,loopItems,liveInfo.liveId])
@@ -108,8 +132,17 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
       const data=await request(`${apiPrefix}?${params.toString()}`)
       if(loadId!==loadSequenceRef.current)return false
       const nextSettings=normalizeSettings(data.settings)
-      const parts=intervalParts(nextSettings.rotateEverySeconds)
-      setSettings(nextSettings)
+      const staged=getDraft().settings
+      const effectiveSettings={
+        ...nextSettings,
+        ...(Object.hasOwn(staged,'enabled')?{enabled:staged.enabled}:{}),
+        ...(Object.hasOwn(staged,'mode')?{mode:staged.mode}:{}),
+        ...(Object.hasOwn(staged,'manual_ad_id')?{manualAdId:staged.manual_ad_id}:{}),
+        ...(Object.hasOwn(staged,'rotate_every_seconds')?{rotateEverySeconds:staged.rotate_every_seconds}:{}),
+        ...(Object.hasOwn(staged,'max_ads')?{maxAds:staged.max_ads}:{})
+      }
+      const parts=intervalParts(effectiveSettings.rotateEverySeconds)
+      setSettings(effectiveSettings)
       setItems(Array.isArray(data.items)?data.items:[])
       setQueueItems(Array.isArray(data.queue)?data.queue:[])
       setManualItem(data.manual_item||null)
@@ -140,25 +173,44 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   useEffect(()=>()=>{if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);if(cropImage?.startsWith('blob:'))URL.revokeObjectURL(cropImage)},[previewUrl,cropImage])
   useEffect(()=>{if(!manageOpen)return;const root=document.documentElement;const targets=[document.body,root,...document.querySelectorAll('.shadow-admin-main,.main-content')];const unique=[...new Set(targets.filter(Boolean))];const previous=unique.map(element=>({element,overflow:element.style.overflow,overflowY:element.style.overflowY,overscrollBehavior:element.style.overscrollBehavior}));const bodyPaddingRight=document.body.style.paddingRight;const scrollbar=Math.max(0,window.innerWidth-root.clientWidth);unique.forEach(element=>{element.style.overflow='hidden';element.style.overflowY='hidden';element.style.overscrollBehavior='none'});if(scrollbar)document.body.style.paddingRight=`${scrollbar}px`;return()=>{previous.forEach(({element,overflow,overflowY,overscrollBehavior})=>{element.style.overflow=overflow;element.style.overflowY=overflowY;element.style.overscrollBehavior=overscrollBehavior});document.body.style.paddingRight=bodyPaddingRight}},[manageOpen])
   useEffect(()=>{const handlePointerDown=event=>{if(!event.target.closest?.('.arm-more'))setOpenMoreId(null)};const handleKeyDown=event=>{if(event.key==='Escape')setOpenMoreId(null)};document.addEventListener('pointerdown',handlePointerDown);document.addEventListener('keydown',handleKeyDown);return()=>{document.removeEventListener('pointerdown',handlePointerDown);document.removeEventListener('keydown',handleKeyDown)}},[])
+  useEffect(()=>{if(!hasChanges)return;const handler=event=>{event.preventDefault();event.returnValue=''};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler)},[hasChanges])
 
-  async function switchMode(mode){
-    if(saving||loading||modeTransitionRef.current||settings.mode===mode||!['manual','auto'].includes(mode))return
-    modeTransitionRef.current=true
-    loadSequenceRef.current+=1
-    try{
-      setSaving(true)
-      setError('')
-      setMessage('')
-      await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})})
-      setEditorOpen(false)
-      setSelectedId(null)
-      const loaded=await loadRotation()
-      if(loaded){setMessage(mode==='manual'?'Manual LIVE selection is active. Auto Loop selections are preserved.':'Auto Loop is active. Manual LIVE selection is preserved.');if(typeof onChanged==='function')onChanged()}
-    }catch(requestError){setError(requestError.message||'Failed to change Ad mode')}
-    finally{modeTransitionRef.current=false;setSaving(false)}
+  function switchMode(mode){
+    if(saving||loading||settings.mode===mode||!['manual','auto'].includes(mode))return
+    stageSettings({mode})
+    setSettings(previous=>({...previous,mode}))
+    setEditorOpen(false)
+    setSelectedId(null)
+    setMessage('Mode changed locally. Click Save Changes to publish.')
+    setError('')
   }
 
-  function updateLocalSettings(field,value){setSettings(previous=>({...previous,[field]:value}));setMessage('');setError('')}
+  function updateLocalSettings(field,value){
+    const key={enabled:'enabled',maxAds:'max_ads',manualAdId:'manual_ad_id'}[field]
+    if(key)stageSettings({[key]:value})
+    setSettings(previous=>({...previous,[field]:value}))
+    setMessage('Changes saved locally. Click Save Changes to publish.')
+    setError('')
+  }
+
+  function updateRotateInterval(value,unit){
+    const seconds=Math.min(2592000,intervalSeconds(value,unit))
+    stageSettings({rotate_every_seconds:seconds})
+    setIntervalValue(value)
+    setIntervalUnit(unit)
+    setSettings(previous=>({...previous,rotateEverySeconds:seconds}))
+    setMessage('Rotation interval saved locally. Click Save Changes to publish.')
+    setError('')
+  }
+
+  async function discardDraft(){
+    if(!hasChanges||saving)return
+    if(!window.confirm('Discard all unsaved Advertisement changes?'))return
+    clearDraft()
+    const loaded=await loadRotation(selectedId)
+    if(loaded)setMessage('Unsaved changes discarded.')
+  }
+
   function updateEditor(field,value){setEditor(previous=>({...previous,[field]:value}));setMessage('');setError('')}
   function cancelEditorSelection(){setEditorOpen(false);setSelectedId(null);setSelectedFile(null);setDuplicateWarning(null);setOpenMoreId(null);if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);setPreviewUrl('')}
   function openManage(){setManageOpen(true);cancelEditorSelection();setMessage('');setError('')}
@@ -180,91 +232,102 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
     return matches
   }
 
-  async function restartAutoClock(){
+  function restartAutoClock(){
     if(saving||loading||settings.mode!=='auto')return
-    try{
-      setSaving(true);setMessage('');setError('')
-      await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({restart_rotation:true})})
-      await loadRotation()
-      setMessage('Auto Rotation restarted from #1.')
-    }catch(requestError){setError(requestError.message||'Failed to restart Auto Rotation')}
-    finally{setSaving(false)}
-  }
-
-  async function saveManualSettings(){
-    const payload={enabled:Boolean(settings.enabled),manual_ad_id:settings.manualAdId}
-    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-  }
-
-  async function saveAutoSettings(){
-    const payload={enabled:Boolean(settings.enabled),rotate_every_seconds:intervalSeconds(intervalValue,intervalUnit),max_ads:Math.max(1,Number(settings.maxAds||1))}
-    await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    stageSettings({restart_rotation:true})
+    setMessage('Restart #1 queued locally. Click Save Changes to apply.')
+    setError('')
   }
 
   async function saveSettings(){
     if(saving||loading||modeTransitionRef.current)return
+    const pending=getDraft()
+    if(!Object.keys(pending.settings).length&&!pending.items.length&&!pending.moves.length){
+      setMessage('No unsaved changes.')
+      return
+    }
     try{
-      setSaving(true);setMessage('');setError('')
-      if(settings.mode==='manual')await saveManualSettings()
-      else await saveAutoSettings()
-      const loaded=await loadRotation()
-      if(loaded)setMessage(`${title} ${settings.mode==='manual'?'Manual':'Auto'} settings saved.`)
+      setSaving(true)
+      setMessage('')
+      setError('')
+      await request(`/api/advertisements/admin/batch/${placement}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(pending)
+      })
+      clearDraft()
+      const loaded=await loadRotation(selectedId)
+      if(loaded)setMessage(`${title} changes saved successfully.`)
       if(typeof onChanged==='function')onChanged()
-    }catch(requestError){setError(requestError.message||`Failed to save ${title} settings`)}
-    finally{setSaving(false)}
+    }catch(requestError){
+      setError(requestError.message||`Failed to save ${title} changes. Local draft was kept.`)
+    }finally{
+      setSaving(false)
+    }
   }
 
-  async function setManualLive(item){
+  function setManualLive(item){
     if(saving||loading||settings.mode!=='manual'||modeTransitionRef.current)return
     if(!item?.enabled){setError('Enable this Ad before setting it LIVE.');return}
-    try{
-      setSaving(true);setMessage('');setError('')
-      await request(`${apiPrefix}/settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({manual_ad_id:item.id})})
-      const loaded=await loadRotation(item.id)
-      if(loaded)setMessage(`${item.name||'Ad'} is now the only Manual LIVE Ad.`)
-      if(typeof onChanged==='function')onChanged()
-    }catch(requestError){setError(requestError.message||'Failed to set Manual LIVE Ad')}
-    finally{setSaving(false)}
+    stageSettings({manual_ad_id:Number(item.id)})
+    setSettings(previous=>({...previous,manualAdId:Number(item.id)}))
+    setMessage('Manual LIVE selection saved locally. Click Save Changes to publish.')
+    setError('')
   }
 
-  async function setAutoLoop(item,inLoop){
+  function setAutoLoop(item,inLoop){
     if(saving||loading||settings.mode!=='auto'||modeTransitionRef.current)return
     if(inLoop&&!item?.enabled){setError('Enable this Ad before adding it to Auto Loop.');return}
-    if(inLoop&&loopItems.length>=Number(settings.maxAds||1)){setError(`Auto Loop is full (${settings.maxAds} Ads). Remove one from the loop before selecting another.`);return}
-    try{
-      setSaving(true);setMessage('');setError('')
-      const formData=new FormData()
-      formData.append('in_loop',String(Boolean(inLoop)))
-      await request(`${apiPrefix}/items/${item.id}`,{method:'PUT',body:formData})
-
-      const loaded=await loadRotation(item.id)
-      if(loaded)setMessage(inLoop?'Ad added to Auto Loop; Manual LIVE selection is unchanged.':'Ad removed from Auto Loop; Manual LIVE selection is unchanged.')
-      if(typeof onChanged==='function')onChanged()
-    }catch(requestError){await loadRotation(item.id);setError(requestError.message||'Failed to update Auto Loop')}
-    finally{setSaving(false)}
+    if(inLoop&&!item?.in_loop&&loopItems.length>=Number(settings.maxAds||1)){
+      setError(`Auto Loop is full (${settings.maxAds} Ads). Remove one from the loop before adding another.`)
+      return
+    }
+    if(!stageItem(item.id,{in_loop:Boolean(inLoop)})){
+      setError('Too many pending Ad edits. Save Changes before editing more.')
+      return
+    }
+    setMessage('Auto Loop selection saved locally. Click Save Changes to publish.')
+    setError('')
   }
 
-  async function updateItemField(item,field,value){
+  function updateItemField(item,field,value){
     if(saving||loading||modeTransitionRef.current||field!=='enabled')return
-    try{
-      setSaving(true);setMessage('');setError('')
-      const formData=new FormData()
-      formData.append('enabled',String(Boolean(value)))
-      await request(`${apiPrefix}/items/${item.id}`,{method:'PUT',body:formData})
-      await loadRotation(item.id)
-      if(typeof onChanged==='function')onChanged()
-    }catch(requestError){setError(requestError.message||'Failed to update Ad availability')}
-    finally{setSaving(false)}
+    if(!stageItem(item.id,{enabled:Boolean(value)})){
+      setError('Too many pending Ad edits. Save Changes before editing more.')
+      return
+    }
+    if(Number(editor.id)===Number(item.id))setEditor(previous=>({...previous,enabled:Boolean(value)}))
+    setMessage('Ad availability changed locally. Click Save Changes to publish.')
+    setError('')
   }
 
-  async function saveEditor(skipDuplicateCheck=false){try{if(saving||loading)return;setSaving(true);setMessage('');setError('');if(selectedId==='new'&&summary.active_total>=100)throw new Error('Ad library is full (100 active Ads). Archive an Ad before creating another.');if(settings.mode==='auto'&&editor.inLoop&&!queueItems.some(item=>Number(item.id)===Number(editor.id))&&queueItems.length>=Number(settings.maxAds||1))throw new Error(`Auto Loop is full (${settings.maxAds} Ads). Save this Ad outside the loop or remove one.`);if(selectedFile&&selectedFile.size>5*1024*1024)throw new Error('Image must be 5 MB or smaller.');if(!String(editor.name||'').trim())throw new Error('Ad name is required.');if(!selectedFile&&!String(editor.imageUrl||'').trim())throw new Error('Upload an image before saving this Ad.');if(skipDuplicateCheck!==true){const duplicates=await findNameDuplicates(editor.name);if(duplicates.length){setDuplicateWarning({name:String(editor.name||'').trim(),matches:duplicates});return}}setDuplicateWarning(null);const formData=new FormData();if(selectedFile)formData.append('image',selectedFile);formData.append('name',String(editor.name||'').trim());formData.append('enabled',String(Boolean(editor.enabled)));formData.append('image_url',editor.imageUrl||'');formData.append('link_url',editor.linkUrl||'');formData.append('badge',editor.badge||'');formData.append('duration_seconds',String(Math.max(1,Number(editor.durationSeconds||1))));formData.append('close_after_seconds',String(Math.max(0,Number(editor.closeAfterSeconds||0))));formData.append('frequency',editor.frequency||'once_per_session');if(settings.mode==='auto')formData.append('in_loop',String(Boolean(editor.inLoop)));if(editor.id&&editor.sortOrder)formData.append('sort_order',String(editor.sortOrder));const isNew=selectedId==='new';const path=isNew?`${apiPrefix}/items`:`${apiPrefix}/items/${editor.id}`;const data=await request(path,{method:isNew?'POST':'PUT',body:formData});const saved=data.item||editor;setSelectedId(saved.id);setEditor(itemToEditor(saved,title));setEditorOpen(true);const nextPage=isNew&&libraryTab==='active'&&filter==='all'&&!search?Math.ceil((summary.active_total+1)/perPage):page;if(isNew&&nextPage!==page)setPage(nextPage);else await loadRotation(saved.id);setMessage(isNew?`New ${title} created (Ad #${saved.id}).`:`${title} saved.`);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||`Failed to save ${title}`)}finally{setSaving(false)}}
+  async function saveEditor(skipDuplicateCheck=false){try{if(saving||loading)return;setSaving(true);setMessage('');setError('');if(selectedId==='new'&&summary.active_total>=100)throw new Error('Ad library is full (100 active Ads). Archive an Ad before creating another.');if(settings.mode==='auto'&&editor.inLoop&&!queueItems.some(item=>Number(item.id)===Number(editor.id))&&queueItems.length>=Number(settings.maxAds||1))throw new Error(`Auto Loop is full (${settings.maxAds} Ads). Save this Ad outside the loop or remove one.`);if(selectedFile&&selectedFile.size>5*1024*1024)throw new Error('Image must be 5 MB or smaller.');if(!String(editor.name||'').trim())throw new Error('Ad name is required.');if(!selectedFile&&!String(editor.imageUrl||'').trim())throw new Error('Upload an image before saving this Ad.');if(skipDuplicateCheck!==true){const duplicates=await findNameDuplicates(editor.name);if(duplicates.length){setDuplicateWarning({name:String(editor.name||'').trim(),matches:duplicates});return}}setDuplicateWarning(null);const formData=new FormData();if(selectedFile)formData.append('image',selectedFile);formData.append('name',String(editor.name||'').trim());formData.append('enabled',String(Boolean(editor.enabled)));formData.append('image_url',editor.imageUrl||'');formData.append('link_url',editor.linkUrl||'');formData.append('badge',editor.badge||'');formData.append('duration_seconds',String(Math.max(1,Number(editor.durationSeconds||1))));formData.append('close_after_seconds',String(Math.max(0,Number(editor.closeAfterSeconds||0))));formData.append('frequency',editor.frequency||'once_per_session');if(settings.mode==='auto')formData.append('in_loop',String(Boolean(editor.inLoop)));const isNew=selectedId==='new';const path=isNew?`${apiPrefix}/items`:`${apiPrefix}/items/${editor.id}`;const data=await request(path,{method:isNew?'POST':'PUT',body:formData});const saved=data.item||editor;setSelectedId(saved.id);setEditor(itemToEditor(saved,title));setEditorOpen(true);const nextPage=isNew&&libraryTab==='active'&&filter==='all'&&!search?Math.ceil((summary.active_total+1)/perPage):page;if(isNew&&nextPage!==page)setPage(nextPage);else await loadRotation(saved.id);setMessage(isNew?`New ${title} created (Ad #${saved.id}).`:`${title} saved.`);if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||`Failed to save ${title}`)}finally{setSaving(false)}}
   async function duplicateItem(item){if(!item)return;try{setSaving(true);setMessage('');setError('');const formData=new FormData();const imageUrl=item.image_url??item.imageUrl??'';const linkUrl=item.link_url??item.linkUrl??'';const durationSeconds=item.duration_seconds??item.durationSeconds??5;const closeAfterSeconds=item.close_after_seconds??item.closeAfterSeconds??3;formData.append('name',`${item.name||`${title} ${item.id}`} Copy`);formData.append('enabled','false');formData.append('image_url',imageUrl);formData.append('link_url',linkUrl);formData.append('badge',item.badge||'');formData.append('duration_seconds',String(Number(durationSeconds)));formData.append('close_after_seconds',String(Number(closeAfterSeconds)));formData.append('frequency',item.frequency||'once_per_session');formData.append('in_loop','false');const data=await request(`${apiPrefix}/items`,{method:'POST',body:formData});setLibraryTab('active');setPage(1);setSelectedId(data.item?.id||null);setEditor(itemToEditor(data.item,title));setEditorOpen(true);await loadRotation(data.item?.id||null);setMessage('Ad duplicated as Disabled and outside the loop.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to duplicate Ad')}finally{setSaving(false)}}
   async function archiveItem(item){if(!item)return;if(!window.confirm(`Archive "${item.name||'this Ad'}"?`))return;try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/items/${item.id}`,{method:'DELETE'});setEditorOpen(false);setSelectedId(null);await loadRotation();setMessage('Ad archived. You can restore it from Archived.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to archive Ad')}finally{setSaving(false)}}
   async function restoreItem(item){try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/items/${item.id}/restore`,{method:'POST'});setLibraryTab('active');setPage(1);setEditorOpen(false);setSelectedId(null);setMessage('Ad restored as Disabled and outside the loop.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to restore Ad')}finally{setSaving(false)}}
 
-  async function reorder(itemId,payload){try{setSaving(true);setMessage('');setError('');await request(`${apiPrefix}/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item_id:itemId,...payload})});await loadRotation(selectedId);setMessage(settings.mode==='auto'?'Order updated. Auto Rotation restarted from #1.':'Order updated.');if(typeof onChanged==='function')onChanged()}catch(requestError){setError(requestError.message||'Failed to reorder Ads')}finally{setSaving(false)}}
-  async function moveItem(itemId,direction){await reorder(itemId,{direction})}
-  async function handleDrop(targetId){const sourceId=dragIdRef.current;dragIdRef.current=null;if(!sourceId||Number(sourceId)===Number(targetId))return;await reorder(sourceId,{target_item_id:targetId})}
+  function reorder(itemId,payload){
+    if(saving||loading||!canReorder)return
+    const sourceIndex=displayedItems.findIndex(item=>Number(item.id)===Number(itemId))
+    const targetIndex=payload.target_item_id!=null
+      ? displayedItems.findIndex(item=>Number(item.id)===Number(payload.target_item_id))
+      :sourceIndex+(payload.direction==='up'?-1:1)
+    if(sourceIndex<0||targetIndex<0||targetIndex>=displayedItems.length||sourceIndex===targetIndex)return
+    if(!stageMove(itemId,payload)){
+      setError('Maximum 200 pending moves. Save Changes before moving more Ads.')
+      return
+    }
+    setMessage('Ad order updated locally. Click Save Changes to publish.')
+    setError('')
+  }
+
+  function moveItem(itemId,direction){reorder(itemId,{direction})}
+  function handleDrop(targetId){
+    const sourceId=dragIdRef.current
+    dragIdRef.current=null
+    if(!sourceId||Number(sourceId)===Number(targetId))return
+    reorder(sourceId,{target_item_id:targetId})
+  }
 
   function openCropForFile(file){if(!file)return;if(!file.type?.startsWith('image/')){setError('Please choose an image file.');return}if(cropImage?.startsWith('blob:'))URL.revokeObjectURL(cropImage);setCropImage(URL.createObjectURL(file));setCrop({x:0,y:0});setZoom(1);setCroppedAreaPixels(null);setCropOpen(true)}
   function closeCropEditor(){if(cropImage?.startsWith('blob:'))URL.revokeObjectURL(cropImage);setCropOpen(false);setCropImage('');setCroppedAreaPixels(null);if(fileInputRef.current)fileInputRef.current.value=''}
@@ -277,12 +340,13 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
     <div className="arm-body"><div className="arm-settings">
       <div className="arm-toggle-row"><div><div className="arm-title">Enable {title}</div><div className="arm-help">Master switch for this placement.</div></div><button type="button" className={`arm-switch ${settings.enabled?'on':''}`} onClick={()=>updateLocalSettings('enabled',!settings.enabled)}><span/></button></div>
       <div><div className="arm-title">Ad Mode</div><div className="arm-help">Each mode keeps its own selection. Switching modes does not replace the other selection.</div><div className="arm-mode" style={{marginTop:8}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button></div></div>
-      {settings.mode==='auto'?<div className="arm-grid"><div className="arm-field"><label>Rotate Every</label><div className="arm-interval"><input className="arm-input" type="number" min="1" value={intervalValue} onChange={event=>setIntervalValue(Math.max(1,Number(event.target.value||1)))}/><select className="arm-input" value={intervalUnit} onChange={event=>setIntervalUnit(event.target.value)}><option value="minutes">Minutes</option><option value="hours">Hours</option></select></div></div><div className="arm-field"><label>Max Ads in Loop</label><input className="arm-input" type="number" min="1" value={settings.maxAds} onChange={event=>updateLocalSettings('maxAds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Next Change</label><input className="arm-input" value={remainingLabel||'—'} readOnly/></div></div>:null}
+      {settings.mode==='auto'?<div className="arm-grid"><div className="arm-field"><label>Rotate Every</label><div className="arm-interval"><input className="arm-input" type="number" min="1" value={intervalValue} onChange={event=>updateRotateInterval(Math.max(1,Number(event.target.value||1)),intervalUnit)}/><select className="arm-input" value={intervalUnit} onChange={event=>updateRotateInterval(intervalValue,event.target.value)}><option value="minutes">Minutes</option><option value="hours">Hours</option></select></div></div><div className="arm-field"><label>Max Ads in Loop</label><input className="arm-input" type="number" min="1" value={settings.maxAds} onChange={event=>updateLocalSettings('maxAds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Next Change</label><input className="arm-input" value={remainingLabel||'—'} readOnly/></div></div>:null}
       <div className="arm-current-grid"><MiniStatusCard label={settings.mode==='manual'?'Manual LIVE Ad':'Auto Current Ad'} item={currentItem}/>{settings.mode==='auto'?<MiniStatusCard label="Auto Next Ad" item={nextItem}/>:null}</div>
       {settings.mode==='auto'&&settings.enabled&&loopItems.length===0?<div className="arm-warning">Auto is enabled but no eligible Ad is in the loop. No fallback Ad will show.</div>:null}
       {settings.mode==='manual'&&settings.enabled&&!manualSelectedItem?.enabled?<div className="arm-warning">Manual mode has no enabled LIVE Ad. No fallback Ad will show.</div>:null}
+      {hasChanges?<div className="arm-warning">Unsaved Changes · Stored locally until you click Save Changes.</div>:null}
       {message?<div className="arm-success">{message}</div>:null}{error?<div className="arm-error">{error}</div>:null}
-      <div className="arm-actions"><button type="button" className="arm-btn soft" onClick={()=>loadRotation(selectedId)} disabled={loading||saving}>{loading?'Loading...':'Reload'}</button>{settings.mode==='auto'?<button type="button" className="arm-btn soft" onClick={restartAutoClock} disabled={saving||loading||loopItems.length===0}>Restart #1</button>:null}<button type="button" className="arm-btn primary" onClick={saveSettings} disabled={saving||loading}>{saving?'Saving...':'Save Settings'}</button></div>
+      <div className="arm-actions"><button type="button" className="arm-btn soft" onClick={()=>loadRotation(selectedId)} disabled={loading||saving}>{loading?'Loading...':'Reload'}</button>{settings.mode==='auto'?<button type="button" className="arm-btn soft" onClick={restartAutoClock} disabled={saving||loading||loopItems.length===0}>Restart #1</button>:null}<button type="button" className="arm-btn primary" onClick={saveSettings} disabled={saving||loading||!hasChanges}>{saving?'Saving...':'Save Changes'}</button>{hasChanges?<button type="button" className="arm-btn soft" onClick={discardDraft} disabled={saving||loading}>Discard Draft</button>:null}</div>
       <button type="button" className="arm-btn primary arm-manage" onClick={openManage} disabled={saving||loading}>Manage {settings.mode==='manual'?'Manual':'Auto'} Ads ({summary.active_total})</button>
     </div>
     <div className="arm-queue"><div className="arm-queue-head"><div className="arm-queue-title">{settings.mode==='auto'?'Auto Rotation Queue':'Manual LIVE Selection'} ({settings.mode==='auto'?loopItems.length:manualSelectedItem?1:0})</div><button type="button" className="arm-btn" style={{padding:'6px 9px'}} onClick={openManage} disabled={saving||loading}>View All</button></div><div className="arm-queue-list">{(settings.mode==='auto'?loopItems:manualSelectedItem?[manualSelectedItem]:[]).slice(0,10).map((item,index)=><div key={item.id} onClick={()=>setPreviewItem(item)} style={{cursor:'pointer'}} className={`arm-queue-item ${Number(item.id)===Number(previewItem?.id||liveInfo.liveId)?'current':''}`}><div className="arm-queue-top"><span className="arm-queue-number">{index+1}</span>{Number(item.id)===Number(previewItem?.id)?'Previewing':Number(item.id)===Number(liveInfo.liveId)?'Current':Number(item.id)===Number(liveInfo.nextId)?'Next':'Queued'}</div>{item.image_url?<img className="arm-queue-image" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-queue-image arm-mini-empty">NO IMAGE</div>}<div className="arm-queue-name">{item.name||`Ad ${item.id}`}</div></div>)}</div></div>
@@ -292,11 +356,11 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   </div>
 
   {manageOpen?<div className="arm-overlay" onMouseDown={event=>event.target===event.currentTarget&&closeManage()}><div className="arm-modal">
-    <div className="arm-modal-head"><div><div className="arm-modal-title">Manage {title} {settings.mode==='manual'?'Manual LIVE':'Auto Loop'} Ads</div><div className="arm-modal-sub">Ad library: {summary.active_total}/100 active. Manual has one LIVE Ad; Auto uses your selected Ads.</div></div><div className="arm-actions"><button type="button" className="arm-btn primary" onClick={newItem} disabled={saving||summary.active_total>=100}>+ New Ad</button><button type="button" className="arm-close" onClick={closeManage}>×</button></div></div>
+    <div className="arm-modal-head"><div><div className="arm-modal-title">Manage {title} {settings.mode==='manual'?'Manual LIVE':'Auto Loop'} Ads</div><div className="arm-modal-sub">Ad library: {summary.active_total}/100 active. Manual has one LIVE Ad; Auto uses your selected Ads.{hasChanges?' · Unsaved Changes — Local Draft':''}</div></div><div className="arm-actions">{hasChanges?<button type="button" className="arm-btn primary" onClick={saveSettings} disabled={saving||loading}>{saving?'Saving...':'Save Changes'}</button>:null}<button type="button" className="arm-btn primary" onClick={newItem} disabled={saving||summary.active_total>=100}>+ New Ad</button><button type="button" className="arm-close" onClick={closeManage}>×</button></div></div>
     <div className="arm-modal-main"><section className="arm-library">
-      <div className="arm-library-tools"><div className="arm-tabs"><button type="button" className={`arm-tab ${libraryTab==='active'?'active':''}`} onClick={()=>{cancelEditorSelection();setLibraryTab('active');setPage(1)}}>Active ({summary.active_total})</button><button type="button" className={`arm-tab ${libraryTab==='archived'?'active':''}`} onClick={()=>{cancelEditorSelection();setLibraryTab('archived');setFilter('all');setPage(1)}}>Archived ({summary.archived_total})</button></div>
+      <div className="arm-library-tools">{error?<div className="arm-error" style={{marginBottom:10}}>{error}</div>:null}{message?<div className="arm-success" style={{marginBottom:10}}>{message}</div>:null}<div className="arm-tabs"><button type="button" className={`arm-tab ${libraryTab==='active'?'active':''}`} onClick={()=>{cancelEditorSelection();setLibraryTab('active');setPage(1)}}>Active ({summary.active_total})</button><button type="button" className={`arm-tab ${libraryTab==='archived'?'active':''}`} onClick={()=>{cancelEditorSelection();setLibraryTab('archived');setFilter('all');setPage(1)}}>Archived ({summary.archived_total})</button></div>
       <form className="arm-tools-row" onSubmit={event=>{event.preventDefault();cancelEditorSelection();setSearch(searchInput.trim());setPage(1)}}><input className="arm-input" value={searchInput} onChange={event=>setSearchInput(event.target.value)} placeholder="Search ad name or exact ID..."/><select className="arm-input" value={filter} disabled={libraryTab==='archived'} onChange={event=>{cancelEditorSelection();setFilter(event.target.value);setPage(1)}}><option value="all">All Ads</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option><option value="in_loop">In Loop</option></select><select className="arm-input" value={perPage} onChange={event=>{cancelEditorSelection();setPerPage(Number(event.target.value));setPage(1)}}><option value={10}>10 / page</option><option value={20}>20 / page</option><option value={50}>50 / page</option></select><button className="arm-btn soft" type="submit">Search</button></form></div>
-      <div className="arm-table-wrap"><table className="arm-table"><thead><tr><th className="arm-col-drag">#</th><th className="arm-col-thumb">Image</th><th>Ad Name</th><th className="arm-col-enabled">Enabled</th><th className="arm-col-loop">Loop / Live</th><th className="arm-col-order">Order</th><th className="arm-col-actions">Actions</th></tr></thead><tbody>{items.length?items.map(item=>{const isSelected=Number(selectedId)===Number(item.id);const isLive=Number(liveInfo.liveId)===Number(item.id);const isNext=Number(liveInfo.nextId)===Number(item.id);return <tr key={item.id} className={isSelected?'selected':''} draggable={libraryTab==='active'&&!saving} onClick={event=>{if(event.target.closest('button,input,details,summary'))return;selectItem(item)}} onDragStart={()=>{dragIdRef.current=item.id}} onDragOver={event=>{if(libraryTab==='active')event.preventDefault()}} onDrop={()=>{if(libraryTab==='active')handleDrop(item.id)}}><td><div className="arm-drag">{libraryTab==='active'?'⋮⋮':'—'}</div></td><td>{item.image_url?<img className="arm-row-thumb" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-row-thumb arm-mini-empty">NO</div>}</td><td style={{cursor:'pointer'}}><div className="arm-name">{item.name||`${title} ${item.id}`}</div><div className="arm-submeta">ID #{item.id}{isLive?' · LIVE':''}{isNext?' · NEXT':''}</div></td><td>{libraryTab==='active'?<button type="button" className={`arm-switch ${item.enabled?'on':''}`} disabled={saving} onClick={()=>updateItemField(item,'enabled',!item.enabled)}><span/></button>:'—'}</td><td>{libraryTab==='active'&&settings.mode==='auto'?<input className="arm-check" type="checkbox" checked={Boolean(item.in_loop)} disabled={saving||loading||!item.enabled} onChange={event=>setAutoLoop(item,event.target.checked)}/>:libraryTab==='active'&&settings.mode==='manual'?<button type="button" className={`arm-btn ${isLive?'success':''}`} style={{padding:'6px 7px',fontSize:9}} disabled={saving||loading||isLive||!item.enabled} onClick={()=>setManualLive(item)}>{isLive?'LIVE':'Set Live'}</button>:'—'}</td><td>{libraryTab==='active'?<div className="arm-order"><button type="button" disabled={saving||Number(item.sort_order)<=1} onClick={()=>moveItem(item.id,'up')}>↑</button><button type="button" disabled={saving||Number(item.sort_order)>=Number(summary.active_total)} onClick={()=>moveItem(item.id,'down')}>↓</button></div>:'—'}</td><td><div className="arm-more"><button type="button" className="arm-more-trigger" aria-expanded={Number(openMoreId)===Number(item.id)} onClick={event=>{event.stopPropagation();setOpenMoreId(previous=>Number(previous)===Number(item.id)?null:item.id)}}>•••</button>{Number(openMoreId)===Number(item.id)?<div className="arm-more-menu">{libraryTab==='active'?<><button type="button" onClick={()=>{setOpenMoreId(null);selectItem(item)}}>Edit</button><button type="button" onClick={()=>{setOpenMoreId(null);duplicateItem(item)}}>Duplicate</button><button type="button" className="danger" onClick={()=>{setOpenMoreId(null);archiveItem(item)}}>Archive</button></>:<button type="button" onClick={()=>{setOpenMoreId(null);restoreItem(item)}}>Restore</button>}</div>:null}</div></td></tr>}):<tr><td colSpan={7} style={{padding:24,textAlign:'center',color:'#94a3b8',fontWeight:800}}>No Ads found.</td></tr>}</tbody></table></div>
+      <div className="arm-table-wrap"><table className="arm-table"><thead><tr><th className="arm-col-drag">#</th><th className="arm-col-thumb">Image</th><th>Ad Name</th><th className="arm-col-enabled">Enabled</th><th className="arm-col-loop">Loop / Live</th><th className="arm-col-order">Order</th><th className="arm-col-actions">Actions</th></tr></thead><tbody>{displayedItems.length?displayedItems.map(item=>{const isSelected=Number(selectedId)===Number(item.id);const isLive=Number(liveInfo.liveId)===Number(item.id);const isNext=Number(liveInfo.nextId)===Number(item.id);return <tr key={item.id} className={isSelected?'selected':''} draggable={canReorder&&!saving&&!loading} onClick={event=>{if(event.target.closest('button,input,details,summary'))return;selectItem(item)}} onDragStart={()=>{dragIdRef.current=item.id}} onDragOver={event=>{if(canReorder)event.preventDefault()}} onDrop={()=>{if(canReorder)handleDrop(item.id)}}><td><div className="arm-drag">{canReorder?'⋮⋮':'—'}</div></td><td>{item.image_url?<img className="arm-row-thumb" src={item.image_url} alt="" loading="lazy" decoding="async"/>:<div className="arm-row-thumb arm-mini-empty">NO</div>}</td><td style={{cursor:'pointer'}}><div className="arm-name">{item.name||`${title} ${item.id}`}</div><div className="arm-submeta">ID #{item.id}{isLive?' · LIVE':''}{isNext?' · NEXT':''}</div></td><td>{libraryTab==='active'?<button type="button" className={`arm-switch ${item.enabled?'on':''}`} disabled={saving} onClick={()=>updateItemField(item,'enabled',!item.enabled)}><span/></button>:'—'}</td><td>{libraryTab==='active'&&settings.mode==='auto'?<input className="arm-check" type="checkbox" checked={Boolean(item.in_loop)} disabled={saving||loading||!item.enabled} onChange={event=>setAutoLoop(item,event.target.checked)}/>:libraryTab==='active'&&settings.mode==='manual'?<button type="button" className={`arm-btn ${isLive?'success':''}`} style={{padding:'6px 7px',fontSize:9}} disabled={saving||loading||isLive||!item.enabled} onClick={()=>setManualLive(item)}>{isLive?'LIVE':'Set Live'}</button>:'—'}</td><td>{libraryTab==='active'?<div className="arm-order"><button type="button" disabled={saving||loading||!canReorder||displayedItems[0]?.id===item.id} onClick={()=>moveItem(item.id,'up')}>↑</button><button type="button" disabled={saving||loading||!canReorder||displayedItems[displayedItems.length-1]?.id===item.id} onClick={()=>moveItem(item.id,'down')}>↓</button></div>:'—'}</td><td><div className="arm-more"><button type="button" className="arm-more-trigger" aria-expanded={Number(openMoreId)===Number(item.id)} onClick={event=>{event.stopPropagation();setOpenMoreId(previous=>Number(previous)===Number(item.id)?null:item.id)}}>•••</button>{Number(openMoreId)===Number(item.id)?<div className="arm-more-menu">{libraryTab==='active'?<><button type="button" onClick={()=>{setOpenMoreId(null);selectItem(item)}}>Edit</button><button type="button" onClick={()=>{setOpenMoreId(null);duplicateItem(item)}}>Duplicate</button><button type="button" className="danger" onClick={()=>{setOpenMoreId(null);archiveItem(item)}}>Archive</button></>:<button type="button" onClick={()=>{setOpenMoreId(null);restoreItem(item)}}>Restore</button>}</div>:null}</div></td></tr>}):<tr><td colSpan={7} style={{padding:24,textAlign:'center',color:'#94a3b8',fontWeight:800}}>No Ads found.</td></tr>}</tbody></table></div>
       <div className="arm-library-footer"><div className="arm-page-info">Showing {pagination.total?((pagination.page-1)*pagination.limit)+1:0}–{Math.min(pagination.page*pagination.limit,pagination.total)} of {pagination.total}</div><div className="arm-pages"><button type="button" disabled={!pagination.has_prev} onClick={()=>{cancelEditorSelection();setPage(Math.max(1,pagination.page-1))}}>‹</button>{pageNumbers.map(number=><button key={number} type="button" className={pagination.page===number?'active':''} onClick={()=>{cancelEditorSelection();setPage(number)}}>{number}</button>)}<button type="button" disabled={!pagination.has_next} onClick={()=>{cancelEditorSelection();setPage(Math.min(pagination.total_pages,pagination.page+1))}}>›</button></div></div>
     </section>
 
