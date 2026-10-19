@@ -107,13 +107,33 @@ export default function useAdminIncomeEventRefreshKey(
   const [refreshKey, setRefreshKey] =
     useState(0)
   const refreshTimerRef = useRef(null)
+  const [pageVisible, setPageVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  )
+  const lastVisibleRef = useRef(pageVisible)
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+
+    const handleVisibility = () => {
+      const visible = document.visibilityState !== 'hidden'
+      if (visible && !lastVisibleRef.current && apiUrl && String(source || '').trim()) {
+        setRefreshKey((value) => value + 1)
+      }
+      lastVisibleRef.current = visible
+      setPageVisible(visible)
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [apiUrl, source])
 
   useEffect(() => {
     const sourceName = String(
       source || ''
     ).trim()
 
-    if (!apiUrl || !sourceName) {
+    if (!apiUrl || !sourceName || !pageVisible) {
       return undefined
     }
 
@@ -259,7 +279,7 @@ export default function useAdminIncomeEventRefreshKey(
         refreshTimerRef.current = null
       }
     }
-  }, [apiUrl, source])
+  }, [apiUrl, source, pageVisible])
 
   return refreshKey
 }
