@@ -1,10 +1,12 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import useAdminIncomeEventRefreshKey from '../hooks/useAdminIncomeEventRefreshKey'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -12,42 +14,34 @@ const API_URL =
 
 const PAGE_SIZE = 20
 
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000
-const CACHE_PREFIX =
-  'shadow_admin_income_diamond_gifts:'
+const CACHE_TTL_MS = 60 * 1000
+const CACHE_MAX_ENTRIES = 32
+const giftPageCache = new Map()
+let giftPageCacheToken = null
+
+function ensureGiftCacheAccount(token) {
+  if (giftPageCacheToken === token) return
+  giftPageCache.clear()
+  giftPageCacheToken = token
+}
 
 function readCache(key) {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return null
-
-    const cached = JSON.parse(raw)
-    if (
-      !cached?.saved_at ||
-      Date.now() - cached.saved_at >=
-        CACHE_TTL_MS
-    ) {
-      localStorage.removeItem(key)
-      return null
-    }
-
-    return cached.data || null
-  } catch {
+  const cached = giftPageCache.get(key)
+  if (!cached) return null
+  if (Date.now() - cached.saved_at >= CACHE_TTL_MS) {
+    giftPageCache.delete(key)
     return null
   }
+  giftPageCache.delete(key)
+  giftPageCache.set(key, cached)
+  return cached.data
 }
 
 function writeCache(key, data) {
-  try {
-    localStorage.setItem(
-      key,
-      JSON.stringify({
-        saved_at: Date.now(),
-        data,
-      })
-    )
-  } catch {
-    return
+  giftPageCache.delete(key)
+  giftPageCache.set(key, { saved_at: Date.now(), data })
+  while (giftPageCache.size > CACHE_MAX_ENTRIES) {
+    giftPageCache.delete(giftPageCache.keys().next().value)
   }
 }
 
@@ -650,6 +644,17 @@ export default function AdminDiamondGiftsPage() {
     useState('')
   const [selectedId, setSelectedId] =
     useState('')
+  const [incomeVisible, setIncomeVisible] = useState(
+    () => document.visibilityState !== 'hidden'
+  )
+  const incomeEventRefreshKey = useAdminIncomeEventRefreshKey(
+    API_URL,
+    incomeVisible ? 'diamond_gifts' : ''
+  )
+  const lastIncomeEventRef = useRef(incomeEventRefreshKey)
+  const lastIncomeVisibleRef = useRef(incomeVisible)
+  const firstIncomeFetchRef = useRef(true)
+  const incomeRequestSequenceRef = useRef(0)
 
   const transactions =
     data?.transactions || []
@@ -675,24 +680,25 @@ export default function AdminDiamondGiftsPage() {
   )
 
   function applyResult(result) {
-    setData(result)
+  setData(result)
 
-    const nextTransactions =
-      result?.transactions || []
+  const nextTransactions =
+    result?.transactions || []
 
-    setSelectedId((current) =>
-      nextTransactions.some(
-        (item) => item.id === current
-      )
-        ? current
-        : nextTransactions[0]?.id || ''
+  setSelectedId((current) =>
+    nextTransactions.some(
+      (item) => item.id === current
     )
-  }
+      ? current
+      : nextTransactions[0]?.id || ''
+  )
+}
 
   async function fetchDiamondGifts(
-    signal,
-    { force = false } = {}
-  ) {
+  signal,
+  { force = false } = {}
+) {
+    const requestSequence = ++incomeRequestSequenceRef.current
     try {
       setLoading(true)
       setMessage('')
@@ -718,17 +724,17 @@ export default function AdminDiamondGiftsPage() {
         String(PAGE_SIZE)
       )
 
-      const cacheKey =
-        `${CACHE_PREFIX}${params.toString()}`
+      ensureGiftCacheAccount(getAdminToken())
+      const cacheKey = params.toString()
 
-      if (!force) {
-        const cached = readCache(cacheKey)
+if (!force) {
+  const cached = readCache(cacheKey)
 
-        if (cached) {
-          applyResult(cached)
-          return
-        }
-      }
+  if (cached) {
+    applyResult(cached)
+    return
+  }
+}
 
       const response = await fetch(
         `${API_URL}/api/admin/income/diamond-gifts?${params.toString()}`,
@@ -753,6 +759,7 @@ export default function AdminDiamondGiftsPage() {
         )
       }
 
+      if (signal?.aborted || requestSequence !== incomeRequestSequenceRef.current) return
       applyResult(result)
       writeCache(cacheKey, result)
 
@@ -765,10 +772,10 @@ export default function AdminDiamondGiftsPage() {
       }
     } catch (error) {
       if (
-        error.name === 'AbortError'
-      ) {
-        return
-      }
+        signal?.aborted ||
+        requestSequence !== incomeRequestSequenceRef.current ||
+        error?.name === 'AbortError'
+      ) return
 
       setMessage(
         error.message ||
@@ -776,24 +783,47 @@ export default function AdminDiamondGiftsPage() {
       )
       setData(null)
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && requestSequence === incomeRequestSequenceRef.current) {
         setLoading(false)
       }
     }
   }
 
   useEffect(() => {
-    const controller =
-      new AbortController()
+    try {
+      for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+        const key = localStorage.key(index)
+        if (key?.startsWith('shadow_admin_income_diamond_gifts:')) {
+          localStorage.removeItem(key)
+        }
+      }
+    } catch {}
 
-    fetchDiamondGifts(
-      controller.signal
-    )
-
-    return () => {
-      controller.abort()
+    const onVisibilityChange = () => {
+      setIncomeVisible(document.visibilityState !== 'hidden')
     }
-  }, [from, to, searchQuery, status, page])
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    const changed = lastIncomeEventRef.current !== incomeEventRefreshKey
+    const resumed = incomeVisible && !lastIncomeVisibleRef.current
+    lastIncomeEventRef.current = incomeEventRefreshKey
+    lastIncomeVisibleRef.current = incomeVisible
+    if (!incomeVisible) return undefined
+
+    const force = firstIncomeFetchRef.current || changed || resumed
+    firstIncomeFetchRef.current = false
+    if (changed || resumed) giftPageCache.clear()
+
+    const controller = new AbortController()
+    fetchDiamondGifts(controller.signal, { force })
+    return () => controller.abort()
+  }, [from, to, searchQuery, status, page, incomeVisible, incomeEventRefreshKey])
 
   function applyRange(key) {
     if (key === 'today') {
@@ -1085,21 +1115,11 @@ export default function AdminDiamondGiftsPage() {
               }
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
-
-                const nextSearch =
-                  search.trim()
-
-                if (
-                  nextSearch === searchQuery &&
-                  page === 1
-                ) {
-                  fetchDiamondGifts(
-                    undefined,
-                    { force: true }
-                  )
+                const nextSearch = search.trim()
+                if (nextSearch === searchQuery && page === 1) {
+                  fetchDiamondGifts(undefined, { force: true })
                   return
                 }
-
                 setSearchQuery(nextSearch)
                 setPage(1)
               }}
