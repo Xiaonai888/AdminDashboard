@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminAuthorPageAuthorIncomeTab from './AdminAuthorPageAuthorIncomeTab'
+import AdminAuthorGiftIncomeTab from './AdminAuthorGiftIncomeTab'
 import AdminAuthorIncomeExportBar from '../components/AdminAuthorIncomeExportBar'
 
 const API_URL =
@@ -561,7 +562,7 @@ export default function AdminAuthorIncomePage() {
       <style>{styles}</style>
 
       <nav role="tablist" aria-label="Income category" style={{display:'flex',gap:8,marginBottom:18,flexWrap:'wrap'}}>
-  {[['episode','Episode Sales'],['book','Author Page Book/PDF']].map(([value,label]) => (
+  {[['episode','Episode Sales'],['book','Author Page Book/PDF'],['gift','Gift Income']].map(([value,label]) => (
     <button key={value} type="button" role="tab" aria-selected={incomeTab===value}
       className={`author-income-button ${incomeTab===value?'':'secondary'}`}
       onClick={()=>{setIncomeTab(value);setSelectedAuthor(null)}}>
@@ -912,6 +913,10 @@ export default function AdminAuthorIncomePage() {
 
       {incomeTab === 'book' ? (
         <AdminAuthorPageAuthorIncomeTab />
+      ) : null}
+
+      {incomeTab === 'gift' ? (
+        <AdminAuthorGiftIncomeTab />
       ) : null}
 
       {selectedAuthor ? (
