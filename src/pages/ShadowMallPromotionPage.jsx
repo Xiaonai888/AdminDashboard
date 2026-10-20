@@ -6,6 +6,143 @@ import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropM
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const DIAMOND_ICON_URL = 'https://www.shadowerabook.site/assets/Icons/Diamond.svg'
 
+const SHADOW_MALL_PROMOTION_MAX_BYTES = 5 * 1024 * 1024
+const SHADOW_MALL_PROMOTION_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+let shadowMallPromotionDirectRetryAfter = 0
+
+async function readShadowMallPromotionDirectResponse(response, fallbackMessage) {
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.message || fallbackMessage)
+    error.httpStatus = response.status
+    error.code = data.code || ''
+    throw error
+  }
+  return data
+}
+
+async function prepareShadowMallPromotionDirectFile(file, field) {
+  if (file?.type !== 'image/jpeg') return file
+
+  const targetBytes = field === 'image_url' ? 700 * 1024 : 260 * 1024
+  const maxWidth = field === 'image_url' ? 1200 : 600
+  const objectUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = reject
+      element.src = objectUrl
+    })
+    const sourceWidth = Number(image.naturalWidth || image.width)
+    const sourceHeight = Number(image.naturalHeight || image.height)
+    if (!sourceWidth || !sourceHeight) return file
+
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) return file
+    const baseScale = Math.min(1, maxWidth / sourceWidth, maxWidth / sourceHeight)
+    let bestBlob = null
+
+    for (const scale of [baseScale, baseScale * 0.85, baseScale * 0.7]) {
+      canvas.width = Math.max(1, Math.round(sourceWidth * scale))
+      canvas.height = Math.max(1, Math.round(sourceHeight * scale))
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+      for (const quality of [0.84, 0.76, 0.68, 0.6]) {
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality))
+        if (!blob || blob.type !== 'image/webp') continue
+        if (!bestBlob || blob.size < bestBlob.size) bestBlob = blob
+        if (blob.size <= targetBytes) break
+      }
+      if (bestBlob?.size <= targetBytes) break
+    }
+
+    canvas.width = 1
+    canvas.height = 1
+    if (!bestBlob || bestBlob.size >= file.size) return file
+    const name = `${String(file.name || 'shadow-mall-image').replace(/\.[^.]+$/, '')}.webp`
+    return new File([bestBlob], name, { type: 'image/webp', lastModified: Date.now() })
+  } catch {
+    return file
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+async function tryUploadShadowMallPromotionDirectBatch(files, token) {
+  if (!files.length) return {}
+  if (Date.now() < shadowMallPromotionDirectRetryAfter) return null
+
+  const results = {}
+  for (const { field, file } of files) {
+    let stage = 'prepare'
+    try {
+      const uploadFile = await prepareShadowMallPromotionDirectFile(file, field)
+      if (!SHADOW_MALL_PROMOTION_DIRECT_TYPES.has(uploadFile?.type) ||
+          uploadFile.size < 16 || uploadFile.size > SHADOW_MALL_PROMOTION_MAX_BYTES) return null
+
+      stage = 'init'
+      const initResponse = await fetch(`${API_URL}/api/media-direct/admin/init`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: 'admin_shadow_mall',
+          mime_type: uploadFile.type,
+          file_size: uploadFile.size,
+        }),
+      })
+      const init = await readShadowMallPromotionDirectResponse(initResponse, 'Direct image upload is unavailable')
+      if (!init.upload_url || !init.upload_token) {
+        const error = new Error('Direct image upload is unavailable')
+        error.httpStatus = 503
+        throw error
+      }
+
+      stage = 'transfer'
+      const transfer = await fetch(init.upload_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': uploadFile.type },
+        body: uploadFile,
+      })
+      if (!transfer.ok) {
+        const error = new Error('Cloudflare R2 could not receive the image')
+        error.httpStatus = transfer.status
+        throw error
+      }
+
+      stage = 'finalize'
+      const finalResponse = await fetch(`${API_URL}/api/media-direct/admin/finalize`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ upload_token: init.upload_token }),
+      })
+      const finalized = await readShadowMallPromotionDirectResponse(finalResponse, 'Failed to finalize the image')
+      const imageUrl = finalized.image_url || finalized.imageUrl || ''
+      if (!imageUrl) {
+        const error = new Error('Direct image upload returned no image URL')
+        error.httpStatus = 503
+        throw error
+      }
+      results[field] = imageUrl
+    } catch (error) {
+      const status = Number(error?.httpStatus || 0)
+      if (stage !== 'transfer' && [400, 401, 403, 409, 413, 415, 422, 429].includes(status)) throw error
+      shadowMallPromotionDirectRetryAfter = Date.now() + 60000
+      return null
+    }
+  }
+  return results
+}
+
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
@@ -647,18 +784,17 @@ export default function ShadowMallPromotionPage() {
         String(removeProfileImage)
       )
 
-      if (imageFile) {
-        formData.append(
-          'promotion_image',
-          imageFile
-        )
-      }
+      const directFiles = []
+      if (imageFile) directFiles.push({ field: 'image_url', file: imageFile })
+      if (profileFile) directFiles.push({ field: 'profile_image_url', file: profileFile })
+      const directImages = await tryUploadShadowMallPromotionDirectBatch(directFiles, token)
 
-      if (profileFile) {
-        formData.append(
-          'profile_image',
-          profileFile
-        )
+      if (directImages) {
+        if (directImages.image_url) formData.append('image_url', directImages.image_url)
+        if (directImages.profile_image_url) formData.append('profile_image_url', directImages.profile_image_url)
+      } else {
+        if (imageFile) formData.append('promotion_image', imageFile)
+        if (profileFile) formData.append('profile_image', profileFile)
       }
 
       const isEditing = Boolean(editingId)
