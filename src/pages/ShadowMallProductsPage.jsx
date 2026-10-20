@@ -6,6 +6,96 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 const USE_LEGACY_SIDEBAR = false;
 const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const PRODUCT_OPTIMIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const SHADOW_MALL_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+let shadowMallDirectRetryAfter = 0;
+
+async function readShadowMallDirectResponse(response, fallbackMessage) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.message || fallbackMessage);
+    error.httpStatus = response.status;
+    error.code = data.code || '';
+    throw error;
+  }
+  return data;
+}
+
+async function tryUploadShadowMallDirectBatch(files, token) {
+  if (!files.length) return {};
+  if (Date.now() < shadowMallDirectRetryAfter) return null;
+  if (files.some(({ file }) =>
+    !SHADOW_MALL_DIRECT_TYPES.has(file?.type) ||
+    file.size < 16 ||
+    file.size > PRODUCT_IMAGE_MAX_BYTES
+  )) return null;
+
+  const uploaded = {};
+
+  for (const { field, file } of files) {
+    let stage = 'init';
+
+    try {
+      const initResponse = await fetch(`${API_URL}/api/media-direct/admin/init`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: 'admin_shadow_mall',
+          mime_type: file.type,
+          file_size: file.size,
+        }),
+      });
+      const init = await readShadowMallDirectResponse(initResponse, 'Direct image upload is unavailable');
+      if (!init.upload_url || !init.upload_token) {
+        const error = new Error('Direct image upload is unavailable');
+        error.httpStatus = 503;
+        throw error;
+      }
+
+      stage = 'transfer';
+      const transfer = await fetch(init.upload_url, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!transfer.ok) {
+        const error = new Error('Cloudflare R2 could not receive the product image');
+        error.httpStatus = transfer.status;
+        throw error;
+      }
+
+      stage = 'finalize';
+      const finalizeResponse = await fetch(`${API_URL}/api/media-direct/admin/finalize`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ upload_token: init.upload_token }),
+      });
+      const finalized = await readShadowMallDirectResponse(finalizeResponse, 'Failed to finalize product image');
+      const imageUrl = finalized.image_url || finalized.imageUrl || '';
+      if (!imageUrl) {
+        const error = new Error('Direct image upload returned no image URL');
+        error.httpStatus = 503;
+        throw error;
+      }
+      uploaded[field] = imageUrl;
+    } catch (error) {
+      const status = Number(error?.httpStatus || 0);
+      if (stage !== 'transfer' && [400, 401, 403, 409, 413, 415, 422, 429].includes(status)) {
+        throw error;
+      }
+      shadowMallDirectRetryAfter = Date.now() + 60000;
+      return null;
+    }
+  }
+
+  return uploaded;
+}
+
 
 const styles = `
  
@@ -1612,27 +1702,39 @@ const searchMatch = !keyword || title.includes(keyword);
         formData.append(key, String(value ?? ''));
       });
 
-      formData.append(
-        'gallery_image_urls',
-        JSON.stringify(
-          galleryPreviews
-            .map((url, index) => (galleryFiles[index] ? '' : (String(url || '').startsWith('blob:') ? '' : (url || ''))))
-            .slice(0, 5)
-        )
-      );
+      const preparedImages = [];
 
       if (mainCoverFile) {
         const optimizedMainCover = await optimizeProductImage(mainCoverFile, 'cover');
-        formData.append('main_cover', optimizedMainCover);
+        preparedImages.push({ field: 'main_cover', file: optimizedMainCover });
       }
 
       for (let index = 0; index < galleryFiles.length; index += 1) {
         const file = galleryFiles[index];
         if (file) {
           const optimizedGalleryImage = await optimizeProductImage(file, 'gallery');
-          formData.append(`gallery_image_${index}`, optimizedGalleryImage);
+          preparedImages.push({ field: `gallery_image_${index}`, file: optimizedGalleryImage });
         }
       }
+
+      const directImages = await tryUploadShadowMallDirectBatch(preparedImages, token);
+      const existingGalleryUrls = galleryPreviews
+        .map((url, index) => (galleryFiles[index] ? '' : (String(url || '').startsWith('blob:') ? '' : (url || ''))))
+        .slice(0, 5);
+
+      if (directImages) {
+        if (directImages.main_cover) {
+          formData.append('cover_url', directImages.main_cover);
+        }
+        for (let index = 0; index < galleryFiles.length; index += 1) {
+          const imageUrl = directImages[`gallery_image_${index}`];
+          if (imageUrl) existingGalleryUrls[index] = imageUrl;
+        }
+      } else {
+        preparedImages.forEach(({ field, file }) => formData.append(field, file));
+      }
+
+      formData.append('gallery_image_urls', JSON.stringify(existingGalleryUrls));
 
       const url = editingId
         ? `${API_URL}/api/shadow-mall/products/${editingId}`
