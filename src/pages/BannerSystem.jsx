@@ -7,6 +7,68 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 const RECORDS_PER_PAGE = 20;
 const BANNER_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const BANNER_OPTIMIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+const BANNER_DIRECT_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+let bannerDirectUnavailableUntil = 0;
+
+async function tryUploadBannerDirect(file, apiFetch) {
+  if (!BANNER_DIRECT_MIME_TYPES.has(file.type) || file.size < 16 || file.size > BANNER_IMAGE_MAX_BYTES) return '';
+  if (Date.now() < bannerDirectUnavailableUntil) return '';
+
+  let stage = 'init';
+
+  try {
+    const init = await apiFetch(`${API_URL}/api/media-direct/admin/init`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: 'admin_banner',
+        mime_type: file.type,
+        file_size: file.size,
+      }),
+    });
+
+    if (!init.upload_url || !init.upload_token) {
+      const error = new Error('Direct banner upload is unavailable');
+      error.httpStatus = 503;
+      throw error;
+    }
+
+    stage = 'transfer';
+    const transferred = await fetch(init.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+    if (!transferred.ok) {
+      const error = new Error('Cloudflare R2 could not receive the banner');
+      error.httpStatus = transferred.status;
+      throw error;
+    }
+
+    stage = 'finalize';
+    const finalized = await apiFetch(`${API_URL}/api/media-direct/admin/finalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upload_token: init.upload_token }),
+    });
+
+    const imageUrl = finalized.image_url || finalized.imageUrl || '';
+    if (!imageUrl) {
+      const error = new Error('Direct banner upload returned no image URL');
+      error.httpStatus = 503;
+      throw error;
+    }
+
+    return imageUrl;
+  } catch (error) {
+    const status = Number(error?.httpStatus || 0);
+    if (stage !== 'transfer' && [400, 401, 403, 409, 413, 415, 422, 429].includes(status)) {
+      throw error;
+    }
+    bannerDirectUnavailableUntil = Date.now() + 60000;
+    return '';
+  }
+}
 
 function canvasToBlob(canvas, type, quality) {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
@@ -271,11 +333,16 @@ export default function BannerSystem() {
       sessionStorage.removeItem('shadow_admin_token');
       localStorage.removeItem('shadow_admin_token');
       setAuthExpired(true);
-      throw new Error('Admin session expired. Please login again.');
+      const error = new Error('Admin session expired. Please login again.');
+      error.httpStatus = response.status;
+      throw error;
     }
 
     if (!response.ok || data.ok === false) {
-      throw new Error(data.message || 'Request failed');
+      const error = new Error(data.message || 'Request failed');
+      error.httpStatus = response.status;
+      error.code = data.code || '';
+      throw error;
     }
 
     return data;
@@ -404,7 +471,12 @@ export default function BannerSystem() {
 
       if (selectedFile) {
         const optimizedFile = await optimizeBannerImage(selectedFile);
-        formData.append('image', optimizedFile);
+        const directImageUrl = await tryUploadBannerDirect(optimizedFile, apiFetch);
+        if (directImageUrl) {
+          formData.append('image_url', directImageUrl);
+        } else {
+          formData.append('image', optimizedFile);
+        }
       }
 
       formData.append('section_key', activeConfig.sectionKey);
