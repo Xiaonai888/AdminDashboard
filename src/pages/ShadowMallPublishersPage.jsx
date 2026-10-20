@@ -6,6 +6,85 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 const PUBLISHER_LOGO_MAX_BYTES = 5 * 1024 * 1024
 const PUBLISHER_LOGO_OPTIMIZABLE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 
+const PUBLISHER_LOGO_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+let publisherLogoDirectRetryAfter = 0
+
+async function readPublisherLogoDirectResponse(response, fallbackMessage) {
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.message || fallbackMessage)
+    error.httpStatus = response.status
+    error.code = data.code || ''
+    throw error
+  }
+  return data
+}
+
+async function tryUploadPublisherLogoDirect(file, token) {
+  if (!PUBLISHER_LOGO_DIRECT_TYPES.has(file?.type) || file.size < 16 || file.size > PUBLISHER_LOGO_MAX_BYTES) return ''
+  if (Date.now() < publisherLogoDirectRetryAfter) return ''
+
+  let stage = 'init'
+  try {
+    const initResponse = await fetch(`${API_URL}/api/media-direct/admin/init`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        category: 'admin_shadow_mall',
+        mime_type: file.type,
+        file_size: file.size,
+      }),
+    })
+    const init = await readPublisherLogoDirectResponse(initResponse, 'Direct publisher logo upload is unavailable')
+    if (!init.upload_url || !init.upload_token) {
+      const error = new Error('Direct publisher logo upload is unavailable')
+      error.httpStatus = 503
+      throw error
+    }
+
+    stage = 'transfer'
+    const transfer = await fetch(init.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+    if (!transfer.ok) {
+      const error = new Error('Cloudflare R2 could not receive the publisher logo')
+      error.httpStatus = transfer.status
+      throw error
+    }
+
+    stage = 'finalize'
+    const finalizeResponse = await fetch(`${API_URL}/api/media-direct/admin/finalize`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ upload_token: init.upload_token }),
+    })
+    const finalized = await readPublisherLogoDirectResponse(finalizeResponse, 'Failed to finalize publisher logo')
+    const imageUrl = finalized.image_url || finalized.imageUrl || ''
+    if (!imageUrl) {
+      const error = new Error('Direct publisher logo upload returned no image URL')
+      error.httpStatus = 503
+      throw error
+    }
+    return imageUrl
+  } catch (error) {
+    const status = Number(error?.httpStatus || 0)
+    if (stage !== 'transfer' && [400, 401, 403, 409, 413, 415, 422, 429].includes(status)) {
+      throw error
+    }
+    publisherLogoDirectRetryAfter = Date.now() + 60000
+    return ''
+  }
+}
+
+
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
 }
@@ -576,7 +655,12 @@ async function loadPublisherLogs(nextPage = 1) {
 
       if (logoFile) {
         const optimizedLogo = await optimizePublisherLogo(logoFile)
-        formData.append('publisher_logo', optimizedLogo)
+        const directLogoUrl = await tryUploadPublisherLogoDirect(optimizedLogo, getAdminToken())
+        if (directLogoUrl) {
+          formData.append('logo_url', directLogoUrl)
+        } else {
+          formData.append('publisher_logo', optimizedLogo)
+        }
       }
 
       if (removeLogo && !logoFile) {
