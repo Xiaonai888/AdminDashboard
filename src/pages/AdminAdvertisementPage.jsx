@@ -12,6 +12,90 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 const SHADOW_LOGO_URL = 'https://shadowerabook.site/assets/Icons/Logo%20Shadow%202.svg'
 const BRAND_TEXT = 'STORIES LIVE IN THE SHADOWS.'
 
+const AD_DIRECT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const AD_DIRECT_MAX_BYTES = 5 * 1024 * 1024
+let adDirectUnavailableUntil = 0
+
+async function readAdDirectResponse(response, fallbackMessage) {
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) {
+    const error = new Error(data.message || fallbackMessage)
+    error.httpStatus = response.status
+    error.code = data.code || ''
+    throw error
+  }
+  return data
+}
+
+async function tryUploadAdvertisementDirect(file, token) {
+  if (!file || !AD_DIRECT_IMAGE_TYPES.has(file.type) || file.size < 16 || file.size > AD_DIRECT_MAX_BYTES) return ''
+  if (Date.now() < adDirectUnavailableUntil) return ''
+
+  let stage = 'init'
+
+  try {
+    const initResponse = await fetch(`${API_URL}/api/media-direct/admin/init`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        category: 'admin_advertisement',
+        mime_type: file.type,
+        file_size: file.size,
+      }),
+    })
+    const init = await readAdDirectResponse(initResponse, 'Direct advertisement upload could not start')
+
+    if (!init.upload_url || !init.upload_token) {
+      const error = new Error('Direct advertisement upload is unavailable')
+      error.httpStatus = 503
+      throw error
+    }
+
+    stage = 'transfer'
+    const uploadResponse = await fetch(init.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    })
+
+    if (!uploadResponse.ok) {
+      const error = new Error('Cloudflare R2 could not receive the advertisement image')
+      error.httpStatus = uploadResponse.status
+      throw error
+    }
+
+    stage = 'finalize'
+    const finalResponse = await fetch(`${API_URL}/api/media-direct/admin/finalize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ upload_token: init.upload_token }),
+    })
+    const result = await readAdDirectResponse(finalResponse, 'Direct advertisement upload could not finish')
+    const imageUrl = result.image_url || result.imageUrl || ''
+
+    if (!imageUrl) {
+      const error = new Error('Direct advertisement upload returned no image URL')
+      error.httpStatus = 503
+      throw error
+    }
+
+    return imageUrl
+  } catch (error) {
+    const status = Number(error?.httpStatus || 0)
+    if (stage !== 'transfer' && [400, 401, 403, 409, 413, 415, 422, 429].includes(status)) {
+      throw error
+    }
+    adDirectUnavailableUntil = Date.now() + 60000
+    return ''
+  }
+}
+
 const styles = `
 
   :root {
@@ -1043,11 +1127,12 @@ export default function AdminAdvertisementPage() {
       const token = getAdminToken()
       const formData = new FormData()
       const file = selectedFiles[activeTab]
+      const directImageUrl = file ? await tryUploadAdvertisementDirect(file, token) : ''
 
-      if (file) formData.append('image', file)
+      if (file && !directImageUrl) formData.append('image', file)
 
       formData.append('enabled', String(current.enabled))
-      formData.append('image_url', current.imageUrl || '')
+      formData.append('image_url', directImageUrl || current.imageUrl || '')
       formData.append('link_url', current.linkUrl || '')
       formData.append('duration_seconds', String(current.durationSeconds))
       formData.append('close_after_seconds', String(current.closeAfterSeconds))
