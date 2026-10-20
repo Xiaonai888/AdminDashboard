@@ -6,6 +6,70 @@ import ImageDropZone from '../components/common/ImageDropZone';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SLOTS = [1, 2, 3, 4, 5, 6, 7];
 const RECORDS_PER_PAGE = 20;
+const SLIDE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const SLIDE_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+let slideDirectRetryAfter = 0;
+
+async function uploadSlideDirect(file, apiFetch) {
+  if (!SLIDE_DIRECT_TYPES.has(file?.type) || file.size < 16 || file.size > SLIDE_IMAGE_MAX_BYTES) return '';
+  if (Date.now() < slideDirectRetryAfter) return '';
+
+  let stage = 'init';
+
+  try {
+    const init = await apiFetch(`${API_URL}/api/media-direct/admin/init`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: 'admin_banner',
+        mime_type: file.type,
+        file_size: file.size,
+      }),
+    });
+
+    if (!init.upload_url || !init.upload_token) {
+      const error = new Error('Direct slide upload is unavailable');
+      error.httpStatus = 503;
+      throw error;
+    }
+
+    stage = 'transfer';
+    const transferred = await fetch(init.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
+
+    if (!transferred.ok) {
+      const error = new Error('Cloudflare R2 could not receive the slide image');
+      error.httpStatus = transferred.status;
+      throw error;
+    }
+
+    stage = 'finalize';
+    const finalized = await apiFetch(`${API_URL}/api/media-direct/admin/finalize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upload_token: init.upload_token }),
+    });
+
+    const imageUrl = finalized.image_url || finalized.imageUrl || '';
+    if (!imageUrl) {
+      const error = new Error('Direct slide upload returned no image URL');
+      error.httpStatus = 503;
+      throw error;
+    }
+
+    return imageUrl;
+  } catch (error) {
+    const status = Number(error?.httpStatus || 0);
+    if (stage !== 'transfer' && [400, 401, 403, 409, 413, 415, 422, 429].includes(status)) {
+      throw error;
+    }
+    slideDirectRetryAfter = Date.now() + 60000;
+    return '';
+  }
+}
 const SECTIONS = [
   { key: 'home_top_slider', label: 'Home Slide', title: 'Home Slide', text: 'Manage homepage hero slides, featured visuals, and promotional links.' },
   { key: 'manga_top_slider', label: 'Manga Slide', title: 'Manga Slide', text: 'Manage Manga page hero slides, featured visuals, and promotional links.' },
@@ -161,7 +225,10 @@ export default function SlideSection() {
     }
 
     if (!response.ok || data.ok === false) {
-      throw new Error(data.message || 'Request failed');
+      const error = new Error(data.message || 'Request failed');
+      error.httpStatus = response.status;
+      error.code = data.code || '';
+      throw error;
     }
 
     return data;
@@ -212,7 +279,10 @@ export default function SlideSection() {
     setLinkUrl(slide?.link_url || '/story/1');
     setIsActive(slide?.is_active ?? true);
     setSelectedFile(null);
-    setLocalPreviewUrl('');
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return '';
+    });
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [selectedSlot, slotMap]);
 
@@ -221,19 +291,34 @@ export default function SlideSection() {
     await fetchRecords(recordPage, sectionKey);
   };
 
+  const selectSlideFile = (file) => {
+    if (!file) return;
+    if (!file.type?.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Please choose an image file.' });
+      return;
+    }
+    if (file.size > SLIDE_IMAGE_MAX_BYTES) {
+      setMessage({ type: 'error', text: 'Slide image must be 5 MB or smaller.' });
+      return;
+    }
+
+    setSelectedFile(file);
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return URL.createObjectURL(file);
+    });
+    setMessage(null);
+  };
+
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-    setSelectedFile(file);
-    setLocalPreviewUrl(URL.createObjectURL(file));
+    event.target.value = '';
+    selectSlideFile(file);
   };
 
   const handleDroppedFiles = (files) => {
-  const file = files?.[0];
-  if (!file) return;
-  setSelectedFile(file);
-  setLocalPreviewUrl(URL.createObjectURL(file));
-};
+    selectSlideFile(files?.[0]);
+  };
 
   const handleSaveSlide = async () => {
     if (!selectedSlide && !selectedFile) {
@@ -246,7 +331,11 @@ export default function SlideSection() {
       setMessage(null);
 
       const formData = new FormData();
-      if (selectedFile) formData.append('image', selectedFile);
+      if (selectedFile) {
+        const directImageUrl = await uploadSlideDirect(selectedFile, apiFetch);
+        if (directImageUrl) formData.append('image_url', directImageUrl);
+        else formData.append('image', selectedFile);
+      }
       formData.append('section_key', sectionKey);
       formData.append('title', buildBadgeTitle(badge, title || `${currentSection.label} ${selectedSlot}`));
       formData.append('subtitle', subtitle);
@@ -267,7 +356,10 @@ export default function SlideSection() {
       });
 
       setSelectedFile(null);
-      setLocalPreviewUrl('');
+      setLocalPreviewUrl((previous) => {
+        if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+        return '';
+      });
       if (fileInputRef.current) fileInputRef.current.value = '';
       await refreshAll();
     } catch (error) {
@@ -298,7 +390,10 @@ export default function SlideSection() {
       setLinkUrl('/story/1');
       setIsActive(true);
       setSelectedFile(null);
-      setLocalPreviewUrl('');
+      setLocalPreviewUrl((previous) => {
+        if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+        return '';
+      });
       if (fileInputRef.current) fileInputRef.current.value = '';
       await refreshAll();
     } catch (error) {
@@ -318,7 +413,10 @@ export default function SlideSection() {
     setLinkUrl(slide?.link_url || '/story/1');
     setIsActive(slide?.is_active ?? true);
     setSelectedFile(null);
-    setLocalPreviewUrl('');
+    setLocalPreviewUrl((previous) => {
+      if (previous?.startsWith('blob:')) URL.revokeObjectURL(previous);
+      return '';
+    });
     setMessage(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
