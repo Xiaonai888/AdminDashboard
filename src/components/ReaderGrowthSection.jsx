@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
-const CACHE_KEY = 'shadow_admin_reader_growth_daily_v1'
+const CACHE_KEY = 'shadow_admin_reader_growth_daily_v2'
 const DAY_MS = 86400000
+const CAMBODIA_OFFSET_MS = 7 * 60 * 60 * 1000
 let memoryCache = null
 let inflight = null
 
 function cacheDay() {
-  return new Date(Date.now() + 390 * 60000).toISOString().slice(0, 10)
+  return new Date(Date.now() + CAMBODIA_OFFSET_MS).toISOString().slice(0, 10)
 }
 
 function shiftDay(date, amount) {
@@ -80,10 +81,10 @@ function getPeriodStart(period, asOf) {
   if (period === 'latest') return asOf
   if (period === '7d') return shiftDay(asOf, -6)
   if (period === '30d') return shiftDay(asOf, -29)
-  if (period === 'month') return `${new Date(Date.now() + 420 * 60000).toISOString().slice(0, 7)}-01`
+  if (period === 'month') return `${new Date(Date.now() + CAMBODIA_OFFSET_MS).toISOString().slice(0, 7)}-01`
   if (period === 'year') return startOfLast12Months(asOf)
   if (period === 'week') {
-    const today = new Date(Date.now() + 420 * 60000).toISOString().slice(0, 10)
+    const today = new Date(Date.now() + CAMBODIA_OFFSET_MS).toISOString().slice(0, 10)
     const weekday = new Date(`${today}T00:00:00Z`).getUTCDay()
     return shiftDay(today, -((weekday + 6) % 7))
   }
