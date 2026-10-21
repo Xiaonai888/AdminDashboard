@@ -19,6 +19,70 @@ function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token')
 }
 
+const COMMUNITY_LIST_LIMIT = 10
+const COMMUNITY_COUNTRY_LIMIT = 10
+const COMMUNITY_LIST_TTL = 3 * 60 * 1000
+const COMMUNITY_DETAIL_TTL = 5 * 60 * 1000
+const COMMUNITY_OVERVIEW_TTL = 5 * 60 * 1000
+const COMMUNITY_VISITOR_OVERVIEW_TTL = 60 * 1000
+const COMMUNITY_COUNTRY_SNAPSHOT_TTL = 5 * 60 * 1000
+const communityResponseCache = new Map()
+const communityPendingRequests = new Map()
+let communityCacheToken = null
+
+function syncCommunityCacheToken() {
+  const token = getAdminToken()
+  if (communityCacheToken !== token) {
+    communityCacheToken = token
+    communityResponseCache.clear()
+    communityPendingRequests.clear()
+  }
+  if (!token) throw new Error('Admin session required')
+  return token
+}
+
+function getCommunityCached(path) {
+  syncCommunityCacheToken()
+  const entry = communityResponseCache.get(path)
+  if (!entry) return null
+  if (entry.expiresAt <= Date.now()) {
+    communityResponseCache.delete(path)
+    return null
+  }
+  return entry.value
+}
+
+function invalidateCommunityCache(path) {
+  communityResponseCache.delete(path)
+}
+
+async function requestCommunity(path, ttl = COMMUNITY_LIST_TTL, force = false) {
+  const token = syncCommunityCacheToken()
+  const cache = force ? null : getCommunityCached(path)
+  if (cache) return cache
+  if (communityPendingRequests.has(path)) return communityPendingRequests.get(path)
+  const pending = (async () => {
+    const response = await fetch(`${API_URL}/api/admin/community/${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const result = await readApiResponse(response)
+    if (communityCacheToken === token && ttl > 0) {
+      communityResponseCache.delete(path)
+      communityResponseCache.set(path, { value: result, expiresAt: Date.now() + ttl })
+      while (communityResponseCache.size > 70) {
+        communityResponseCache.delete(communityResponseCache.keys().next().value)
+      }
+    }
+    return result
+  })()
+  communityPendingRequests.set(path, pending)
+  try {
+    return await pending
+  } finally {
+    if (communityPendingRequests.get(path) === pending) communityPendingRequests.delete(path)
+  }
+}
+
 function formatDate(value) {
   if (!value) return '-'
 
@@ -289,7 +353,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function UserDetailDrawer({ item, type, onClose, onOpenBooks }) {
+function UserDetailDrawer({ item, type, onClose, onOpenBooks, detailLoading = false, detailError = '', onRetry }) {
   if (!item) return null
 
   const isAuthor = type === 'author'
@@ -316,6 +380,13 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks }) {
           <button type="button" className="community-drawer-close" onClick={onClose}>×</button>
         </div>
 
+        {detailLoading ? <div className="community-detail-feedback" role="status">Loading profile details...</div> : null}
+        {detailError ? (
+          <div className="community-detail-feedback error" role="alert">
+            <span>{detailError}</span>
+            <button type="button" onClick={onRetry}>Retry</button>
+          </div>
+        ) : null}
         <div className="community-drawer-profile">
           <Avatar name={name} username={username} email={email} avatarUrl={avatarUrl} type={isAuthor ? 'author' : 'reader'} size="large" />
           <div>
@@ -357,10 +428,10 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks }) {
               }
             />
           ) : (
-            <DetailItem label="Role" value={item.is_author ? 'Reader + Author' : 'Reader'} />
+            <DetailItem label="Role" value={item.is_author || item.author_page ? 'Reader + Author' : 'Reader'} />
           )}
-
-      
+          {!isAuthor && item.author_page?.page_name ? <DetailItem label="Page Name" value={item.author_page.page_name} /> : null}
+          {!isAuthor && item.author_page?.page_username ? <DetailItem label="Page Username" value={`@${String(item.author_page.page_username).replace(/^@+/, '')}`} /> : null}
           <DetailItem label="Joined Date" value={formatDate(joinedAt)} />
           <DetailItem
             label="Activity"
@@ -407,7 +478,7 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks }) {
   )
 }
 
-function VisitorDetailDrawer({ visitor, onClose }) {
+function VisitorDetailDrawer({ visitor, onClose, detailLoading = false, detailError = '', onRetry }) {
   if (!visitor) return null
 
   return (
@@ -421,6 +492,13 @@ function VisitorDetailDrawer({ visitor, onClose }) {
           <button type="button" className="community-drawer-close" onClick={onClose}>×</button>
         </div>
 
+        {detailLoading ? <div className="community-detail-feedback" role="status">Loading visitor details...</div> : null}
+        {detailError ? (
+          <div className="community-detail-feedback error" role="alert">
+            <span>{detailError}</span>
+            <button type="button" onClick={onRetry}>Retry</button>
+          </div>
+        ) : null}
         <div className="community-visitor-profile">
           <div className={`community-visitor-device-icon ${visitor.is_suspected_bot ? 'bot' : ''}`}>
             {visitor.is_suspected_bot ? '🤖' : visitor.device_type === 'Mobile' ? '▯' : visitor.device_type === 'Tablet' ? '▭' : '▣'}
@@ -469,7 +547,9 @@ function VisitorDetailDrawer({ visitor, onClose }) {
 
         <div className="community-signal-box">
           <div className="community-id-label">Bot Signals</div>
-          {Array.isArray(visitor.bot_signals) && visitor.bot_signals.length ? (
+          {detailLoading ? (
+            <div className="community-signal-empty">Loading signals...</div>
+          ) : Array.isArray(visitor.bot_signals) && visitor.bot_signals.length ? (
             <div className="community-signal-list">
               {visitor.bot_signals.map((signal, index) => (
                 <div className="community-signal-item" key={`${signal.code || 'signal'}-${index}`}>
@@ -534,28 +614,20 @@ function CountryReadersDrawer({ country, onClose }) {
     if (!country?.country_code) return undefined
 
     let alive = true
-    const controller = new AbortController()
 
     async function loadReaders() {
       try {
         setLoading(true)
         setError('')
 
-        const token = getAdminToken()
         const params = new URLSearchParams({
           page: String(page),
-          limit: '25',
+          limit: String(COMMUNITY_COUNTRY_LIMIT),
         })
-        const response = await fetch(
-          `${API_URL}/api/admin/community/reader-countries/${encodeURIComponent(country.country_code)}/readers?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          }
+        const data = await requestCommunity(
+          `reader-countries/${encodeURIComponent(country.country_code)}/readers?${params.toString()}`,
+          COMMUNITY_LIST_TTL
         )
-        const data = await readApiResponse(response)
 
         if (!alive) return
 
@@ -565,7 +637,7 @@ function CountryReadersDrawer({ country, onClose }) {
           total_pages: Number(data.total_pages || 0),
         })
       } catch (err) {
-        if (!alive || err.name === 'AbortError') return
+        if (!alive) return
         setError(err.message || 'Failed to load readers')
         setPayload({
           rows: [],
@@ -581,9 +653,8 @@ function CountryReadersDrawer({ country, onClose }) {
 
     return () => {
       alive = false
-      controller.abort()
     }
-  }, [country, page])
+  }, [country?.country_code, page])
 
   useEffect(() => {
     setPage(1)
@@ -694,41 +765,41 @@ function CountriesSection() {
   const [notice, setNotice] = useState('')
   const [search, setSearch] = useState('')
   const [selectedCountryCode, setSelectedCountryCode] = useState('')
+  const [countryPage, setCountryPage] = useState(1)
   const [readerCountry, setReaderCountry] = useState(null)
 
-  async function requestAnalytics(force = false, signal) {
-    const token = getAdminToken()
-    const suffix = force ? '?refresh=true' : ''
-    const response = await fetch(
-      `${API_URL}/api/admin/community/reader-countries${suffix}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        signal,
-      }
+  async function requestAnalytics(force = false) {
+    if (force) invalidateCommunityCache('reader-countries')
+    const result = await requestCommunity(
+      force ? 'reader-countries?refresh=true' : 'reader-countries',
+      COMMUNITY_COUNTRY_SNAPSHOT_TTL,
+      force
     )
-
-    return readApiResponse(response)
+    if (force) {
+      communityResponseCache.set('reader-countries', {
+        value: result,
+        expiresAt: Date.now() + COMMUNITY_COUNTRY_SNAPSHOT_TTL,
+      })
+    }
+    return result
   }
 
   useEffect(() => {
     let alive = true
-    const controller = new AbortController()
 
     async function loadAnalytics() {
       try {
         setLoading(true)
         setError('')
 
-        const data = await requestAnalytics(false, controller.signal)
+        const data = await requestAnalytics(false)
 
         if (!alive) return
 
         setAnalytics(data.data || {})
         setMeta(data.meta || {})
       } catch (err) {
-        if (!alive || err.name === 'AbortError') return
+        if (!alive) return
         setError(err.message || 'Failed to load country analytics')
       } finally {
         if (alive) setLoading(false)
@@ -739,7 +810,6 @@ function CountriesSection() {
 
     return () => {
       alive = false
-      controller.abort()
     }
   }, [])
 
@@ -794,6 +864,16 @@ function CountriesSection() {
       )
     })
   }, [rows, search, selectedCountryCode])
+
+  useEffect(() => {
+    setCountryPage(1)
+  }, [search, selectedCountryCode])
+
+  const countryTotalPages = Math.max(1, Math.ceil(filteredRows.length / COMMUNITY_COUNTRY_LIMIT))
+  useEffect(() => {
+    setCountryPage((current) => Math.min(current, countryTotalPages))
+  }, [countryTotalPages])
+  const shownCountryRows = filteredRows.slice((countryPage - 1) * COMMUNITY_COUNTRY_LIMIT, countryPage * COMMUNITY_COUNTRY_LIMIT)
 
   const topRows = useMemo(() => rows.slice(0, 6), [rows])
 
@@ -991,11 +1071,11 @@ function CountriesSection() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRows.length ? filteredRows.map((row, index) => (
+                    {shownCountryRows.length ? shownCountryRows.map((row, index) => (
                       <tr key={row.country_code}>
                         <td>
                           <div className="country-name-cell">
-                            <b>{index + 1}</b>
+                            <b>{(countryPage - 1) * COMMUNITY_COUNTRY_LIMIT + index + 1}</b>
                             <div>
                               <strong>{row.country_name || row.country_code}</strong>
                               <span>{row.country_code}</span>
@@ -1028,6 +1108,11 @@ function CountriesSection() {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="country-readers-pagination">
+                <button type="button" disabled={countryPage <= 1} onClick={() => setCountryPage((value) => Math.max(1, value - 1))}>Previous</button>
+                <span>Page {countryPage} of {countryTotalPages} · 10 countries per page</span>
+                <button type="button" disabled={countryPage >= countryTotalPages} onClick={() => setCountryPage((value) => Math.min(countryTotalPages, value + 1))}>Next</button>
               </div>
             </div>
 
@@ -1892,6 +1977,8 @@ export default function AuthorsCommunity() {
   const [listLoading, setListLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
+  const [selectedDetail, setSelectedDetail] = useState(null)
+  const [detailRetry, setDetailRetry] = useState(0)
   const [selectedBooksAuthor, setSelectedBooksAuthor] = useState(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const requestedFilter = searchParams.get('filter')
@@ -1953,13 +2040,7 @@ const [filter, setFilter] = useState(initialFilter)
     async function loadSummary() {
       try {
         setSummaryLoading(true)
-        const token = getAdminToken()
-        const response = await fetch(`${API_URL}/api/admin/community/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        const data = await readApiResponse(response)
+        const data = await requestCommunity('overview', COMMUNITY_OVERVIEW_TTL)
 
         if (!alive) return
         setSummary(data.summary || {})
@@ -1992,13 +2073,7 @@ const [filter, setFilter] = useState(initialFilter)
     async function loadVisitorSummary() {
       try {
         setVisitorSummaryLoading(true)
-        const token = getAdminToken()
-        const response = await fetch(`${API_URL}/api/admin/community/visitors/overview`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        const data = await readApiResponse(response)
+        const data = await requestCommunity('visitors/overview', COMMUNITY_VISITOR_OVERVIEW_TTL)
 
         if (!alive) return
         setVisitorSummary(data.summary || {})
@@ -2032,10 +2107,9 @@ const [filter, setFilter] = useState(initialFilter)
         setListLoading(true)
         setError('')
 
-        const token = getAdminToken()
         const params = new URLSearchParams({
           page: String(page),
-          limit: '20',
+          limit: String(COMMUNITY_LIST_LIMIT),
           filter,
         })
 
@@ -2048,12 +2122,8 @@ const [filter, setFilter] = useState(initialFilter)
               ? 'visitors'
               : 'readers'
 
-        const response = await fetch(`${API_URL}/api/admin/community/${endpoint}?${params.toString()}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        const data = await readApiResponse(response)
+        if (endpoint === 'visitors') params.set('view', 'summary')
+        const data = await requestCommunity(`${endpoint}?${params.toString()}`, filter === 'active' ? 60 * 1000 : COMMUNITY_LIST_TTL)
 
         if (!alive) return
 
@@ -2103,25 +2173,75 @@ const [filter, setFilter] = useState(initialFilter)
 
   useEffect(() => {
     if (['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth')) return undefined
-
     const refreshWhenVisible = () => {
-      if (document.visibilityState === 'visible') {
-        setRefreshKey((current) => current + 1)
+      if (document.visibilityState !== 'visible') return
+      const endpoint = activeTab === 'authors' ? 'authors' : activeTab === 'visitors' ? 'visitors' : 'readers'
+      const params = new URLSearchParams({ page: String(page), limit: String(COMMUNITY_LIST_LIMIT), filter })
+      if (debouncedSearch) params.set('q', debouncedSearch)
+      if (endpoint === 'visitors') params.set('view', 'summary')
+      try {
+        if (!getCommunityCached(`${endpoint}?${params.toString()}`)) {
+          setRefreshKey((value) => value + 1)
+        }
+      } catch {
+        setRefreshKey((value) => value + 1)
       }
     }
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => document.removeEventListener('visibilitychange', refreshWhenVisible)
+  }, [activeTab, filter, page, debouncedSearch])
 
-    document.addEventListener(
-      'visibilitychange',
-      refreshWhenVisible
-    )
+  const selectedDetailKey = selectedItem ? `${activeTab}:${selectedItem.id}` : ''
 
-    return () => {
-      document.removeEventListener(
-        'visibilitychange',
-        refreshWhenVisible
-      )
+  useEffect(() => {
+    if (!selectedItem || !['readers', 'visitors'].includes(activeTab)) {
+      setSelectedDetail(null)
+      return undefined
     }
-  }, [activeTab, filter])
+    const detailKey = `${activeTab}:${selectedItem.id}`
+    const path = activeTab === 'readers'
+      ? `readers/${encodeURIComponent(String(selectedItem.id))}`
+      : `visitors/${encodeURIComponent(String(selectedItem.id))}`
+    let alive = true
+    let cached = null
+    try {
+      cached = getCommunityCached(path)
+    } catch (err) {
+      setSelectedDetail({ key: detailKey, data: null, loading: false, error: err.message || 'Admin session required' })
+      return () => { alive = false }
+    }
+    if (cached) {
+      const detail = activeTab === 'readers'
+        ? { ...cached.reader, author_page: cached.author_page || null }
+        : cached.visitor
+      setSelectedDetail({ key: detailKey, data: detail, loading: false, error: '' })
+      return () => { alive = false }
+    }
+    setSelectedDetail({ key: detailKey, data: null, loading: true, error: '' })
+    requestCommunity(path, COMMUNITY_DETAIL_TTL)
+      .then((result) => {
+        if (!alive) return
+        const detail = activeTab === 'readers'
+          ? { ...result.reader, author_page: result.author_page || null }
+          : result.visitor
+        if (!detail?.id) throw new Error('Profile details are unavailable')
+        setSelectedDetail({ key: detailKey, data: detail, loading: false, error: '' })
+      })
+      .catch((err) => {
+        if (alive) setSelectedDetail({ key: detailKey, data: null, loading: false, error: err.message || 'Failed to load details' })
+      })
+    return () => { alive = false }
+  }, [selectedItem, activeTab, detailRetry])
+
+  const detailState = selectedDetail?.key === selectedDetailKey ? selectedDetail : null
+  const activeSelectedItem = selectedItem && detailState?.data ? { ...selectedItem, ...detailState.data } : selectedItem
+
+  function retrySelectedDetail() {
+    if (!selectedItem || !['readers', 'visitors'].includes(activeTab)) return
+    const path = `${activeTab}/${encodeURIComponent(String(selectedItem.id))}`
+    invalidateCommunityCache(path)
+    setDetailRetry((value) => value + 1)
+  }
 
   function switchTab(tab) {
     setActiveTab(tab)
@@ -2189,9 +2309,9 @@ const [filter, setFilter] = useState(initialFilter)
 
     return [
       { label: 'Matched Readers', value: pagination.total || readers.length },
-      { label: 'Readers Only', value: readersOnly },
-      { label: 'Reader Authors', value: authorReaders },
-      { label: 'Active Today', value: activeReaders },
+      { label: 'Readers Only (Page)', value: readersOnly },
+      { label: 'Reader Authors (Page)', value: authorReaders },
+      { label: 'Active Today (Page)', value: activeReaders },
     ]
   }, [readers, pagination.total])
 
@@ -2204,9 +2324,9 @@ const [filter, setFilter] = useState(initialFilter)
 
     return [
       { label: 'Matched Authors', value: pagination.total || authors.length },
-      { label: 'With Books', value: withBooks },
-      { label: 'No Books', value: noBooks },
-      { label: 'Active Today', value: activeAuthors },
+      { label: 'With Books (Page)', value: withBooks },
+      { label: 'No Books (Page)', value: noBooks },
+      { label: 'Active Today (Page)', value: activeAuthors },
     ]
   }, [authors, pagination.total])
 
@@ -2623,11 +2743,20 @@ const [filter, setFilter] = useState(initialFilter)
       </div>
 
       {['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth') ? null : activeTab === 'visitors' ? (
-        <VisitorDetailDrawer visitor={selectedItem} onClose={() => setSelectedItem(null)} />
+        <VisitorDetailDrawer
+          visitor={activeSelectedItem}
+          detailLoading={!detailState || detailState.loading}
+          detailError={detailState?.error || ''}
+          onRetry={retrySelectedDetail}
+          onClose={() => setSelectedItem(null)}
+        />
       ) : (
         <UserDetailDrawer
-          item={selectedItem}
+          item={activeSelectedItem}
           type={activeTab === 'authors' ? 'author' : 'reader'}
+          detailLoading={activeTab === 'readers' && (!detailState || detailState.loading)}
+          detailError={activeTab === 'readers' ? detailState?.error || '' : ''}
+          onRetry={retrySelectedDetail}
           onClose={() => setSelectedItem(null)}
           onOpenBooks={setSelectedBooksAuthor}
         />
@@ -2759,6 +2888,9 @@ const styles = `
   .community-drawer-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-bottom: 16px; }
   .community-drawer-actions button { min-height: 38px; border: 1px solid #D8E2EF; border-radius: 13px; background: #FFFFFF; color: #4F46E5; font-size: 12px; font-weight: 950; cursor: pointer; transition: all 0.14s ease; }
   .community-drawer-actions button:hover { background: #EEF2FF; border-color: #4F46E5; box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12); }
+  .community-detail-feedback { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: 1px solid #C7D2FE; background: #EEF2FF; color: #4338CA; border-radius: 12px; padding: 10px 12px; font-size: 12px; font-weight: 800; margin-bottom: 12px; }
+  .community-detail-feedback.error { border-color: #FECACA; background: #FEF2F2; color: #B91C1C; }
+  .community-detail-feedback button { border: 1px solid currentColor; padding: 5px 11px; border-radius: 9px; color: inherit; background: #FFFFFF; font-weight: 850; cursor: pointer; }
   .community-detail-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
   .community-detail-item { border: 1px solid #E2E8F0; border-radius: 16px; padding: 13px 14px; background: #FFFFFF; }
   .community-detail-label, .community-id-label { color: #64748B; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
