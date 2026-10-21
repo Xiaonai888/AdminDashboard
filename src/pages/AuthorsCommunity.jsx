@@ -30,12 +30,19 @@ const communityResponseCache = new Map()
 const communityPendingRequests = new Map()
 let communityCacheToken = null
 
+function communityAbortError() {
+  const error = new Error('Request cancelled')
+  error.name = 'AbortError'
+  return error
+}
+
 function syncCommunityCacheToken() {
   const token = getAdminToken()
   if (communityCacheToken !== token) {
     communityCacheToken = token
-    communityResponseCache.clear()
+    for (const entry of communityPendingRequests.values()) entry.controller.abort()
     communityPendingRequests.clear()
+    communityResponseCache.clear()
   }
   if (!token) throw new Error('Admin session required')
   return token
@@ -54,33 +61,80 @@ function getCommunityCached(path) {
 
 function invalidateCommunityCache(path) {
   communityResponseCache.delete(path)
+  const pending = communityPendingRequests.get(path)
+  if (pending) {
+    pending.controller.abort()
+    communityPendingRequests.delete(path)
+  }
 }
 
-async function requestCommunity(path, ttl = COMMUNITY_LIST_TTL, force = false) {
-  const token = syncCommunityCacheToken()
-  const cache = force ? null : getCommunityCached(path)
-  if (cache) return cache
-  if (communityPendingRequests.has(path)) return communityPendingRequests.get(path)
-  const pending = (async () => {
-    const response = await fetch(`${API_URL}/api/admin/community/${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const result = await readApiResponse(response)
-    if (communityCacheToken === token && ttl > 0) {
-      communityResponseCache.delete(path)
-      communityResponseCache.set(path, { value: result, expiresAt: Date.now() + ttl })
-      while (communityResponseCache.size > 70) {
-        communityResponseCache.delete(communityResponseCache.keys().next().value)
+function waitForCommunityRequest(entry, signal) {
+  if (signal?.aborted) return Promise.reject(communityAbortError())
+  entry.consumers += 1
+  return new Promise((resolve, reject) => {
+    let finished = false
+    function finish(callback, value) {
+      if (finished) return
+      finished = true
+      signal?.removeEventListener('abort', onAbort)
+      entry.consumers -= 1
+      if (!entry.done && entry.consumers === 0) {
+        entry.controller.abort()
+        if (communityPendingRequests.get(entry.path) === entry) {
+          communityPendingRequests.delete(entry.path)
+        }
       }
+      callback(value)
     }
-    return result
-  })()
-  communityPendingRequests.set(path, pending)
-  try {
-    return await pending
-  } finally {
-    if (communityPendingRequests.get(path) === pending) communityPendingRequests.delete(path)
+    function onAbort() {
+      finish(reject, communityAbortError())
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted) {
+      onAbort()
+      return
+    }
+    entry.promise.then((value) => finish(resolve, value), (error) => finish(reject, error))
+  })
+}
+
+function requestCommunity(path, ttl = COMMUNITY_LIST_TTL, force = false, signal) {
+  if (signal?.aborted) return Promise.reject(communityAbortError())
+  const token = syncCommunityCacheToken()
+  if (force) invalidateCommunityCache(path)
+  const cached = force ? null : getCommunityCached(path)
+  if (cached) return Promise.resolve(cached)
+  const existing = communityPendingRequests.get(path)
+  if (existing && !existing.controller.signal.aborted) {
+    return waitForCommunityRequest(existing, signal)
   }
+  const controller = new AbortController()
+  const entry = { path, controller, consumers: 0, done: false, promise: null }
+  entry.promise = (async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/community/${path}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      })
+      const result = await readApiResponse(response)
+      if (controller.signal.aborted || communityCacheToken !== token || getAdminToken() !== token) {
+        throw communityAbortError()
+      }
+      if (ttl > 0) {
+        communityResponseCache.delete(path)
+        communityResponseCache.set(path, { value: result, expiresAt: Date.now() + ttl })
+        while (communityResponseCache.size > 70) {
+          communityResponseCache.delete(communityResponseCache.keys().next().value)
+        }
+      }
+      return result
+    } finally {
+      entry.done = true
+      if (communityPendingRequests.get(path) === entry) communityPendingRequests.delete(path)
+    }
+  })()
+  communityPendingRequests.set(path, entry)
+  return waitForCommunityRequest(entry, signal)
 }
 
 function formatDate(value) {
@@ -614,6 +668,7 @@ function CountryReadersDrawer({ country, onClose }) {
     if (!country?.country_code) return undefined
 
     let alive = true
+    const controller = new AbortController()
 
     async function loadReaders() {
       try {
@@ -626,7 +681,9 @@ function CountryReadersDrawer({ country, onClose }) {
         })
         const data = await requestCommunity(
           `reader-countries/${encodeURIComponent(country.country_code)}/readers?${params.toString()}`,
-          COMMUNITY_LIST_TTL
+          COMMUNITY_LIST_TTL,
+          false,
+          controller.signal
         )
 
         if (!alive) return
@@ -637,7 +694,7 @@ function CountryReadersDrawer({ country, onClose }) {
           total_pages: Number(data.total_pages || 0),
         })
       } catch (err) {
-        if (!alive) return
+        if (!alive || err.name === 'AbortError') return
         setError(err.message || 'Failed to load readers')
         setPayload({
           rows: [],
@@ -653,6 +710,7 @@ function CountryReadersDrawer({ country, onClose }) {
 
     return () => {
       alive = false
+      controller.abort()
     }
   }, [country?.country_code, page])
 
@@ -768,12 +826,13 @@ function CountriesSection() {
   const [countryPage, setCountryPage] = useState(1)
   const [readerCountry, setReaderCountry] = useState(null)
 
-  async function requestAnalytics(force = false) {
+  async function requestAnalytics(force = false, signal) {
     if (force) invalidateCommunityCache('reader-countries')
     const result = await requestCommunity(
       force ? 'reader-countries?refresh=true' : 'reader-countries',
       COMMUNITY_COUNTRY_SNAPSHOT_TTL,
-      force
+      force,
+      signal
     )
     if (force) {
       communityResponseCache.set('reader-countries', {
@@ -786,20 +845,21 @@ function CountriesSection() {
 
   useEffect(() => {
     let alive = true
+    const controller = new AbortController()
 
     async function loadAnalytics() {
       try {
         setLoading(true)
         setError('')
 
-        const data = await requestAnalytics(false)
+        const data = await requestAnalytics(false, controller.signal)
 
         if (!alive) return
 
         setAnalytics(data.data || {})
         setMeta(data.meta || {})
       } catch (err) {
-        if (!alive) return
+        if (!alive || err.name === 'AbortError') return
         setError(err.message || 'Failed to load country analytics')
       } finally {
         if (alive) setLoading(false)
@@ -810,6 +870,7 @@ function CountriesSection() {
 
     return () => {
       alive = false
+      controller.abort()
     }
   }, [])
 
@@ -1980,7 +2041,7 @@ export default function AuthorsCommunity() {
   const [selectedDetail, setSelectedDetail] = useState(null)
   const [detailRetry, setDetailRetry] = useState(0)
   const [selectedBooksAuthor, setSelectedBooksAuthor] = useState(null)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [listRefreshKey, setListRefreshKey] = useState(0)
   const requestedFilter = searchParams.get('filter')
   const initialFilter =
   initialTab === 'visitors' && requestedFilter === 'today'
@@ -2036,16 +2097,17 @@ const [filter, setFilter] = useState(initialFilter)
 
   useEffect(() => {
     let alive = true
+    const controller = new AbortController()
 
     async function loadSummary() {
       try {
         setSummaryLoading(true)
-        const data = await requestCommunity('overview', COMMUNITY_OVERVIEW_TTL)
+        const data = await requestCommunity('overview', COMMUNITY_OVERVIEW_TTL, false, controller.signal)
 
         if (!alive) return
         setSummary(data.summary || {})
       } catch (err) {
-        if (!alive) return
+        if (!alive || err.name === 'AbortError') return
         setError(err.message || 'Failed to load community overview')
       } finally {
         if (alive) setSummaryLoading(false)
@@ -2056,11 +2118,13 @@ const [filter, setFilter] = useState(initialFilter)
 
     return () => {
       alive = false
+      controller.abort()
     }
-  }, [refreshKey])
+  }, [])
 
   useEffect(() => {
     let alive = true
+    const controller = new AbortController()
 
     if (activeTab !== 'visitors') {
       setVisitorSummaryLoading(false)
@@ -2073,12 +2137,12 @@ const [filter, setFilter] = useState(initialFilter)
     async function loadVisitorSummary() {
       try {
         setVisitorSummaryLoading(true)
-        const data = await requestCommunity('visitors/overview', COMMUNITY_VISITOR_OVERVIEW_TTL)
+        const data = await requestCommunity('visitors/overview', COMMUNITY_VISITOR_OVERVIEW_TTL, false, controller.signal)
 
         if (!alive) return
         setVisitorSummary(data.summary || {})
       } catch (err) {
-        if (!alive) return
+        if (!alive || err.name === 'AbortError') return
         setError(err.message || 'Failed to load visitor overview')
       } finally {
         if (alive) setVisitorSummaryLoading(false)
@@ -2089,11 +2153,13 @@ const [filter, setFilter] = useState(initialFilter)
 
     return () => {
       alive = false
+      controller.abort()
     }
-  }, [activeTab, refreshKey])
+  }, [activeTab])
 
   useEffect(() => {
     let alive = true
+    const controller = new AbortController()
 
     if (['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth')) {
   setListLoading(false)
@@ -2123,7 +2189,12 @@ const [filter, setFilter] = useState(initialFilter)
               : 'readers'
 
         if (endpoint === 'visitors') params.set('view', 'summary')
-        const data = await requestCommunity(`${endpoint}?${params.toString()}`, filter === 'active' ? 60 * 1000 : COMMUNITY_LIST_TTL)
+        const data = await requestCommunity(
+          `${endpoint}?${params.toString()}`,
+          filter === 'active' ? 60 * 1000 : COMMUNITY_LIST_TTL,
+          false,
+          controller.signal
+        )
 
         if (!alive) return
 
@@ -2144,7 +2215,7 @@ const [filter, setFilter] = useState(initialFilter)
           has_prev: Boolean(data.has_prev),
         })
       } catch (err) {
-        if (!alive) return
+        if (!alive || err.name === 'AbortError') return
 
         setError(err.message || 'Failed to load community data')
 
@@ -2168,8 +2239,9 @@ const [filter, setFilter] = useState(initialFilter)
 
     return () => {
       alive = false
+      controller.abort()
     }
-  }, [activeTab, page, debouncedSearch, filter, refreshKey])
+  }, [activeTab, page, debouncedSearch, filter, listRefreshKey])
 
   useEffect(() => {
     if (['countries', 'growth'].includes(activeTab) || (activeTab === 'visitors' && filter === 'visitor_growth')) return undefined
@@ -2181,10 +2253,10 @@ const [filter, setFilter] = useState(initialFilter)
       if (endpoint === 'visitors') params.set('view', 'summary')
       try {
         if (!getCommunityCached(`${endpoint}?${params.toString()}`)) {
-          setRefreshKey((value) => value + 1)
+          setListRefreshKey((value) => value + 1)
         }
       } catch {
-        setRefreshKey((value) => value + 1)
+        setListRefreshKey((value) => value + 1)
       }
     }
     document.addEventListener('visibilitychange', refreshWhenVisible)
@@ -2203,6 +2275,7 @@ const [filter, setFilter] = useState(initialFilter)
       ? `readers/${encodeURIComponent(String(selectedItem.id))}`
       : `visitors/${encodeURIComponent(String(selectedItem.id))}`
     let alive = true
+    const controller = new AbortController()
     let cached = null
     try {
       cached = getCommunityCached(path)
@@ -2218,7 +2291,7 @@ const [filter, setFilter] = useState(initialFilter)
       return () => { alive = false }
     }
     setSelectedDetail({ key: detailKey, data: null, loading: true, error: '' })
-    requestCommunity(path, COMMUNITY_DETAIL_TTL)
+    requestCommunity(path, COMMUNITY_DETAIL_TTL, false, controller.signal)
       .then((result) => {
         if (!alive) return
         const detail = activeTab === 'readers'
@@ -2228,10 +2301,15 @@ const [filter, setFilter] = useState(initialFilter)
         setSelectedDetail({ key: detailKey, data: detail, loading: false, error: '' })
       })
       .catch((err) => {
-        if (alive) setSelectedDetail({ key: detailKey, data: null, loading: false, error: err.message || 'Failed to load details' })
+        if (alive && err.name !== 'AbortError') {
+          setSelectedDetail({ key: detailKey, data: null, loading: false, error: err.message || 'Failed to load details' })
+        }
       })
-    return () => { alive = false }
-  }, [selectedItem, activeTab, detailRetry])
+    return () => {
+      alive = false
+      controller.abort()
+    }
+  }, [selectedItem?.id, activeTab, detailRetry])
 
   const detailState = selectedDetail?.key === selectedDetailKey ? selectedDetail : null
   const activeSelectedItem = selectedItem && detailState?.data ? { ...selectedItem, ...detailState.data } : selectedItem
