@@ -549,7 +549,7 @@ function authHeaders() {
 }
 
 function formatUsd(value) {
-  return `$${Number(value || 0).toFixed(2)}`
+  return `$${Number(value || 0).toFixed(3)}`
 }
 
 function inputDate(date) {
