@@ -6,6 +6,47 @@ import ImageCropModal, { createCroppedImageFile } from '../components/ImageCropM
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const DIAMOND_ICON_URL = 'https://www.shadowerabook.site/assets/Icons/Diamond.svg'
 
+const AD_PAGE_SIZE = 20
+const AD_CACHE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000
+
+function getAdCacheKey(token) {
+  let hash = 2166136261
+  for (let index = 0; index < token.length; index += 1) {
+    hash ^= token.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `shadow_admin_mall_ads_v2_${(hash >>> 0).toString(36)}`
+}
+
+function readAdCache(key) {
+  try {
+    const cache = JSON.parse(localStorage.getItem(key) || 'null')
+    if (
+      cache?.revision &&
+      cache?.pages &&
+      Date.now() - Number(cache.savedAt || 0) < AD_CACHE_MAX_AGE_MS
+    ) return cache
+  } catch {}
+  return null
+}
+
+function writeAdCache(key, cache) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ...cache, savedAt: Date.now() }))
+  } catch {}
+}
+
+function getAdCachedPages(cache) {
+  const pages = []
+  for (let page = 1; page <= 10000; page += 1) {
+    const entry = cache?.pages?.[page]
+    if (!entry || !Array.isArray(entry.promotions)) break
+    pages.push(entry)
+    if (!entry.has_next) break
+  }
+  return pages
+}
+
 const SHADOW_MALL_PROMOTION_MAX_BYTES = 5 * 1024 * 1024
 const SHADOW_MALL_PROMOTION_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 let shadowMallPromotionDirectRetryAfter = 0
@@ -187,6 +228,12 @@ export default function ShadowMallPromotionPage() {
   const [removeImage, setRemoveImage] = useState(false)
   const [removeProfileImage, setRemoveProfileImage] = useState(false)
   const [promotions, setPromotions] = useState([])
+  const [adsPage, setAdsPage] = useState(1)
+  const [adsTotal, setAdsTotal] = useState(0)
+  const [adsHasNext, setAdsHasNext] = useState(false)
+  const [adsLoadingMore, setAdsLoadingMore] = useState(false)
+  const adsPageRef = useRef(1)
+  const adsRequestRef = useRef(0)
   const [stories, setStories] = useState([])
   const [storiesLoading, setStoriesLoading] = useState(false)
   const [storySearch, setStorySearch] = useState('')
@@ -204,43 +251,116 @@ export default function ShadowMallPromotionPage() {
   const [reordering, setReordering] = useState(false)
   const [message, setMessage] = useState('')
 
-  async function loadPromotions({ silent = false } = {}) {
+  function applyPromotionPages(pages) {
+    const seen = new Set()
+    const entries = pages.flatMap((entry) => entry.promotions || []).filter((promotion) => {
+      if (seen.has(promotion.id)) return false
+      seen.add(promotion.id)
+      return true
+    })
+    const lastPage = pages[pages.length - 1]
+    adsPageRef.current = pages.length || 1
+    setAdsPage(adsPageRef.current)
+    setAdsHasNext(Boolean(lastPage?.has_next))
+    setAdsTotal(Number(lastPage?.total || 0))
+    setPromotions(entries)
+  }
+
+  async function loadPromotions({ silent = false, more = false, force = false } = {}) {
+    const requestId = ++adsRequestRef.current
+    const token = getAdminToken()
+    const cacheKey = getAdCacheKey(token || 'anonymous')
+    let cache = readAdCache(cacheKey)
+    if (force) {
+      try { localStorage.removeItem(cacheKey) } catch {}
+    }
+
+    if (more) setAdsLoadingMore(true)
+    else if (!silent) {
+      setLoading(true)
+      setMessage('')
+    }
+
+    if (!more && !force && cache) {
+      const cachedPages = getAdCachedPages(cache)
+      if (cachedPages.length) {
+        applyPromotionPages(cachedPages)
+        setLoading(false)
+      }
+    }
+
     try {
-      if (!silent) {
-        setLoading(true)
-        setMessage('')
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const metadataResponse = await fetch(
+        `${API_URL}/api/shadow-mall/admin/promotions?meta=1`,
+        { headers, cache: 'no-store' }
+      )
+      const metadata = await metadataResponse.json().catch(() => ({}))
+      if (!metadataResponse.ok || metadata.ok === false || !metadata.revision) {
+        throw new Error(metadata.message || 'Failed to verify ads updates')
+      }
+      if (requestId !== adsRequestRef.current) return
+
+      if (!cache || cache.revision !== metadata.revision || force) {
+        cache = { revision: metadata.revision, pages: {} }
       }
 
-      const token = getAdminToken()
-      const response = await fetch(
-        `${API_URL}/api/shadow-mall/admin/promotions`,
-        {
-          headers: {
-            ...(token
-              ? { Authorization: `Bearer ${token}` }
-              : {}),
-          },
+      const existingPages = getAdCachedPages(cache)
+      const targetPage = more
+        ? adsPageRef.current + 1
+        : force
+          ? adsPageRef.current
+          : Math.max(1, existingPages.length)
+
+      let revisionResets = 0
+      for (let page = 1; page <= targetPage; page += 1) {
+        if (cache.pages[page]) {
+          if (!cache.pages[page].has_next) break
+          continue
         }
-      )
-      const data = await response.json().catch(() => ({}))
 
-      if (!response.ok || data.ok === false) {
-        throw new Error(
-          data.message || 'Failed to load promotions'
+        const response = await fetch(
+          `${API_URL}/api/shadow-mall/admin/promotions?page=${page}&limit=${AD_PAGE_SIZE}`,
+          { headers, cache: 'no-store' }
         )
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data.ok === false || !Array.isArray(data.promotions)) {
+          throw new Error(data.message || 'Failed to load ads records')
+        }
+        if (requestId !== adsRequestRef.current) return
+
+        if (data.revision && cache.revision !== data.revision) {
+          if (++revisionResets > 2) throw new Error('Ads changed during loading. Please retry.')
+          cache = { revision: data.revision, pages: {} }
+          page = 0
+          continue
+        }
+        cache.pages[page] = {
+          promotions: data.promotions,
+          page: Number(data.page || page),
+          total: Number(data.total || 0),
+          has_next: Boolean(data.has_next),
+        }
+        if (!data.has_next) break
       }
 
-      setPromotions(
-        Array.isArray(data.promotions)
-          ? data.promotions
-          : []
-      )
+      if (requestId !== adsRequestRef.current) return
+      const pages = getAdCachedPages(cache)
+      applyPromotionPages(pages)
+      writeAdCache(cacheKey, cache)
     } catch (error) {
-      setMessage(
-        error.message || 'Failed to load promotions'
-      )
+      if (requestId !== adsRequestRef.current) return
+      if (!more && !force && cache && getAdCachedPages(cache).length) {
+        applyPromotionPages(getAdCachedPages(cache))
+        setMessage('Showing saved ads. Unable to verify the latest updates.')
+      } else {
+        setMessage(error.message || 'Failed to load ads records')
+      }
     } finally {
-      if (!silent) setLoading(false)
+      if (requestId === adsRequestRef.current) {
+        setLoading(false)
+        setAdsLoadingMore(false)
+      }
     }
   }
 
@@ -361,6 +481,18 @@ export default function ShadowMallPromotionPage() {
 
   useEffect(() => {
     loadPromotions()
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === 'visible') {
+        loadPromotions({ silent: true })
+      }
+    }
+
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      adsRequestRef.current += 1
+    }
   }, [])
 
   useEffect(() => {
@@ -821,7 +953,7 @@ export default function ShadowMallPromotionPage() {
         )
       }
 
-      await loadPromotions({ silent: true })
+      await loadPromotions({ silent: true, force: true })
 
       clearEditor(
         isEditing
@@ -937,6 +1069,7 @@ export default function ShadowMallPromotionPage() {
         clearEditor('')
       }
 
+      await loadPromotions({ silent: true, force: true })
       setMessage('Ad deleted successfully.')
     } catch (error) {
       setMessage(
@@ -989,7 +1122,7 @@ export default function ShadowMallPromotionPage() {
           is_active: nextActive,
         }
 
-      await loadPromotions({ silent: true })
+      await loadPromotions({ silent: true, force: true })
 
       if (editingId === promotion.id) {
         setForm((current) => ({
@@ -1073,7 +1206,7 @@ export default function ShadowMallPromotionPage() {
         )
       }
 
-      await loadPromotions({ silent: true })
+      await loadPromotions({ silent: true, force: true })
       setOpenMenuId(null)
       setMessage(
         nextPinned
@@ -1090,51 +1223,11 @@ export default function ShadowMallPromotionPage() {
   }
 
   async function movePromotion(promotionId, direction) {
-    const promotion = promotions.find(
-      (item) => item.id === promotionId
-    )
-
-    if (!promotion || promotion.is_pinned) {
-      return
-    }
-
-    const pinnedPromotions = promotions.filter(
-      (item) => Boolean(item.is_pinned)
-    )
-    const regularPromotions = promotions.filter(
-      (item) => !Boolean(item.is_pinned)
-    )
-    const currentIndex = regularPromotions.findIndex(
-      (item) => item.id === promotionId
-    )
-    const nextIndex =
-      direction === 'up'
-        ? currentIndex - 1
-        : currentIndex + 1
-
-    if (
-      currentIndex < 0 ||
-      nextIndex < 0 ||
-      nextIndex >= regularPromotions.length
-    ) {
-      return
-    }
-
-    const nextRegularPromotions = [...regularPromotions]
-    const [moved] = nextRegularPromotions.splice(
-      currentIndex,
-      1
-    )
-    nextRegularPromotions.splice(nextIndex, 0, moved)
-
-    const nextPromotions = [
-      ...pinnedPromotions,
-      ...nextRegularPromotions,
-    ]
+    const promotion = promotions.find((item) => item.id === promotionId)
+    if (!promotion || promotion.is_pinned || reordering) return
 
     try {
       setReordering(true)
-      setPromotions(nextPromotions)
       setMessage('')
 
       const token = getAdminToken()
@@ -1144,43 +1237,27 @@ export default function ShadowMallPromotionPage() {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            ...(token
-              ? { Authorization: `Bearer ${token}` }
-              : {}),
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({
-            ordered_ids: nextPromotions.map(
-              (item) => item.id
-            ),
-          }),
+          body: JSON.stringify({ move_id: promotionId, direction }),
         }
       )
-      const data = await response
-        .json()
-        .catch(() => ({}))
-
+      const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) {
-        throw new Error(
-          data.message || 'Failed to reorder promotions'
-        )
+        throw new Error(data.message || 'Failed to reorder promotions')
       }
 
-      setPromotions(
-        Array.isArray(data.promotions)
-          ? data.promotions
-          : nextPromotions
-      )
-      setMessage('Display order updated.')
+      if (data.moved) {
+        await loadPromotions({ silent: true, force: true })
+        setMessage('Display order updated.')
+      }
     } catch (error) {
-      await loadPromotions({ silent: true })
-      setMessage(
-        error.message || 'Failed to reorder promotions'
-      )
+      await loadPromotions({ silent: true, force: true })
+      setMessage(error.message || 'Failed to reorder promotions')
     } finally {
       setReordering(false)
     }
   }
-
 
   const pinnedCount = promotions.filter(
     (item) => Boolean(item.is_pinned)
@@ -3442,8 +3519,7 @@ export default function ShadowMallPromotionPage() {
                     const moveDownDisabled =
                       promotion.is_pinned ||
                       regularIndex < 0 ||
-                      regularIndex ===
-                        regularPromotions.length - 1 ||
+                      (regularIndex === regularPromotions.length - 1 && !adsHasNext) ||
                       reordering
 
                     return (
@@ -4042,6 +4118,33 @@ export default function ShadowMallPromotionPage() {
                 </div>
               </div>
             )}
+
+            {!loading && adsTotal > 0 ? (
+              <div style={{ marginTop: 18, textAlign: 'center' }}>
+                <div style={{ color: '#64748B', fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+                  Showing {promotions.length} of {adsTotal} ads · Page {adsPage}
+                </div>
+                {adsHasNext ? (
+                  <button
+                    type="button"
+                    disabled={adsLoadingMore || saving || deletingId || togglingId || pinningId || reordering}
+                    onClick={() => loadPromotions({ more: true, silent: true })}
+                    style={{
+                      padding: '11px 22px',
+                      borderRadius: 12,
+                      border: '1px solid #C7D2FE',
+                      background: '#EEF2FF',
+                      color: '#4338CA',
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: adsLoadingMore ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {adsLoadingMore ? 'Loading 20 ads...' : 'Load 20 more ads'}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </section>
         </main>
       </div>
