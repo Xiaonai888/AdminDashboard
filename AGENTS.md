@@ -162,3 +162,15 @@ A data-driven Admin feature is NOT complete if:
 - API changes break another consumer,
 - Admin authorization is weakened,
 - or the application build fails.
+
+## Supabase Public Table Access Standard (Effective 2026-10-30)
+
+- Any new `public` table consumed by AdminDashboard through Supabase's Data API must receive explicit `GRANT` privileges for the actual database role used by the request. Never assume new tables are automatically exposed.
+- Before changing Admin features that create or rely on tables, inspect the migration, Admin API call, matching `Xiaonai888/Shadow-Backend` route/controller, and RLS policies.
+- Keep administrative access server-side whenever possible. Do not grant `anon` or unrestricted `authenticated` access merely to make an Admin feature work.
+- Coordinate with the Backend so the same table-creation migration contains the minimum necessary table privileges for `anon`, `authenticated`, and/or `service_role`, according to real consumers; add sequence privileges only when needed.
+- `GRANT` permissions and RLS policies are separate security layers. A successful `GRANT` must never be treated as a substitute for RLS, authentication, admin authorization, or ownership checks.
+- Never expose the `service_role` secret in frontend files. Preserve existing Admin authentication, role checks, and audit logging.
+- Verify allowed Admin operations and rejected non-admin/anonymous operations. Resolve `42501 permission denied` by inspecting the missing privilege and expected role, not by broadly granting access.
+- Existing tables keep their current privileges after the rollout. New projects and schema-recreating migrations must also define explicit grants when Data API access is required.
+- Supabase source: https://github.com/orgs/supabase/discussions/45329
