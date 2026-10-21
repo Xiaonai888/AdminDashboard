@@ -251,15 +251,16 @@ export default function ShadowMallPromotionPage() {
   const [reordering, setReordering] = useState(false)
   const [message, setMessage] = useState('')
 
-  function applyPromotionPages(pages) {
+  function applyPromotionPages(pages, visiblePageCount = adsPageRef.current) {
+    const visiblePages = pages.slice(0, Math.max(1, visiblePageCount))
     const seen = new Set()
-    const entries = pages.flatMap((entry) => entry.promotions || []).filter((promotion) => {
+    const entries = visiblePages.flatMap((entry) => entry.promotions || []).filter((promotion) => {
       if (seen.has(promotion.id)) return false
       seen.add(promotion.id)
       return true
     })
-    const lastPage = pages[pages.length - 1]
-    adsPageRef.current = pages.length || 1
+    const lastPage = visiblePages[visiblePages.length - 1]
+    adsPageRef.current = visiblePages.length || 1
     setAdsPage(adsPageRef.current)
     setAdsHasNext(Boolean(lastPage?.has_next))
     setAdsTotal(Number(lastPage?.total || 0))
@@ -268,6 +269,7 @@ export default function ShadowMallPromotionPage() {
 
   async function loadPromotions({ silent = false, more = false, force = false } = {}) {
     const requestId = ++adsRequestRef.current
+    const visiblePageCount = Math.max(1, adsPageRef.current + (more ? 1 : 0))
     const token = getAdminToken()
     const cacheKey = getAdCacheKey(token || 'anonymous')
     let cache = readAdCache(cacheKey)
@@ -305,12 +307,7 @@ export default function ShadowMallPromotionPage() {
         cache = { revision: metadata.revision, pages: {} }
       }
 
-      const existingPages = getAdCachedPages(cache)
-      const targetPage = more
-        ? adsPageRef.current + 1
-        : force
-          ? adsPageRef.current
-          : Math.max(1, existingPages.length)
+      const targetPage = visiblePageCount
 
       let revisionResets = 0
       for (let page = 1; page <= targetPage; page += 1) {
@@ -346,7 +343,7 @@ export default function ShadowMallPromotionPage() {
 
       if (requestId !== adsRequestRef.current) return
       const pages = getAdCachedPages(cache)
-      applyPromotionPages(pages)
+      applyPromotionPages(pages, visiblePageCount)
       writeAdCache(cacheKey, cache)
     } catch (error) {
       if (requestId !== adsRequestRef.current) return
