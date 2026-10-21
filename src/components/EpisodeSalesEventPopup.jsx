@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import './EpisodeSalesEventPopup.css'
 
 function formatMoney(value) {
-  return `$${Number(value || 0).toFixed(2)}`
+  return `$${Number(value || 0).toFixed(3)}`
 }
 
 function formatEventDate(value) {
