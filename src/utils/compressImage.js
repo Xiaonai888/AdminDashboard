@@ -16,7 +16,10 @@ export async function compressImage(file, options = {}) {
   const image = await new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Failed to read image.'))
+    img.onerror = () => {
+  URL.revokeObjectURL(imageUrl)
+  reject(new Error('Failed to read image.'))
+}
     img.src = imageUrl
   })
 
@@ -63,10 +66,11 @@ export async function compressImage(file, options = {}) {
       if (blob && blob.size <= maxSizeKB * 1024) {
         URL.revokeObjectURL(imageUrl)
 
-        return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-          type: outputType,
-          lastModified: Date.now(),
-        })
+        const ext = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png'
+return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.${ext}`, {
+  type: blob.type,
+  lastModified: Date.now(),
+})
       }
 
       quality -= 0.08
