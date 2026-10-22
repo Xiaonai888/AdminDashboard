@@ -604,6 +604,18 @@ function buildTitle(value, slot) {
   return `[STUDIO-AD] ${title}`
 }
 
+
+function safeStudioUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    return ['https:', 'http:'].includes(url.protocol) ? url.href : ''
+  } catch {
+    return ''
+  }
+}
+
+
 export default function ShadowStudioAdManager() {
   const fileRef = useRef(null)
   const [slides, setSlides] = useState([])
@@ -633,7 +645,7 @@ export default function ShadowStudioAdManager() {
   )
 
   const selectedAd = slotMap[selectedSlot]
-  const currentPreview = previewUrl || selectedAd?.image_url || ''
+  const currentPreview = previewUrl || safeStudioUrl(selectedAd?.image_url)
 
   async function apiFetch(url, options = {}) {
     const token = getAdminToken()
@@ -737,7 +749,7 @@ export default function ShadowStudioAdManager() {
   function chooseImage(file) {
     if (!file) return
 
-    if (!file.type?.startsWith('image/')) {
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif', 'image/bmp'].includes(file.type)) {
       setMessage({
         type: 'error',
         text: 'Please choose an image file.',
@@ -770,6 +782,16 @@ export default function ShadowStudioAdManager() {
       })
       return
     }
+
+    
+if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
+  setMessage({
+    type: 'error',
+    text: 'Enter a safe HTTP(S) or site-relative link.',
+  })
+  return
+}
+
 
     try {
       setLoading(true)
@@ -917,6 +939,7 @@ export default function ShadowStudioAdManager() {
           <div className="ssam-slots">
             {SLOTS.map((slot) => {
               const item = slotMap[slot]
+              const slotImageUrl = safeStudioUrl(item?.image_url)
               const status = !item
                 ? 'empty'
                 : item.is_active === false
