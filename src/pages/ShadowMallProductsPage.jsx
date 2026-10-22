@@ -1307,21 +1307,21 @@ function normalizeGallery(value) {
 }
 
 function getYoutubeEmbedUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-
-  if (raw.includes('youtube.com/embed/')) return raw;
-
-  const shortsMatch = raw.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/);
-  if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${shortsMatch[1]}`;
-
-  const watchMatch = raw.match(/[?&]v=([a-zA-Z0-9_-]+)/);
-  if (watchMatch?.[1]) return `https://www.youtube.com/embed/${watchMatch[1]}`;
-
-  const shortMatch = raw.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-  if (shortMatch?.[1]) return `https://www.youtube.com/embed/${shortMatch[1]}`;
-
-  return raw;
+  try {
+    const url = new URL(String(value || '').trim());
+    if (url.protocol !== 'https:') return '';
+    const host = url.hostname.toLowerCase();
+    let id = '';
+    if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com'].includes(host)) {
+      if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
+      else if (/^\/(embed|shorts|live)\/[a-zA-Z0-9_-]{11}\/?$/.test(url.pathname)) id = url.pathname.split('/')[2];
+    } else if (['youtu.be', 'www.youtu.be'].includes(host)) {
+      id = url.pathname.slice(1);
+    }
+    return /^[a-zA-Z0-9_-]{11}$/.test(id) ? `https://www.youtube.com/embed/${id}` : '';
+  } catch {
+    return '';
+  }
 }
 
 function revokePreviewUrl(url) {
@@ -1335,11 +1335,11 @@ function createCanvasBlob(canvas, type, quality) {
 }
 
 async function optimizeProductImage(file, variant = 'gallery') {
-  if (!file?.type?.startsWith('image/')) {
+  if (!file || !PRODUCT_OPTIMIZABLE_TYPES.has(file.type)) {
     throw new Error('Please choose an image file.');
   }
 
-  if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+  if (file.size <= 0 || file.size > PRODUCT_IMAGE_MAX_BYTES) {
     throw new Error('Product images must be 5 MB or smaller.');
   }
 
@@ -1539,12 +1539,12 @@ const searchMatch = !keyword || title.includes(keyword);
 
     if (!file) return;
 
-    if (!file.type?.startsWith('image/')) {
+    if (!PRODUCT_OPTIMIZABLE_TYPES.has(file.type)) {
       setMessage('Please choose an image file.');
       return;
     }
 
-    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+    if (file.size <= 0 || file.size > PRODUCT_IMAGE_MAX_BYTES) {
       setMessage('Product images must be 5 MB or smaller.');
       return;
     }
@@ -1575,12 +1575,12 @@ const searchMatch = !keyword || title.includes(keyword);
 
     if (!file) return;
 
-    if (!file.type?.startsWith('image/')) {
+    if (!PRODUCT_OPTIMIZABLE_TYPES.has(file.type)) {
       setMessage('Please choose an image file.');
       return;
     }
 
-    if (file.size > PRODUCT_IMAGE_MAX_BYTES) {
+    if (file.size <= 0 || file.size > PRODUCT_IMAGE_MAX_BYTES) {
       setMessage('Product images must be 5 MB or smaller.');
       return;
     }
@@ -1695,6 +1695,11 @@ const searchMatch = !keyword || title.includes(keyword);
 
     if (!form.title.trim()) {
       setMessage('Book title is required.');
+      return;
+    }
+
+    if (form.youtube_url.trim() && !getYoutubeEmbedUrl(form.youtube_url)) {
+      setMessage('Please enter a valid HTTPS YouTube video URL.');
       return;
     }
 
@@ -1961,7 +1966,7 @@ const searchMatch = !keyword || title.includes(keyword);
                   <input
                     ref={mainCoverInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
                     style={{ display: 'none' }}
                     onChange={handleMainCoverUpload}
                   />
@@ -2016,7 +2021,7 @@ const searchMatch = !keyword || title.includes(keyword);
                               galleryInputRefs.current[index] = node;
                             }}
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png,image/webp,image/avif"
                             style={{ display: 'none' }}
                             onChange={(event) => handleGalleryUpload(index, event)}
                           />
