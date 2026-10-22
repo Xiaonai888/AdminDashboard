@@ -67,6 +67,7 @@ import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
 import AdminPromotionInsightsPage from './pages/AdminPromotionInsightsPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
+import AdminChatStoryLibraryPage from './pages/AdminChatStoryLibraryPage';
 import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
 import AdminChatEvidencePage from './pages/AdminChatEvidencePage';
 import AdminMonthlyVotePage from './pages/AdminMonthlyVotePage'
@@ -252,6 +253,7 @@ export default function App() {
         <Route path="/readers-today" element={<ProtectedPage permission="readers.view"><AdminReadersTodayPage /></ProtectedPage>} />
         <Route path="/reader-online" element={<ProtectedPage><AdminReaderOnlinePage /></ProtectedPage>} />
         <Route path="/media-library" element={<ProtectedPage><ShadowMediaLibraryPage /></ProtectedPage>} />
+        <Route path="/chat-story-library" element={<ProtectedPage permission="media_library.view"><AdminChatStoryLibraryPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
