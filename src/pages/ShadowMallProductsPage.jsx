@@ -1417,6 +1417,22 @@ async function optimizeProductImage(file, variant = 'gallery') {
   }
 }
 
+
+function safeMallImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const url = new URL(value.trim(), API_URL);
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return url.href;
+  } catch {}
+  return '';
+}
+
+function safeMallPreviewUrl(value, file) {
+  return file && typeof value === 'string' && value.startsWith('blob:')
+    ? value : safeMallImageUrl(value);
+}
+
+
 export default function ShadowMallProductsPage() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -1928,10 +1944,10 @@ const searchMatch = !keyword || title.includes(keyword);
                   <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP.</p>
 
                   <div className="main-cover-frame">
-                    {(mainCoverPreview || '') ? (
+                    {safeMallPreviewUrl(mainCoverPreview, mainCoverFile) ? (
                       <>
                         <span className="cover-chip">Main Cover</span>
-                        <img src={mainCoverPreview} alt="Main cover preview" />
+                        <img src={safeMallPreviewUrl(mainCoverPreview, mainCoverFile)} alt="Main cover preview" />
                       </>
                     ) : (
                       <span>Main Cover Preview<br />2:3 vertical</span>
@@ -1974,10 +1990,10 @@ const searchMatch = !keyword || title.includes(keyword);
                     {[0, 1, 2, 3, 4].map((index) => (
                       <div className="gallery-slot" key={index}>
                         <div className="gallery-image-box">
-                          {galleryPreviews[index] ? (
+                          {safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index]) ? (
                             <>
                               <span className="gallery-number">{index + 1}</span>
-                              <img src={galleryPreviews[index]} alt={`Gallery ${index + 1}`} />
+                              <img src={safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index])} alt={`Gallery ${index + 1}`} />
                             </>
                           ) : (
                             <span>Image {index + 1}</span>
@@ -2361,7 +2377,8 @@ const searchMatch = !keyword || title.includes(keyword);
     ) : filteredProducts.length ? (
       filteredProducts.map((product) => {
         const galleryCount = normalizeGallery(product.gallery_image_urls || product.image_urls).length;
-        const hasCover = Boolean(product.cover_url);
+        const coverSrc = safeMallImageUrl(product.cover_url);
+        const hasCover = Boolean(coverSrc);
         const hasVideo = Boolean(product.youtube_url || product.video_url);
         const hasOldPrice = product.old_price_usd !== null && product.old_price_usd !== undefined && product.old_price_usd !== '';
 
@@ -2372,7 +2389,7 @@ const searchMatch = !keyword || title.includes(keyword);
           >
             <div className={`record-cover ${hasCover ? '' : 'empty-cover'}`}>
               {hasCover ? (
-                <img src={product.cover_url} alt={product.title} />
+                <img src={coverSrc} alt={product.title} />
               ) : (
                 <i className="fa-solid fa-book-open" />
               )}
