@@ -204,7 +204,7 @@ export default function AdminStoryPayoutConfirmModal({
               <p className="story-payout-muted" role="status" style={{ color: '#9A3412', fontWeight: 800 }}>Transfer recorded. DO NOT transfer again. Upload the receipt from that transfer, or finish using the saved receipt.</p>
               {payout.transfer_reference || reference ? <p className="story-payout-muted">Transfer reference: {payout.transfer_reference || reference}</p> : null}
               {savedPath ? <p className="story-payout-muted" style={{ color: '#047857' }}>Receipt saved. Enter your Owner Passkey to finish.</p> : <><label className="story-payout-label" htmlFor="story-payout-receipt">Actual bank transfer receipt · required</label><input id="story-payout-receipt" className="story-payout-input" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || uncertain} onChange={(event) => chooseFile(event.target.files?.[0] || null)} /></>}
-              {preview && !savedPath ? <img src={preview} alt="Selected bank transfer receipt" style={{ marginTop: 10, maxWidth: '100%', maxHeight: 230, objectFit: 'contain', borderRadius: 10 }} /> : null}
+              {preview.startsWith('blob:') && !savedPath ? <img src={preview} alt="Selected bank transfer receipt" style={{ marginTop: 10, maxWidth: '100%', maxHeight: 230, objectFit: 'contain', borderRadius: 10 }} /> : null}
             </>
           ) : (
             <>
