@@ -183,7 +183,21 @@ export default function AdminShadowFXProfile() {
             disabled={busy}
             onClick={() => imageInput.current?.click()}
           >
-            {preview ? <img src={preview} alt={app.name || 'Shadow FX'} /> : <span>FX</span>}
+            {preview ? (
+              <span
+                role="img"
+                aria-label={app.name || 'Shadow FX'}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  backgroundImage: `url(${JSON.stringify(preview)})`,
+                  backgroundPosition: 'center',
+                  backgroundSize: 'cover',
+                  backgroundRepeat: 'no-repeat',
+                }}
+              />
+            ) : <span>FX</span>}
           </button>
 
           <div>
