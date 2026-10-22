@@ -297,7 +297,8 @@ async function uploadImageDirect(apiUrl, token, file, onProgress) {
     throw uploadError('Cloudflare upload session is unavailable', 503)
   }
 
-  await uploadDirectImageBytes(init.upload_url, file, onProgress)
+    try {
+    await uploadDirectImageBytes(init.upload_url, file, onProgress)
 
   const finalizeResponse = await fetch(`${apiUrl}/api/media-direct/admin/finalize`, {
     method: 'POST',
@@ -316,7 +317,11 @@ async function uploadImageDirect(apiUrl, token, file, onProgress) {
   return {
     original_name: file.name,
     image_url: imageUrl,
-    storage_key: storageKey,
+        storage_key: storageKey,
+  }
+  } catch (error) {
+    error.directPutStarted = true
+    throw error
   }
 }
 
@@ -369,7 +374,7 @@ function canUseDirectUpload(file) {
 }
 
 function canTryExistingService(error) {
-  if (error?.code === 'DIRECT_UPLOAD_CANCELED') return false
+  if (error?.directPutStarted || error?.code === 'DIRECT_UPLOAD_CANCELED') return false
   const status = Number(error?.status || 0)
   return ![400, 401, 403, 413, 415, 422, 429].includes(status)
 }
