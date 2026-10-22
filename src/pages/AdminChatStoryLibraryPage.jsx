@@ -354,7 +354,7 @@ export default function AdminChatStoryLibraryPage() {
     loadPage(query)
       .then((data) => {
         if (!active || account !== token()) return;
-        setItems(Array.isArray(data.items) ? data.items.slice(0, 20) : []);
+        setItems(Array.isArray(data.items) ? data.items.slice(0, 10) : []);
         setHasMore(data.has_more === true);
       })
       .catch((failure) => {
@@ -708,7 +708,7 @@ export default function AdminChatStoryLibraryPage() {
               >
                 Previous
               </button>
-              <span>Page {page} · 20 per page</span>
+              <span>Page {page} · 10 per page</span>
               <button
                 type="button"
                 className="csl-button"
