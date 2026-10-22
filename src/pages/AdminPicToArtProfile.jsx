@@ -200,9 +200,16 @@ const preview = imagePreview.startsWith('blob:')
             type="button"
             className="pta-admin-image"
             disabled={busy}
+            aria-label={preview ? `${app.name || 'Pic to Art'} preview. Choose image` : 'Choose Pic to Art image'}
+            style={preview ? {
+              backgroundImage: `url(${JSON.stringify(preview)})`,
+              backgroundPosition: 'center',
+              backgroundSize: 'cover',
+              backgroundRepeat: 'no-repeat',
+            } : undefined}
             onClick={() => imageInput.current?.click()}
           >
-            {preview ? <img src={preview} alt={app.name || 'Pic to Art'} /> : <span>PA</span>}
+            {preview ? null : <span>PA</span>}
           </button>
 
           <div>
