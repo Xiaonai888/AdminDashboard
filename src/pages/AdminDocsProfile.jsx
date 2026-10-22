@@ -15,6 +15,18 @@ async function request(path, options = {}) {
   return body
 }
 
+
+function safeDocsImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.protocol === 'https:') return url.href
+    if (url.protocol === 'http:' && url.origin === window.location.origin) return url.href
+  } catch {}
+  return ''
+}
+
+
 export default function AdminDocsProfile({ studioApp }) {
   const [app, setApp] = useState(null)
   const [name, setName] = useState('')
@@ -119,7 +131,11 @@ export default function AdminDocsProfile({ studioApp }) {
     }), 'Image uploaded.')
   }
 
-  const preview = imagePreview || app?.profile || ''
+  
+const preview = imagePreview.startsWith('blob:')
+  ? imagePreview
+  : safeDocsImageUrl(app?.profile)
+
   const fallbackCount = Number(Boolean(studioApp)) + Number(Boolean(app))
   const fallbackVisible = Number(Boolean(studioApp && !studioApp.hidden)) + Number(Boolean(app && !app.hidden))
   const fallbackDisabled = Number(Boolean(studioApp?.disabled)) + Number(Boolean(app?.disabled))
