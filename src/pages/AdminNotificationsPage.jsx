@@ -815,6 +815,16 @@ const styles = `
   }
 `
 
+function safeNotificationUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && url.origin === window.location.origin)) return url.href
+  } catch {}
+  return ''
+}
+
+
 export default function AdminNotificationsPage() {
   const [activeTab, setActiveTab] = useState('compose')
   const [targetType, setTargetType] = useState('all')
