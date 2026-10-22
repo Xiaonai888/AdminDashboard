@@ -911,6 +911,7 @@ export default function ShadowMediaLibraryPage() {
   }
 
   const removeUpload = (id) => {
+    uploadCacheRef.current.delete(id)
     setUploads((current) => {
       const target = current.find((item) => item.id === id)
       if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl)
@@ -920,6 +921,7 @@ export default function ShadowMediaLibraryPage() {
 
   const closeUpload = () => {
     if (uploading) return
+    uploadCacheRef.current.clear()
     uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
     setUploads([])
     setUploadError('')
