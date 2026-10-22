@@ -123,6 +123,20 @@ function validImage(file) {
   )
 }
 
+
+function safeAppImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.protocol === 'https:') return url.href
+    if (url.protocol === 'http:' && url.origin === window.location.origin) return url.href
+    return ''
+  } catch {
+    return ''
+  }
+}
+
+
 function fileExtension(file) {
   return String(file?.name || '')
     .split('.')
@@ -149,9 +163,11 @@ function BrushCard({
   const fileRef = useRef(null)
   const thumbnailRef = useRef(null)
   const busy = busyKey === brush.id
-  const preview =
-    brush.thumbnailUrl ||
-    (brush.sourceType === 'image' ? brush.fileUrl : '')
+  
+const preview = safeAppImageUrl(
+  brush.thumbnailUrl || (brush.sourceType === 'image' ? brush.fileUrl : '')
+)
+
 
   useEffect(() => {
     setName(brush.name || '')
@@ -289,7 +305,7 @@ function BrushCard({
         ref={fileRef}
         className="app-admin-file"
         type="file"
-        accept={brush.sourceType === 'abr' ? '.abr' : 'image/*'}
+        accept={brush.sourceType === 'abr' ? '.abr' : 'image/jpeg,image/png,image/webp,image/gif,image/avif'}
         onChange={(event) => {
           const file = event.target.files?.[0]
           event.target.value = ''
@@ -307,7 +323,7 @@ function BrushCard({
         ref={thumbnailRef}
         className="app-admin-file"
         type="file"
-        accept="image/*"
+         accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
         onChange={(event) => {
           const file = event.target.files?.[0]
           event.target.value = ''
@@ -654,11 +670,17 @@ export default function AdminAppPage() {
     }
   }
 
-  async function replaceBrushFile(brush, file, type) {
-    if (!file || file.size > MAX_UPLOAD_BYTES) {
-      setError('Brush file must be 25 MB or smaller.')
-      return
-    }
+  
+async function replaceBrushFile(brush, file, type) {
+  const validBrush = type === 'abr'
+    ? fileExtension(file) === 'abr'
+    : type === 'image' && IMAGE_TYPES.has(String(file?.type || ''))
+
+  if (!file || file.size <= 0 || file.size > MAX_UPLOAD_BYTES || !validBrush) {
+    setError('Choose a supported brush file up to 25 MB.')
+    return
+  }
+
 
     setBusyKey(brush.id)
     setNotice('')
@@ -771,7 +793,11 @@ export default function AdminAppPage() {
     )
   }
 
-  const visibleProfile = profilePreview || app?.profile || ''
+  
+const visibleProfile = profilePreview.startsWith('blob:')
+  ? profilePreview
+  : safeAppImageUrl(app?.profile)
+
   const appBusy = busyKey === 'app'
 
   return (
@@ -961,7 +987,7 @@ export default function AdminAppPage() {
                   ref={profileInputRef}
                   className="app-admin-file"
                   type="file"
-                  accept="image/*"
+                   accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                   onChange={(event) => {
                     const file = event.target.files?.[0]
                     event.target.value = ''
@@ -1057,7 +1083,7 @@ export default function AdminAppPage() {
                     accept={
                       sourceType === 'abr'
                         ? '.abr'
-                        : 'image/*'
+                        : 'image/jpeg,image/png,image/webp,image/gif,image/avif'
                     }
                     onChange={(event) =>
                       setBrushFile(
@@ -1074,7 +1100,7 @@ export default function AdminAppPage() {
                   <input
                     className="app-admin-input"
                     type="file"
-                    accept="image/*"
+                     accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                     onChange={(event) =>
                       setThumbnailFile(
                         event.target.files?.[0] || null
