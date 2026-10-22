@@ -174,3 +174,15 @@ A data-driven Admin feature is NOT complete if:
 - Verify allowed Admin operations and rejected non-admin/anonymous operations. Resolve `42501 permission denied` by inspecting the missing privilege and expected role, not by broadly granting access.
 - Existing tables keep their current privileges after the rollout. New projects and schema-recreating migrations must also define explicit grants when Data API access is required.
 - Supabase source: https://github.com/orgs/supabase/discussions/45329
+
+## Security & CodeQL Rules — 2026-10-22
+
+- Read `AGENTS.md`, the latest Admin file, and relevant Backend route/authorization logic before modification. Never replace a long file with a shortened reconstruction.
+- Treat API data, form inputs, filenames, query strings and browser storage as untrusted. Render content with React's safe text escaping, not as HTML.
+- Do not pass user-controlled strings to `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, or `dangerouslySetInnerHTML`. Where rich HTML is essential, use explicitly approved context-sensitive sanitization.
+- Apply strict URL protocol/origin validation to dynamic images, audio, links, redirects and downloads. Reject dangerous schemes and unexpected external destinations.
+- Keep Admin authentication, role checks, server-side authorization, audit logs, privacy safeguards, payouts and transaction controls intact. Never expose privileged credentials or service-role keys in frontend code.
+- Do not reactivate disabled features, routes or settings without explicit user instruction.
+- Resolve CodeQL findings by correcting the vulnerable data flow; never weaken, hide or disable scanning to reduce the alert count.
+- Verify relevant frontend/backend compatibility, check the full diff, run existing checks/build, and wait for the latest CodeQL results before calling an alert closed. CodeQL alone does not replace authorization tests.
+
