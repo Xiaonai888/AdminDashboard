@@ -17,6 +17,7 @@ const PATH_PERMISSION = {
   '/authors': 'community.view',
   '/shadow-exclusive': 'shadow_exclusive.view',
   '/media-library': 'media_library.view',
+  '/chat-story-library': 'media_library.view',
 
   '/slides': 'slides.view',
   '/banners': 'banners.view',
