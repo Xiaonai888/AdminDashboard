@@ -183,14 +183,26 @@ async function apiRequest(path, options = {}) {
   return data
 }
 
+
+function safeMediaImageUrl(value, file) {
+  if (file && MEDIA_IMAGE_TYPES.has(file.type) && typeof value === 'string' && value.startsWith('blob:')) return value
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), API_URL)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return url.href
+  } catch {}
+  return ''
+}
+
+
 function folderFromApi(folder) {
   return {
     id: folder.id,
     name: folder.name,
     icon: folder.icon || '📁',
     description: folder.description || '',
-    coverUrl: folder.cover_image_url || '',
-    coverPreview: folder.cover_image_url || '',
+    coverUrl: safeMediaImageUrl(folder.cover_image_url),
+    coverPreview: safeMediaImageUrl(folder.cover_image_url),
     coverStorageKey: folder.cover_storage_key || '',
     coverFile: null,
     sortOrder: folder.sort_order || 0,
@@ -205,7 +217,7 @@ function imageFromApi(image) {
     folderId: image.folder_id,
     sortOrder: image.sort_order || 0,
     active: image.is_active !== false,
-    imageUrl: image.image_url,
+    imageUrl: safeMediaImageUrl(image.image_url),
     storageKey: image.storage_key || '',
   }
 }
@@ -245,12 +257,12 @@ function FolderModal({ open, folder, onClose, onSave }) {
   const chooseCover = (file) => {
     if (!file) return
 
-    if (!String(file.type || '').startsWith('image/')) {
+    if (!MEDIA_IMAGE_TYPES.has(String(file.type || '').toLowerCase())) {
       setError('Please choose an image file.')
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size <= 0 || file.size > FOLDER_COVER_MAX_BYTES) {
       setError('Folder cover must be 5 MB or smaller.')
       return
     }
@@ -295,6 +307,8 @@ function FolderModal({ open, folder, onClose, onSave }) {
       setSaving(false)
     }
   }
+
+  const safeCoverPreview = safeMediaImageUrl(coverPreview, coverFile)
 
   if (!open) return null
 
@@ -487,7 +501,9 @@ function UploadModal({
             <div className="media-upload-list">
             {items.map((item) => (
               <div key={item.id} className="media-upload-row">
-                <img src={item.previewUrl} alt="" />
+                {safeMediaImageUrl(item.previewUrl, item.file) ? (
+  <img src={safeMediaImageUrl(item.previewUrl, item.file)} alt="" />
+) : null}
 
                 <div className="media-upload-fields">
                   <input
