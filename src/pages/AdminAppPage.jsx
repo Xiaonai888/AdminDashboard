@@ -865,13 +865,14 @@ const visibleProfile = profilePreview.startsWith('blob:')
                 >
                   <div className="app-admin-preview">
                     {visibleProfile ? (
-                      <img
-                        src={visibleProfile}
-                        alt={app?.name || 'Shadow Studio'}
-                      />
-                    ) : (
-                      'SS'
-                    )}
+  <span
+    role="img"
+    aria-label={app?.name || 'Shadow Studio'}
+    style={{ display: 'block', width: '100%', height: '100%', backgroundImage: `url(${JSON.stringify(visibleProfile)})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }}
+  />
+) : (
+  'SS'
+)}
                   </div>
                 </button>
               </ImageDropZone>
