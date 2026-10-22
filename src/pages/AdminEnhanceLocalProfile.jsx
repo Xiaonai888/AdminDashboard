@@ -15,7 +15,6 @@ async function request(path, options = {}) {
   return body
 }
 
-
 function safeEnhanceImageUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return ''
   try {
@@ -24,7 +23,6 @@ function safeEnhanceImageUrl(value) {
   } catch {}
   return ''
 }
-
 
 export default function AdminEnhanceLocalProfile() {
   const [app, setApp] = useState(null)
@@ -121,11 +119,9 @@ export default function AdminEnhanceLocalProfile() {
     )
   }
 
-  
-const preview = imagePreview.startsWith('blob:')
-  ? imagePreview
-  : safeEnhanceImageUrl(app?.profile)
-
+  const preview = imageFile && imagePreview.startsWith('blob:')
+    ? imagePreview
+    : safeEnhanceImageUrl(app?.profile)
   const displayName = app?.name || name.trim() || 'Enhance Local'
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'EL'
 
@@ -142,7 +138,6 @@ const preview = imagePreview.startsWith('blob:')
         .enhance-admin-tag.stop{background:#ffedf1;color:#b42345}
         .enhance-admin-body{display:grid;grid-template-columns:142px minmax(0,1fr);gap:22px;padding:22px}
         .enhance-admin-image{width:136px;height:136px;display:grid;place-items:center;overflow:hidden;border:1px solid #f1c8d2;border-radius:22px;background:linear-gradient(145deg,#fff0f3,#f8c4d0);color:#e11d48;font-size:31px;font-weight:950}
-        .enhance-admin-image img{width:100%;height:100%;object-fit:cover}
         .enhance-admin-label{display:block;margin-bottom:8px;color:#76545d;font-size:10px;font-weight:900;letter-spacing:.08em}
         .enhance-admin-input{display:block;width:100%;height:44px;padding:0 13px;border:1px solid #e7cdd4;border-radius:11px;outline:0;background:#fff;color:#2d1d22;font-size:13px;font-weight:700}
         .enhance-admin-input:focus{border-color:#e11d48;box-shadow:0 0 0 3px #e11d4818}
@@ -187,9 +182,12 @@ const preview = imagePreview.startsWith('blob:')
             type="button"
             className="enhance-admin-image"
             disabled={busy}
+            aria-label={`Choose ${displayName} image`}
             onClick={() => imageInput.current?.click()}
           >
-            {preview ? <img src={preview} alt={displayName} /> : <span>{initials}</span>}
+            {preview ? (
+              <span aria-hidden="true" style={{ display: 'block', width: '100%', height: '100%', backgroundImage: `url("${preview}")`, backgroundPosition: 'center', backgroundSize: 'cover', backgroundRepeat: 'no-repeat' }} />
+            ) : <span>{initials}</span>}
           </button>
 
           <div>
