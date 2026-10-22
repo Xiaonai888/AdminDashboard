@@ -427,6 +427,17 @@ async function adminGameRequest(path, options = {}) {
   return data
 }
 
+
+function safeGameImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && url.origin === window.location.origin)) return url.href
+  } catch {}
+  return ''
+}
+
+
 function profileInitial(game) {
   return String(game.name || game.gameKey || 'G')
     .trim()
@@ -486,7 +497,7 @@ function GameCard({
       return
     }
 
-    if (file.size > MAX_PROFILE_BYTES) {
+    if (file.size <= 0 || file.size > MAX_PROFILE_BYTES) {
       setProfileError('Profile image must be 20 MB or smaller.')
       return
     }
@@ -515,7 +526,11 @@ function GameCard({
     }
   }
 
-  const visibleProfile = previewUrl || game.profile || ''
+  
+const visibleProfile = previewUrl.startsWith('blob:')
+  ? previewUrl
+  : safeGameImageUrl(game.profile)
+
 
   return (
     <article className="game-admin-card">
@@ -803,7 +818,7 @@ export default function AdminGamePage() {
       return false
     }
 
-    if (file.size > MAX_PROFILE_BYTES) {
+    if (file.size <= 0 || file.size > MAX_PROFILE_BYTES) {
       setError('Profile image must be 20 MB or smaller.')
       return false
     }
