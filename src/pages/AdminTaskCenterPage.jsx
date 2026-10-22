@@ -241,6 +241,15 @@ function getAdminToken() {
   return token
 }
 
+function safeTaskCoverUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), API_URL)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return url.href
+  } catch {}
+  return ''
+}
+
 export default function AdminTaskCenterPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -257,9 +266,15 @@ export default function AdminTaskCenterPage() {
   const [readingMissions, setReadingMissions] = useState([])
   const [activeTab, setActiveTab] = useState('reading')
   const [selectedMissionId, setSelectedMissionId] = useState('')
-  const [readingMissionView, setReadingMissionView] = useState('home')
+  useEffect(() => {
+  return () => {
+    if (previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+  }
+}, [previewUrl])
 
-  const coverUrl = previewUrl || settings.cover_url || ''
+  const coverUrl = previewUrl.startsWith('blob:')
+  ? previewUrl
+  : safeTaskCoverUrl(settings.cover_url)
   const isAutoMode = settings?.reading_mission_mode === 'auto'
 
   function syncReadingMissions(list = []) {
@@ -317,6 +332,11 @@ export default function AdminTaskCenterPage() {
 
   function handleSelectFile(file) {
     if (!file) return
+
+    if (file.size <= 0) {
+  setMessage({ type: 'error', text: 'Cover image cannot be empty.' })
+  return
+}
 
     if (!['image/webp', 'image/jpeg', 'image/png'].includes(file.type)) {
       setMessage({ type: 'error', text: 'Only WebP, JPG, or PNG cover images are allowed.' })
