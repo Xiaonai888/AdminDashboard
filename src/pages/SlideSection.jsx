@@ -8,6 +8,7 @@ const SLOTS = [1, 2, 3, 4, 5, 6, 7];
 const RECORDS_PER_PAGE = 20;
 const SLIDE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const SLIDE_DIRECT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const SLIDE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 let slideDirectRetryAfter = 0;
 
 async function uploadSlideDirect(file, apiFetch) {
@@ -173,6 +174,15 @@ function buildBadgeTitle(badge, title) {
   return `[${badge}] ${cleanTitle}`;
 }
 
+function safeSlideImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const url = new URL(value.trim(), API_URL);
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) return url.href;
+  } catch {}
+  return '';
+}
+
 export default function SlideSection() {
   const fileInputRef = useRef(null);
   const [sectionKey, setSectionKey] = useState('home_top_slider');
@@ -293,11 +303,11 @@ export default function SlideSection() {
 
   const selectSlideFile = (file) => {
     if (!file) return;
-    if (!file.type?.startsWith('image/')) {
+    if (!SLIDE_IMAGE_TYPES.has(String(file.type || '').toLowerCase())) {
       setMessage({ type: 'error', text: 'Please choose an image file.' });
       return;
     }
-    if (file.size > SLIDE_IMAGE_MAX_BYTES) {
+    if (file.size <= 0 || file.size > SLIDE_IMAGE_MAX_BYTES) {
       setMessage({ type: 'error', text: 'Slide image must be 5 MB or smaller.' });
       return;
     }
@@ -421,7 +431,7 @@ export default function SlideSection() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const currentPreview = localPreviewUrl || selectedSlide?.image_url || '';
+  const currentPreview = selectedFile && localPreviewUrl.startsWith('blob:') ? localPreviewUrl : safeSlideImageUrl(selectedSlide?.image_url);
 
   if (authExpired) return <Navigate to="/login" replace />;
 
@@ -472,6 +482,7 @@ export default function SlideSection() {
                 <div className="slots-grid">
                   {SLOTS.map((slot) => {
                     const slide = slotMap[slot];
+                    const safeSlotImageUrl = safeSlideImageUrl(slide?.image_url);
                     const statusClass = !slide ? 'empty' : slide.is_active === false ? 'inactive' : 'active';
 
                     return (
@@ -486,8 +497,8 @@ export default function SlideSection() {
                           <span className={`slot-status ${statusClass}`}>
                             {!slide ? 'EMPTY' : slide.is_active === false ? 'INACTIVE' : 'ACTIVE'}
                           </span>
-                          {slide?.image_url ? (
-                            <img src={slide.image_url} alt={slide.title || `Slide ${slot}`} />
+                          {safeSlotImageUrl ? (
+                            <div role="img" aria-label={slide.title || `Slide ${slot}`} style={{ width: '100%', height: '100%', backgroundImage: `url(${JSON.stringify(safeSlotImageUrl)})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                           ) : (
                             <div className="empty-preview">No image assigned</div>
                           )}
@@ -516,7 +527,7 @@ export default function SlideSection() {
 
                   <div className="selected-preview">
                     {currentPreview ? (
-                      <img src={currentPreview} alt={`Slide ${selectedSlot} preview`} />
+                      <div role="img" aria-label={`Slide ${selectedSlot} preview`} style={{ width: '100%', height: '100%', backgroundImage: `url(${JSON.stringify(currentPreview)})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
                     ) : (
                       <div className="selected-preview-empty">No image selected</div>
                     )}
@@ -529,7 +540,7 @@ export default function SlideSection() {
     <input
       ref={fileInputRef}
       type="file"
-      accept="image/*"
+      accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
       style={{ display: 'none' }}
       onChange={handleFileChange}
     />
