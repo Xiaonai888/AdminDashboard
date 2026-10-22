@@ -15,7 +15,6 @@ async function request(path, options = {}) {
   return body
 }
 
-
 function safeDocsImageUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return ''
   try {
@@ -25,7 +24,6 @@ function safeDocsImageUrl(value) {
   } catch {}
   return ''
 }
-
 
 export default function AdminDocsProfile({ studioApp }) {
   const [app, setApp] = useState(null)
@@ -131,11 +129,9 @@ export default function AdminDocsProfile({ studioApp }) {
     }), 'Image uploaded.')
   }
 
-  
-const preview = imagePreview.startsWith('blob:')
-  ? imagePreview
-  : safeDocsImageUrl(app?.profile)
-
+  const preview = imageFile && imagePreview.startsWith('blob:')
+    ? imagePreview
+    : safeDocsImageUrl(app?.profile)
   const fallbackCount = Number(Boolean(studioApp)) + Number(Boolean(app))
   const fallbackVisible = Number(Boolean(studioApp && !studioApp.hidden)) + Number(Boolean(app && !app.hidden))
   const fallbackDisabled = Number(Boolean(studioApp?.disabled)) + Number(Boolean(app?.disabled))
@@ -203,8 +199,10 @@ const preview = imagePreview.startsWith('blob:')
 
         {app && (
           <div className="docs-admin-body">
-            <div className="docs-admin-image">
-              {preview ? <img src={preview} alt={app.name || 'Shadow Docs'} /> : <span>SD</span>}
+            <div className="docs-admin-image" role="img" aria-label={app.name || 'Shadow Docs'}>
+              {preview ? (
+                <span aria-hidden="true" style={{ display: 'block', width: '100%', height: '100%', backgroundImage: `url("${preview}")`, backgroundPosition: 'center', backgroundSize: 'cover', backgroundRepeat: 'no-repeat' }} />
+              ) : <span>SD</span>}
             </div>
 
             <div>
