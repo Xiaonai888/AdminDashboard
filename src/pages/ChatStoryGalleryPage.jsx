@@ -193,7 +193,7 @@ function AddImagesModal({
           <div className="gallery-upload-list">
             {items.map((item) => (
               <div key={item.id} className="gallery-upload-row">
-                <img src={item.previewUrl} alt="" />
+                {item.previewUrl?.startsWith('blob:') ? <img src={item.previewUrl} alt="" /> : null}
 
                 <div className="gallery-upload-fields">
                   <input
@@ -251,11 +251,21 @@ function AddImagesModal({
   )
 }
 
+function safeGalleryImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), API_URL)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return url.href
+  } catch {}
+  return ''
+}
+
+
 function ImageCard({ image, busy, onToggle, onDelete }) {
   return (
     <article className="gallery-card">
       <div className="gallery-card-image">
-        <img src={image.image_url} alt={image.alt_text || image.title} />
+        <img src={safeGalleryImageUrl(image.image_url)} alt={image.alt_text || image.title} />
 
         <span className={`gallery-status ${image.is_active ? 'active' : 'hidden'}`}>
           {image.is_active ? 'Active' : 'Hidden'}
@@ -336,13 +346,17 @@ export default function ChatStoryGalleryPage() {
     })
   }, [images, search, selectedCategory])
 
-  const addFiles = (files) => {
-    const validFiles = files
-      .filter((file) => file.type.startsWith('image/'))
-      .slice(0, Math.max(0, 20 - uploads.length))
+  
+const addFiles = (files) => {
+  const validFiles = files
+    .filter((file) => GALLERY_DIRECT_TYPES.has(file?.type) &&
+      file.size > 0 && file.size <= GALLERY_MAX_IMAGE_BYTES)
+    .slice(0, Math.max(0, 20 - uploads.length))
+  if (validFiles.length < files.length) setError('Only JPG, PNG or WEBP, maximum 5MB each and 20 images.')
+  else setError('')
+  setUploads((current) => [...current, ...validFiles.map(makePreview)])
+}
 
-    setUploads((current) => [...current, ...validFiles.map(makePreview)])
-  }
 
   const updateUpload = (id, patch) => {
     setUploads((current) =>
