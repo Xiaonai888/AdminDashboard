@@ -962,13 +962,9 @@ export default function AdminNotificationsPage() {
   async function uploadNotificationImage(file) {
   if (!file) return
 
-  if (!file.type.startsWith('image/')) {
-    setError('Only image files are allowed')
-    return
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    setError('Image must be under 5MB')
+  const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif']
+  if (!allowedTypes.includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024) {
+    setError('Choose PNG, JPG, WEBP, GIF or AVIF up to 5 MB.')
     return
   }
 
@@ -992,7 +988,9 @@ export default function AdminNotificationsPage() {
       throw new Error(data.message || 'Failed to upload image')
     }
 
-    setImageUrl(data.image_url || '')
+    const uploadedUrl = safeNotificationUrl(data.image_url)
+    if (!uploadedUrl) throw new Error('Server returned an invalid image URL.')
+    setImageUrl(uploadedUrl)
     setNotice('Image uploaded')
   } catch (err) {
     setError(err.message || 'Failed to upload image')
@@ -1006,6 +1004,16 @@ export default function AdminNotificationsPage() {
 
     if (!title.trim() || !message.trim()) {
       setError('Title and message are required')
+      return
+    }
+
+    if (imageUrl.trim() && !safeNotificationUrl(imageUrl)) {
+      setError('Enter a valid HTTPS image URL.')
+      return
+    }
+
+    if (link.trim() && !safeNotificationUrl(link)) {
+      setError('Enter a safe HTTP(S) or site-relative link.')
       return
     }
 
@@ -1038,8 +1046,8 @@ export default function AdminNotificationsPage() {
           recipients,
           title,
           message,
-          image_url: imageUrl,
-          link,
+          image_url: imageUrl.trim() ? safeNotificationUrl(imageUrl) : '',
+          link: link.trim(),
         }),
       })
 
@@ -1136,6 +1144,8 @@ export default function AdminNotificationsPage() {
     loadAnnouncements(1)
     loadRecords(1)
   }, [])
+
+  const safePreviewUrl = safeNotificationUrl(imageUrl)
 
   return (
     <AdminLayout title="Notifications" subtitle="Create announcements for readers">
@@ -1293,7 +1303,7 @@ export default function AdminNotificationsPage() {
   </span>
   <input
     type="file"
-    accept="image/*"
+    accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
     disabled={imageUploading}
     onChange={(event) => uploadNotificationImage(event.target.files?.[0])}
     className="notification-admin-input"
@@ -1338,8 +1348,8 @@ export default function AdminNotificationsPage() {
                   <div className="notification-admin-preview">
                     <div className="notification-admin-preview-label">Preview in reader notification</div>
                     <div className="notification-admin-preview-card">
-                      {imageUrl.trim() ? (
-                        <img src={imageUrl.trim()} alt="" className="notification-admin-preview-image" />
+                      {safePreviewUrl ? (
+                        <img src={safePreviewUrl} alt="" className="notification-admin-preview-image" />
                       ) : (
                         <div className="notification-admin-preview-image" />
                       )}
@@ -1375,8 +1385,8 @@ export default function AdminNotificationsPage() {
                 <article className="notification-admin-item">
                   <div className="notification-admin-item-grid">
                     <div className="notification-admin-thumb">
-                      {imageUrl.trim() ? (
-                        <img src={imageUrl.trim()} alt="" />
+                      {safePreviewUrl ? (
+                        <img src={safePreviewUrl} alt="" />
                       ) : (
                         <div className="notification-admin-thumb-empty">
                           <i className="fas fa-bullhorn" />
@@ -1420,8 +1430,8 @@ export default function AdminNotificationsPage() {
                   <article key={item.reference_id} className="notification-admin-item">
                     <div className="notification-admin-item-grid">
                       <div className="notification-admin-thumb">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt="" />
+                        {safeNotificationUrl(item.image_url) ? (
+                          <img src={safeNotificationUrl(item.image_url)} alt="" />
                         ) : (
                           <div className="notification-admin-thumb-empty">
                             <i className="fas fa-bullhorn" />
