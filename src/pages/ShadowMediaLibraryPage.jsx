@@ -597,6 +597,7 @@ export default function ShadowMediaLibraryPage() {
   const [editingFolder, setEditingFolder] = useState(null)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [uploads, setUploads] = useState([])
+  const uploadCacheRef = useRef(new Map())
   const [uploadError, setUploadError] = useState('')
   const [uploading, setUploading] = useState(false)
   const [imagePage, setImagePage] = useState(1)
@@ -948,26 +949,28 @@ export default function ShadowMediaLibraryPage() {
     setUploading(true)
 
     try {
-      const optimizedFiles = await optimizeMediaLibraryBatch(
-        uploads.map((item) => item.file),
-        2
-      )
-      const uploaded = await uploadMediaLibraryWithProgress({
-        apiUrl: API_URL,
-        token: getAdminToken(),
-        files: optimizedFiles,
-      })
-
-      const uploadedImages = uploaded.images || []
-      if (uploadedImages.length !== uploads.length) {
-        throw new Error('Some images were not uploaded.')
-      }
-
-      const created = []
+      const pending = uploads.filter((item) => !uploadCacheRef.current.has(item.id))
+if (pending.length) {
+  const optimizedFiles = await optimizeMediaLibraryBatch(pending.map((item) => item.file), 2)
+  const uploaded = await uploadMediaLibraryWithProgress({
+    apiUrl: API_URL,
+    token: getAdminToken(),
+    files: optimizedFiles,
+  })
+  if (uploaded.images?.length !== pending.length) {
+    throw new Error('Some images were not uploaded.')
+  }
+  pending.forEach((item, index) => uploadCacheRef.current.set(item.id, uploaded.images[index]))
+}
+const created = []
 
       for (let index = 0; index < uploads.length; index += 1) {
         const item = uploads[index]
-        const file = uploadedImages[index]
+        const file = uploadCacheRef.current.get(item.id)
+if (file?.saved) {
+  created.push(file.saved)
+  continue
+}
 
         const data = await apiRequest('/api/admin/media-library/images', {
           method: 'POST',
@@ -983,10 +986,13 @@ export default function ShadowMediaLibraryPage() {
           }),
         })
 
-        created.push(imageFromApi(data.image))
+        const saved = imageFromApi(data.image)
+uploadCacheRef.current.set(item.id, { ...file, saved })
+created.push(saved)
       }
 
       uploads.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+      uploadCacheRef.current.clear()
       invalidateMediaFolders([...new Set(created.map((item) => item.folderId))])
       setUploads([])
       setUploadError('')
