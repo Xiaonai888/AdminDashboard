@@ -15,6 +15,15 @@ async function request(path, options = {}) {
   return body
 }
 
+function safeShadowFXImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && url.origin === window.location.origin)) return url.href
+  } catch {}
+  return ''
+}
+
 export default function AdminShadowFXProfile() {
   const [app, setApp] = useState(null)
   const [name, setName] = useState('')
@@ -53,7 +62,7 @@ export default function AdminShadowFXProfile() {
 
   function stageImage(file) {
     if (!file) return
-    if (!ACCEPTED_IMAGES.has(file.type) || file.size > 25 * 1024 * 1024) {
+    if (!ACCEPTED_IMAGES.has(file.type) || file.size <= 0 || file.size > 25 * 1024 * 1024) {
       setError('Choose a PNG, JPG, WEBP, GIF or AVIF image up to 25 MB.')
       return
     }
@@ -110,7 +119,9 @@ export default function AdminShadowFXProfile() {
     )
   }
 
-  const preview = imagePreview || app?.profile || ''
+  const preview = imagePreview.startsWith('blob:')
+    ? imagePreview
+    : safeShadowFXImageUrl(app?.profile)
 
   return (
     <section className="shadow-fx-admin-card">
