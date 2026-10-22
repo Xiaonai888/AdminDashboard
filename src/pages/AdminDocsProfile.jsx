@@ -82,7 +82,7 @@ export default function AdminDocsProfile({ studioApp }) {
 
   function stageImage(file) {
     if (!file) return
-    if (!ACCEPTED_IMAGES.has(file.type) || file.size > 25 * 1024 * 1024) {
+    if (!ACCEPTED_IMAGES.has(file.type) || file.size <= 0 || file.size > 25 * 1024 * 1024) {
       setError('Choose a PNG, JPG, WEBP, GIF or AVIF image up to 25 MB.')
       return
     }
