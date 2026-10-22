@@ -205,10 +205,13 @@ const styles = `
     box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
   }
 
-  .game-admin-preview img {
+  .game-admin-preview .game-admin-image-surface {
+    display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
   }
 
   .game-admin-profile-info {
@@ -583,9 +586,11 @@ const visibleProfile = previewUrl.startsWith('blob:')
             >
               <div className="game-admin-preview">
                 {visibleProfile ? (
-                  <img
-                    src={visibleProfile}
-                    alt={`${game.name} profile preview`}
+                  <span
+                    className="game-admin-image-surface"
+                    role="img"
+                    aria-label={`${game.name} profile preview`}
+                    style={{ backgroundImage: `url(${JSON.stringify(visibleProfile)})` }}
                   />
                 ) : (
                   profileInitial(game)
