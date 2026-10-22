@@ -193,7 +193,14 @@ function AddImagesModal({
           <div className="gallery-upload-list">
             {items.map((item) => (
               <div key={item.id} className="gallery-upload-row">
-                {item.previewUrl?.startsWith('blob:') ? <img src={item.previewUrl} alt="" /> : null}
+                {item.file && GALLERY_DIRECT_TYPES.has(item.file.type) && item.previewUrl?.startsWith('blob:') ? (
+                  <span
+                    className="gallery-upload-preview"
+                    role="img"
+                    aria-label="Selected image preview"
+                    style={{ backgroundImage: `url(${JSON.stringify(item.previewUrl)})` }}
+                  />
+                ) : null}
 
                 <div className="gallery-upload-fields">
                   <input
@@ -933,11 +940,14 @@ const addFiles = (files) => {
           padding: 10px;
         }
 
-        .gallery-upload-row img {
+        .gallery-upload-preview {
+          display: block;
           width: 64px;
           height: 64px;
           border-radius: 13px;
-          object-fit: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-size: cover;
         }
 
         .gallery-upload-fields {
@@ -1007,7 +1017,7 @@ const addFiles = (files) => {
             grid-template-columns: 54px minmax(0, 1fr);
           }
 
-          .gallery-upload-row img {
+          .gallery-upload-preview {
             width: 54px;
             height: 54px;
           }
