@@ -75,7 +75,7 @@ function canvasToBlob(canvas, type, quality) {
 }
 
 async function optimizeBannerImage(file) {
-  if (!file?.type?.startsWith('image/')) throw new Error('Please choose an image file.');
+  if (!file || !BANNER_OPTIMIZABLE_TYPES.has(String(file.type || '').toLowerCase())) throw new Error('Please choose JPG, PNG, WEBP or AVIF.');
   if (file.size > BANNER_IMAGE_MAX_BYTES) throw new Error('Banner image must be 5 MB or smaller.');
 
   const type = String(file.type || '').toLowerCase();
@@ -293,6 +293,17 @@ function buildBadgeTitle(badge, title) {
   return `[${badge}] ${cleanTitle}`;
 }
 
+
+function safeBannerImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  try {
+    const url = new URL(value.trim(), API_URL);
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return url.href;
+  } catch {}
+  return '';
+}
+
+
 export default function BannerSystem() {
   const fileInputRef = useRef(null);
   const [activeType, setActiveType] = useState('shadow_spotlight');
@@ -429,7 +440,7 @@ export default function BannerSystem() {
   const selectBannerFile = (file) => {
     if (!file) return;
 
-    if (!file.type?.startsWith('image/')) {
+    if (!BANNER_OPTIMIZABLE_TYPES.has(String(file.type || '').toLowerCase())) {
       setMessage({ type: 'error', text: 'Please choose an image file.' });
       return;
     }
@@ -592,7 +603,11 @@ export default function BannerSystem() {
     }
   };
 
-  const currentPreview = localPreviewUrl || selectedBanner?.image_url || '';
+  
+const currentPreview = localPreviewUrl.startsWith('blob:')
+  ? localPreviewUrl
+  : safeBannerImageUrl(selectedBanner?.image_url);
+
 
   if (authExpired) {
     return <Navigate to="/login" replace />;
@@ -646,6 +661,7 @@ export default function BannerSystem() {
                 <div className="slots-grid">
                   {activeConfig.slots.map((slot) => {
                     const banner = slotMap[slot];
+                    const bannerImageUrl = safeBannerImageUrl(banner?.image_url);
                     const statusClass = !banner
                       ? 'empty'
                       : banner.is_active === false
@@ -731,7 +747,7 @@ export default function BannerSystem() {
     <input
       ref={fileInputRef}
       type="file"
-      accept="image/*"
+      accept="image/jpeg,image/png,image/webp,image/avif"
       style={{ display: 'none' }}
       onChange={handleFileChange}
     />
