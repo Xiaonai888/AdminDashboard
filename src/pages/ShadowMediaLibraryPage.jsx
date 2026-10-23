@@ -337,8 +337,8 @@ function FolderModal({ open, folder, onClose, onSave }) {
       }}
     >
       <label className="media-folder-cover-picker">
-        {coverPreview ? (
-          <img src={coverPreview} alt="Folder cover preview" />
+        {safeCoverPreview ? (
+          <div className="media-folder-cover-image" role="img" aria-label="Folder cover preview" style={{ backgroundImage: `url(${JSON.stringify(safeCoverPreview)})` }} />
         ) : (
           <div className="media-folder-cover-empty">
             <i className="fa-regular fa-image" />
@@ -502,8 +502,8 @@ function UploadModal({
             {items.map((item) => (
               <div key={item.id} className="media-upload-row">
                 {safeMediaImageUrl(item.previewUrl, item.file) ? (
-  <img src={safeMediaImageUrl(item.previewUrl, item.file)} alt="" />
-) : null}
+                  <div className="media-upload-thumbnail" role="img" aria-label="Selected image preview" style={{ backgroundImage: `url(${JSON.stringify(safeMediaImageUrl(item.previewUrl, item.file))})` }} />
+                ) : null}
 
                 <div className="media-upload-fields">
                   <input
@@ -1237,10 +1237,12 @@ created.push(saved)
   cursor: pointer;
 }
 
-.media-folder-cover-picker img {
+.media-folder-cover-picker .media-folder-cover-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .media-folder-cover-empty {
@@ -1801,11 +1803,13 @@ created.push(saved)
           padding: 10px;
         }
 
-        .media-upload-row img {
+        .media-upload-row .media-upload-thumbnail {
           width: 64px;
           height: 64px;
           border-radius: 13px;
-          object-fit: cover;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
         }
 
         .media-upload-fields {
@@ -2066,7 +2070,7 @@ created.push(saved)
             gap: 10px;
           }
 
-          .media-upload-row img {
+          .media-upload-row .media-upload-thumbnail {
             width: 56px;
             height: 56px;
           }
@@ -2123,7 +2127,7 @@ created.push(saved)
             grid-template-columns: 1fr;
           }
 
-          .media-upload-row img {
+          .media-upload-row .media-upload-thumbnail {
             width: 100%;
             height: auto;
             aspect-ratio: 1;
