@@ -615,6 +615,15 @@ function safeStudioUrl(value) {
   }
 }
 
+function safeStudioImageUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname))) return url.href
+  } catch {}
+  return ''
+}
+
 
 export default function ShadowStudioAdManager() {
   const fileRef = useRef(null)
@@ -645,7 +654,7 @@ export default function ShadowStudioAdManager() {
   )
 
   const selectedAd = slotMap[selectedSlot]
-  const currentPreview = previewUrl || safeStudioUrl(selectedAd?.image_url)
+  const currentPreview = previewUrl.startsWith('blob:') && selectedFile ? previewUrl : safeStudioImageUrl(selectedAd?.image_url)
 
   async function apiFetch(url, options = {}) {
     const token = getAdminToken()
@@ -757,7 +766,7 @@ export default function ShadowStudioAdManager() {
       return
     }
 
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
       setMessage({
         type: 'error',
         text: 'Image must be 5 MB or smaller.',
@@ -939,7 +948,7 @@ if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
           <div className="ssam-slots">
             {SLOTS.map((slot) => {
               const item = slotMap[slot]
-              const slotImageUrl = safeStudioUrl(item?.image_url)
+              const slotImageUrl = safeStudioImageUrl(item?.image_url)
               const status = !item
                 ? 'empty'
                 : item.is_active === false
@@ -953,7 +962,17 @@ if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
                   className={`ssam-slot ${selectedSlot === slot ? 'active' : ''}`}
                   onClick={() => setSelectedSlot(slot)}
                 >
-                  <div className="ssam-slot-preview">
+                  <div
+                    className="ssam-slot-preview"
+                    role={slotImageUrl ? 'img' : undefined}
+                    aria-label={slotImageUrl ? cleanTitle(item?.title) || `Studio Ad ${slot}` : undefined}
+                    style={slotImageUrl ? {
+                      backgroundImage: `url(${JSON.stringify(slotImageUrl)})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                    } : undefined}
+                  >
                     <span className="ssam-slot-number">
                       Ad {slot}
                     </span>
@@ -966,16 +985,11 @@ if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
                           : 'ACTIVE'}
                     </span>
 
-                    {item?.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={cleanTitle(item.title) || `Studio Ad ${slot}`}
-                      />
-                    ) : (
+                    {!slotImageUrl ? (
                       <div className="ssam-empty">
                         No image
                       </div>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="ssam-slot-meta">
@@ -1010,17 +1024,22 @@ if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
               </div>
             ) : null}
 
-            <div className="ssam-preview">
-              {currentPreview ? (
-                <img
-                  src={currentPreview}
-                  alt={`Shadow Studio Ad ${selectedSlot}`}
-                />
-              ) : (
+            <div
+              className="ssam-preview"
+              role={currentPreview ? 'img' : undefined}
+              aria-label={currentPreview ? `Shadow Studio Ad ${selectedSlot}` : undefined}
+              style={currentPreview ? {
+                backgroundImage: `url(${JSON.stringify(currentPreview)})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+              } : undefined}
+            >
+              {!currentPreview ? (
                 <div className="ssam-preview-empty">
                   No image selected
                 </div>
-              )}
+              ) : null}
             </div>
 
             <ImageDropZone
@@ -1042,7 +1061,7 @@ if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp"
                   style={{ display: 'none' }}
                   onChange={(event) => {
                     chooseImage(event.target.files?.[0])
@@ -1103,14 +1122,17 @@ if (linkUrl.trim() && !safeStudioUrl(linkUrl)) {
               </div>
 
               <div className="ssam-phone-screen">
-                <div className="ssam-phone-ad">
-                  {currentPreview ? (
-                    <img
-                      src={currentPreview}
-                      alt=""
-                    />
-                  ) : null}
-                </div>
+                <div
+                  className="ssam-phone-ad"
+                  role={currentPreview ? 'img' : undefined}
+                  aria-label={currentPreview ? `Shadow Studio Mobile Ad ${selectedSlot}` : undefined}
+                  style={currentPreview ? {
+                    backgroundImage: `url(${JSON.stringify(currentPreview)})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                  } : undefined}
+                />
 
                 <div className="ssam-phone-tools">
                   <div className="ssam-phone-dot" />
