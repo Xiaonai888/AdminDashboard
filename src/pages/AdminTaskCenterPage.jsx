@@ -598,12 +598,20 @@ export default function AdminTaskCenterPage() {
                   </div>
 
                   <div className="panel-body">
-                    <div className="cover-preview">
-                      {coverUrl ? (
-                        <img src={coverUrl} alt="Task Center Cover" />
-                      ) : (
+                    <div
+                      className="cover-preview"
+                      role={coverUrl ? 'img' : undefined}
+                      aria-label={coverUrl ? 'Task Center Cover' : undefined}
+                      style={coverUrl ? {
+                        backgroundImage: `url(${JSON.stringify(coverUrl)})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat',
+                      } : undefined}
+                    >
+                      {!coverUrl ? (
                         <div className="cover-empty">{loading ? 'Loading cover...' : 'No cover uploaded yet'}</div>
-                      )}
+                      ) : null}
                     </div>
 
                     <input
@@ -993,8 +1001,18 @@ export default function AdminTaskCenterPage() {
                   </div>
 
                   <div className="panel-body">
-                    <div className="mini-cover">
-                      {coverUrl ? <img src={coverUrl} alt="Task Cover Preview" /> : <div className="mini-empty">No cover preview</div>}
+                    <div
+                      className="mini-cover"
+                      role={coverUrl ? 'img' : undefined}
+                      aria-label={coverUrl ? 'Task Cover Preview' : undefined}
+                      style={coverUrl ? {
+                        backgroundImage: `url(${JSON.stringify(coverUrl)})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat',
+                      } : undefined}
+                    >
+                      {!coverUrl ? <div className="mini-empty">No cover preview</div> : null}
                     </div>
 
                     <div className="note-box">
