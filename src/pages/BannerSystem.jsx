@@ -675,7 +675,15 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                         className={`slot-card ${selectedSlot === slot ? 'selected' : ''}`}
                         onClick={() => setSelectedSlot(slot)}
                       >
-                        <div className="slot-preview">
+                        <div
+                          className="slot-preview"
+                          style={bannerImageUrl ? {
+                            backgroundImage: `url(${JSON.stringify(bannerImageUrl)})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat',
+                          } : undefined}
+                        >
                           <span className="slot-number">Banner {slot}</span>
 
                           <span className={`slot-status ${statusClass}`}>
@@ -686,14 +694,9 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                                 : 'ACTIVE'}
                           </span>
 
-                          {banner?.image_url ? (
-                            <img
-                              src={banner.image_url}
-                              alt={banner.title || `${activeConfig.titlePrefix} ${slot}`}
-                            />
-                          ) : (
+                          {!bannerImageUrl ? (
                             <div className="empty-preview">No image assigned</div>
-                          )}
+                          ) : null}
                         </div>
 
                         <div className="slot-meta">
@@ -723,15 +726,20 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                     <div className={`message ${message.type}`}>{message.text}</div>
                   )}
 
-                  <div className="selected-preview">
-                    {currentPreview ? (
-                      <img
-                        src={currentPreview}
-                        alt={`${activeConfig.titlePrefix} ${selectedSlot} preview`}
-                      />
-                    ) : (
+                  <div
+                    className="selected-preview"
+                    role={currentPreview ? 'img' : undefined}
+                    aria-label={currentPreview ? `${activeConfig.titlePrefix} ${selectedSlot} preview` : undefined}
+                    style={currentPreview ? {
+                      backgroundImage: `url(${JSON.stringify(currentPreview)})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                    } : undefined}
+                  >
+                    {!currentPreview ? (
                       <div className="selected-preview-empty">No image selected</div>
-                    )}
+                    ) : null}
                   </div>
 
                   <ImageDropZone label="Drop image here" onFiles={handleDroppedFiles}>
