@@ -490,7 +490,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
             {historyLoading ? <p className="recovery-muted">Loading action history...</p> : null}
             {!historyLoading && !history.length ? <div className="recovery-empty">No recovery actions have been recorded.</div> : null}
             {history.map((action) => <div className="recovery-history-item" key={action.id}>
-              <strong>{action.action_type === 'recovery' ? 'Payment Recovery' : 'Manual Top-Up'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
+              <strong>{action.user_name || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
               <div className="recovery-sub">User {action.user_id} · Reference {action.reference}</div>
               <div className="recovery-sub">Wallet {Number(action.balance_before || 0).toLocaleString()} → {Number(action.balance_after || 0).toLocaleString()} · {formatDate(action.created_at)}</div>
               <div className="recovery-sub">Admin {action.admin_email} · {action.reason}</div>
