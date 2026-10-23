@@ -1432,6 +1432,16 @@ function safeMallPreviewUrl(value, file) {
     ? value : safeMallImageUrl(value);
 }
 
+function mallImageBackground(url) {
+  if (!url) return undefined;
+  return {
+    backgroundImage: `url(${JSON.stringify(url)})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  };
+}
+
 
 export default function ShadowMallProductsPage() {
   const navigate = useNavigate();
@@ -1948,12 +1958,14 @@ const searchMatch = !keyword || title.includes(keyword);
                   <div className="shadow-section-title">Main Cover</div>
                   <p className="help">Recommended: vertical 2:3 ratio, JPG, PNG, or WEBP.</p>
 
-                  <div className="main-cover-frame">
+                  <div
+                    className="main-cover-frame"
+                    style={mallImageBackground(safeMallPreviewUrl(mainCoverPreview, mainCoverFile))}
+                    role={safeMallPreviewUrl(mainCoverPreview, mainCoverFile) ? 'img' : undefined}
+                    aria-label={safeMallPreviewUrl(mainCoverPreview, mainCoverFile) ? 'Main cover preview' : undefined}
+                  >
                     {safeMallPreviewUrl(mainCoverPreview, mainCoverFile) ? (
-                      <>
-                        <span className="cover-chip">Main Cover</span>
-                        <img src={safeMallPreviewUrl(mainCoverPreview, mainCoverFile)} alt="Main cover preview" />
-                      </>
+                      <span className="cover-chip">Main Cover</span>
                     ) : (
                       <span>Main Cover Preview<br />2:3 vertical</span>
                     )}
@@ -1994,12 +2006,14 @@ const searchMatch = !keyword || title.includes(keyword);
                   <div className="gallery-slots">
                     {[0, 1, 2, 3, 4].map((index) => (
                       <div className="gallery-slot" key={index}>
-                        <div className="gallery-image-box">
+                        <div
+                          className="gallery-image-box"
+                          style={mallImageBackground(safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index]))}
+                          role={safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index]) ? 'img' : undefined}
+                          aria-label={safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index]) ? `Gallery ${index + 1}` : undefined}
+                        >
                           {safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index]) ? (
-                            <>
-                              <span className="gallery-number">{index + 1}</span>
-                              <img src={safeMallPreviewUrl(galleryPreviews[index], galleryFiles[index])} alt={`Gallery ${index + 1}`} />
-                            </>
+                            <span className="gallery-number">{index + 1}</span>
                           ) : (
                             <span>Image {index + 1}</span>
                           )}
@@ -2392,12 +2406,13 @@ const searchMatch = !keyword || title.includes(keyword);
             key={product.id}
             className={`record-row ${String(editingId) === String(product.id) ? 'editing-record' : ''}`}
           >
-            <div className={`record-cover ${hasCover ? '' : 'empty-cover'}`}>
-              {hasCover ? (
-                <img src={coverSrc} alt={product.title} />
-              ) : (
-                <i className="fa-solid fa-book-open" />
-              )}
+            <div
+              className={`record-cover ${hasCover ? '' : 'empty-cover'}`}
+              style={mallImageBackground(coverSrc)}
+              role={hasCover ? 'img' : undefined}
+              aria-label={hasCover ? product.title || 'Product cover' : undefined}
+            >
+              {!hasCover ? <i className="fa-solid fa-book-open" /> : null}
             </div>
 
             <div className="record-main">
