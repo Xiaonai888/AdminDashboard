@@ -48,6 +48,8 @@ const css = `
   .sfm-card-name{font-weight:750;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0 0 8px}
   .sfm-badge{font-size:10px;font-weight:800;border-radius:20px;padding:4px 8px;background:#f1f1f1;color:#424242;display:inline-flex;align-items:center;gap:4px}
   .sfm-badge.premium{background:#ffe9a2;color:#563b00}
+  .sfm-badge.coins{background:#e1f0ff;color:#174a80}
+  .sfm-badge.diamonds{background:#f1e8ff;color:#62338f}
   .sfm-card-bottom{margin-top:11px}
   .sfm-status{font-size:11px;color:#15803d}
   .sfm-status.hidden{color:#9b6a21}
@@ -170,7 +172,14 @@ function validateFrame(file) {
   })
 }
 
-const emptyForm = () => ({ id: '', name: '', access_tier: 'free', is_active: true, sort_order: 0 })
+const emptyForm = () => ({ id: '', name: '', access_tier: 'free', coin_price: '', diamond_price: '', is_active: true, sort_order: 0 })
+
+function accessLabel(item) {
+  if (item.access_tier === 'premium') return '♛ PREMIUM'
+  if (item.access_tier === 'coins') return `COINS · ${Number(item.coin_price || 0)}`
+  if (item.access_tier === 'diamonds') return `DIAMONDS · ${Number(item.diamond_price || 0)}`
+  return 'FREE'
+}
 
 export default function AdminFrameManagementPage() {
   const [mode, setMode] = useState('home')
@@ -224,7 +233,7 @@ export default function AdminFrameManagementPage() {
 
   const changeMode = next => { setMode(next); setError(''); setNotice('') }
   const startAdd = () => { setForm(emptyForm()); setFile(null); uploadedRef.current = null; changeMode('upload') }
-  const startEdit = item => { setForm({ id: item.id, name: item.name || '', access_tier: item.access_tier || 'free', is_active: item.is_active !== false, sort_order: Number(item.sort_order || 0), image_url: item.image_url || '' }); setFile(null); uploadedRef.current = null; changeMode('upload') }
+  const startEdit = item => { setForm({ id: item.id, name: item.name || '', access_tier: item.access_tier || 'free', coin_price: item.coin_price || '', diamond_price: item.diamond_price || '', is_active: item.is_active !== false, sort_order: Number(item.sort_order || 0), image_url: item.image_url || '' }); setFile(null); uploadedRef.current = null; changeMode('upload') }
   const refresh = () => { clearPages(); setRefreshId(value => value + 1) }
 
   const chooseFile = async nextFile => {
@@ -240,6 +249,10 @@ export default function AdminFrameManagementPage() {
     const name = form.name.trim()
     if (!name || name.length > 100) { setError('Frame name must be 1–100 characters'); return }
     if (!form.id && !file) { setError('Select a square transparent image'); return }
+    const coinPrice = form.access_tier === 'coins' ? Number(form.coin_price) : 0
+    const diamondPrice = form.access_tier === 'diamonds' ? Number(form.diamond_price) : 0
+    if (form.access_tier === 'coins' && (!Number.isSafeInteger(coinPrice) || coinPrice < 1 || coinPrice > 1000000000)) { setError('Enter a valid Coin price'); return }
+    if (form.access_tier === 'diamonds' && (!Number.isSafeInteger(diamondPrice) || diamondPrice < 1 || diamondPrice > 1000000000)) { setError('Enter a valid Diamond price'); return }
     const account = getToken()
     setBusy(true)
     setError('')
@@ -251,7 +264,7 @@ export default function AdminFrameManagementPage() {
         if (!image?.storage_key || !cleanUrl(image.image_url)) throw new Error('Upload completed without a valid image URL')
         uploadedRef.current = image
       }
-      const payload = { name, access_tier: form.access_tier, is_active: form.is_active, sort_order: Number(form.sort_order) || 0, ...(uploadedRef.current ? { image_url: uploadedRef.current.image_url, storage_key: uploadedRef.current.storage_key } : {}) }
+      const payload = { name, access_tier: form.access_tier, coin_price: coinPrice, diamond_price: diamondPrice, is_active: form.is_active, sort_order: Number(form.sort_order) || 0, ...(uploadedRef.current ? { image_url: uploadedRef.current.image_url, storage_key: uploadedRef.current.storage_key } : {}) }
       await request(form.id ? `/${encodeURIComponent(form.id)}` : '', { method: form.id ? 'PATCH' : 'POST', body: payload, token: account })
       clearPages()
       setFile(null)
@@ -276,7 +289,7 @@ export default function AdminFrameManagementPage() {
     finally { setBusy(false) }
   }
 
-  return <AdminLayout title="Frame Management" subtitle="Free and Premium profile frames for Shadow readers">
+  return <AdminLayout title="Frame Management" subtitle="Free, Premium, Coin and Diamond profile frames for Shadow readers">
     <div className="sfm">
       <style>{css}</style>
       <header className="sfm-header">
@@ -287,7 +300,7 @@ export default function AdminFrameManagementPage() {
       {error && <div className="sfm-alert error" role="alert">{error}</div>}
       {!allowed && <div className="sfm-alert error">Your account does not have permission to manage frames.</div>}
       {mode === 'home' && <><div className="sfm-choices">
-        {allowed && <button className="sfm-choice" onClick={startAdd}><span className="sfm-choice-icon"><Icon name="upload" size={30}/></span><strong>Upload Frame</strong><span>Add a new Free or Premium frame</span><span className="sfm-button gold">Open Upload</span></button>}
+        {allowed && <button className="sfm-choice" onClick={startAdd}><span className="sfm-choice-icon"><Icon name="upload" size={30}/></span><strong>Upload Frame</strong><span>Add a Free, Premium, Coin or Diamond frame</span><span className="sfm-button gold">Open Upload</span></button>}
         <button className="sfm-choice" disabled={!allowed} onClick={() => changeMode('view')}><span className="sfm-choice-icon"><Icon name="grid" size={30}/></span><strong>View Frames</strong><span>Browse and manage saved frames</span><span className="sfm-button">Open Library</span></button>
       </div><p className="sfm-caption">The Frame Library is not requested until you select View Frames.</p></>}
       {mode === 'upload' && allowed && <section className="sfm-panel">
@@ -299,7 +312,9 @@ export default function AdminFrameManagementPage() {
           </label>
           <div>
             <label className="sfm-label" htmlFor="sfm-name">Frame Name</label><input id="sfm-name" className="sfm-field" maxLength={100} required value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} placeholder="Enter frame name"/>
-            <label className="sfm-label" htmlFor="sfm-access">Access</label><select id="sfm-access" className="sfm-field" value={form.access_tier} onChange={event => setForm(current => ({ ...current, access_tier: event.target.value }))}><option value="free">Free</option><option value="premium">Premium</option></select>
+            <label className="sfm-label" htmlFor="sfm-access">Access</label><select id="sfm-access" className="sfm-field" value={form.access_tier} onChange={event => setForm(current => ({ ...current, access_tier: event.target.value }))}><option value="free">Free</option><option value="premium">Premium</option><option value="coins">Coins</option><option value="diamonds">Diamonds</option></select>
+            {form.access_tier === 'coins' && <><label className="sfm-label" htmlFor="sfm-coin-price">Coin Price</label><input id="sfm-coin-price" className="sfm-field" type="number" min="1" max="1000000000" step="1" required value={form.coin_price} onChange={event => setForm(current => ({ ...current, coin_price: event.target.value }))}/><p className="sfm-note">Reader access expires 30 days after purchase.</p></>}
+            {form.access_tier === 'diamonds' && <><label className="sfm-label" htmlFor="sfm-diamond-price">Diamond Price</label><input id="sfm-diamond-price" className="sfm-field" type="number" min="1" max="1000000000" step="1" required value={form.diamond_price} onChange={event => setForm(current => ({ ...current, diamond_price: event.target.value }))}/><p className="sfm-note">Reader access does not expire.</p></>}
             <label className="sfm-label" htmlFor="sfm-order">Display Order</label><input id="sfm-order" className="sfm-field" type="number" min={0} max={100000} value={form.sort_order} onChange={event => setForm(current => ({ ...current, sort_order: event.target.value }))}/>
             <label className="sfm-label" htmlFor="sfm-active">Visibility</label><select id="sfm-active" className="sfm-field" value={form.is_active ? 'active' : 'hidden'} onChange={event => setForm(current => ({ ...current, is_active: event.target.value === 'active' }))}><option value="active">Active</option><option value="hidden">Hidden</option></select>
             <div className="sfm-form-actions"><button type="submit" className="sfm-button gold" disabled={busy}>{busy ? 'Saving…' : 'Save Frame'}</button><button type="button" className="sfm-button" disabled={busy} onClick={() => changeMode('home')}>Cancel</button></div>
@@ -308,8 +323,8 @@ export default function AdminFrameManagementPage() {
       </section>}
       {mode === 'view' && allowed && <section className="sfm-panel">
         <div className="sfm-bar"><div><h3 className="sfm-title">Saved Frames</h3><p className="sfm-note">9 frames per page. Images are loaded only in this view.</p></div><button className="sfm-button" disabled={loading || busy} onClick={refresh}><Icon name="refresh" size={14}/> Refresh</button></div>
-        <div className="sfm-toolbar"><input className="sfm-field sfm-search" value={search} onChange={event => setSearch(event.target.value.slice(0, 80))} placeholder="Search frame name…" aria-label="Search frames"/><div className="sfm-actions">{[['all', 'All'], ['free', 'Free'], ['premium', 'Premium']].map(([value,label]) => <button key={value} type="button" className={`sfm-button ${filter === value ? 'active' : ''}`} onClick={() => { setFilter(value); setPage(1) }}>{label}</button>)}</div><select className="sfm-field" style={{ width: 135 }} aria-label="Frame status" value={status} onChange={event => { setStatus(event.target.value); setPage(1) }}><option value="all">All statuses</option><option value="active">Active</option><option value="hidden">Hidden</option></select></div>
-        {loading ? <div className="sfm-empty">Loading 9 frames…</div> : error ? <div className="sfm-empty">Could not load frames. Try Refresh.</div> : rows.length ? <div className="sfm-grid">{rows.map(item => <article className="sfm-card" key={item.id}><div className="sfm-thumb">{cleanUrl(item.image_url) ? <img src={cleanUrl(item.image_url)} loading="lazy" alt={item.name || 'Frame'}/> : <Icon name="image" size={35}/>}</div><div className="sfm-card-body"><p className="sfm-card-name" title={item.name}>{item.name}</p><span className={`sfm-badge ${item.access_tier === 'premium' ? 'premium' : ''}`}>{item.access_tier === 'premium' ? '♛ PREMIUM' : 'FREE'}</span><div className="sfm-card-bottom"><span className={`sfm-status ${item.is_active === false ? 'hidden' : ''}`}>{item.is_active === false ? '● Hidden' : '● Active'}</span><div className="sfm-actions" style={{ gap: 5 }}><button className="sfm-icon-button" disabled={busy} title="Edit" aria-label={`Edit ${item.name}`} onClick={() => startEdit(item)}><Icon name="edit" size={16}/></button><button className="sfm-icon-button" disabled={busy} title="Delete" aria-label={`Delete ${item.name}`} onClick={() => remove(item)}><Icon name="trash" size={16}/></button></div></div></div></article>)}</div> : <div className="sfm-empty">No frames found for these filters.</div>}
+        <div className="sfm-toolbar"><input className="sfm-field sfm-search" value={search} onChange={event => setSearch(event.target.value.slice(0, 80))} placeholder="Search frame name…" aria-label="Search frames"/><div className="sfm-actions">{[['all', 'All'], ['free', 'Free'], ['premium', 'Premium'], ['coins', 'Coins'], ['diamonds', 'Diamonds']].map(([value,label]) => <button key={value} type="button" className={`sfm-button ${filter === value ? 'active' : ''}`} onClick={() => { setFilter(value); setPage(1) }}>{label}</button>)}</div><select className="sfm-field" style={{ width: 135 }} aria-label="Frame status" value={status} onChange={event => { setStatus(event.target.value); setPage(1) }}><option value="all">All statuses</option><option value="active">Active</option><option value="hidden">Hidden</option></select></div>
+        {loading ? <div className="sfm-empty">Loading 9 frames…</div> : error ? <div className="sfm-empty">Could not load frames. Try Refresh.</div> : rows.length ? <div className="sfm-grid">{rows.map(item => <article className="sfm-card" key={item.id}><div className="sfm-thumb">{cleanUrl(item.image_url) ? <img src={cleanUrl(item.image_url)} loading="lazy" alt={item.name || 'Frame'}/> : <Icon name="image" size={35}/>}</div><div className="sfm-card-body"><p className="sfm-card-name" title={item.name}>{item.name}</p><span className={`sfm-badge ${item.access_tier || 'free'}`}>{accessLabel(item)}</span><div className="sfm-card-bottom"><span className={`sfm-status ${item.is_active === false ? 'hidden' : ''}`}>{item.is_active === false ? '● Hidden' : '● Active'}</span><div className="sfm-actions" style={{ gap: 5 }}><button className="sfm-icon-button" disabled={busy} title="Edit" aria-label={`Edit ${item.name}`} onClick={() => startEdit(item)}><Icon name="edit" size={16}/></button><button className="sfm-icon-button" disabled={busy} title="Delete" aria-label={`Delete ${item.name}`} onClick={() => remove(item)}><Icon name="trash" size={16}/></button></div></div></div></article>)}</div> : <div className="sfm-empty">No frames found for these filters.</div>}
         <div className="sfm-pager"><span>Page {page}{Number(pagination.total_pages) > 0 ? ` of ${pagination.total_pages}` : ''} · 9 per page</span><div className="sfm-actions"><button className="sfm-button" disabled={page <= 1 || loading} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button><button className="sfm-button" disabled={loading || !(pagination.has_more || page < Number(pagination.total_pages || page))} onClick={() => setPage(value => value + 1)}>Next</button></div></div>
       </section>}
     </div>
