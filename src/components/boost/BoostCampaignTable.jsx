@@ -8,7 +8,7 @@ export default function BoostCampaignTable({ kind, rows, total, page, onPageChan
   return <BoostPanel title={kind === 'book' ? 'Boosted Books' : 'Boosted Posts'} subtitle="Campaign owners, placements, goals and revenue">
     <div className="bad-table-tools">
       <input type="search" aria-label="Search Boost campaigns" placeholder={`Search ${kind === 'book' ? 'books' : 'posts'} or authors...`} value={search} onChange={(event) => onSearchChange(event.target.value)} />
-      <small>20 campaigns per page</small>
+      <small>{PAGE_SIZE} campaigns per page</small>
     </div>
     <div className="bad-table-scroll"><table className="bad-table">
       <thead><tr><th>{kind === 'book' ? 'Book / Author' : 'Post / Author'}</th><th>Placement</th><th>Goal</th><th>Achieved</th><th>Boost Fee</th><th>Attributed Sales</th><th>Status</th></tr></thead>
