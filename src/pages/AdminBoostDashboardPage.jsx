@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import BoostReaderInsights from '../components/boost/BoostReaderInsights'
 import BoostAuthorInsights from '../components/boost/BoostAuthorInsights'
+import BoostCampaignReview from '../components/boost/BoostCampaignReview'
 import { cambodiaToday, reportRange, shiftDay, validRange } from '../services/adminBoostInsights'
 import '../styles/adminBoostAnalytics.css'
 
@@ -15,12 +16,14 @@ const PERIODS = [
 export default function AdminBoostDashboardPage() {
   const [audience, setAudience] = useState('reader')
   const [kind, setKind] = useState('post')
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [period, setPeriod] = useState('last7')
   const [customStart, setCustomStart] = useState(() => shiftDay(cambodiaToday(), -7))
   const [customEnd, setCustomEnd] = useState(() => shiftDay(cambodiaToday(), -1))
   const [refreshSignal, setRefreshSignal] = useState(0)
   const [start, end] = useMemo(() => reportRange(period, customStart, customEnd), [period, customStart, customEnd])
   const valid = validRange(start, end)
+  const reviewing = audience === 'author' && reviewOpen
 
   return <AdminLayout title="Boost" subtitle="Reader insights and author promotion performance">
     <div className="bad-page">
@@ -31,17 +34,29 @@ export default function AdminBoostDashboardPage() {
           <p>Understand reading interests, campaigns and platform revenue.</p>
         </div>
         <div className="bad-primary-tabs" role="tablist" aria-label="Boost audience">
-          <button type="button" role="tab" aria-selected={audience === 'reader'} onClick={() => setAudience('reader')}>Reader</button>
+          <button type="button" role="tab" aria-selected={audience === 'reader'} onClick={() => { setAudience('reader'); setReviewOpen(false) }}>Reader</button>
           <button type="button" role="tab" aria-selected={audience === 'author'} onClick={() => setAudience('author')}>Author</button>
         </div>
       </header>
 
-      {audience === 'author' && <nav className="bad-secondary-tabs" role="tablist" aria-label="Boost type">
-        <button type="button" role="tab" aria-selected={kind === 'post'} onClick={() => setKind('post')}>Boost Post</button>
-        <button type="button" role="tab" aria-selected={kind === 'book'} onClick={() => setKind('book')}>Boost Book</button>
-      </nav>}
+      {audience === 'author' && <>
+        {!reviewOpen && <nav className="bad-secondary-tabs" role="tablist" aria-label="Boost type">
+          <button type="button" role="tab" aria-selected={kind === 'post'} onClick={() => setKind('post')}>Boost Post</button>
+          <button type="button" role="tab" aria-selected={kind === 'book'} onClick={() => setKind('book')}>Boost Book</button>
+        </nav>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+          <button
+            type="button"
+            className="bad-refresh"
+            aria-expanded={reviewOpen}
+            onClick={() => setReviewOpen(value => !value)}
+          >
+            {reviewOpen ? 'Back to Analytics' : 'Campaign Review'}
+          </button>
+        </div>
+      </>}
 
-      <div className="bad-toolbar">
+      {!reviewing && <div className="bad-toolbar">
         <div className="bad-periods" aria-label="Report period">
           {PERIODS.map(([value, label]) => <button type="button" key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}
         </div>
@@ -54,13 +69,15 @@ export default function AdminBoostDashboardPage() {
           <small>{valid ? `${start} – ${end} · Cambodia time` : 'Choose completed dates within one year'}</small>
           <button type="button" className="bad-refresh" disabled={!valid} onClick={() => setRefreshSignal((value) => value + 1)}>Refresh</button>
         </div>
-      </div>
+      </div>}
 
       {audience === 'reader'
         ? <BoostReaderInsights key={`reader:${start}:${end}`} start={start} end={end} refreshSignal={refreshSignal} />
-        : <BoostAuthorInsights key={`author:${kind}:${start}:${end}`} kind={kind} start={start} end={end} refreshSignal={refreshSignal} />}
+        : reviewing
+          ? <BoostCampaignReview />
+          : <BoostAuthorInsights key={`author:${kind}:${start}:${end}`} kind={kind} start={start} end={end} refreshSignal={refreshSignal} />}
 
-      <p className="bad-footnote">Daily snapshots. Boost fees, attributed sales and platform share are reported separately.</p>
+      {!reviewing && <p className="bad-footnote">Daily snapshots. Boost fees, attributed sales and platform share are reported separately.</p>}
     </div>
   </AdminLayout>
 }
