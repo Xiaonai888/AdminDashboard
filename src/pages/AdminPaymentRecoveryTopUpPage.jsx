@@ -68,6 +68,18 @@ const styles = `
   .recovery-subheading { font-size: 13px; color: #0F172A; font-weight: 900; }
   .recovery-history { padding: 18px; display: grid; gap: 12px; }
   .recovery-history-item { padding: 14px; border: 1px solid #E2E8F0; border-radius: 12px; }
+  .recovery-history-item:focus-within { border-color: #A5B4FC; }
+  .recovery-update-badge { display: inline-flex; align-items: center; border-radius: 999px; background: #EDE9FE; color: #5B21B6; font-size: 11px; font-weight: 850; padding: 5px 9px; margin-left: 9px; }
+  .recovery-edit-panel { margin-top: 15px; padding: 16px; border: 1px solid #C7D2FE; border-radius: 14px; background: #F8FAFF; }
+  .recovery-edit-panel .recovery-form { padding-top: 0; }
+  .recovery-edit-panel textarea { min-height: 80px; }
+  .recovery-audit { display: grid; gap: 10px; margin-top: 16px; border-top: 1px solid #E2E8F0; padding-top: 15px; }
+  .recovery-audit-row { border: 1px solid #E2E8F0; border-radius: 11px; padding: 12px; background: #FAFBFF; }
+  .recovery-audit-row p { margin: 6px 0; line-height: 1.5; font-size: 12px; overflow-wrap: anywhere; }
+  .recovery-audit-row del { color: #9F1239; }
+  .recovery-audit-row strong { overflow-wrap: anywhere; }
+  .recovery-inline-error { margin: 10px 0; padding: 11px; color: #B91C1C; background: #FEF2F2; border-radius: 10px; font-size: 12px; }
+  .recovery-read-only { color: #475569; border-radius: 10px; background: #E2E8F0; padding: 10px 12px; font-size: 12px; font-weight: 700; }
   .recovery-actions { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
   @media (max-width: 1040px) { .recovery-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .recovery-controls .recovery-input:first-child { grid-column: 1 / -1; } }
   @media (max-width: 680px) { .recovery-intro { padding: 18px; align-items: flex-start; flex-direction: column; } .recovery-stats { grid-template-columns: 1fr; } .recovery-controls { grid-template-columns: 1fr; padding: 14px; } .recovery-controls .recovery-input:first-child { grid-column: auto; } .recovery-tabs { flex-wrap: wrap; } .recovery-detail-grid, .recovery-preview-grid, .recovery-form-grid { grid-template-columns: 1fr; } .recovery-section-head { align-items: flex-start; flex-direction: column; } .recovery-notice, .recovery-error { margin-left: 14px; margin-right: 14px; } }
@@ -132,6 +144,18 @@ export default function AdminPaymentRecoveryTopUpPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyRefresh, setHistoryRefresh] = useState(0)
   const [expandedHistoryId, setExpandedHistoryId] = useState('')
+  const [historyDetail, setHistoryDetail] = useState(null)
+  const [historyDetailLoading, setHistoryDetailLoading] = useState(false)
+  const [historyDetailError, setHistoryDetailError] = useState('')
+  const [historyDetailRefresh, setHistoryDetailRefresh] = useState(0)
+  const [historyAudit, setHistoryAudit] = useState({ items: [], page: 1, has_next: false, has_prev: false })
+  const [historyAuditLoading, setHistoryAuditLoading] = useState(false)
+  const [editingHistoryId, setEditingHistoryId] = useState('')
+  const [historyEditDraft, setHistoryEditDraft] = useState({ reference: '', mark_note: '', reason: '', passkey: '' })
+  const [historyEditWorking, setHistoryEditWorking] = useState(false)
+  const [historyEditError, setHistoryEditError] = useState('')
+  const historyDetailRequestRef = useRef(0)
+  const historyAuditRequestRef = useRef(0)
   const paymentsCacheRef = useRef(new Map())
   const historyCacheRef = useRef(new Map())
 
@@ -219,20 +243,75 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setHistory([])
     setHistoryLoading(true)
     setError('')
-    request(`/history?page=${historyPage}&limit=10`, { signal: controller.signal })
-      .then((data) => {
+    const loadHistory = async () => {
+      try {
+        const data = await request('/history?page=' + historyPage + '&limit=10', { signal: controller.signal })
+        const items = Array.isArray(data.items) ? data.items.slice(0, 10) : []
+        let merged = items
+        const ids = items.map((item) => String(item.id || '')).filter(Boolean)
+        if (ids.length) {
+          try {
+            const metadata = await request('/history/metadata?ids=' + encodeURIComponent(ids.join(',')), { signal: controller.signal })
+            const byActionId = new Map((Array.isArray(metadata.items) ? metadata.items : []).map((item) => [String(item.action_id), item]))
+            merged = items.map((item) => ({ ...item, ...(byActionId.get(String(item.id)) || {}) }))
+          } catch (metadataError) {
+            if (!controller.signal.aborted) setError('Unable to load Updated labels: ' + (metadataError.message || 'Backend unavailable'))
+          }
+        }
         if (controller.signal.aborted) return
-        const items = Array.isArray(data.items) ? data.items : []
         const hasNext = Boolean(data.has_next)
-        historyCacheRef.current.set(historyPage, { items, hasNext })
-        setHistory(items)
+        historyCacheRef.current.set(historyPage, { items: merged, hasNext })
+        setHistory(merged)
         setHistoryHasNext(hasNext)
-      })
-      .catch((e) => { if (!controller.signal.aborted) setError(e.message) })
-      .finally(() => { if (!controller.signal.aborted) setHistoryLoading(false) })
+      } catch (requestError) {
+        if (!controller.signal.aborted) setError(requestError.message || 'Unable to load payment action history')
+      } finally {
+        if (!controller.signal.aborted) setHistoryLoading(false)
+      }
+    }
+    loadHistory()
     return () => controller.abort()
   }, [paymentMethod, activeTab, historyPage, historyRefresh])
 
+  useEffect(() => {
+    if (paymentMethod !== 'bank' || activeTab !== 'history' || !expandedHistoryId) {
+      setHistoryDetail(null)
+      setHistoryDetailLoading(false)
+      setHistoryDetailError('')
+      return undefined
+    }
+    const controller = new AbortController()
+    const requestId = ++historyDetailRequestRef.current
+    setHistoryDetail(null)
+    setHistoryAudit({ items: [], page: 1, has_next: false, has_prev: false })
+    setHistoryDetailLoading(true)
+    setHistoryDetailError('')
+    request('/history/' + encodeURIComponent(expandedHistoryId), { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted || historyDetailRequestRef.current !== requestId) return
+        if (!data.action) throw new Error('Payment action details are missing')
+        setHistoryDetail(data.action)
+        setHistoryAudit(data.edits || { items: [], page: 1, has_next: false, has_prev: false })
+        setHistoryEditDraft({
+          reference: String(data.action.display_reference || data.action.reference || ''),
+          mark_note: String(data.action.mark_note || ''),
+          reason: '',
+          passkey: '',
+        })
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted && historyDetailRequestRef.current === requestId) {
+          setHistoryDetailError(requestError.message || 'Unable to load action details')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && historyDetailRequestRef.current === requestId) setHistoryDetailLoading(false)
+      })
+    return () => {
+      controller.abort()
+      if (historyDetailRequestRef.current === requestId) historyDetailRequestRef.current += 1
+    }
+  }, [paymentMethod, activeTab, expandedHistoryId, historyDetailRefresh])
   function clearSensitive() {
     setRecoveryPin('')
     setTopupPin('')
@@ -369,20 +448,142 @@ export default function AdminPaymentRecoveryTopUpPage() {
     finally { setWorking(false); setTopupPin('') }
   }
 
+  function closeHistoryDetail() {
+    historyAuditRequestRef.current += 1
+    setHistoryAuditLoading(false)
+    setExpandedHistoryId('')
+    setEditingHistoryId('')
+    setHistoryDetail(null)
+    setHistoryDetailError('')
+    setHistoryEditError('')
+    setHistoryEditDraft((draft) => ({ ...draft, reason: '', passkey: '' }))
+  }
+
+  function toggleHistoryDetails(actionId) {
+    if (historyEditWorking) return
+    if (expandedHistoryId === actionId) {
+      closeHistoryDetail()
+    } else {
+      closeHistoryDetail()
+      setExpandedHistoryId(actionId)
+    }
+  }
+
+  function beginHistoryEdit(actionId) {
+    if (historyEditWorking) return
+    setHistoryEditError('')
+    setFeedback('')
+    if (expandedHistoryId !== actionId) {
+      closeHistoryDetail()
+      setExpandedHistoryId(actionId)
+    }
+    setEditingHistoryId(actionId)
+  }
+
+  async function loadHistoryAuditPage(actionId, nextPage) {
+    if (historyAuditLoading || !historyDetail || historyDetail.id !== actionId || nextPage < 1) return
+    const requestId = ++historyAuditRequestRef.current
+    setHistoryAuditLoading(true)
+    setHistoryDetailError('')
+    try {
+      const data = await request('/history/' + encodeURIComponent(actionId) + '/edits?page=' + nextPage)
+      if (historyAuditRequestRef.current !== requestId) return
+      setHistoryAudit({
+        items: Array.isArray(data.items) ? data.items : [],
+        page: Number(data.page || nextPage),
+        has_next: Boolean(data.has_next),
+        has_prev: Boolean(data.has_prev),
+      })
+    } catch (requestError) {
+      if (historyAuditRequestRef.current === requestId) {
+        setHistoryDetailError(requestError.message || 'Unable to load edit audit history')
+      }
+    } finally {
+      if (historyAuditRequestRef.current === requestId) setHistoryAuditLoading(false)
+    }
+  }
+
+  async function handleHistoryEdit(event) {
+    event.preventDefault()
+    if (historyEditWorking || !historyDetail || historyDetail.id !== editingHistoryId) return
+    const nextReference = historyEditDraft.reference.trim().toUpperCase()
+    const nextMark = historyEditDraft.mark_note.trim()
+    const currentReference = String(historyDetail.display_reference || historyDetail.reference || '').trim().toUpperCase()
+    const currentMark = String(historyDetail.mark_note || '').trim()
+    const referenceChanged = nextReference !== currentReference
+    const markChanged = nextMark !== currentMark
+    const reason = historyEditDraft.reason.trim()
+    const passkey = historyEditDraft.passkey.trim()
+    if (!referenceChanged && !markChanged) {
+      setHistoryEditError('Change the reference or mark before saving.')
+      return
+    }
+    if (referenceChanged && !/^[A-Z0-9][A-Z0-9._/-]{5,99}$/.test(nextReference)) {
+      setHistoryEditError('Reference must contain 6–100 valid letters, numbers, dots, underscores, hyphens or slashes.')
+      return
+    }
+    if (nextMark.length > 300 || reason.length < 12 || reason.length > 500 || !/^[0-9]{6}$/.test(passkey)) {
+      setHistoryEditError('Check the 300-character mark, 12–500-character reason, and six-digit Admin Passkey.')
+      return
+    }
+    setHistoryEditWorking(true)
+    setHistoryEditError('')
+    setFeedback('')
+    try {
+      const actionId = editingHistoryId
+      const currentEditCount = Number(historyDetail.edit_count || 0)
+      const data = await request('/history/' + encodeURIComponent(actionId), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          reference: referenceChanged ? nextReference : null,
+          mark_note: markChanged ? nextMark : null,
+          reason,
+          passkey,
+          expected_edit_count: currentEditCount,
+        }),
+      })
+      const result = Array.isArray(data.result) ? data.result[0] : data.result || {}
+      const amended = {
+        display_reference: String(result.display_reference || nextReference || currentReference),
+        mark_note: result.mark_note == null ? nextMark : String(result.mark_note),
+        edit_count: Number.isFinite(Number(result.edit_count)) ? Number(result.edit_count) : currentEditCount + 1,
+        updated_at: result.updated_at || new Date().toISOString(),
+      }
+      const updateRows = (items) => items.map((item) => item.id === actionId ? { ...item, ...amended } : item)
+      setHistory((items) => updateRows(items))
+      for (const [cachePage, cached] of historyCacheRef.current.entries()) {
+        historyCacheRef.current.set(cachePage, { ...cached, items: updateRows(cached.items) })
+      }
+      historyAuditRequestRef.current += 1
+      setHistoryEditDraft((draft) => ({ ...draft, passkey: '', reason: '' }))
+      setEditingHistoryId('')
+      setFeedback('Action History was updated. The original financial transaction and wallet balances were not changed.')
+      setError('')
+      setHistoryDetailRefresh((value) => value + 1)
+    } catch (requestError) {
+      setHistoryEditError(requestError.message || 'Unable to save edit')
+    } finally {
+      setHistoryEditDraft((draft) => ({ ...draft, passkey: '' }))
+      setHistoryEditWorking(false)
+    }
+  }
+
   function changePaymentMethod(method) {
+    if (historyEditWorking) return
     setPaymentMethod(method)
     setActiveTab('')
     setSelectedId('')
-    setExpandedHistoryId('')
+    closeHistoryDetail()
     setError('')
     setFeedback('')
     clearSensitive()
   }
 
   function changeTab(tab) {
+    if (historyEditWorking) return
     setActiveTab(tab)
     setSelectedId('')
-    setExpandedHistoryId('')
+    closeHistoryDetail()
     setError('')
     setFeedback('')
     clearSensitive()
@@ -394,8 +595,16 @@ export default function AdminPaymentRecoveryTopUpPage() {
   }
 
   function refreshHistory() {
+    if (historyEditWorking) return
+    closeHistoryDetail()
     historyCacheRef.current.clear()
     setHistoryRefresh((v) => v + 1)
+  }
+
+  function changeHistoryPage(nextPage) {
+    if (historyLoading || historyEditWorking || nextPage < 1) return
+    closeHistoryDetail()
+    setHistoryPage(nextPage)
   }
 
   const selected = payments.find((payment) => payment.id === selectedId)
@@ -415,13 +624,13 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <span className="recovery-tag">Six-digit Passkey required</span>
           </div>
           <div className="recovery-method-tabs">
-            <button type="button" className={`recovery-method ${paymentMethod === 'bank' ? 'active' : ''}`} onClick={() => changePaymentMethod('bank')}>Bank</button>
-            <button type="button" className={`recovery-method binance ${paymentMethod === 'binance' ? 'active' : ''}`} onClick={() => changePaymentMethod('binance')}>Binance</button>
+            <button type="button" className={`recovery-method ${paymentMethod === 'bank' ? 'active' : ''}`} onClick={() => changePaymentMethod('bank')} disabled={historyEditWorking}>Bank</button>
+            <button type="button" className={`recovery-method binance ${paymentMethod === 'binance' ? 'active' : ''}`} onClick={() => changePaymentMethod('binance')} disabled={historyEditWorking}>Binance</button>
           </div>
           {paymentMethod ? <div className="recovery-tabs">
-            <button type="button" className={`recovery-tab ${activeTab === 'recovery' ? 'active' : ''}`} onClick={() => changeTab('recovery')}>Payment Recovery</button>
-            <button type="button" className={`recovery-tab ${activeTab === 'topup' ? 'active' : ''}`} onClick={() => changeTab('topup')}>Manual Top-Up</button>
-            <button type="button" className={`recovery-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => changeTab('history')}>Action History</button>
+            <button type="button" className={`recovery-tab ${activeTab === 'recovery' ? 'active' : ''}`} onClick={() => changeTab('recovery')} disabled={historyEditWorking}>Payment Recovery</button>
+            <button type="button" className={`recovery-tab ${activeTab === 'topup' ? 'active' : ''}`} onClick={() => changeTab('topup')} disabled={historyEditWorking}>Manual Top-Up</button>
+            <button type="button" className={`recovery-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => changeTab('history')} disabled={historyEditWorking}>Action History</button>
           </div> : null}
         </section>
 
@@ -566,37 +775,110 @@ export default function AdminPaymentRecoveryTopUpPage() {
         ) : (
           <section className="recovery-card recovery-history">
             <div className="recovery-section-head" style={{ padding: 0, border: 0 }}>
-              <div><h3>Recovery & Top-Up Action History</h3><p className="recovery-muted">The next Backend update will enforce 10 records per page. Details appear only when opened.</p></div>
-              <button className="recovery-button" onClick={refreshHistory} disabled={historyLoading}>Refresh</button>
+              <div>
+                <h3>Recovery & Top-Up Action History</h3>
+                <p className="recovery-muted">10 records per page. Details and full edit history load only after selecting an action.</p>
+              </div>
+              <button type="button" className="recovery-button" onClick={refreshHistory} disabled={historyLoading || historyEditWorking}>Refresh</button>
             </div>
             {historyLoading ? <p className="recovery-muted">Loading action history...</p> : null}
             {!historyLoading && !history.length ? <div className="recovery-empty">No recovery actions have been recorded.</div> : null}
-            {history.map((action) => <div className="recovery-history-item" key={action.id}>
-              <strong>{action.user_name || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
-              <div className="recovery-sub">Reference {action.reference} · {formatDate(action.created_at)}</div>
-              <div className="recovery-actions" style={{ marginTop: 11 }}>
-                <button type="button" className="recovery-button" onClick={() => setExpandedHistoryId((id) => id === action.id ? '' : action.id)}>{expandedHistoryId === action.id ? 'Hide Details' : 'View Details'}</button>
-                <button type="button" className="recovery-button" disabled title="Secure edit history is not connected to the Backend yet">Edit (next step)</button>
+            {history.map((action) => {
+              const isOpen = expandedHistoryId === action.id
+              const detail = isOpen && historyDetail?.id === action.id ? historyDetail : action
+              const editCount = Number(detail.edit_count || 0)
+              return <div className="recovery-history-item" key={action.id}>
+                <div className="recovery-actions">
+                  <strong>{detail.user_name || action.user_name || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
+                  {editCount > 0 ? <span className="recovery-update-badge">Updated · {editCount}</span> : null}
+                </div>
+                <div className="recovery-sub">Reference {detail.display_reference || detail.reference || '—'} · {formatDate(action.created_at)}</div>
+                {detail.mark_note ? <div className="recovery-sub">Mark: {detail.mark_note}</div> : null}
+                <div className="recovery-actions" style={{ marginTop: 11 }}>
+                  <button type="button" className="recovery-button" disabled={historyEditWorking} onClick={() => toggleHistoryDetails(action.id)}>
+                    {isOpen ? 'Hide Details' : 'View Details'}
+                  </button>
+                  <button type="button" className="recovery-button" disabled={historyEditWorking} onClick={() => beginHistoryEdit(action.id)}>
+                    {editingHistoryId === action.id ? 'Editing...' : 'Edit'}
+                  </button>
+                </div>
+                {isOpen ? <>
+                  {historyDetailLoading ? <p className="recovery-muted">Loading verified details and edit history...</p> : null}
+                  {historyDetailError ? <div className="recovery-inline-error" role="alert">{historyDetailError}</div> : null}
+                  <dl className="recovery-detail-grid" style={{ marginTop: 15 }}>
+                    <div><dt>Action ID</dt><dd>{detail.id}</dd></div>
+                    <div><dt>Action type</dt><dd>{detail.action_type || '—'}</dd></div>
+                    <div><dt>Account</dt><dd>{detail.user_name || action.user_name || '—'}</dd></div>
+                    <div><dt>User ID</dt><dd>{detail.user_id || '—'}</dd></div>
+                    <div><dt>Payment ID</dt><dd>{detail.payment_id || '—'}</dd></div>
+                    <div><dt>Original reference</dt><dd>{detail.reference || '—'}</dd></div>
+                    <div><dt>Display reference</dt><dd>{detail.display_reference || detail.reference || '—'}</dd></div>
+                    <div><dt>Mark / Note</dt><dd>{detail.mark_note || '—'}</dd></div>
+                    <div><dt>USD</dt><dd>{detail.amount_usd == null ? '—' : Number(detail.amount_usd).toFixed(2)}</dd></div>
+                    <div><dt>Diamonds credited</dt><dd>{Number(detail.diamonds || 0).toLocaleString()}</dd></div>
+                    <div><dt>Bank paid at</dt><dd>{formatDate(detail.bank_paid_at)}</dd></div>
+                    <div><dt>Wallet before</dt><dd>{Number(detail.balance_before || 0).toLocaleString()}</dd></div>
+                    <div><dt>Wallet after</dt><dd>{Number(detail.balance_after || 0).toLocaleString()}</dd></div>
+                    <div><dt>Admin</dt><dd>{detail.admin_email || '—'}</dd></div>
+                    <div><dt>Original reason</dt><dd>{detail.reason || '—'}</dd></div>
+                    <div><dt>Created</dt><dd>{formatDate(detail.created_at)}</dd></div>
+                    {editCount > 0 ? <>
+                      <div><dt>Last updated</dt><dd>{formatDate(detail.updated_at)}</dd></div>
+                      <div><dt>Last edited by</dt><dd>{detail.updated_by_email || '—'}</dd></div>
+                    </> : null}
+                  </dl>
+                  {editingHistoryId === action.id && historyDetail?.id === action.id ? <div className="recovery-edit-panel">
+                    <form className="recovery-form" onSubmit={handleHistoryEdit}>
+                      <h4 style={{ margin: 0 }}>Edit Action History</h4>
+                      <div className="recovery-read-only">Only the displayed reference and admin mark can change. Original records, Diamonds, USD, and wallet balances remain read-only.</div>
+                      <div className="recovery-form-grid">
+                        <label>Display reference
+                          <input className="recovery-input" required maxLength={100} value={historyEditDraft.reference} onChange={(event) => setHistoryEditDraft((draft) => ({ ...draft, reference: event.target.value }))} />
+                        </label>
+                        <label>Admin Mark / Note
+                          <textarea className="recovery-input" maxLength={300} value={historyEditDraft.mark_note} onChange={(event) => setHistoryEditDraft((draft) => ({ ...draft, mark_note: event.target.value }))} placeholder="Optional annotation (not a payment status)" />
+                        </label>
+                        <label>Six-digit Admin Passkey
+                          <input className="recovery-input" type="password" inputMode="numeric" autoComplete="off" maxLength={6} minLength={6} pattern="[0-9]{6}" required value={historyEditDraft.passkey} onChange={(event) => setHistoryEditDraft((draft) => ({ ...draft, passkey: event.target.value }))} placeholder="******" />
+                        </label>
+                      </div>
+                      <label>Reason for edit (12–500 characters)
+                        <textarea className="recovery-input" required minLength={12} maxLength={500} value={historyEditDraft.reason} onChange={(event) => setHistoryEditDraft((draft) => ({ ...draft, reason: event.target.value }))} placeholder="Explain the correction and supporting evidence" />
+                      </label>
+                      {historyEditError ? <div className="recovery-inline-error" role="alert">{historyEditError}</div> : null}
+                      <div className="recovery-actions">
+                        <button className="recovery-button recovery-primary" disabled={historyEditWorking} type="submit">{historyEditWorking ? 'Saving...' : 'Save Edit with Passkey'}</button>
+                        <button className="recovery-button" type="button" disabled={historyEditWorking} onClick={() => { setEditingHistoryId(''); setHistoryEditError(''); setHistoryEditDraft((draft) => ({ ...draft, reason: '', passkey: '' })) }}>Cancel</button>
+                      </div>
+                    </form>
+                  </div> : null}
+                  {historyDetail?.id === action.id ? <div className="recovery-audit">
+                    <div className="recovery-actions" style={{ justifyContent: 'space-between' }}>
+                      <strong>Permanent Edit History</strong>
+                      <span className="recovery-muted">{editCount} edit{editCount === 1 ? '' : 's'} recorded</span>
+                    </div>
+                    {historyAuditLoading ? <p className="recovery-muted">Loading edits...</p> : null}
+                    {!historyAuditLoading && !historyAudit.items?.length ? <p className="recovery-muted">No edits recorded for this action.</p> : null}
+                    {(historyAudit.items || []).map((edit) => <div className="recovery-audit-row" key={edit.id}>
+                      <strong>Revision #{edit.edit_number} · {formatDate(edit.created_at)}</strong>
+                      <p>Reference: <del>{edit.old_reference || '—'}</del> → <strong>{edit.new_reference || '—'}</strong></p>
+                      <p>Mark: <del>{edit.old_mark || '—'}</del> → <strong>{edit.new_mark || '—'}</strong></p>
+                      <p>Edited by: <strong>{edit.admin_email || '—'}</strong></p>
+                      <p>Reason: {edit.reason || '—'}</p>
+                    </div>)}
+                    {editCount > 0 ? <div className="recovery-actions">
+                      <button type="button" className="recovery-button" disabled={historyAuditLoading || historyEditWorking || !historyAudit.has_prev} onClick={() => loadHistoryAuditPage(action.id, historyAudit.page - 1)}>Previous edits</button>
+                      <span className="recovery-muted">Edit page {historyAudit.page || 1} · 10/page</span>
+                      <button type="button" className="recovery-button" disabled={historyAuditLoading || historyEditWorking || !historyAudit.has_next} onClick={() => loadHistoryAuditPage(action.id, historyAudit.page + 1)}>Next edits</button>
+                    </div> : null}
+                  </div> : null}
+                </> : null}
               </div>
-              {expandedHistoryId === action.id ? <dl className="recovery-detail-grid" style={{ marginTop: 15 }}>
-                <div><dt>Action ID</dt><dd>{action.id}</dd></div>
-                <div><dt>Action type</dt><dd>{action.action_type || '—'}</dd></div>
-                <div><dt>User ID</dt><dd>{action.user_id}</dd></div>
-                <div><dt>Payment ID</dt><dd>{action.payment_id || '—'}</dd></div>
-                <div><dt>Reference</dt><dd>{action.reference || '—'}</dd></div>
-                <div><dt>USD</dt><dd>{action.amount_usd == null ? '—' : Number(action.amount_usd).toFixed(2)}</dd></div>
-                <div><dt>Bank paid at</dt><dd>{formatDate(action.bank_paid_at)}</dd></div>
-                <div><dt>Wallet before</dt><dd>{Number(action.balance_before || 0).toLocaleString()}</dd></div>
-                <div><dt>Wallet after</dt><dd>{Number(action.balance_after || 0).toLocaleString()}</dd></div>
-                <div><dt>Admin</dt><dd>{action.admin_email || '—'}</dd></div>
-                <div><dt>Reason</dt><dd>{action.reason || '—'}</dd></div>
-                <div><dt>Created</dt><dd>{formatDate(action.created_at)}</dd></div>
-              </dl> : null}
-            </div>)}
+            })}
             <div className="recovery-actions">
-              <button className="recovery-button" disabled={historyLoading || historyPage <= 1} onClick={() => setHistoryPage((v) => Math.max(1, v - 1))}>Previous</button>
-              <span className="recovery-muted">Page {historyPage}</span>
-              <button className="recovery-button" disabled={historyLoading || !historyHasNext} onClick={() => setHistoryPage((v) => v + 1)}>Next</button>
+              <button type="button" className="recovery-button" disabled={historyLoading || historyEditWorking || historyPage <= 1} onClick={() => changeHistoryPage(Math.max(1, historyPage - 1))}>Previous</button>
+              <span className="recovery-muted">Page {historyPage} · {history.length} records</span>
+              <button type="button" className="recovery-button" disabled={historyLoading || historyEditWorking || !historyHasNext} onClick={() => changeHistoryPage(historyPage + 1)}>Next</button>
             </div>
           </section>
         )}
