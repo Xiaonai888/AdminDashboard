@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { formatMoney, formatNumber, formatPercent } from '../../services/adminBoostInsights'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com').replace(/\/$/, '')
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 const CACHE_TTL = 25000
 const responseCache = new Map()
 const pendingRequests = new Map()
@@ -102,6 +102,7 @@ function safePercent(value) {
 export default function BoostCampaignReview() {
   const [kind, setKind] = useState('post')
   const [status, setStatus] = useState('pending_review')
+  const [sort, setSort] = useState('newest')
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -120,10 +121,10 @@ export default function BoostCampaignReview() {
   const [submitting, setSubmitting] = useState(false)
   const selectionVersion = useRef(0)
   const params = useMemo(() => {
-    const query = new URLSearchParams({ kind, status, page: String(page), limit: String(PAGE_SIZE) })
+    const query = new URLSearchParams({ kind, status, sort, page: String(page), limit: String(PAGE_SIZE) })
     if (debouncedSearch) query.set('search', debouncedSearch)
     return query.toString()
-  }, [kind, status, page, debouncedSearch])
+  }, [kind, status, sort, page, debouncedSearch])
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search.trim().slice(0, 80)), 400)
@@ -177,6 +178,11 @@ export default function BoostCampaignReview() {
 
   function changeStatus(value) {
     setStatus(value)
+    setPage(1)
+  }
+
+  function changeSort(value) {
+    setSort(value)
     setPage(1)
   }
 
@@ -280,6 +286,12 @@ export default function BoostCampaignReview() {
           <label htmlFor="author-ad-review-status" style={{ fontSize: 12 }}>Status</label>
           <select id="author-ad-review-status" value={status} onChange={(event) => changeStatus(event.target.value)} className="bad-refresh">
             {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          <label htmlFor="author-ad-review-sort" style={{ fontSize: 12 }}>Sort by spent</label>
+          <select id="author-ad-review-sort" value={sort} onChange={(event) => changeSort(event.target.value)} className="bad-refresh" aria-label="Sort campaigns by money spent">
+            <option value="newest">Newest</option>
+            <option value="top">Top → Low</option>
+            <option value="low">Low → Top</option>
           </select>
           <small>{formatNumber(total)} matching campaigns</small>
         </div>
