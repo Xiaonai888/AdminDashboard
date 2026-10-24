@@ -104,8 +104,582 @@ function canRecover(payment) {
   return payment && !isReleased(payment) && ['aba_payment_link', 'premium_aba_payment_link'].includes(payment.payment_method) && ['waiting_payment', 'pending_review', 'callback_received', 'expired', 'cancelled'].includes(String(payment.status || '').toLowerCase())
 }
 
+
+async function binanceRequest(path, options = {}) {
+  const token = sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
+  if (!token) throw new Error('Admin login required')
+  const response = await fetch(API_URL + '/api/admin/purchases/binance' + path, {
+    ...options,
+    headers: {
+      Authorization: 'Bearer ' + token,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+    cache: 'no-store',
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || data.ok === false) throw new Error(data.message || 'Binance API request failed')
+  return data
+}
+
+function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
+  const [receiptView, setReceiptView] = useState('received')
+  const [receiptFilters, setReceiptFilters] = useState({ q: '', status: 'all', amount: '', date: '', sort: 'newest' })
+  const [receiptApplied, setReceiptApplied] = useState({ q: '', status: 'all', amount: '', date: '', sort: 'newest' })
+  const [historyFilters, setHistoryFilters] = useState({ q: '', type: 'all', date: '', sort: 'newest' })
+  const [historyApplied, setHistoryApplied] = useState({ q: '', type: 'all', date: '', sort: 'newest' })
+  const [receiptPage, setReceiptPage] = useState(1)
+  const [historyPage, setHistoryPage] = useState(1)
+  const [records, setRecords] = useState([])
+  const [hasNext, setHasNext] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [availability, setAvailability] = useState(null)
+  const [selectedTransaction, setSelectedTransaction] = useState('')
+  const [receiptDetail, setReceiptDetail] = useState(null)
+  const [receiptDetailLoading, setReceiptDetailLoading] = useState(false)
+  const [recipientSearch, setRecipientSearch] = useState('')
+  const [recipientResults, setRecipientResults] = useState([])
+  const [recipient, setRecipient] = useState(null)
+  const [searchingRecipient, setSearchingRecipient] = useState(false)
+  const [diamonds, setDiamonds] = useState('')
+  const [adjustmentReference, setAdjustmentReference] = useState('')
+  const [reason, setReason] = useState('')
+  const [pin, setPin] = useState('')
+  const [verifiedReceipt, setVerifiedReceipt] = useState(false)
+  const [verifiedRecipient, setVerifiedRecipient] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [error, setError] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [selectedAction, setSelectedAction] = useState('')
+  const [actionDetail, setActionDetail] = useState(null)
+  const [actionDetailLoading, setActionDetailLoading] = useState(false)
+  const [detailRefresh, setDetailRefresh] = useState(0)
+  const [audit, setAudit] = useState({ items: [], page: 1, has_next: false, has_prev: false })
+  const [auditLoading, setAuditLoading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editDraft, setEditDraft] = useState({ reference: '', mark_note: '', reason: '', passkey: '' })
+  const auditRequestRef = useRef(0)
+
+  useEffect(() => {
+    onBusyChange(working)
+    return () => onBusyChange(false)
+  }, [working, onBusyChange])
+
+  useEffect(() => {
+    if (tab === 'history') return undefined
+    const cached = cacheRef.current.get('binance-availability')
+    if (cached) {
+      setAvailability(cached)
+      return undefined
+    }
+    const controller = new AbortController()
+    binanceRequest('/availability', { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted) return
+        cacheRef.current.set('binance-availability', data)
+        setAvailability(data)
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted) setError(requestError.message || 'Cannot check Binance credit availability')
+      })
+    return () => controller.abort()
+  }, [tab, cacheRef, refreshKey])
+
+  useEffect(() => {
+    if (tab === 'topup') return undefined
+    const mode = tab === 'history' ? 'history' : receiptView === 'alerts' ? 'alert-history' : 'received-usdt'
+    const page = tab === 'history' ? historyPage : receiptPage
+    const filters = tab === 'history' ? historyApplied : receiptApplied
+    const key = JSON.stringify([mode, page, filters])
+    const cached = cacheRef.current.get(key)
+    if (cached) {
+      setRecords(cached.items)
+      setHasNext(cached.has_next)
+      setLoading(false)
+      return undefined
+    }
+    const controller = new AbortController()
+    const params = new URLSearchParams({ page: String(page) })
+    for (const [field, value] of Object.entries(filters)) {
+      if (value && value !== 'all' && value !== 'newest') params.set(field, value)
+    }
+    setLoading(true)
+    setRecords([])
+    setHasNext(false)
+    setError('')
+    binanceRequest('/' + mode + '?' + params.toString(), { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted) return
+        const rows = Array.isArray(data.items) ? data.items.slice(0, 10) : []
+        const next = Boolean(data.has_next)
+        cacheRef.current.set(key, { items: rows, has_next: next })
+        setRecords(rows)
+        setHasNext(next)
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted) setError(requestError.message || 'Failed to load Binance records')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [tab, receiptView, receiptPage, historyPage, receiptApplied, historyApplied, refreshKey, cacheRef])
+
+  useEffect(() => {
+    if (tab !== 'recovery' || receiptView !== 'received' || !selectedTransaction) return undefined
+    const controller = new AbortController()
+    setReceiptDetail(null)
+    setReceiptDetailLoading(true)
+    binanceRequest('/receipts/' + encodeURIComponent(selectedTransaction), { signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted) setReceiptDetail(data.receipt || null)
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted) setError(requestError.message || 'Failed to load receipt details')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setReceiptDetailLoading(false)
+      })
+    return () => controller.abort()
+  }, [tab, receiptView, selectedTransaction])
+
+  useEffect(() => {
+    if (tab !== 'history' || !selectedAction) return undefined
+    const controller = new AbortController()
+    setActionDetail(null)
+    setActionDetailLoading(true)
+    setAudit({ items: [], page: 1, has_next: false, has_prev: false })
+    setEditing(false)
+    binanceRequest('/history/' + encodeURIComponent(selectedAction), { signal: controller.signal })
+      .then((data) => {
+        if (controller.signal.aborted || !data.action) return
+        setActionDetail(data.action)
+        setAudit(data.edits || { items: [], page: 1, has_next: false, has_prev: false })
+        setEditDraft({
+          reference: data.action.display_reference || data.action.reference || '',
+          mark_note: data.action.mark_note || '',
+          reason: '',
+          passkey: '',
+        })
+      })
+      .catch((requestError) => {
+        if (!controller.signal.aborted) setError(requestError.message || 'Failed to load action details')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setActionDetailLoading(false)
+      })
+    return () => controller.abort()
+  }, [tab, selectedAction, detailRefresh])
+
+  function resetSensitive() {
+    setPin('')
+    setVerifiedReceipt(false)
+    setVerifiedRecipient(false)
+  }
+
+  function resetRecipient() {
+    setRecipient(null)
+    setRecipientResults([])
+    setRecipientSearch('')
+    resetSensitive()
+  }
+
+  function refresh() {
+    cacheRef.current.clear()
+    setSelectedTransaction('')
+    setReceiptDetail(null)
+    setSelectedAction('')
+    setActionDetail(null)
+    resetSensitive()
+    setRefreshKey((value) => value + 1)
+  }
+
+  function chooseReceipt(id) {
+    setSelectedTransaction(selectedTransaction === id ? '' : id)
+    setReceiptDetail(null)
+    setFeedback('')
+    setError('')
+    resetRecipient()
+    setDiamonds('')
+    setReason('')
+  }
+
+  async function findRecipient(event) {
+    event.preventDefault()
+    if (searchingRecipient || working) return
+    if (recipientSearch.trim().length < 2) {
+      setError('Enter at least two characters to find a Shadow account')
+      return
+    }
+    setSearchingRecipient(true)
+    setError('')
+    resetSensitive()
+    setRecipient(null)
+    setRecipientResults([])
+    try {
+      const data = await binanceRequest('/recipients?q=' + encodeURIComponent(recipientSearch.trim()))
+      setRecipientResults(Array.isArray(data.users) ? data.users.slice(0, 10) : [])
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSearchingRecipient(false)
+    }
+  }
+
+  async function applyCredit(event) {
+    event.preventDefault()
+    if (working || !recipient || !/^[0-9]{6}$/.test(pin) || !verifiedRecipient) {
+      setError('Select and confirm the recipient, then enter a valid six-digit Passkey')
+      return
+    }
+    const count = Number(diamonds)
+    if (!Number.isSafeInteger(count) || count < 1 || count > 10000 || reason.trim().length < 12 || reason.trim().length > 500) {
+      setError('Enter 1–10,000 Diamonds and a detailed reason of 12–500 characters')
+      return
+    }
+    const isRecovery = tab === 'recovery'
+    if (isRecovery && (!receiptDetail || !verifiedReceipt || Number(receiptDetail.amount_usdt) < 1)) {
+      setError('Verify a recorded Binance receipt of at least 1 USDT')
+      return
+    }
+    if (!isRecovery && !/^[A-Z0-9][A-Z0-9._/-]{5,99}$/.test(adjustmentReference.trim().toUpperCase())) {
+      setError('Provide a unique adjustment reference containing 6–100 allowed characters')
+      return
+    }
+    const reference = isRecovery ? receiptDetail.transaction_id : adjustmentReference.trim().toUpperCase()
+    if (!window.confirm('Confirm permanent wallet credit?\nAccount: ' + (recipient.name || recipient.username) + '\nDiamonds: ' + count + '\nReference: ' + reference + '\nBonus: ' + (isRecovery ? '100 Vouchers' : '0 Vouchers') + '\nThis action cannot be undone.')) return
+    setWorking(true)
+    setError('')
+    setFeedback('')
+    try {
+      const payload = isRecovery ? {
+        transaction_id: reference,
+        user_id: recipient.id,
+        verified_amount_usdt: String(receiptDetail.amount_usdt),
+        diamonds: count,
+        reason: reason.trim(),
+        passkey: pin,
+        binance_verified: verifiedReceipt,
+        confirm_recipient: verifiedRecipient,
+      } : {
+        user_id: recipient.id,
+        reference,
+        diamonds: count,
+        reason: reason.trim(),
+        passkey: pin,
+        confirmed: verifiedRecipient,
+      }
+      const data = await binanceRequest(isRecovery ? '/recovery/confirm' : '/topup', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      const result = data.result || {}
+      setFeedback('Credit successful: ' + Number(result.diamonds || 0).toLocaleString() + ' Diamonds · Wallet ' + Number(result.diamond_balance_before || 0).toLocaleString() + ' → ' + Number(result.diamond_balance_after || 0).toLocaleString() + ' · +' + Number(result.bonus_vouchers || 0) + ' Vouchers')
+      setRecipient((user) => user ? { ...user, diamond_balance: Number(result.diamond_balance_after || user.diamond_balance || 0) } : user)
+      setDiamonds('')
+      setAdjustmentReference('')
+      setReason('')
+      setSelectedTransaction('')
+      setReceiptDetail(null)
+      resetSensitive()
+      cacheRef.current.clear()
+      setRefreshKey((value) => value + 1)
+    } catch (requestError) {
+      setError(requestError.message || 'Credit failed')
+    } finally {
+      setPin('')
+      setWorking(false)
+    }
+  }
+
+  async function loadAuditPage(nextPage) {
+    if (!actionDetail || auditLoading || nextPage < 1) return
+    const requestId = ++auditRequestRef.current
+    setAuditLoading(true)
+    setError('')
+    try {
+      const data = await binanceRequest('/history/' + encodeURIComponent(actionDetail.id) + '/edits?page=' + nextPage)
+      if (auditRequestRef.current !== requestId) return
+      setAudit({
+        items: Array.isArray(data.items) ? data.items : [],
+        page: Number(data.page || nextPage),
+        has_next: Boolean(data.has_next),
+        has_prev: Boolean(data.has_prev),
+      })
+    } catch (requestError) {
+      if (auditRequestRef.current === requestId) setError(requestError.message || 'Unable to load audit history')
+    } finally {
+      if (auditRequestRef.current === requestId) setAuditLoading(false)
+    }
+  }
+
+  async function applyMetadataEdit(event) {
+    event.preventDefault()
+    if (working || !actionDetail) return
+    const originalReference = String(actionDetail.display_reference || actionDetail.reference || '').trim().toUpperCase()
+    const nextReference = editDraft.reference.trim().toUpperCase()
+    const originalMark = String(actionDetail.mark_note || '').trim()
+    const nextMark = editDraft.mark_note.trim()
+    const referenceChanged = originalReference !== nextReference
+    const markChanged = originalMark !== nextMark
+    if (!referenceChanged && !markChanged) {
+      setError('Change the displayed reference or mark before saving')
+      return
+    }
+    if (!/^[A-Z0-9][A-Z0-9._/-]{0,127}$/.test(nextReference) || nextMark.length > 300 || editDraft.reason.trim().length < 12 || editDraft.reason.trim().length > 500 || !/^[0-9]{6}$/.test(editDraft.passkey.trim())) {
+      setError('Check the reference, 300-character mark, 12–500-character reason, and six-digit Passkey')
+      return
+    }
+    if (!window.confirm('Save edit? Only the displayed reference and admin mark will change. The wallet and financial record stay unchanged.')) return
+    setWorking(true)
+    setError('')
+    try {
+      await binanceRequest('/history/' + encodeURIComponent(actionDetail.id), {
+        method: 'PATCH',
+        body: JSON.stringify({
+          reference: referenceChanged ? nextReference : null,
+          mark_note: markChanged ? nextMark : null,
+          expected_edit_count: Number(actionDetail.edit_count || 0),
+          reason: editDraft.reason.trim(),
+          passkey: editDraft.passkey.trim(),
+        }),
+      })
+      setFeedback('Binance history updated. Original transaction and wallet balances were not modified.')
+      setEditing(false)
+      setEditDraft((draft) => ({ ...draft, reason: '', passkey: '' }))
+      cacheRef.current.clear()
+      setRefreshKey((value) => value + 1)
+      setDetailRefresh((value) => value + 1)
+    } catch (requestError) {
+      setError(requestError.message || 'Failed to save edit')
+    } finally {
+      setEditDraft((draft) => ({ ...draft, passkey: '' }))
+      setWorking(false)
+    }
+  }
+
+  const page = tab === 'history' ? historyPage : receiptPage
+  const canCredit = tab === 'recovery' ? availability?.verified_receipt_credit_enabled : availability?.manual_top_up_enabled
+
+  return (
+    <>
+      {feedback ? <div className="recovery-success" role="status">{feedback}</div> : null}
+      {error ? <div className="recovery-error" role="alert" style={{ margin: 0 }}>{error}</div> : null}
+      {tab !== 'history' && availability === null ? <p className="recovery-notice" style={{ margin: 0 }}>Checking whether the Binance Credit Ledger is ready. Wallet actions remain disabled until verified.</p> : null}
+      {tab !== 'history' && availability && !canCredit ? <p className="recovery-notice" style={{ margin: 0 }}>Binance credit SQL has not been verified. Credit actions are disabled until the database setup succeeds.</p> : null}
+      {tab === 'recovery' ? (
+        <section className="recovery-card">
+          <div className="recovery-section-head">
+            <div>
+              <h3>Binance Personal Pay · Received USDT</h3>
+              <p className="recovery-muted">Review real received USDT records. A payer name does not establish the recipient Shadow account.</p>
+            </div>
+            <button className="recovery-button" type="button" disabled={loading || working} onClick={refresh}>Refresh</button>
+          </div>
+          <div className="recovery-tabs">
+            <button type="button" className={'recovery-tab ' + (receiptView === 'received' ? 'active' : '')} disabled={working} onClick={() => { setReceiptView('received'); setReceiptPage(1); setSelectedTransaction(''); resetSensitive() }}>Received USDT</button>
+            <button type="button" className={'recovery-tab ' + (receiptView === 'alerts' ? 'active' : '')} disabled={working} onClick={() => { setReceiptView('alerts'); setReceiptPage(1); setSelectedTransaction(''); resetSensitive() }}>Telegram Alert History</button>
+          </div>
+          <form className="recovery-controls" onSubmit={(event) => { event.preventDefault(); setReceiptPage(1); setSelectedTransaction(''); setReceiptApplied({ ...receiptFilters, q: receiptFilters.q.trim() }) }}>
+            <input className="recovery-input" value={receiptFilters.q} maxLength={80} onChange={(event) => setReceiptFilters((f) => ({ ...f, q: event.target.value }))} placeholder="Transaction ID, payer..." aria-label="Search Binance receipts" />
+            <select className="recovery-input" value={receiptFilters.status} onChange={(event) => setReceiptFilters((f) => ({ ...f, status: event.target.value }))} aria-label="Telegram alert status">
+              <option value="all">All statuses</option><option value="sent">Sent</option><option value="pending">Pending</option><option value="sending">Sending</option><option value="failed">Failed</option>
+            </select>
+            <select className="recovery-input" value={receiptFilters.sort} onChange={(event) => setReceiptFilters((f) => ({ ...f, sort: event.target.value }))} aria-label="Sort Binance receipts">
+              <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="high">Top → Low USDT</option><option value="low">Low → Top USDT</option>
+            </select>
+            <input className="recovery-input" type="number" min="0.00000001" step="0.00000001" value={receiptFilters.amount} onChange={(event) => setReceiptFilters((f) => ({ ...f, amount: event.target.value }))} placeholder="USDT" aria-label="Exact USDT amount" />
+            <input className="recovery-input" type="date" value={receiptFilters.date} onChange={(event) => setReceiptFilters((f) => ({ ...f, date: event.target.value }))} aria-label="Cambodia date" />
+            <button className="recovery-button recovery-primary" type="submit" disabled={loading}>Search</button>
+            <button className="recovery-button" type="button" disabled={loading} onClick={() => { const empty = { q: '', status: 'all', amount: '', date: '', sort: 'newest' }; setReceiptFilters(empty); setReceiptApplied(empty); setReceiptPage(1); setSelectedTransaction('') }}>Clear</button>
+          </form>
+          <p className="recovery-notice">10 records per page. Telegram alert delivery is not payment credit. Confirm the official Binance transfer and intended Shadow recipient manually before crediting. Purchases below 1 USDT are not eligible.</p>
+          <div className="recovery-table-wrap">
+            <table className="recovery-table">
+              <thead><tr><th>Transaction ID</th><th>Payer</th><th>USDT</th><th>Order type</th><th>Telegram</th><th>Time (KH)</th><th></th></tr></thead>
+              <tbody>{records.map((row) => (
+                <tr key={row.transaction_id} className={selectedTransaction === row.transaction_id ? 'recovery-row-active' : ''}>
+                  <td><strong>{row.transaction_id}</strong></td>
+                  <td>{row.payer_name || 'Unknown payer'}</td>
+                  <td><strong>{Number(row.amount_usdt || 0).toLocaleString(undefined, { maximumFractionDigits: 8 })} USDT</strong></td>
+                  <td>{row.order_type || '—'}</td>
+                  <td><span className={'recovery-pill ' + (row.telegram_alert_status === 'sent' ? 'success' : 'pending_review')}>{row.telegram_alert_status || 'unknown'}</span>{receiptView === 'alerts' ? <div className="recovery-sub">Attempts: {row.attempt_count || 0}{row.last_alert_error ? ' · ' + row.last_alert_error : ''}</div> : null}</td>
+                  <td>{row.transaction_time_ms ? formatDate(Number(row.transaction_time_ms)) : formatDate(row.created_at)}</td>
+                  <td>{receiptView === 'received' ? <button type="button" className="recovery-button" disabled={working} onClick={() => chooseReceipt(row.transaction_id)}>{selectedTransaction === row.transaction_id ? 'Close' : 'Verify'}</button> : <span className="recovery-read-only">Read only</span>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+            {loading ? <p className="recovery-empty">Loading Binance records...</p> : null}
+            {!loading && !records.length ? <p className="recovery-empty">No matching USDT records found.</p> : null}
+          </div>
+          {receiptView === 'received' && selectedTransaction ? <div className="recovery-detail">
+            <h4>Verify Binance transfer and Shadow recipient</h4>
+            {receiptDetailLoading ? <p className="recovery-muted">Loading recorded receipt...</p> : null}
+            {receiptDetail ? <>
+              <dl className="recovery-detail-grid">
+                <div><dt>Transaction ID</dt><dd>{receiptDetail.transaction_id}</dd></div>
+                <div><dt>Amount</dt><dd>{receiptDetail.amount_usdt} USDT</dd></div>
+                <div><dt>Payer</dt><dd>{receiptDetail.payer_name || 'Unknown'}</dd></div>
+                <div><dt>Recorded time (KH)</dt><dd>{formatDate(Number(receiptDetail.transaction_time_ms))}</dd></div>
+                <div><dt>Telegram alert</dt><dd>{receiptDetail.telegram_alert_status || '—'}</dd></div>
+                <div><dt>Order type</dt><dd>{receiptDetail.order_type || '—'}</dd></div>
+              </dl>
+              {Number(receiptDetail.amount_usdt) >= 1 ? <p className="recovery-notice" style={{ margin: '15px 0' }}>Only manually verified USDT receipts can be credited. Fixed bonus: +100 Vouchers. Double-check the package's Diamond amount; sender identity is not automatically linked to a Shadow account.</p> : <p className="recovery-inline-error">Under 1 USDT: this receipt is not eligible for credit.</p>}
+            </> : !receiptDetailLoading ? <p className="recovery-muted">Receipt details unavailable.</p> : null}
+            {receiptDetail && Number(receiptDetail.amount_usdt) >= 1 && canCredit ? <BinanceRecipientForm
+              recipientSearch={recipientSearch} setRecipientSearch={setRecipientSearch}
+              recipientResults={recipientResults} recipient={recipient} searchingRecipient={searchingRecipient}
+              onSearch={findRecipient} onSelect={(user) => { setRecipient(user); resetSensitive(); setFeedback('') }}
+            /> : null}
+            {receiptDetail && recipient && Number(receiptDetail.amount_usdt) >= 1 && canCredit ? <form className="recovery-form" onSubmit={applyCredit}>
+              <h4 style={{ margin: 0 }}>Credit verified purchase</h4>
+              <div className="recovery-form-grid">
+                <label>Diamonds to credit (1–10,000)<input className="recovery-input" type="number" min="1" max="10000" step="1" value={diamonds} onChange={(event) => setDiamonds(event.target.value)} required /></label>
+                <label>Admin Passkey (6 digits)<input className="recovery-input" type="password" inputMode="numeric" autoComplete="off" maxLength={6} minLength={6} pattern="[0-9]{6}" value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
+              </div>
+              <label>Detailed reason<textarea className="recovery-input" minLength={12} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} required placeholder="Describe verified Binance payment, package and recipient evidence" /></label>
+              <label className="recovery-check"><input type="checkbox" checked={verifiedReceipt} onChange={(event) => setVerifiedReceipt(event.target.checked)} /> I personally checked the official Binance transfer, transaction ID, amount and time.</label>
+              <label className="recovery-check"><input type="checkbox" checked={verifiedRecipient} onChange={(event) => setVerifiedRecipient(event.target.checked)} /> I confirmed this exact Shadow account and checked it has not already received this purchase.</label>
+              <button className="recovery-button recovery-primary" type="submit" disabled={working || !verifiedReceipt || !verifiedRecipient}>{working ? 'Crediting...' : 'Credit Diamonds +100 Vouchers with Passkey'}</button>
+            </form> : null}
+          </div> : null}
+          <div className="recovery-footer">
+            <span className="recovery-muted">Page {page} · {records.length} records</span>
+            <div className="recovery-actions">
+              <button className="recovery-button" type="button" disabled={loading || working || page <= 1} onClick={() => { setReceiptPage((p) => Math.max(1, p - 1)); setSelectedTransaction('') }}>Previous</button>
+              <button className="recovery-button" type="button" disabled={loading || working || !hasNext} onClick={() => { setReceiptPage((p) => p + 1); setSelectedTransaction('') }}>Next</button>
+            </div>
+          </div>
+        </section>
+      ) : tab === 'topup' ? (
+        <section className="recovery-card recovery-preview">
+          <h3>Binance · Manual Diamond Top-Up</h3>
+          <p className="recovery-muted">This is an Admin adjustment, not a Binance purchase. It adds Diamonds only, with 0 bonus Vouchers. Use Payment Recovery for a received USDT purchase.</p>
+          <BinanceRecipientForm
+            recipientSearch={recipientSearch} setRecipientSearch={setRecipientSearch}
+            recipientResults={recipientResults} recipient={recipient} searchingRecipient={searchingRecipient}
+            onSearch={findRecipient} onSelect={(user) => { setRecipient(user); resetSensitive(); setFeedback('') }}
+          />
+          {recipient && canCredit ? <form className="recovery-form" onSubmit={applyCredit}>
+            <h4 style={{ margin: 0 }}>Selected: {recipient.name || recipient.username} (@{recipient.username})</h4>
+            <div className="recovery-form-grid">
+              <label>Diamonds to credit<input className="recovery-input" type="number" min="1" max="10000" step="1" value={diamonds} onChange={(event) => setDiamonds(event.target.value)} required /></label>
+              <label>Unique adjustment reference<input className="recovery-input" value={adjustmentReference} maxLength={100} onChange={(event) => setAdjustmentReference(event.target.value)} required placeholder="BN-ADJ-XXXXXX" /></label>
+              <label>Six-digit Admin Passkey<input className="recovery-input" type="password" inputMode="numeric" autoComplete="off" minLength={6} maxLength={6} pattern="[0-9]{6}" value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
+            </div>
+            <label>Detailed reason<textarea className="recovery-input" minLength={12} maxLength={500} required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explain this adjustment and reference the supporting evidence" /></label>
+            <label className="recovery-check"><input type="checkbox" checked={verifiedRecipient} onChange={(event) => setVerifiedRecipient(event.target.checked)} /> I confirm this account, the Diamond amount, and that this is not a duplicate or purchase credit.</label>
+            <button className="recovery-button recovery-primary" type="submit" disabled={working || !verifiedRecipient}>{working ? 'Processing...' : 'Confirm Manual Top-Up with Passkey'}</button>
+          </form> : <p className="recovery-notice" style={{ margin: 0 }}>{canCredit ? 'Select a recipient to continue.' : 'Manual credit is disabled until the Backend confirms that the Binance Ledger is ready.'}</p>}
+        </section>
+      ) : (
+        <section className="recovery-card recovery-history">
+          <div className="recovery-section-head" style={{ padding: 0, border: 0 }}>
+            <div><h3>Binance · Action History</h3><p className="recovery-muted">10 records per page; search, Top–Low USDT, and permanent edit audit. Details load only when opened.</p></div>
+            <button className="recovery-button" type="button" disabled={loading || working} onClick={refresh}>Refresh</button>
+          </div>
+          <form className="recovery-controls" onSubmit={(event) => { event.preventDefault(); setHistoryPage(1); setSelectedAction(''); setHistoryApplied({ ...historyFilters, q: historyFilters.q.trim() }) }} style={{ padding: 0 }}>
+            <input className="recovery-input" value={historyFilters.q} maxLength={80} onChange={(event) => setHistoryFilters((f) => ({ ...f, q: event.target.value }))} placeholder="Username, reference, admin..." />
+            <select className="recovery-input" value={historyFilters.type} onChange={(event) => setHistoryFilters((f) => ({ ...f, type: event.target.value }))}><option value="all">All actions</option><option value="recovery">Recovery</option><option value="topup">Manual Top-Up</option></select>
+            <select className="recovery-input" value={historyFilters.sort} onChange={(event) => setHistoryFilters((f) => ({ ...f, sort: event.target.value }))}><option value="newest">Newest</option><option value="oldest">Oldest</option><option value="high">Top → Low USDT</option><option value="low">Low → Top USDT</option></select>
+            <input className="recovery-input" type="date" value={historyFilters.date} onChange={(event) => setHistoryFilters((f) => ({ ...f, date: event.target.value }))} />
+            <button className="recovery-button recovery-primary" type="submit" disabled={loading}>Search</button>
+            <button className="recovery-button" type="button" disabled={loading} onClick={() => { const empty = { q: '', type: 'all', date: '', sort: 'newest' }; setHistoryFilters(empty); setHistoryApplied(empty); setHistoryPage(1); setSelectedAction('') }}>Clear</button>
+          </form>
+          {loading ? <p className="recovery-muted">Loading credit history...</p> : null}
+          {!loading && !records.length ? <p className="recovery-empty">No Binance credit actions found.</p> : null}
+          {records.map((action) => <div className="recovery-history-item" key={action.id}>
+            <div className="recovery-actions">
+              <strong>{action.user_name || action.user?.name || action.user?.username || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
+              {Number(action.edit_count || 0) > 0 ? <span className="recovery-update-badge">Updated · {action.edit_count}</span> : null}
+            </div>
+            <div className="recovery-sub">{action.action_type === 'recovery' ? Number(action.amount_usdt || 0).toLocaleString() + ' USDT · +100 Vouchers' : 'Manual adjustment · 0 Vouchers'} · Reference: {action.display_reference || action.reference} · {formatDate(action.created_at)}</div>
+            {action.mark_note ? <div className="recovery-sub">Mark: {action.mark_note}</div> : null}
+            <div className="recovery-actions" style={{ marginTop: 10 }}>
+              <button type="button" className="recovery-button" disabled={working} onClick={() => { auditRequestRef.current += 1; setSelectedAction(selectedAction === action.id ? '' : action.id); setActionDetail(null); setEditing(false); setError('') }}>{selectedAction === action.id ? 'Hide Details' : 'View Details'}</button>
+            </div>
+            {selectedAction === action.id ? <div className="recovery-detail" style={{ margin: '14px 0 0' }}>
+              {actionDetailLoading ? <p className="recovery-muted">Loading full details and audit...</p> : null}
+              {actionDetail?.id === action.id ? <>
+                <dl className="recovery-detail-grid">
+                  <div><dt>Recipient</dt><dd>{actionDetail.user_name || actionDetail.user?.name || '—'}</dd></div>
+                  <div><dt>User ID</dt><dd>{actionDetail.user_id}</dd></div>
+                  <div><dt>Transaction ID</dt><dd>{actionDetail.transaction_id || 'Manual adjustment'}</dd></div>
+                  <div><dt>USDT amount</dt><dd>{actionDetail.amount_usdt == null ? '—' : String(actionDetail.amount_usdt)}</dd></div>
+                  <div><dt>Diamonds credited</dt><dd>{Number(actionDetail.diamonds || 0).toLocaleString()}</dd></div>
+                  <div><dt>Voucher bonus</dt><dd>{Number(actionDetail.bonus_vouchers || 0).toLocaleString()}</dd></div>
+                  <div><dt>Diamond wallet before → after</dt><dd>{Number(actionDetail.diamond_balance_before || 0).toLocaleString()} → {Number(actionDetail.diamond_balance_after || 0).toLocaleString()}</dd></div>
+                  <div><dt>Voucher wallet before → after</dt><dd>{Number(actionDetail.voucher_balance_before || 0).toLocaleString()} → {Number(actionDetail.voucher_balance_after || 0).toLocaleString()}</dd></div>
+                  <div><dt>Original reference</dt><dd>{actionDetail.reference || '—'}</dd></div>
+                  <div><dt>Display reference</dt><dd>{actionDetail.display_reference || actionDetail.reference || '—'}</dd></div>
+                  <div><dt>Mark / Note</dt><dd>{actionDetail.mark_note || '—'}</dd></div>
+                  <div><dt>Admin</dt><dd>{actionDetail.admin_email || '—'}</dd></div>
+                  <div><dt>Original reason</dt><dd>{actionDetail.reason || '—'}</dd></div>
+                  <div><dt>Created</dt><dd>{formatDate(actionDetail.created_at)}</dd></div>
+                  {Number(actionDetail.edit_count || 0) > 0 ? <div><dt>Last edited</dt><dd>{formatDate(actionDetail.edited_at)} · {actionDetail.updated_by_email || '—'}</dd></div> : null}
+                </dl>
+                <div className="recovery-actions" style={{ marginTop: 14 }}><button type="button" className="recovery-button" disabled={working} onClick={() => { setEditing(!editing); setError(''); setEditDraft({ reference: actionDetail.display_reference || actionDetail.reference || '', mark_note: actionDetail.mark_note || '', reason: '', passkey: '' }) }}>{editing ? 'Cancel Edit' : 'Edit Display / Mark'}</button></div>
+                {editing ? <form className="recovery-edit-panel recovery-form" onSubmit={applyMetadataEdit}>
+                  <div className="recovery-read-only">Only display reference and admin mark can change. USDT, Diamonds, Vouchers and balances are permanently read-only.</div>
+                  <div className="recovery-form-grid">
+                    <label>Display reference<input className="recovery-input" required maxLength={128} value={editDraft.reference} onChange={(event) => setEditDraft((d) => ({ ...d, reference: event.target.value }))} /></label>
+                    <label>Mark / Note<textarea className="recovery-input" maxLength={300} value={editDraft.mark_note} onChange={(event) => setEditDraft((d) => ({ ...d, mark_note: event.target.value }))} /></label>
+                    <label>Admin Passkey<input className="recovery-input" type="password" inputMode="numeric" autoComplete="off" maxLength={6} minLength={6} pattern="[0-9]{6}" required value={editDraft.passkey} onChange={(event) => setEditDraft((d) => ({ ...d, passkey: event.target.value }))} /></label>
+                  </div>
+                  <label>Edit reason<textarea className="recovery-input" required minLength={12} maxLength={500} value={editDraft.reason} onChange={(event) => setEditDraft((d) => ({ ...d, reason: event.target.value }))} /></label>
+                  <button className="recovery-button recovery-primary" type="submit" disabled={working}>{working ? 'Saving...' : 'Save with Passkey'}</button>
+                </form> : null}
+                <div className="recovery-audit">
+                  <strong>Permanent Edit History · {actionDetail.edit_count || 0} revisions</strong>
+                  {auditLoading ? <p className="recovery-muted">Loading audit records...</p> : null}
+                  {!auditLoading && !audit.items.length ? <p className="recovery-muted">No edits recorded.</p> : null}
+                  {audit.items.map((edit) => <div className="recovery-audit-row" key={edit.id}>
+                    <strong>Revision #{edit.edit_number} · {formatDate(edit.created_at)}</strong>
+                    <p>Reference: <del>{edit.old_reference || '—'}</del> → {edit.new_reference || '—'}</p>
+                    <p>Mark: <del>{edit.old_mark || '—'}</del> → {edit.new_mark || '—'}</p>
+                    <p>Admin: {edit.admin_email || '—'}</p>
+                    <p>Reason: {edit.reason || '—'}</p>
+                  </div>)}
+                  {Number(actionDetail.edit_count || 0) > 0 ? <div className="recovery-actions">
+                    <button type="button" className="recovery-button" disabled={auditLoading || working || !audit.has_prev} onClick={() => loadAuditPage(Number(audit.page || 1) - 1)}>Previous edits</button>
+                    <span className="recovery-muted">Page {audit.page || 1} · 10/page</span>
+                    <button type="button" className="recovery-button" disabled={auditLoading || working || !audit.has_next} onClick={() => loadAuditPage(Number(audit.page || 1) + 1)}>Next edits</button>
+                  </div> : null}
+                </div>
+              </> : null}
+            </div> : null}
+          </div>)}
+          <div className="recovery-actions">
+            <button className="recovery-button" type="button" disabled={loading || working || page <= 1} onClick={() => { setHistoryPage((p) => Math.max(1, p - 1)); setSelectedAction('') }}>Previous</button>
+            <span className="recovery-muted">Page {page} · {records.length} records</span>
+            <button className="recovery-button" type="button" disabled={loading || working || !hasNext} onClick={() => { setHistoryPage((p) => p + 1); setSelectedAction('') }}>Next</button>
+          </div>
+        </section>
+      )}
+    </>
+  )
+}
+
+function BinanceRecipientForm({ recipientSearch, setRecipientSearch, recipientResults, recipient, searchingRecipient, onSearch, onSelect }) {
+  return (
+    <div className="recovery-form">
+      <form className="recovery-actions" onSubmit={onSearch}>
+        <input className="recovery-input" style={{ flex: '1 1 220px' }} value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} minLength={2} maxLength={80} placeholder="Search Shadow account, username, email or User ID" required />
+        <button className="recovery-button" type="submit" disabled={searchingRecipient}>{searchingRecipient ? 'Searching...' : 'Find account'}</button>
+      </form>
+      {recipientResults.length ? <div className="recovery-result-list">{recipientResults.map((user) => <div className={'recovery-person ' + (recipient?.id === user.id ? 'chosen' : '')} key={user.id}>
+        <div><strong>{user.name || user.username || 'Unknown account'}</strong><div className="recovery-sub">@{user.username || 'unknown'} · {user.id}</div><div className="recovery-sub">Wallet: {Number(user.diamond_balance || 0).toLocaleString()} Diamonds</div></div>
+        <button className="recovery-button" type="button" onClick={() => onSelect(user)}>Select</button>
+      </div>)}</div> : null}
+      {recipient ? <div className="recovery-subheading">Selected: {recipient.name || recipient.username} (@{recipient.username}) · {recipient.id}</div> : null}
+    </div>
+  )
+}
+
 export default function AdminPaymentRecoveryTopUpPage() {
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [binanceBusy, setBinanceBusy] = useState(false)
   const [activeTab, setActiveTab] = useState('')
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(false)
@@ -158,6 +732,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
   const historyAuditRequestRef = useRef(0)
   const paymentsCacheRef = useRef(new Map())
   const historyCacheRef = useRef(new Map())
+  const binanceCacheRef = useRef(new Map())
 
   function token() {
     return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -569,7 +1144,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
   }
 
   function changePaymentMethod(method) {
-    if (historyEditWorking) return
+    if (historyEditWorking || binanceBusy) return
     setPaymentMethod(method)
     setActiveTab('')
     setSelectedId('')
@@ -580,7 +1155,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
   }
 
   function changeTab(tab) {
-    if (historyEditWorking) return
+    if (historyEditWorking || binanceBusy) return
     setActiveTab(tab)
     setSelectedId('')
     closeHistoryDetail()
@@ -624,13 +1199,13 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <span className="recovery-tag">Six-digit Passkey required</span>
           </div>
           <div className="recovery-method-tabs">
-            <button type="button" className={`recovery-method ${paymentMethod === 'bank' ? 'active' : ''}`} onClick={() => changePaymentMethod('bank')} disabled={historyEditWorking}>Bank</button>
-            <button type="button" className={`recovery-method binance ${paymentMethod === 'binance' ? 'active' : ''}`} onClick={() => changePaymentMethod('binance')} disabled={historyEditWorking}>Binance</button>
+            <button type="button" className={`recovery-method ${paymentMethod === 'bank' ? 'active' : ''}`} onClick={() => changePaymentMethod('bank')} disabled={historyEditWorking || binanceBusy}>Bank</button>
+            <button type="button" className={`recovery-method binance ${paymentMethod === 'binance' ? 'active' : ''}`} onClick={() => changePaymentMethod('binance')} disabled={historyEditWorking || binanceBusy}>Binance</button>
           </div>
           {paymentMethod ? <div className="recovery-tabs">
-            <button type="button" className={`recovery-tab ${activeTab === 'recovery' ? 'active' : ''}`} onClick={() => changeTab('recovery')} disabled={historyEditWorking}>Payment Recovery</button>
-            <button type="button" className={`recovery-tab ${activeTab === 'topup' ? 'active' : ''}`} onClick={() => changeTab('topup')} disabled={historyEditWorking}>Manual Top-Up</button>
-            <button type="button" className={`recovery-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => changeTab('history')} disabled={historyEditWorking}>Action History</button>
+            <button type="button" className={`recovery-tab ${activeTab === 'recovery' ? 'active' : ''}`} onClick={() => changeTab('recovery')} disabled={historyEditWorking || binanceBusy}>Payment Recovery</button>
+            <button type="button" className={`recovery-tab ${activeTab === 'topup' ? 'active' : ''}`} onClick={() => changeTab('topup')} disabled={historyEditWorking || binanceBusy}>Manual Top-Up</button>
+            <button type="button" className={`recovery-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => changeTab('history')} disabled={historyEditWorking || binanceBusy}>Action History</button>
           </div> : null}
         </section>
 
@@ -648,14 +1223,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <p className="recovery-muted">Choose Payment Recovery, Manual Top-Up, or Action History to continue. No data has been requested.</p>
           </section>
         ) : paymentMethod === 'binance' ? (
-          <section className="recovery-card recovery-preview">
-            <h3>Binance · {activeTab === 'recovery' ? 'Payment Recovery' : activeTab === 'topup' ? 'Manual Top-Up' : 'Action History'}</h3>
-            <p className="recovery-muted">Binance uses the same layout as Bank. Its verified USDT recovery, Diamond and Voucher credit, and audit-history APIs will be connected in the next Backend steps. No wallet changes are enabled here yet.</p>
-            <div className="recovery-preview-grid">
-              <div className="recovery-person"><strong>Currency</strong><span>USDT</span></div>
-              <div className="recovery-person"><strong>Purchase bonus</strong><span>100 Vouchers</span></div>
-            </div>
-          </section>
+          <BinanceAdminPanel key={activeTab} tab={activeTab} cacheRef={binanceCacheRef} onBusyChange={setBinanceBusy} />
         ) : activeTab === 'recovery' ? (
           <>
             <div className="recovery-stats">
