@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -11,6 +11,10 @@ const styles = `
   .recovery-heading { margin: 7px 0; font-size: 24px; font-weight: 900; }
   .recovery-muted { font-size: 13px; line-height: 1.6; color: #64748B; }
   .recovery-tag { font-size: 11px; font-weight: 900; padding: 8px 12px; color: #4338CA; border-radius: 20px; background: #EEF2FF; white-space: nowrap; }
+  .recovery-method-tabs { display: flex; gap: 10px; padding: 15px 18px; border-top: 1px solid #E2E8F0; }
+  .recovery-method { flex: 1; border: 1px solid #E2E8F0; border-radius: 14px; background: #FFFFFF; color: #334155; cursor: pointer; font-size: 16px; font-weight: 900; padding: 15px 18px; }
+  .recovery-method.active { color: #FFFFFF; border-color: #4F46E5; background: #4F46E5; }
+  .recovery-method.binance.active { color: #111827; border-color: #F3BA2F; background: #F3BA2F; }
   .recovery-tabs { display: flex; gap: 8px; padding: 14px 18px; border-top: 1px solid #E2E8F0; }
   .recovery-tab { border: 1px solid #E2E8F0; border-radius: 12px; background: #FFFFFF; color: #475569; cursor: pointer; font-size: 13px; font-weight: 800; padding: 11px 17px; }
   .recovery-tab.active { color: #FFFFFF; border-color: #4F46E5; background: #4F46E5; }
@@ -89,7 +93,8 @@ function canRecover(payment) {
 }
 
 export default function AdminPaymentRecoveryTopUpPage() {
-  const [activeTab, setActiveTab] = useState('recovery')
+  const [paymentMethod, setPaymentMethod] = useState('')
+  const [activeTab, setActiveTab] = useState('')
   const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -126,6 +131,9 @@ export default function AdminPaymentRecoveryTopUpPage() {
   const [historyHasNext, setHistoryHasNext] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyRefresh, setHistoryRefresh] = useState(0)
+  const [expandedHistoryId, setExpandedHistoryId] = useState('')
+  const paymentsCacheRef = useRef(new Map())
+  const historyCacheRef = useRef(new Map())
 
   function token() {
     return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -152,7 +160,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setLoading(true)
     setError('')
     try {
-      const params = new URLSearchParams({ page: String(page), limit: '20', status: appliedFilters.status })
+      const params = new URLSearchParams({ page: String(page), limit: '10', status: appliedFilters.status })
       if (appliedFilters.q) params.set('q', appliedFilters.q)
       if (appliedFilters.amount) params.set('amount', appliedFilters.amount)
       if (appliedFilters.date) params.set('date', appliedFilters.date)
@@ -164,9 +172,13 @@ export default function AdminPaymentRecoveryTopUpPage() {
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to search payment orders')
       if (signal.aborted) return
-      setPayments(Array.isArray(data.payments) ? data.payments : [])
-      setHasNext(Boolean(data.has_next))
-      setHasPrev(Boolean(data.has_prev))
+      const items = Array.isArray(data.payments) ? data.payments : []
+      const hasNextPage = Boolean(data.has_next)
+      const hasPreviousPage = Boolean(data.has_prev)
+      paymentsCacheRef.current.set(JSON.stringify([page, appliedFilters]), { items, hasNextPage, hasPreviousPage })
+      setPayments(items)
+      setHasNext(hasNextPage)
+      setHasPrev(hasPreviousPage)
     } catch (requestError) {
       if (signal.aborted) return
       setError(requestError.message || 'Unable to search payments')
@@ -179,27 +191,47 @@ export default function AdminPaymentRecoveryTopUpPage() {
   }, [page, appliedFilters])
 
   useEffect(() => {
-    if (activeTab !== 'recovery') return undefined
+    if (paymentMethod !== 'bank' || activeTab !== 'recovery') return undefined
+    const cached = paymentsCacheRef.current.get(JSON.stringify([page, appliedFilters]))
+    if (cached) {
+      setPayments(cached.items)
+      setHasNext(cached.hasNextPage)
+      setHasPrev(cached.hasPreviousPage)
+      setLoading(false)
+      return undefined
+    }
+    setPayments([])
     const controller = new AbortController()
     loadPayments(controller.signal)
     return () => controller.abort()
-  }, [activeTab, loadPayments, refreshKey])
+  }, [paymentMethod, activeTab, loadPayments, refreshKey, page, appliedFilters])
 
   useEffect(() => {
-    if (activeTab !== 'history') return undefined
+    if (paymentMethod !== 'bank' || activeTab !== 'history') return undefined
+    const cached = historyCacheRef.current.get(historyPage)
+    if (cached) {
+      setHistory(cached.items)
+      setHistoryHasNext(cached.hasNext)
+      setHistoryLoading(false)
+      return undefined
+    }
     const controller = new AbortController()
+    setHistory([])
     setHistoryLoading(true)
     setError('')
-    request(`/history?page=${historyPage}`, { signal: controller.signal })
+    request(`/history?page=${historyPage}&limit=10`, { signal: controller.signal })
       .then((data) => {
         if (controller.signal.aborted) return
-        setHistory(data.items || [])
-        setHistoryHasNext(Boolean(data.has_next))
+        const items = Array.isArray(data.items) ? data.items : []
+        const hasNext = Boolean(data.has_next)
+        historyCacheRef.current.set(historyPage, { items, hasNext })
+        setHistory(items)
+        setHistoryHasNext(hasNext)
       })
       .catch((e) => { if (!controller.signal.aborted) setError(e.message) })
       .finally(() => { if (!controller.signal.aborted) setHistoryLoading(false) })
     return () => controller.abort()
-  }, [activeTab, historyPage, historyRefresh])
+  }, [paymentMethod, activeTab, historyPage, historyRefresh])
 
   function clearSensitive() {
     setRecoveryPin('')
@@ -226,8 +258,9 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setSelectedId('')
     setPage(1)
     setFeedback('')
+    paymentsCacheRef.current.clear()
     setAppliedFilters({ q: query.trim(), status, amount: amount.trim(), date })
-    if (page === 1 && query.trim() === appliedFilters.q && status === appliedFilters.status && amount.trim() === appliedFilters.amount && date === appliedFilters.date) setRefreshKey((v) => v + 1)
+    setRefreshKey((v) => v + 1)
   }
 
   function clearFilters() {
@@ -237,6 +270,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setDate('')
     setSelectedId('')
     setPage(1)
+    paymentsCacheRef.current.clear()
     setAppliedFilters({ q: '', status: 'all', amount: '', date: '' })
     setRefreshKey((v) => v + 1)
   }
@@ -279,6 +313,8 @@ export default function AdminPaymentRecoveryTopUpPage() {
       setFeedback(`Success: ${Number(data.result?.diamonds || 0)} Diamonds released · Wallet ${Number(data.result?.balance_before || 0)} → ${Number(data.result?.balance_after || 0)}`)
       setSelectedId('')
       setWalletResult(null)
+      paymentsCacheRef.current.clear()
+      historyCacheRef.current.clear()
       setRefreshKey((v) => v + 1)
       setHistoryRefresh((v) => v + 1)
       clearSensitive()
@@ -326,24 +362,47 @@ export default function AdminPaymentRecoveryTopUpPage() {
       setTopupAmount('')
       setTopupRef('')
       setTopupReason('')
+      historyCacheRef.current.clear()
       setHistoryRefresh((v) => v + 1)
       clearSensitive()
     } catch (e) { setError(e.message) }
     finally { setWorking(false); setTopupPin('') }
   }
 
-  function changeTab(tab) {
-    setActiveTab(tab)
+  function changePaymentMethod(method) {
+    setPaymentMethod(method)
+    setActiveTab('')
+    setSelectedId('')
+    setExpandedHistoryId('')
     setError('')
     setFeedback('')
     clearSensitive()
+  }
+
+  function changeTab(tab) {
+    setActiveTab(tab)
+    setSelectedId('')
+    setExpandedHistoryId('')
+    setError('')
+    setFeedback('')
+    clearSensitive()
+  }
+
+  function refreshPayments() {
+    paymentsCacheRef.current.clear()
+    setRefreshKey((v) => v + 1)
+  }
+
+  function refreshHistory() {
+    historyCacheRef.current.clear()
+    setHistoryRefresh((v) => v + 1)
   }
 
   const selected = payments.find((payment) => payment.id === selectedId)
   const releasedCount = payments.filter(isReleased).length
 
   return (
-    <AdminLayout title="Payment Recovery & Top-Up" subtitle="Review ABA transfers before changing real Diamond balances.">
+    <AdminLayout title="Payment Recovery & Top-Up" subtitle="Review Bank and Binance payments before wallet changes.">
       <style>{styles}</style>
       <div className="recovery-page">
         <section className="recovery-card">
@@ -351,21 +410,44 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <div>
               <div className="recovery-eyebrow">Admin payment tools</div>
               <h2 className="recovery-heading">Payment Recovery & Top-Up</h2>
-              <div className="recovery-muted">Separate recovery, manual adjustment, and auditable payment history.</div>
+              <div className="recovery-muted">Choose a payment method and section to load its records.</div>
             </div>
             <span className="recovery-tag">Six-digit Passkey required</span>
           </div>
-          <div className="recovery-tabs">
+          <div className="recovery-method-tabs">
+            <button type="button" className={`recovery-method ${paymentMethod === 'bank' ? 'active' : ''}`} onClick={() => changePaymentMethod('bank')}>Bank</button>
+            <button type="button" className={`recovery-method binance ${paymentMethod === 'binance' ? 'active' : ''}`} onClick={() => changePaymentMethod('binance')}>Binance</button>
+          </div>
+          {paymentMethod ? <div className="recovery-tabs">
             <button type="button" className={`recovery-tab ${activeTab === 'recovery' ? 'active' : ''}`} onClick={() => changeTab('recovery')}>Payment Recovery</button>
             <button type="button" className={`recovery-tab ${activeTab === 'topup' ? 'active' : ''}`} onClick={() => changeTab('topup')}>Manual Top-Up</button>
             <button type="button" className={`recovery-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => changeTab('history')}>Action History</button>
-          </div>
+          </div> : null}
         </section>
 
         {feedback ? <div className="recovery-success" role="status">{feedback}</div> : null}
         {error ? <div className="recovery-error" role="alert" style={{ margin: 0 }}>{error}</div> : null}
 
-        {activeTab === 'recovery' ? (
+        {!paymentMethod ? (
+          <section className="recovery-card recovery-preview">
+            <h3>Choose Bank or Binance</h3>
+            <p className="recovery-muted">No payment data is fetched until you open a section.</p>
+          </section>
+        ) : !activeTab ? (
+          <section className="recovery-card recovery-preview">
+            <h3>{paymentMethod === 'bank' ? 'Bank' : 'Binance'} payment tools</h3>
+            <p className="recovery-muted">Choose Payment Recovery, Manual Top-Up, or Action History to continue. No data has been requested.</p>
+          </section>
+        ) : paymentMethod === 'binance' ? (
+          <section className="recovery-card recovery-preview">
+            <h3>Binance · {activeTab === 'recovery' ? 'Payment Recovery' : activeTab === 'topup' ? 'Manual Top-Up' : 'Action History'}</h3>
+            <p className="recovery-muted">Binance uses the same layout as Bank. Its verified USDT recovery, Diamond and Voucher credit, and audit-history APIs will be connected in the next Backend steps. No wallet changes are enabled here yet.</p>
+            <div className="recovery-preview-grid">
+              <div className="recovery-person"><strong>Currency</strong><span>USDT</span></div>
+              <div className="recovery-person"><strong>Purchase bonus</strong><span>100 Vouchers</span></div>
+            </div>
+          </section>
+        ) : activeTab === 'recovery' ? (
           <>
             <div className="recovery-stats">
               <div className="recovery-card recovery-stat"><span className="recovery-stat-title">Orders on this page</span><strong className="recovery-stat-value">{payments.length}</strong></div>
@@ -375,7 +457,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <section className="recovery-card">
               <div className="recovery-section-head">
                 <div><h3>Payment orders</h3><div className="recovery-muted">Database search: username, Order ID, ABA reference, payer, date, or amount.</div></div>
-                <button className="recovery-button" type="button" disabled={loading || working} onClick={() => setRefreshKey((v) => v + 1)}>{loading ? 'Loading...' : 'Refresh'}</button>
+                <button className="recovery-button" type="button" disabled={loading || working} onClick={refreshPayments}>{loading ? 'Loading...' : 'Refresh'}</button>
               </div>
               <form className="recovery-controls" onSubmit={searchPayments}>
                 <input className="recovery-input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search account, order, ABA reference..." aria-label="Search payment orders" />
@@ -387,7 +469,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
                 <button className="recovery-button recovery-primary" type="submit" disabled={loading}>Search</button>
                 <button className="recovery-button" type="button" disabled={loading} onClick={clearFilters}>Clear</button>
               </form>
-              <p className="recovery-notice">20 records per page. Without a search term, results cover the last 30 days. The database cannot independently prove ABA settlement. Always verify the official bank transaction before recovery.</p>
+              <p className="recovery-notice">10 records per page. Without a search term, results cover the last 30 days. The database cannot independently prove ABA settlement. Always verify the official bank transaction before recovery.</p>
               <div className="recovery-table-wrap">
                 <table className="recovery-table">
                   <thead><tr><th>Account</th><th>Order ID</th><th>USD</th><th>Diamonds</th><th>Status</th><th>Created (KH)</th><th></th></tr></thead>
@@ -484,16 +566,32 @@ export default function AdminPaymentRecoveryTopUpPage() {
         ) : (
           <section className="recovery-card recovery-history">
             <div className="recovery-section-head" style={{ padding: 0, border: 0 }}>
-              <div><h3>Recovery & Top-Up Action History</h3><p className="recovery-muted">Permanent server-side audit trail. 20 records per page.</p></div>
-              <button className="recovery-button" onClick={() => setHistoryRefresh((v) => v + 1)} disabled={historyLoading}>Refresh</button>
+              <div><h3>Recovery & Top-Up Action History</h3><p className="recovery-muted">The next Backend update will enforce 10 records per page. Details appear only when opened.</p></div>
+              <button className="recovery-button" onClick={refreshHistory} disabled={historyLoading}>Refresh</button>
             </div>
             {historyLoading ? <p className="recovery-muted">Loading action history...</p> : null}
             {!historyLoading && !history.length ? <div className="recovery-empty">No recovery actions have been recorded.</div> : null}
             {history.map((action) => <div className="recovery-history-item" key={action.id}>
               <strong>{action.user_name || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
-              <div className="recovery-sub">User {action.user_id} · Reference {action.reference}</div>
-              <div className="recovery-sub">Wallet {Number(action.balance_before || 0).toLocaleString()} → {Number(action.balance_after || 0).toLocaleString()} · {formatDate(action.created_at)}</div>
-              <div className="recovery-sub">Admin {action.admin_email} · {action.reason}</div>
+              <div className="recovery-sub">Reference {action.reference} · {formatDate(action.created_at)}</div>
+              <div className="recovery-actions" style={{ marginTop: 11 }}>
+                <button type="button" className="recovery-button" onClick={() => setExpandedHistoryId((id) => id === action.id ? '' : action.id)}>{expandedHistoryId === action.id ? 'Hide Details' : 'View Details'}</button>
+                <button type="button" className="recovery-button" disabled title="Secure edit history is not connected to the Backend yet">Edit (next step)</button>
+              </div>
+              {expandedHistoryId === action.id ? <dl className="recovery-detail-grid" style={{ marginTop: 15 }}>
+                <div><dt>Action ID</dt><dd>{action.id}</dd></div>
+                <div><dt>Action type</dt><dd>{action.action_type || '—'}</dd></div>
+                <div><dt>User ID</dt><dd>{action.user_id}</dd></div>
+                <div><dt>Payment ID</dt><dd>{action.payment_id || '—'}</dd></div>
+                <div><dt>Reference</dt><dd>{action.reference || '—'}</dd></div>
+                <div><dt>USD</dt><dd>{action.amount_usd == null ? '—' : Number(action.amount_usd).toFixed(2)}</dd></div>
+                <div><dt>Bank paid at</dt><dd>{formatDate(action.bank_paid_at)}</dd></div>
+                <div><dt>Wallet before</dt><dd>{Number(action.balance_before || 0).toLocaleString()}</dd></div>
+                <div><dt>Wallet after</dt><dd>{Number(action.balance_after || 0).toLocaleString()}</dd></div>
+                <div><dt>Admin</dt><dd>{action.admin_email || '—'}</dd></div>
+                <div><dt>Reason</dt><dd>{action.reason || '—'}</dd></div>
+                <div><dt>Created</dt><dd>{formatDate(action.created_at)}</dd></div>
+              </dl> : null}
             </div>)}
             <div className="recovery-actions">
               <button className="recovery-button" disabled={historyLoading || historyPage <= 1} onClick={() => setHistoryPage((v) => Math.max(1, v - 1))}>Previous</button>
