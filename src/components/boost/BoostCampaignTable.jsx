@@ -2,12 +2,17 @@ import React from 'react'
 import { formatMoney, formatNumber, formatPercent, toNumber, PAGE_SIZE } from '../../services/adminBoostInsights'
 import { BoostEmpty, BoostPanel } from './BoostReportWidgets'
 
-export default function BoostCampaignTable({ kind, rows, total, page, onPageChange, search, onSearchChange, loading }) {
+export default function BoostCampaignTable({ kind, rows, total, page, onPageChange, search, onSearchChange, sort = 'newest', onSortChange, loading }) {
   const items = Array.isArray(rows) ? rows : []
   const pages = Math.max(1, Math.ceil(Math.max(0, toNumber(total) || 0) / PAGE_SIZE))
   return <BoostPanel title={kind === 'book' ? 'Boosted Books' : 'Boosted Posts'} subtitle="Campaign owners, placements, goals and revenue">
     <div className="bad-table-tools">
       <input type="search" aria-label="Search Boost campaigns" placeholder={`Search ${kind === 'book' ? 'books' : 'posts'} or authors...`} value={search} onChange={(event) => onSearchChange(event.target.value)} />
+      <select aria-label="Sort Boost campaigns" value={sort} onChange={(event) => onSortChange?.(event.target.value)} disabled={loading} style={{ minHeight: 38, minWidth: 190, padding: '0 10px', border: '1px solid #d1d5db', borderRadius: 8, background: '#fff', color: '#111827' }}>
+        <option value="newest">Newest</option>
+        <option value="top">Top → Low (Boost Fee)</option>
+        <option value="low">Low → Top (Boost Fee)</option>
+      </select>
       <small>{PAGE_SIZE} campaigns per page</small>
     </div>
     <div className="bad-table-scroll"><table className="bad-table">
