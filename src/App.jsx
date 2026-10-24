@@ -69,6 +69,7 @@ import AdminPromotionInsightsPage from './pages/AdminPromotionInsightsPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
 import AdminChatStoryLibraryPage from './pages/AdminChatStoryLibraryPage';
+import AdminFrameManagementPage from './pages/AdminFrameManagementPage';
 import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
 import AdminChatEvidencePage from './pages/AdminChatEvidencePage';
 import AdminMonthlyVotePage from './pages/AdminMonthlyVotePage'
@@ -255,6 +256,7 @@ export default function App() {
         <Route path="/reader-online" element={<ProtectedPage><AdminReaderOnlinePage /></ProtectedPage>} />
         <Route path="/media-library" element={<ProtectedPage><ShadowMediaLibraryPage /></ProtectedPage>} />
         <Route path="/chat-story-library" element={<ProtectedPage permission="media_library.view"><AdminChatStoryLibraryPage /></ProtectedPage>} />
+        <Route path="/profile-frames" element={<ProtectedPage permission="media_library.manage"><AdminFrameManagementPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
