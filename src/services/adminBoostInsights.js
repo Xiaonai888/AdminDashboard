@@ -6,7 +6,7 @@ const DAY_MS = 86400000
 const cache = new Map()
 const pending = new Map()
 
-export const PAGE_SIZE = 20
+export const PAGE_SIZE = 10
 
 export function cambodiaToday() {
   return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
