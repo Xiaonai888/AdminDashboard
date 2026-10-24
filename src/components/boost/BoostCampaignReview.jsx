@@ -73,10 +73,10 @@ function request(path, { method = 'GET', body = null, cache = true } = {}) {
   return promise
 }
 
-function DisplayCard({ label, value, note }) {
+function DisplayCard({ label, value, note, monetary = false }) {
   return <div className="bad-stat">
     <div className="bad-stat-top"><span>{label}</span></div>
-    <strong className="bad-stat-value">{value}</strong>
+    <strong className="bad-stat-value" style={monetary ? { whiteSpace: 'normal', overflowWrap: 'anywhere' } : undefined}>{value}</strong>
     <small>{note}</small>
   </div>
 }
@@ -101,6 +101,7 @@ function safePercent(value) {
 
 export default function BoostCampaignReview() {
   const [kind, setKind] = useState('post')
+  const [spendingScope, setSpendingScope] = useState('all')
   const [status, setStatus] = useState('pending_review')
   const [sort, setSort] = useState('newest')
   const [page, setPage] = useState(1)
@@ -256,6 +257,7 @@ export default function BoostCampaignReview() {
   const canReview = detail?.campaign?.status === 'pending_review' && detail?.campaign?.review_status === 'pending'
   const rejectBlocked = ['funded_usd', 'spent_usd', 'refunded_usd'].some((key) => Number(detail?.campaign?.[key] || 0) > 0)
   const performance = detail?.performance || null
+  const spending = summary?.spending_available ? summary.spending?.[spendingScope] : null
 
   return <section aria-label="Author Ads campaign review" style={{ marginTop: 22 }}>
     <header className="bad-heading-row">
@@ -268,6 +270,28 @@ export default function BoostCampaignReview() {
     </header>
 
     {summaryError && <div className="bad-alert" role="alert">{summaryError}</div>}
+    <div className="bad-panel bad-panel-space" aria-label="Author campaign spending">
+      <div className="bad-panel-header">
+        <h3>Campaign Spending · All Time</h3>
+        <p>Amounts from recorded campaign budgets. Spent is money used for ad delivery, not the planned budget.</p>
+      </div>
+      <nav className="bad-secondary-tabs" style={{ flexWrap: 'wrap', gap: 16 }} role="tablist" aria-label="Spending category">
+        <button type="button" role="tab" aria-selected={spendingScope === 'all'} onClick={() => setSpendingScope('all')}>All</button>
+        <button type="button" role="tab" aria-selected={spendingScope === 'post'} onClick={() => setSpendingScope('post')}>Boost Post</button>
+        <button type="button" role="tab" aria-selected={spendingScope === 'book'} onClick={() => setSpendingScope('book')}>Boost Book</button>
+      </nav>
+      {summary && summary.spending_available === false && <div className="bad-alert" role="alert">Spending totals unavailable. Check the Supabase SQL and Backend deployment. Campaign review remains available.</div>}
+      {!summary && !summaryError && <p className="bad-loading" role="status">Loading spending totals...</p>}
+      <div className="bad-stats">
+        <DisplayCard label="Total Spent" value={formatMoney(spending?.spent_usd)} note="Actual campaign budget used" monetary />
+        <DisplayCard label="Total Funded" value={formatMoney(spending?.funded_usd)} note="Recorded campaign funding" monetary />
+        <DisplayCard label="Total Budget" value={formatMoney(spending?.budget_usd)} note="Planned budget, not money spent" monetary />
+        <DisplayCard label="Total Refunded" value={formatMoney(spending?.refunded_usd)} note="Recorded refunded amount" monetary />
+      </div>
+      <p className="bad-footnote" style={{ textAlign: 'left', margin: 0 }}>
+        {formatNumber(spending?.campaigns_with_spend)} campaigns with spending · Remaining funded balance: {formatMoney(spending?.remaining_funds_usd)}. These totals cover all campaign statuses, regardless of table search or pagination.
+      </p>
+    </div>
     <div className="bad-stats">
       <DisplayCard label="All Campaigns" value={formatNumber(summary?.total)} note="All submitted and draft campaigns" />
       <DisplayCard label="Pending Review" value={formatNumber(summary?.pending_review)} note="Awaiting admin decision" />
@@ -379,3 +403,4 @@ export default function BoostCampaignReview() {
     </div>}
   </section>
 }
+
