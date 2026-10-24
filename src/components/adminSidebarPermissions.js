@@ -23,6 +23,7 @@ const PATH_PERMISSION = {
   '/banners': 'banners.view',
   '/genres': 'genres.view',
   '/advertisement': 'advertisement.view',
+  '/boost': 'advertisement.view',
   '/notifications': 'notifications.view',
   '/reader-mails': 'reader_mail.view',
   '/recommended': 'recommended.view',
