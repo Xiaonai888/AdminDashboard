@@ -265,7 +265,7 @@ export default function AdminTaskCenterPage() {
   const [message, setMessage] = useState({ type: 'info', text: '' })
   const [readingMissions, setReadingMissions] = useState([])
   const [activeTab, setActiveTab] = useState('reading')
-  const [selectedMissionId, setSelectedMissionId] = useState('')
+  const [readingMissionView, setReadingMissionView] = useState('home')
   useEffect(() => {
   return () => {
     if (previewUrl.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
