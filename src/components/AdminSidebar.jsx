@@ -252,6 +252,8 @@ const navSections = [
       { path: '/shadow-exclusive', label: 'Shadow Exclusive', icon: 'M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z M9 12l2 2 4-5' },
       { path: '/media-library', label: 'Media Library', icon: 'M4 4h16v16H4z M8 8h8M8 12h5M8 16h8' },
       { path: '/chat-story-library', label: 'Chat Story Library', icon: 'M4 3h16v18H4z M8 8h8 M8 12h5 M8 16h8' },
+      { path: '/profile-frames', label: 'Profile Frames', icon: 'M3 3h18v18H3z M8 8h8v8H8z' },
+
     ],
   },
   {
