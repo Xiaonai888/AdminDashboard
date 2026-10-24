@@ -18,6 +18,7 @@ const PATH_PERMISSION = {
   '/shadow-exclusive': 'shadow_exclusive.view',
   '/media-library': 'media_library.view',
   '/chat-story-library': 'media_library.view',
+  '/profile-frames': 'media_library.manage',
 
   '/slides': 'slides.view',
   '/banners': 'banners.view',
