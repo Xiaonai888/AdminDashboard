@@ -15,6 +15,7 @@ function BoostRevenue({ data, kind }) {
 
 export default function BoostAuthorInsights({ kind, start, end, refreshSignal }) {
   const [page, setPage] = useState(1)
+  const [sort, setSort] = useState('newest')
   const [search, setSearch] = useState('')
   const [querySearch, setQuerySearch] = useState('')
 
@@ -23,7 +24,7 @@ export default function BoostAuthorInsights({ kind, start, end, refreshSignal })
     return () => clearTimeout(timeout)
   }, [search])
 
-  const { data, loading, error, refresh } = useAdminBoostInsights({ audience: 'author', kind, start, end, page, search: querySearch })
+  const { data, loading, error, refresh } = useAdminBoostInsights({ audience: 'author', kind, start, end, page, search: querySearch, sort })
   const seenRefresh = React.useRef(refreshSignal)
   useEffect(() => {
     if (refreshSignal !== seenRefresh.current) {
@@ -34,6 +35,7 @@ export default function BoostAuthorInsights({ kind, start, end, refreshSignal })
   const metrics = data?.metrics || {}
 
   const updateSearch = (value) => { setSearch(value); setPage(1) }
+  const updateSort = (value) => { if (['newest', 'top', 'low'].includes(value)) { setSort(value); setPage(1) } }
 
   return <div role="tabpanel" aria-label={kind === 'book' ? 'Boost Book insights' : 'Boost Post insights'}>
     <BoostAlert error={error} loading={loading} onRetry={refresh} />
@@ -48,6 +50,6 @@ export default function BoostAuthorInsights({ kind, start, end, refreshSignal })
       <BoostRevenue data={data} kind={kind} />
     </div>
     <div className="bad-panel-space"><BoostPanel title={kind === 'book' ? 'Book Conversion Funnel' : 'Post Engagement Funnel'} subtitle="Actions from Boost campaigns only"><BoostFunnel kind={kind} funnel={data?.funnel} /></BoostPanel></div>
-    <BoostCampaignTable kind={kind} rows={data?.campaigns} total={data?.total} page={page} onPageChange={setPage} search={search} onSearchChange={updateSearch} loading={loading} />
+    <BoostCampaignTable kind={kind} rows={data?.campaigns} total={data?.total} page={page} onPageChange={setPage} search={search} onSearchChange={updateSearch} sort={sort} onSortChange={updateSort} loading={loading} />
   </div>
 }
