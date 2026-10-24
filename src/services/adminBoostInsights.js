@@ -66,11 +66,12 @@ function fingerprint(token) {
   return (h >>> 0).toString(16)
 }
 
-function requestParams({ audience, kind, start, end, page, search }) {
+function requestParams({ audience, kind, start, end, page, search, sort }) {
   const params = new URLSearchParams({ audience, start, end, page: String(page), limit: String(PAGE_SIZE) })
   if (audience === 'author') {
     params.set('kind', kind)
     if (search) params.set('search', search)
+    if (sort === 'top' || sort === 'low') params.set('sort', sort)
   }
   return params
 }
@@ -129,7 +130,7 @@ async function loadReport(options) {
   return promise
 }
 
-export function useAdminBoostInsights({ audience, kind = 'post', start, end, page = 1, search = '' }) {
+export function useAdminBoostInsights({ audience, kind = 'post', start, end, page = 1, search = '', sort = 'newest' }) {
   const [result, setResult] = useState({ data: null, loading: true, error: '' })
   const [version, setVersion] = useState(0)
   const valid = validRange(start, end)
@@ -141,11 +142,11 @@ export function useAdminBoostInsights({ audience, kind = 'post', start, end, pag
       return () => { alive = false }
     }
     setResult({ data: null, loading: true, error: '' })
-    loadReport({ audience, kind, start, end, page, search })
+    loadReport({ audience, kind, start, end, page, search, sort })
       .then((data) => { if (alive) setResult({ data, loading: false, error: '' }) })
       .catch((error) => { if (alive) setResult({ data: null, loading: false, error: error.message || 'Could not load Boost Analytics.' }) })
     return () => { alive = false }
-  }, [audience, kind, start, end, page, search, version, valid])
+  }, [audience, kind, start, end, page, search, sort, version, valid])
 
   const refresh = () => { removeCurrentCache(); setVersion((value) => value + 1) }
   return { ...result, refresh }
