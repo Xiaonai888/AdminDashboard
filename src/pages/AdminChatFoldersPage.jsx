@@ -65,12 +65,14 @@ export default function AdminChatFoldersPage() {
   const navigate = useNavigate()
   const [folders, setFolders] = useState([])
   const [folderHasMore, setFolderHasMore] = useState(false)
+  const [folderPage, setFolderPage] = useState(1)
   const [selectedId, setSelectedId] = useState('')
   const [chats, setChats] = useState([])
   const [loading, setLoading] = useState(true)
   const [chatLoading, setChatLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [name, setName] = useState('')
   const [hasMore, setHasMore] = useState(false)
   const [page, setPage] = useState(1)
@@ -92,20 +94,31 @@ export default function AdminChatFoldersPage() {
   openedIdRef.current = activeChat?.id || ''
 
   const reloadFolders = useCallback(async signal => {
-    const result = await getAdminSupportFolders({ signal })
+    const result = await getAdminSupportFolders({ page: folderPage, signal })
     if (signal?.aborted) return
-    const items = Array.isArray(result.folders) ? result.folders : []
+    const items = Array.isArray(result.folders) ? result.folders.slice(0, 10) : []
+    if (!items.length && folderPage > 1) {
+      setFolderPage(current => Math.max(1, current - 1))
+      return
+    }
     setFolders(items)
     setFolderHasMore(Boolean(result.has_more))
     setSelectedId(current => current && items.some(folder => folder.id === current) ? current : '')
-  }, [])
+  }, [folderPage])
 
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
     setError('')
     reloadFolders(controller.signal)
-      .catch(err => { if (!controller.signal.aborted && err.name !== 'AbortError') setError(err.message || 'Could not load folders') })
+      .catch(err => {
+        if (!controller.signal.aborted && err.name !== 'AbortError') {
+          setError(err.message || 'Could not load folders')
+          setFolders([])
+          setFolderHasMore(false)
+          setSelectedId('')
+        }
+      })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [reloadFolders, folderRevision])
@@ -163,21 +176,32 @@ export default function AdminChatFoldersPage() {
     if (id !== selectedId) { setSelectedId(id); setPage(1); setActiveChat(null) }
   }
 
+  function changeFolderPage(next) {
+    if (loading || busy || next < 1 || next > 1000 || (next > folderPage && !folderHasMore)) return
+    setSelectedId('')
+    setChats([])
+    setHasMore(false)
+    setActiveChat(null)
+    setPage(1)
+    setError('')
+    setNotice('')
+    setFolderPage(next)
+  }
+
   async function createFolder(event) {
     event.preventDefault()
     if (!name.trim() || busy) return
     setBusy(true)
     setError('')
     try {
-      const result = await createAdminSupportFolder(name.trim())
+      await createAdminSupportFolder(name.trim())
       setName('')
-      await reloadFolders()
-      if (result.folder?.id) {
-        setFolders(current => current.some(folder => folder.id === result.folder.id) ? current : [...current, result.folder])
-        setSelectedId(result.folder.id)
-        setPage(1)
-        setActiveChat(null)
-      }
+      setSelectedId('')
+      setActiveChat(null)
+      setPage(1)
+      setNotice('Folder created. Browse the numbered folder pages to find it.')
+      setFolderPage(1)
+      setFolderRevision(current => current + 1)
     } catch (err) { setError(err.message || 'Could not create folder') }
     finally { setBusy(false) }
   }
@@ -188,7 +212,11 @@ export default function AdminChatFoldersPage() {
     if (next === null || !next.trim() || next.trim() === selected.name) return
     setBusy(true)
     setError('')
-    try { await renameAdminSupportFolder(selected.id, next.trim()); await reloadFolders() }
+    try {
+      await renameAdminSupportFolder(selected.id, next.trim())
+      setNotice('Folder renamed successfully.')
+      setFolderRevision(current => current + 1)
+    }
     catch (err) { setError(err.message || 'Could not rename folder') }
     finally { setBusy(false) }
   }
@@ -202,7 +230,8 @@ export default function AdminChatFoldersPage() {
       setSelectedId('')
       setPage(1)
       setActiveChat(null)
-      await reloadFolders()
+      setNotice('Folder deleted. Its conversations and messages were preserved.')
+      setFolderRevision(current => current + 1)
     } catch (err) { setError(err.message || 'Could not delete folder') }
     finally { setBusy(false) }
   }
@@ -269,6 +298,7 @@ export default function AdminChatFoldersPage() {
     <style>{styles}</style>
     <main className="scf">
       {error && <div className="scf-error" role="alert">{error} <button type="button" className="scf-btn" onClick={() => { setFolderRevision(current => current + 1); setListRevision(current => current + 1) }}>Retry</button></div>}
+      {notice && <div className="scf-muted" role="status" style={{ marginBottom: 12 }}>{notice} <button className="scf-btn" type="button" onClick={() => setNotice('')}>OK</button></div>}
       <div className="scf-shell">
         <nav className="scf-nav" aria-label="Support chat navigation">
           <h2 className="scf-title">Shadow Admin</h2>
@@ -277,7 +307,7 @@ export default function AdminChatFoldersPage() {
           <button type="button" className="active" aria-current="page">Folders</button>
         </nav>
         <section className="scf-panel">
-          <div className="scf-head"><h2>Folders</h2><span className="scf-muted">Latest 10</span></div>
+          <div className="scf-head"><h2>Folders</h2><span className="scf-muted">Page {folderPage} · 10 per page</span></div>
           <form className="scf-form" onSubmit={createFolder}>
             <input className="scf-input" aria-label="Folder name" maxLength={60} value={name} onChange={event => setName(event.target.value)} placeholder="New folder name" />
             <button className="scf-btn gold" disabled={busy || loading || !name.trim()} type="submit">Create</button>
@@ -285,7 +315,11 @@ export default function AdminChatFoldersPage() {
           {loading && <div className="scf-muted">Loading folders...</div>}
           {!loading && folders.length === 0 && !error && <div className="scf-muted">No folders yet. Create one to organize support chats.</div>}
           {!loading && folders.map(folder => <button key={folder.id} type="button" onClick={() => selectFolder(folder.id)} className={`scf-folder ${selectedId === folder.id ? 'active' : ''}`} aria-pressed={selectedId === folder.id}><strong>{folder.name}</strong><span>›</span></button>)}
-          {!loading && folderHasMore && <p className="scf-muted">The server currently returns the first 10 folders only.</p>}
+          <div className="scf-pages" aria-label="Folder pages">
+            <button className="scf-btn" type="button" disabled={loading || busy || folderPage === 1} onClick={() => changeFolderPage(folderPage - 1)}>Previous</button>
+            <span className="scf-muted" aria-live="polite">Page {folderPage}</span>
+            <button className="scf-btn gold" type="button" disabled={loading || busy || Boolean(error) || !folderHasMore || folderPage >= 1000} onClick={() => changeFolderPage(folderPage + 1)}>Next</button>
+          </div>
         </section>
         <section className="scf-detail">
           {!selected && <div className="scf-muted">Choose a folder to view its conversations.</div>}
