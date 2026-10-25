@@ -859,6 +859,96 @@ function findSource(sources, name) {
   )
 }
 
+function AdminBinancePendingPreview({ month }) {
+  const [page, setPage] = useState(1)
+  const [rows, setRows] = useState([])
+  const [pagination, setPagination] = useState(null)
+  const [loaded, setLoaded] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [unavailable, setUnavailable] = useState(false)
+  const requestRef = useRef(null)
+
+  useEffect(() => () => requestRef.current?.abort(), [])
+
+  async function load(nextPage = 1) {
+    if (busy || !month) return
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
+    setBusy(true)
+    setError('')
+    try {
+      const query = new URLSearchParams({ month, view: 'pending', page: String(nextPage) })
+      const response = await fetch(`${API_URL}/api/admin/income/payouts/queue?${query}`, {
+        headers: authHeaders(),
+        signal: controller.signal,
+        cache: 'no-store',
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || result.ok !== true) throw new Error(result.message || `Unable to load Binance payout preview (HTTP ${response.status})`)
+      if (requestRef.current !== controller) return
+      setRows(Array.isArray(result.payouts) ? result.payouts : [])
+      setPagination(result.pagination || null)
+      setUnavailable(result.binance_preview_unavailable === true)
+      setPage(nextPage)
+      setLoaded(true)
+    } catch (caught) {
+      if (caught.name !== 'AbortError' && requestRef.current === controller) {
+        setError(caught.message || 'Unable to load Binance payout preview')
+      }
+    } finally {
+      if (requestRef.current === controller) setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rounded-[16px] border border-slate-200 bg-white p-4 text-slate-800" aria-label="Binance payout preview">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-[15px] font-bold">Binance Payout Preview</h3>
+          <p className="mt-1 text-[12px] text-slate-600">Read-only · pending payouts · 20 per page · only loaded on request</p>
+        </div>
+        <button type="button" onClick={() => load(1)} disabled={busy || !month} className="rounded-[9px] border border-slate-300 px-4 py-2 text-[12px] font-bold disabled:opacity-50">
+          {busy ? 'Loading…' : loaded ? 'Refresh preview' : 'Load Binance preview'}
+        </button>
+      </div>
+      <p className="mt-3 text-[12px] font-semibold text-amber-800" role="note">Binance details below are a preview ONLY. They are not selected for any payout. Use the original payout snapshot for existing transfers. Do not transfer funds based on this preview.</p>
+      {error ? <p role="alert" className="mt-3 text-[12px] font-bold text-red-700">{error}</p> : null}
+      {unavailable ? <p role="alert" className="mt-3 text-[12px] text-amber-800">Binance lookup unavailable. Existing payout records remain unchanged.</p> : null}
+      {loaded && !rows.length ? <p className="mt-3 text-[12px] text-slate-600">No pending payouts in this month.</p> : null}
+      {loaded ? <div className="mt-3 space-y-2">
+        {rows.map((payout) => {
+          const preview = payout.binance_payout_preview
+          const old = payout.payment_method_snapshot || {}
+          const author = payout.author_page?.page_name || payout.author_page?.page_username || payout.author_user?.name || payout.author_user?.username || 'Author'
+          return <details key={payout.id} className="rounded-[12px] border border-slate-200 p-3">
+            <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 text-[12px] font-bold">
+              <span>{author} · {String(payout.status || '').replaceAll('_', ' ')}</span>
+              <span>{formatUsd(payout.net_payout_usd)}</span>
+            </summary>
+            <div className="mt-3 space-y-2 text-[12px]">
+              <p><strong>Recorded payout destination:</strong> {payout.payment_method_id ? (old.bank_name || old.display_name || old.method_type || 'Saved destination') : 'No payout destination'} · {old.account_name || ''}</p>
+              {preview ? <div className="rounded-[11px] border border-amber-200 bg-amber-50 p-3">
+                <strong>Binance Auto · Preview only (not selected)</strong>
+                <p className="mt-1">Account: {preview.account_name || '—'}</p>
+                <p>UID: {preview.binance_uid || '—'}</p>
+                <p>Pay ID: {preview.binance_pay_id || '—'}</p>
+                {preview.qr_image_url ? <img src={preview.qr_image_url} loading="lazy" alt={`Binance receiving QR preview for ${author}`} className="mt-2 max-h-[220px] max-w-full rounded-[9px] bg-white object-contain p-2" /> : null}
+              </div> : <p>No active Binance payout method saved.</p>}
+            </div>
+          </details>
+        })}
+        {pagination ? <div className="flex items-center justify-between gap-3 pt-2">
+          <button type="button" disabled={busy || !pagination.has_prev} onClick={() => load(page - 1)} className="rounded-[8px] border border-slate-300 px-3 py-2 text-[12px] disabled:opacity-40">Previous</button>
+          <span className="text-[12px]">Page {page} / {pagination.total_pages || 1}</span>
+          <button type="button" disabled={busy || !pagination.has_next} onClick={() => load(page + 1)} className="rounded-[8px] border border-slate-300 px-3 py-2 text-[12px] disabled:opacity-40">Next</button>
+        </div> : null}
+      </div> : null}
+    </section>
+  )
+}
+
 function payoutAuthorName(payout) {
   return (
     payout?.author_page?.page_name ||
@@ -1716,6 +1806,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
                     : 'Payout generation and transfer actions are paused until the backend and receipt workflow are verified. Do not send money or mark payouts paid from this page.'}
                 </div>
 
+                {payoutLoaded ? <AdminBinancePendingPreview key={payoutMonth} month={payoutMonth} /> : null}
                 <div className="income-payout-summary">
                   <div className="income-withdraw-item">
                     <div className="income-card-label">
