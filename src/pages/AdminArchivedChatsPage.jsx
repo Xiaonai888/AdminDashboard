@@ -1,52 +1,7 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import { useNavigate } from 'react-router-dom'
-
-const PREVIEW = [
-  {
-    id: 'demo-1048', name: 'Demo Reader #1048', country: 'Cambodia', flag: '🇰🇭',
-    folder: 'VIP', tag: 'Payment Issue', archivedAt: '2026-10-19T10:36:00+07:00',
-    archivedBy: 'A12', preview: 'Thank you so much for your help!', initials: 'DR',
-    note: 'The payment question was resolved before the chat was archived.',
-    messages: [
-      { id: 'm1', side: 'reader', text: 'Hi, my purchased Diamonds have not appeared yet. Can you help?', time: '10:24 AM' },
-      { id: 'm2', side: 'support', text: 'Hello! Thank you for contacting Shadow Support. We will review your payment.', time: '10:28 AM', agent: 'S-07' },
-      { id: 'm3', side: 'reader', text: 'It has arrived now. Thank you so much!', time: '10:31 AM' },
-      { id: 'm4', side: 'support', text: 'Glad it is resolved. Have a wonderful day!', time: '10:32 AM', agent: 'S-07' },
-    ],
-  },
-  {
-    id: 'demo-2211', name: 'Demo Author #2211', country: 'Thailand', flag: '🇹🇭',
-    folder: 'Follow Up', tag: 'Book Issue', archivedAt: '2026-10-18T14:10:00+07:00',
-    archivedBy: 'A07', preview: 'Could you check my latest submission?', initials: 'DA',
-    note: 'Follow up on the author submission when requested.',
-    messages: [{ id: 'm1', side: 'reader', text: 'Could you check my latest submission?', time: '02:02 PM' }],
-  },
-  {
-    id: 'demo-9087', name: 'Demo Reader #9087', country: 'Philippines', flag: '🇵🇭',
-    folder: 'General', tag: 'Account Issue', archivedAt: '2026-10-17T08:52:00+07:00',
-    archivedBy: 'A03', preview: 'I cannot sign in to my account.', initials: 'DR',
-    note: '', messages: [{ id: 'm1', side: 'reader', text: 'I cannot sign in to my account.', time: '08:45 AM' }],
-  },
-  {
-    id: 'demo-5531', name: 'Demo Reader #5531', country: 'Vietnam', flag: '🇻🇳',
-    folder: 'Payment Issue', tag: 'VIP', archivedAt: '2026-10-15T12:45:00+07:00',
-    archivedBy: 'A12', preview: 'The payment is confirmed now.', initials: 'DR',
-    note: 'Issue resolved.', messages: [{ id: 'm1', side: 'reader', text: 'The payment is confirmed now.', time: '12:33 PM' }],
-  },
-  {
-    id: 'demo-7765', name: 'Demo Author #7765', country: 'Malaysia', flag: '🇲🇾',
-    folder: 'Abuse Report', tag: 'Content', archivedAt: '2026-10-12T09:30:00+07:00',
-    archivedBy: 'A09', preview: 'Please review the content decision.', initials: 'DA',
-    note: '', messages: [{ id: 'm1', side: 'reader', text: 'Please review the content decision.', time: '09:20 AM' }],
-  },
-  {
-    id: 'demo-6678', name: 'Demo Reader #6678', country: 'United States', flag: '🇺🇸',
-    folder: 'Follow Up', tag: 'Report', archivedAt: '2026-10-10T17:20:00+07:00',
-    archivedBy: 'A08', preview: 'I have a question about a report.', initials: 'DR',
-    note: '', messages: [{ id: 'm1', side: 'reader', text: 'I have a question about a report.', time: '05:10 PM' }],
-  },
-]
+import { changeAdminSupportChat, getAdminSupportInbox, getAdminSupportMessages } from '../services/adminSupportChatApi'
 
 const paths = {
   archive: 'M3 4h18v4H3z M5 8v12h14V8 M10 12h4',
@@ -76,6 +31,45 @@ function formatDate(value, withTime = false) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}) })
+}
+
+const COUNTRY = {
+  KH: ['Cambodia', '🇰🇭'], TH: ['Thailand', '🇹🇭'], PH: ['Philippines', '🇵🇭'],
+  ID: ['Indonesia', '🇮🇩'], MY: ['Malaysia', '🇲🇾'], VN: ['Vietnam', '🇻🇳'],
+  SG: ['Singapore', '🇸🇬'], US: ['United States', '🇺🇸'],
+}
+
+function archiveRecord(item) {
+  const reader = item.reader || {}
+  const countryCode = String(item.override_country_code || item.detected_country_code || '').toUpperCase()
+  const [country, flag] = COUNTRY[countryCode] || ['Unknown', '🌐']
+  const name = reader.name || reader.username || `Reader ${String(item.reader_user_id || '').slice(0, 8)}`
+  return {
+    id: item.id,
+    userId: item.reader_user_id,
+    name,
+    username: reader.username || '',
+    country,
+    flag,
+    archivedAt: item.archived_at,
+    archivedBy: item.archived_by_admin_id || '',
+    preview: item.last_message_preview || '',
+    initials: (name.split(/\s+/).map(part => part[0]).join('').slice(0, 2) || 'U').toUpperCase(),
+    note: typeof item.internal_notes === 'string' ? item.internal_notes : null,
+    folder: '',
+    tag: item.priority && item.priority !== 'normal' ? item.priority : '',
+  }
+}
+
+function archiveMessage(item) {
+  const attachments = Array.isArray(item.attachments) ? item.attachments : []
+  return {
+    id: item.id,
+    side: item.sender_kind === 'admin' ? 'support' : 'reader',
+    agent: item.public_support_id || '—',
+    text: item.message_text || (attachments.length ? `${attachments.length} attachment(s)` : ''),
+    time: formatDate(item.created_at, true),
+  }
 }
 
 const css = `
@@ -151,111 +145,207 @@ const css = `
   .sac-modal { width:min(420px,100%); background:#fff; border-radius:18px; box-shadow:0 30px 80px rgba(0,0,0,.2); padding:24px; }
   .sac-modal h3 { margin:0 0 12px; }
   .sac-modal p { color:#66758a; line-height:1.6; font-size:12px; }
+  .sac-alert { margin-bottom:12px; padding:11px 13px; font-size:12px; line-height:1.6; color:#8b580d; background:#fff7e7; border:1px solid #f1d89c; border-radius:11px; }
+  .sac-alert.error { color:#b42336; background:#fff4f5; border-color:#f5ced4; }
+  .sac-load { width:100%; padding:13px; border:0; border-top:1px solid var(--line); background:#fff9ee; color:#895d0f; font-size:11px; cursor:pointer; }
+  .sac-load:disabled { opacity:.55; cursor:not-allowed; }
   @media(max-width:1250px) { .sac-shell { grid-template-columns:135px minmax(210px, 270px) minmax(260px,1fr); } .sac-detail { display:none; } }
   @media(max-width:1020px) { .sac-shell { grid-template-columns:115px minmax(205px, 40%) minmax(230px,1fr); } .sac-brand { padding-left:4px; } .sac-navbtn { font-size:10px !important; padding:0 5px; } }
   @media(max-width:730px) { .sac-shell { display:flex; flex-direction:column; height:auto; max-height:none; } .sac-nav { flex-direction:row; overflow:auto; padding:8px; } .sac-brand,.sac-retention { display:none; } .sac-navbtn { width:auto; white-space:nowrap; } .sac-list { min-height:330px; max-height:430px; border-right:none; border-bottom:1px solid var(--line); } .sac-thread { min-height:520px; } .sac-detail { display:block; } }
 `
 
-export default function AdminArchivedChatsPage({ conversations, onRestoreChat, onMoveToFolder, onDeleteChat }) {
+export default function AdminArchivedChatsPage() {
   const navigate = useNavigate()
-  const previewMode = !Array.isArray(conversations)
-  const records = previewMode ? PREVIEW : conversations.filter((chat) => chat && chat.archived === true)
+  const [records, setRecords] = useState([])
   const [query, setQuery] = useState('')
   const [folder, setFolder] = useState('')
   const [country, setCountry] = useState('')
   const [sort, setSort] = useState('newest')
   const [selectedId, setSelectedId] = useState('')
   const [dialog, setDialog] = useState('')
-  const folderOptions = useMemo(() => [...new Set(records.map((r) => r.folder).filter(Boolean))].sort(), [records])
-  const countryOptions = useMemo(() => [...new Set(records.map((r) => r.country).filter(Boolean))].sort(), [records])
-  const filtered = useMemo(() => records.filter((r) => {
-    const search = `${r.name || ''} ${r.id || ''} ${r.country || ''} ${r.folder || ''} ${r.tag || ''} ${r.preview || ''}`.toLowerCase()
-    return (!query || search.includes(query.toLowerCase())) && (!folder || r.folder === folder) && (!country || r.country === country)
+  const [notice, setNotice] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(false)
+  const [refreshCount, setRefreshCount] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [messageLoading, setMessageLoading] = useState(false)
+  const [messageError, setMessageError] = useState('')
+  const [messageConversationId, setMessageConversationId] = useState('')
+  const [messageHasMore, setMessageHasMore] = useState(false)
+  const [nextBefore, setNextBefore] = useState('')
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const activeIdRef = useRef('')
+
+  const reload = useCallback(() => setRefreshCount(value => value + 1), [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    getAdminSupportInbox('archived', { signal: controller.signal })
+      .then(data => {
+        if (controller.signal.aborted) return
+        const next = (Array.isArray(data.conversations) ? data.conversations : []).slice(0, 10).map(archiveRecord)
+        setRecords(next)
+        setHasMore(Boolean(data.has_more))
+        setSelectedId(previous => next.some(item => item.id === previous) ? previous : '')
+      })
+      .catch(err => { if (!controller.signal.aborted) { setError(err.message || 'Unable to load archived chats'); setRecords([]); setSelectedId('') } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [refreshCount])
+
+  const folderOptions = useMemo(() => [...new Set(records.map(item => item.folder).filter(Boolean))].sort(), [records])
+  const countryOptions = useMemo(() => [...new Set(records.map(item => item.country).filter(Boolean))].sort(), [records])
+  const filtered = useMemo(() => records.filter(item => {
+    const search = `${item.name} ${item.username} ${item.userId} ${item.id} ${item.country} ${item.folder} ${item.tag} ${item.preview}`.toLowerCase()
+    return (!query || search.includes(query.trim().toLowerCase())) && (!folder || item.folder === folder) && (!country || item.country === country)
   }).sort((a, b) => (sort === 'oldest' ? 1 : -1) * (new Date(a.archivedAt).getTime() - new Date(b.archivedAt).getTime())), [records, query, folder, country, sort])
-  const selected = filtered.find((r) => r.id === selectedId) || filtered[0] || null
-  const requestAction = (action) => {
-    if (!selected) return
-    if (previewMode) { setDialog('This is a UI preview with sample conversations. No real chat data has been loaded and no changes have been made.'); return }
-    if (action === 'restore' && typeof onRestoreChat === 'function') return onRestoreChat(selected)
-    if (action === 'folder' && typeof onMoveToFolder === 'function') return onMoveToFolder(selected)
-    if (action === 'delete' && typeof onDeleteChat === 'function') return onDeleteChat(selected)
-    setDialog('The Admin Chat backend action is not connected yet. No changes have been made.')
+  const selected = filtered.find(item => item.id === selectedId) || filtered[0] || null
+  const activeId = selected?.id || ''
+  activeIdRef.current = activeId
+  const shownMessages = activeId && messageConversationId === activeId ? messages : []
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setMessages([])
+    setMessageConversationId('')
+    setMessageHasMore(false)
+    setNextBefore('')
+    setMessageError('')
+    if (!activeId) { setMessageLoading(false); return () => controller.abort() }
+    setMessageLoading(true)
+    getAdminSupportMessages(activeId, { signal: controller.signal })
+      .then(data => {
+        if (controller.signal.aborted) return
+        setMessages((Array.isArray(data.messages) ? data.messages : []).map(archiveMessage))
+        setMessageConversationId(activeId)
+        setMessageHasMore(Boolean(data.has_more))
+        setNextBefore(data.next_before || '')
+      })
+      .catch(err => { if (!controller.signal.aborted) setMessageError(err.message || 'Unable to load messages') })
+      .finally(() => { if (!controller.signal.aborted) setMessageLoading(false) })
+    return () => controller.abort()
+  }, [activeId])
+
+  async function loadOlderMessages() {
+    if (!activeId || !nextBefore || loadingOlder) return
+    setLoadingOlder(true)
+    setMessageError('')
+    try {
+      const data = await getAdminSupportMessages(activeId, { before: nextBefore })
+      if (activeIdRef.current !== activeId) return
+      const older = (Array.isArray(data.messages) ? data.messages : []).map(archiveMessage)
+      setMessages(current => {
+        const seen = new Set(current.map(item => item.id))
+        return [...older.filter(item => !seen.has(item.id)), ...current]
+      })
+      setMessageHasMore(Boolean(data.has_more))
+      setNextBefore(data.next_before || '')
+    } catch (err) { if (activeIdRef.current === activeId) setMessageError(err.message || 'Unable to load older messages') }
+    finally { setLoadingOlder(false) }
+  }
+
+  async function restoreSelected() {
+    if (!selected || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      await changeAdminSupportChat(selected.id, 'restore')
+      setNotice('Conversation restored. You can now open it from All Inbox.')
+      reload()
+    } catch (err) { setError(err.message || 'Could not restore conversation') }
+    finally { setBusy(false) }
+  }
+
+  const requestAction = action => {
+    if (action === 'restore') return restoreSelected()
+    if (action === 'folder') return setDialog('Archived conversations are read-only. Restore this conversation before organizing it into folders.')
+    if (action === 'delete') return setDialog('Delete requires verified Admin Passkey and an audited backend endpoint. No conversation was deleted.')
   }
 
   return (
     <AdminLayout title="Archived Chats" subtitle="Shadow Admin Chat Center">
       <style>{css}</style>
       <main className="sac">
-        {previewMode && <div className="sac-banner" style={{ marginBottom: 12 }}>UI Preview — all conversations below are sample data. Live archived chats and passkey-protected actions will be connected in later steps.</div>}
+        {error && <div className="sac-alert error" role="alert">{error} <button type="button" className="sac-btn" onClick={reload}>Retry</button></div>}
+        {notice && <div className="sac-alert" role="status">{notice} <button className="sac-btn" type="button" onClick={() => setNotice('')}>OK</button></div>}
         <div className="sac-shell">
           <nav className="sac-nav" aria-label="Chat Center navigation">
             <div className="sac-brand">Shadow <small>Admin Chat Center</small></div>
             <button type="button" className="sac-navbtn" onClick={() => navigate('/admin-chat')}><Icon name="inbox" /> All Inbox</button>
             <button type="button" className="sac-navbtn active" aria-current="page"><Icon name="archive" /> Archived <span className="sac-count">{records.length}</span></button>
-            <button type="button" className="sac-navbtn" disabled title="Folders own page is a later step"><Icon name="folder" /> Folders</button>
-            <div className="sac-retention"><strong><Icon name="clock" size={14} /> Archive Retention</strong>1-year cleanup for conversations without any chat history is planned, but automatic deletion is not enabled in this UI.</div>
+            <button type="button" className="sac-navbtn" disabled title="Folders page will be connected after its route is registered"><Icon name="folder" /> Folders</button>
+            <div className="sac-retention"><strong><Icon name="clock" size={14} /> Archive Retention</strong>Automatic cleanup is not enabled here. Archive does not delete conversation messages.</div>
           </nav>
 
           <section className="sac-list" aria-label="Archived conversation list">
             <div className="sac-listtop">
               <h2>Archived Chats</h2>
-              <div className="sac-sub">{records.length} archived conversation{records.length === 1 ? '' : 's'}</div>
-              <label className="sac-search"><Icon name="search" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search archived chats..." aria-label="Search archived chats" /></label>
+              <div className="sac-sub">{loading ? 'Loading…' : `Showing ${records.length} recent archived conversations${hasMore ? ' · more exist' : ''}`} <button type="button" className="sac-btn" onClick={reload} disabled={loading}>Refresh</button></div>
+              <label className="sac-search"><Icon name="search" size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search loaded archived chats..." aria-label="Search archived chats" /></label>
               <div className="sac-filters">
-                <select className="sac-filter" value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort archived chats"><option value="newest">Recently Archived</option><option value="oldest">Older First</option></select>
-                <select className="sac-filter" value={folder} onChange={(event) => setFolder(event.target.value)} aria-label="Filter by folder"><option value="">All Folders</option>{folderOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>
-                <select className="sac-filter" value={country} onChange={(event) => setCountry(event.target.value)} aria-label="Filter by country"><option value="">All Countries</option>{countryOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+                <select className="sac-filter" value={sort} onChange={event => setSort(event.target.value)} aria-label="Sort loaded archived chats"><option value="newest">Recently Archived</option><option value="oldest">Older First</option></select>
+                <select className="sac-filter" disabled={!folderOptions.length} value={folder} onChange={event => setFolder(event.target.value)} aria-label="Filter by folder"><option value="">All Folders</option>{folderOptions.map(value => <option key={value} value={value}>{value}</option>)}</select>
+                <select className="sac-filter" value={country} onChange={event => setCountry(event.target.value)} aria-label="Filter by country"><option value="">All Countries</option>{countryOptions.map(value => <option key={value} value={value}>{value}</option>)}</select>
               </div>
             </div>
             <div className="sac-items">
-              {filtered.length === 0 && <div className="sac-empty">No archived conversations match your filters.</div>}
-              {filtered.map((chat) => (
+              {loading && <div className="sac-empty">Loading real archived conversations…</div>}
+              {!loading && !error && filtered.length === 0 && <div className="sac-empty">{records.length ? 'No loaded archived conversations match your filters.' : 'No archived conversations yet.'}</div>}
+              {!loading && filtered.map(chat => (
                 <button key={chat.id} type="button" className={`sac-item ${selected?.id === chat.id ? 'active' : ''}`} onClick={() => setSelectedId(chat.id)}>
-                  <span className="sac-avatar">{chat.initials || String(chat.name || '?').slice(0, 2).toUpperCase()}</span>
+                  <span className="sac-avatar">{chat.initials}</span>
                   <span className="sac-itemmain">
-                    <span className="sac-itemhead"><b>{chat.name || chat.id}</b><time>{formatDate(chat.archivedAt)}</time></span>
-                    <span className="sac-country">{chat.flag || '🌐'} {chat.country || 'Unknown country'}</span>
+                    <span className="sac-itemhead"><b>{chat.name}</b><time>{formatDate(chat.archivedAt)}</time></span>
+                    <span className="sac-country">{chat.flag} {chat.country}</span>
                     <span className="sac-preview" style={{ display: 'block' }}>{chat.preview || 'Archived conversation'}</span>
                     <span className="sac-tags">{chat.folder && <span className="sac-pill gold">{chat.folder}</span>}{chat.tag && <span className="sac-pill">{chat.tag}</span>}</span>
                   </span>
                 </button>
               ))}
             </div>
+            {hasMore && <div className="sac-alert" style={{ margin: 10 }}>Showing the latest 10 only. Older archived conversation pages require backend pagination.</div>}
           </section>
 
           <section className="sac-thread" aria-label="Archived conversation details">
-            {selected ? <>
-              <div className="sac-threadtop"><div className="sac-person"><span className="sac-avatar">{selected.initials || 'U'}</span><div><b>{selected.name || selected.id}</b><small>ID: {selected.id} · {selected.flag || '🌐'} {selected.country || 'Unknown'}</small></div></div><span className="sac-status"><Icon name="archive" size={14} /> Archived</span></div>
-              <div className="sac-actions"><button className="sac-btn gold" type="button" onClick={() => requestAction('restore')}><Icon name="restore" size={15} /> Restore Chat</button><button className="sac-btn" type="button" onClick={() => requestAction('folder')}><Icon name="folder" size={15} /> Move to Folder</button><button className="sac-btn danger" type="button" onClick={() => requestAction('delete')}><Icon name="trash" size={15} /> Delete</button></div>
+            {selected && !loading ? <>
+              <div className="sac-threadtop"><div className="sac-person"><span className="sac-avatar">{selected.initials}</span><div><b>{selected.name}</b><small>ID: {selected.userId || selected.id} · {selected.flag} {selected.country}</small></div></div><span className="sac-status"><Icon name="archive" size={14} /> Archived</span></div>
+              <div className="sac-actions"><button className="sac-btn gold" type="button" disabled={busy} onClick={() => requestAction('restore')}><Icon name="restore" size={15} /> {busy ? 'Restoring…' : 'Restore Chat'}</button><button className="sac-btn" type="button" onClick={() => requestAction('folder')}><Icon name="folder" size={15} /> Move to Folder</button><button className="sac-btn danger" type="button" onClick={() => requestAction('delete')}><Icon name="trash" size={15} /> Delete</button></div>
               <div className="sac-chatbody">
                 <div className="sac-banner"><strong>This conversation is archived and read-only.</strong><div>Restore this chat before replying. Deletion requires server-side passkey verification.</div></div>
                 <div className="sac-date">{formatDate(selected.archivedAt)}</div>
-                {(selected.messages || []).map((message) => <div key={message.id} className={`sac-bubblewrap ${message.side === 'support' ? 'support' : ''}`}>
-                  {message.side === 'support' && <span className="sac-agent">Support ID {message.agent || '—'}</span>}
+                {messageLoading && <div className="sac-empty">Loading latest 20 messages…</div>}
+                {messageError && <div className="sac-alert error" role="alert">{messageError}</div>}
+                {!messageLoading && !messageError && shownMessages.length === 0 && <div className="sac-empty">No messages to display.</div>}
+                {messageHasMore && <button className="sac-load" type="button" onClick={loadOlderMessages} disabled={loadingOlder || messageLoading}>{loadingOlder ? 'Loading…' : 'Load 20 older messages'}</button>}
+                {shownMessages.map(message => <div key={message.id} className={`sac-bubblewrap ${message.side === 'support' ? 'support' : ''}`}>
+                  {message.side === 'support' && <span className="sac-agent">Support ID {message.agent}</span>}
                   <div className={`sac-bubble ${message.side === 'support' ? 'sac-supportbubble' : ''}`}>{message.text}</div>
-                  <span className="sac-time">{message.time || ''}</span>
+                  <span className="sac-time">{message.time}</span>
                 </div>)}
-                {(!selected.messages || selected.messages.length === 0) && <div className="sac-empty">No messages to display.</div>}
               </div>
-              <div className="sac-readonly"><span><Icon name="lock" size={16} /> Archived chats are read-only.</span><button type="button" className="sac-btn primary" onClick={() => requestAction('restore')}>Restore Chat</button></div>
-            </> : <div className="sac-empty">Choose an archived chat to view its history.</div>}
+              <div className="sac-readonly"><span><Icon name="lock" size={16} /> Archived chats are read-only.</span><button type="button" className="sac-btn primary" disabled={busy} onClick={() => requestAction('restore')}>Restore Chat</button></div>
+            </> : <div className="sac-empty">{loading ? 'Loading archived chats…' : 'Choose an archived chat to view its history.'}</div>}
           </section>
 
           <aside className="sac-detail" aria-label="Archived chat metadata">
             <h3>Archived Details</h3>
-            {selected ? <>
+            {selected && !loading ? <>
               <div className="sac-detailbox"><h4><Icon name="archive" size={15} /> Archived Status</h4><span className="sac-status">Archived</span><span className="sac-detailsub">This conversation is read-only until restored.</span></div>
-              <div className="sac-row"><strong>Archived By</strong><span>Agent ID {selected.archivedBy || '—'}</span></div>
+              <div className="sac-row"><strong>Archived By</strong><span>{selected.archivedBy || 'Not provided by current API'}</span></div>
               <div className="sac-row"><strong>Archived On</strong><span>{formatDate(selected.archivedAt, true)}</span></div>
-              <div className="sac-row"><strong>Original Folder</strong><span>{selected.folder || 'Unassigned'}</span></div>
-              <div className="sac-row"><strong>Country</strong><span>{selected.flag || '🌐'} {selected.country || 'Unknown'}</span></div>
-              <div className="sac-detailbox" style={{ marginTop: 15 }}><h4><Icon name="clock" size={15} /> Retention</h4><div className="sac-note">The future 1-year cleanup rule is not active yet. Chats containing messages will not be deleted by this preview.</div></div>
-              <div className="sac-detailbox"><h4><Icon name="file" size={15} /> Internal Notes</h4><div className="sac-note">{selected.note || 'No internal notes.'}</div></div>
-              <div className="sac-detailbox"><h4><Icon name="shield" size={15} /> Activity</h4><div className="sac-activity">Archived by Agent ID {selected.archivedBy || '—'}<br />{formatDate(selected.archivedAt, true)}</div></div>
+              <div className="sac-row"><strong>Original Folder</strong><span>{selected.folder || 'Not loaded'}</span></div>
+              <div className="sac-row"><strong>Country</strong><span>{selected.flag} {selected.country}</span></div>
+              <div className="sac-detailbox" style={{ marginTop: 15 }}><h4><Icon name="clock" size={15} /> Retention</h4><div className="sac-note">Automatic deletion is not enabled on this page. Archived messages are kept in the support database.</div></div>
+              <div className="sac-detailbox"><h4><Icon name="file" size={15} /> Internal Notes</h4><div className="sac-note">{selected.note === null ? 'Not returned by current API.' : selected.note || 'No internal notes.'}</div></div>
+              <div className="sac-detailbox"><h4><Icon name="shield" size={15} /> Activity</h4><div className="sac-activity">Archived on {formatDate(selected.archivedAt, true)}.</div></div>
             </> : <div className="sac-note">No conversation selected.</div>}
           </aside>
         </div>
-        {dialog && <div className="sac-modalback" role="presentation" onMouseDown={() => setDialog('')}><div className="sac-modal" role="alertdialog" aria-modal="true" aria-label="Action unavailable" onMouseDown={(event) => event.stopPropagation()}><h3>Admin Chat Center</h3><p>{dialog}</p><button type="button" className="sac-btn primary" onClick={() => setDialog('')}>Close</button></div></div>}
+        {dialog && <div className="sac-modalback" role="presentation" onMouseDown={() => setDialog('')}><div className="sac-modal" role="alertdialog" aria-modal="true" aria-label="Action unavailable" onMouseDown={event => event.stopPropagation()}><h3>Admin Chat Center</h3><p>{dialog}</p><button type="button" className="sac-btn primary" onClick={() => setDialog('')}>Close</button></div></div>}
       </main>
     </AdminLayout>
   )
