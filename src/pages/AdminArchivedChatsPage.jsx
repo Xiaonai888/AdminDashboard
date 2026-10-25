@@ -149,6 +149,8 @@ const css = `
   .sac-alert.error { color:#b42336; background:#fff4f5; border-color:#f5ced4; }
   .sac-load { width:100%; padding:13px; border:0; border-top:1px solid var(--line); background:#fff9ee; color:#895d0f; font-size:11px; cursor:pointer; }
   .sac-load:disabled { opacity:.55; cursor:not-allowed; }
+  .sac-pages { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-top:1px solid var(--line); background:#fff; }
+  .sac-pages span { font-size:11px; color:var(--soft); white-space:nowrap; }
   @media(max-width:1250px) { .sac-shell { grid-template-columns:135px minmax(210px, 270px) minmax(260px,1fr); } .sac-detail { display:none; } }
   @media(max-width:1020px) { .sac-shell { grid-template-columns:115px minmax(205px, 40%) minmax(230px,1fr); } .sac-brand { padding-left:4px; } .sac-navbtn { font-size:10px !important; padding:0 5px; } }
   @media(max-width:730px) { .sac-shell { display:flex; flex-direction:column; height:auto; max-height:none; } .sac-nav { flex-direction:row; overflow:auto; padding:8px; } .sac-brand,.sac-retention { display:none; } .sac-navbtn { width:auto; white-space:nowrap; } .sac-list { min-height:330px; max-height:430px; border-right:none; border-bottom:1px solid var(--line); } .sac-thread { min-height:520px; } .sac-detail { display:block; } }
@@ -167,6 +169,7 @@ export default function AdminArchivedChatsPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
+  const [page, setPage] = useState(1)
   const [refreshCount, setRefreshCount] = useState(0)
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState([])
@@ -184,10 +187,17 @@ export default function AdminArchivedChatsPage() {
     const controller = new AbortController()
     setLoading(true)
     setError('')
-    getAdminSupportInbox('archived', { signal: controller.signal })
+    setRecords([])
+    setHasMore(false)
+    setSelectedId('')
+    getAdminSupportInbox('archived', { page, signal: controller.signal })
       .then(data => {
         if (controller.signal.aborted) return
         const next = (Array.isArray(data.conversations) ? data.conversations : []).slice(0, 10).map(archiveRecord)
+        if (!next.length && page > 1) {
+          setPage(current => Math.max(1, current - 1))
+          return
+        }
         setRecords(next)
         setHasMore(Boolean(data.has_more))
         setSelectedId(previous => next.some(item => item.id === previous) ? previous : '')
@@ -195,7 +205,7 @@ export default function AdminArchivedChatsPage() {
       .catch(err => { if (!controller.signal.aborted) { setError(err.message || 'Unable to load archived chats'); setRecords([]); setSelectedId('') } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [refreshCount])
+  }, [refreshCount, page])
 
   const folderOptions = useMemo(() => [...new Set(records.map(item => item.folder).filter(Boolean))].sort(), [records])
   const countryOptions = useMemo(() => [...new Set(records.map(item => item.country).filter(Boolean))].sort(), [records])
@@ -284,10 +294,10 @@ export default function AdminArchivedChatsPage() {
           <section className="sac-list" aria-label="Archived conversation list">
             <div className="sac-listtop">
               <h2>Archived Chats</h2>
-              <div className="sac-sub">{loading ? 'Loading…' : `Showing ${records.length} recent archived conversations${hasMore ? ' · more exist' : ''}`} <button type="button" className="sac-btn" onClick={reload} disabled={loading}>Refresh</button></div>
-              <label className="sac-search"><Icon name="search" size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search loaded archived chats..." aria-label="Search archived chats" /></label>
+              <div className="sac-sub">{loading ? 'Loading…' : `Page ${page} · ${records.length} archived conversations${hasMore ? ' · more available' : ''}`} <button type="button" className="sac-btn" onClick={reload} disabled={loading}>Refresh</button></div>
+              <label className="sac-search"><Icon name="search" size={16} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search this page..." aria-label="Search archived chats on this page" /></label>
               <div className="sac-filters">
-                <select className="sac-filter" value={sort} onChange={event => setSort(event.target.value)} aria-label="Sort loaded archived chats"><option value="newest">Recently Archived</option><option value="oldest">Older First</option></select>
+                <select className="sac-filter" value={sort} onChange={event => setSort(event.target.value)} aria-label="Sort archived chats on this page"><option value="newest">Newest on this page</option><option value="oldest">Oldest on this page</option></select>
                 <select className="sac-filter" disabled={!folderOptions.length} value={folder} onChange={event => setFolder(event.target.value)} aria-label="Filter by folder"><option value="">All Folders</option>{folderOptions.map(value => <option key={value} value={value}>{value}</option>)}</select>
                 <select className="sac-filter" value={country} onChange={event => setCountry(event.target.value)} aria-label="Filter by country"><option value="">All Countries</option>{countryOptions.map(value => <option key={value} value={value}>{value}</option>)}</select>
               </div>
@@ -307,7 +317,11 @@ export default function AdminArchivedChatsPage() {
                 </button>
               ))}
             </div>
-            {hasMore && <div className="sac-alert" style={{ margin: 10 }}>Showing the latest 10 only. Older archived conversation pages require backend pagination.</div>}
+            <div className="sac-pages">
+              <button type="button" className="sac-btn" disabled={loading || busy || page === 1} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</button>
+              <span aria-live="polite">Page {page} · Up to 10 chats</span>
+              <button type="button" className="sac-btn gold" disabled={loading || busy || !hasMore || page >= 10000} onClick={() => setPage(current => Math.min(10000, current + 1))}>Next</button>
+            </div>
           </section>
 
           <section className="sac-thread" aria-label="Archived conversation details">
