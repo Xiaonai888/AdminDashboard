@@ -530,7 +530,7 @@ export default function AdminChatCenterPage() {
           <div className="scc-logo"><Brand /></div>
           <button className="scc-navbtn active" type="button"><Icon name="inbox" /> All Inbox <span className="scc-count">{inbox.length}</span></button>
           <button className="scc-navbtn" type="button" onClick={() => navigate('/admin-chat/archived')}><Icon name="archive" /> Archived Chats</button>
-          <button className="scc-navbtn" type="button" disabled title="Folders page will be connected in the next step"><Icon name="folder" /> Folders</button>
+          <button className="scc-navbtn" type="button" onClick={() => navigate('/admin-chat/folders')}><Icon name="folder" /> Folders</button>
           <div className="scc-navfoot"><Icon name="shield" size={14} /> Deleting chats will require server-side passkey verification once the backend is connected.</div>
         </nav>
         <section className="scc-list" aria-label="Inbox conversation list">
