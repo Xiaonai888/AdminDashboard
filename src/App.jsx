@@ -43,6 +43,7 @@ import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
 import AdminChatCenterPage from './pages/AdminChatCenterPage';
 import AdminArchivedChatsPage from './pages/AdminArchivedChatsPage';
+import AdminChatFoldersPage from './pages/AdminChatFoldersPage';
 import AdminPaymentRecoveryTopUpPage from './pages/AdminPaymentRecoveryTopUpPage';
 import AdminBalancePage from './pages/AdminBalancePage';
 import AdminAuthorIncomePage from './pages/AdminAuthorIncomePage';
@@ -265,8 +266,9 @@ export default function App() {
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
-        <Route path="/admin-chat" element={<ProtectedPage><AdminChatCenterPage /></ProtectedPage>} />
-        <Route path="/admin-chat/archived" element={<ProtectedPage><AdminArchivedChatsPage /></ProtectedPage>} />
+        <Route path="/admin-chat" element={<ProtectedPage permission="admin_chat.view"><AdminChatCenterPage /></ProtectedPage>} />
+        <Route path="/admin-chat/archived" element={<ProtectedPage permission="admin_chat.view"><AdminArchivedChatsPage /></ProtectedPage>} />
+        <Route path="/admin-chat/folders" element={<ProtectedPage permission="admin_chat.view"><AdminChatFoldersPage /></ProtectedPage>} />
         <Route path="/payment-recovery" element={<ProtectedPage permission="payment.view"><AdminPaymentRecoveryTopUpPage /></ProtectedPage>} />
         <Route path="/balance" element={<ProtectedPage><AdminBalancePage /></ProtectedPage>} />
         <Route path="/author-income" element={<ProtectedPage permission="income.view"><AdminAuthorIncomePage /></ProtectedPage>} />
