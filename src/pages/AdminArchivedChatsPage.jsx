@@ -63,10 +63,13 @@ function archiveRecord(item) {
 
 function archiveMessage(item) {
   const attachments = Array.isArray(item.attachments) ? item.attachments : []
+  const adminName = typeof item.sender_admin_name === 'string' ? item.sender_admin_name.trim() : ''
+  const adminRole = typeof item.sender_admin_role === 'string' ? item.sender_admin_role.toLowerCase() : ''
   return {
     id: item.id,
     side: item.sender_kind === 'admin' ? 'support' : 'reader',
-    agent: item.public_support_id || '—',
+    agentName: adminName || 'Shadow Admin',
+    agentRole: adminRole === 'owner' ? 'Owner' : adminRole === 'staff' ? 'Staff' : adminRole === 'admin' ? 'Admin' : '',
     text: item.message_text || (attachments.length ? `${attachments.length} attachment(s)` : ''),
     time: formatDate(item.created_at, true),
   }
@@ -336,7 +339,7 @@ export default function AdminArchivedChatsPage() {
                 {!messageLoading && !messageError && shownMessages.length === 0 && <div className="sac-empty">No messages to display.</div>}
                 {messageHasMore && <button className="sac-load" type="button" onClick={loadOlderMessages} disabled={loadingOlder || messageLoading}>{loadingOlder ? 'Loading…' : 'Load 20 older messages'}</button>}
                 {shownMessages.map(message => <div key={message.id} className={`sac-bubblewrap ${message.side === 'support' ? 'support' : ''}`}>
-                  {message.side === 'support' && <span className="sac-agent">Support ID {message.agent}</span>}
+                  {message.side === 'support' && <span className="sac-agent">{message.agentName}{message.agentRole ? ` · ${message.agentRole}` : ''}</span>}
                   <div className={`sac-bubble ${message.side === 'support' ? 'sac-supportbubble' : ''}`}>{message.text}</div>
                   <span className="sac-time">{message.time}</span>
                 </div>)}
