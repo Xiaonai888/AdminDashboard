@@ -73,8 +73,9 @@ export function changeAdminSupportChat(conversationId, action, value = null) {
   })
 }
 
-export function getAdminSupportFolders({ signal } = {}) {
-  return request('/folders', { signal })
+export function getAdminSupportFolders({ signal, page = 1 } = {}) {
+  const pageNumber = Number.isSafeInteger(page) && page >= 1 && page <= 1000 ? page : 1
+  return request(`/folders?${new URLSearchParams({ page: String(pageNumber) })}`, { signal })
 }
 
 export function getAdminSupportFolderConversations(folderId, { page = 1, signal } = {}) {
