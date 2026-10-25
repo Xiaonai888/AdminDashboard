@@ -208,6 +208,7 @@ const navSections = [
       { path: '/game', label: 'Game', icon: 'M6 12h12 M8 9v6 M16 10h.01 M18 14h.01 M7 5h10a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5v-4a5 5 0 0 1 5-5z' },
       { path: '/app', label: 'App', icon: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z' },
       { path: '/boost', label: 'Boost', icon: 'M3 17l6-6 4 4 8-8 M15 7h6v6' },
+      { path: '/country-settings', label: 'Country Settings', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2c3 3 3 17 0 20 M12 2c-3 3-3 17 0 20' },
     ],
   },
 
