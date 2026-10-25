@@ -23,6 +23,7 @@ import PaymentControlPage from './pages/PaymentControlPage';
 import ShadowMallProductsPage from './pages/ShadowMallProductsPage';
 import ShadowMallOrdersPage from './pages/ShadowMallOrdersPage';
 import AuthorStoreReviewPage from './pages/AuthorStoreReviewPage';
+import AdminAuthorBookHoldsPage from './pages/AdminAuthorBookHoldsPage';
 import ShadowMallPublishersPage from './pages/ShadowMallPublishersPage';
 import AdminStoriesPage from './pages/AdminStoriesPage';
 import AdminRankingPage from './pages/AdminRankingPage';
@@ -253,6 +254,7 @@ export default function App() {
         <Route path="/chat-evidence" element={<ProtectedPage><AdminChatEvidencePage /></ProtectedPage>} />
         <Route path="/shadow-mall/orders" element={<ProtectedPage><ShadowMallOrdersPage /></ProtectedPage>} />
         <Route path="/author-store/review" element={<ProtectedPage><AuthorStoreReviewPage /></ProtectedPage>} />
+        <Route path="/author-store/book-holds" element={<ProtectedPage><AdminAuthorBookHoldsPage /></ProtectedPage>} />
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
         <Route path="/readers-today" element={<ProtectedPage permission="readers.view"><AdminReadersTodayPage /></ProtectedPage>} />
         <Route path="/reader-online" element={<ProtectedPage><AdminReaderOnlinePage /></ProtectedPage>} />
