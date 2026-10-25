@@ -61,6 +61,14 @@ function formatTime(value) {
   return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
 }
 
+function getAdminSenderLabel(message) {
+  if (message?.sender_kind !== 'admin') return ''
+  const name = typeof message.sender_admin_name === 'string' ? message.sender_admin_name.trim() : ''
+  const role = String(message.sender_admin_role || '').toLowerCase()
+  const roleLabel = role === 'owner' ? 'Owner' : role === 'admin' ? 'Admin' : role === 'staff' ? 'Staff' : ''
+  return `${name || 'Shadow Admin'}${roleLabel ? ` · ${roleLabel}` : ''} · `
+}
+
 export default function AdminChatFoldersPage() {
   const navigate = useNavigate()
   const [folders, setFolders] = useState([])
@@ -342,7 +350,7 @@ export default function AdminChatFoldersPage() {
             {!threadLoading && !threadError && thread.length === 0 && <div className="scf-muted">No messages yet.</div>}
             {!threadLoading && thread.map(message => <div key={message.id} className={`scf-bubblewrap ${message.sender_kind === 'admin' ? 'support' : ''}`}>
               <div className="scf-bubble">{message.message_text || (Array.isArray(message.attachments) && message.attachments.length ? `${message.attachments.length} attachment(s)` : '')}</div>
-              <div className="scf-timestamp">{message.sender_kind === 'admin' ? `Shadow Support ${message.public_support_id || ''} · ` : ''}{formatTime(message.created_at)}</div>
+              <div className="scf-timestamp">{getAdminSenderLabel(message)}{formatTime(message.created_at)}</div>
             </div>)}
           </div>
           <form className="scf-reply" onSubmit={sendReply}>
