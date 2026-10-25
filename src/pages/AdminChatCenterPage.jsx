@@ -1,6 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import {
+  startAdminSupportChat,
+  sendAdminSupportMessage,
+  changeAdminSupportChat,
+  getAdminSupportFolders,
+  createAdminSupportFolder,
+  addChatToSupportFolder,
+} from '../services/adminSupportChatApi'
 
 const RECENT_CHAT_LIMIT = 10
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
@@ -70,12 +78,10 @@ function normalizeMessage(value) {
 }
 
 const SHADOW_ADMIN_LOGO = '/assets/Icons/Logo%20Shadow.jpg'
-const STAFF = ['A03', 'A07', 'A09', 'A12']
 const COUNTRIES = [
   ['Cambodia', '🇰🇭'], ['Thailand', '🇹🇭'], ['Philippines', '🇵🇭'], ['Indonesia', '🇮🇩'],
   ['Malaysia', '🇲🇾'], ['Vietnam', '🇻🇳'], ['Singapore', '🇸🇬'], ['United States', '🇺🇸'], ['Other', '🌐'],
 ]
-const DEFAULT_FOLDERS = ['VIP', 'Payment Issue', 'Follow Up', 'Account Issue', 'Abuse Report', 'General']
 const svgPaths = {
   inbox: 'M4 4h16v16H4z M4 14h4l2 3h4l2-3h4',
   archive: 'M3 4h18v4H3z M5 8v12h14V8 M10 12h4',
@@ -236,6 +242,14 @@ const styles = `
   .scc-avatar img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
   .scc-retry { display:inline-flex; margin-top:8px; padding:8px 10px; border:1px solid #e2cfac; border-radius:9px; color:#845b0e; background:#fff9ed; cursor:pointer; }
   .scc-compose input:disabled { background:#f8fafc; cursor:not-allowed; }
+  .scc-compose input:focus,.scc-compose input:focus-visible { border-color:var(--scc-gold); }
+  .scc-compose button:disabled { opacity:.55; }
+  .scc-startform { display:grid; gap:12px; margin-top:15px; }
+  .scc-startform textarea { width:100%; min-height:110px; max-height:220px; padding:11px; border:1px solid var(--scc-line); border-radius:10px; resize:vertical; font-size:12px; }
+  .scc-startactions { display:flex; gap:9px; justify-content:flex-end; }
+  .scc-startrecipient { font-size:12px; color:#586174; overflow-wrap:anywhere; }
+  .scc-panel select:disabled { color:#697384; background:#f7f8fb; cursor:not-allowed; }
+  .scc-busy { opacity:.58; pointer-events:none; }
   .scc-searchalert { padding:8px 10px; color:#b45309; font-size:11px; line-height:1.5; }
 
   @media(max-width:1250px) { .scc-grid { grid-template-columns:155px minmax(225px,285px) minmax(280px,1fr); } .scc-details { display:none; } }
@@ -253,7 +267,15 @@ export default function AdminChatCenterPage() {
   const [newFolder, setNewFolder] = useState('')
   const [notice, setNotice] = useState('')
   const [dialog, setDialog] = useState(false)
-  const [folders] = useState(DEFAULT_FOLDERS)
+  const [folders, setFolders] = useState([])
+  const [folderLoading, setFolderLoading] = useState(false)
+  const [replyDraft, setReplyDraft] = useState('')
+  const [startPerson, setStartPerson] = useState(null)
+  const [startDraft, setStartDraft] = useState('')
+  const [writeBusy, setWriteBusy] = useState(false)
+  const writing = useRef(false)
+  const selectedIdRef = useRef(selectedId)
+  selectedIdRef.current = selectedId
   const [inboxLoading, setInboxLoading] = useState(true)
   const [inboxError, setInboxError] = useState('')
   const [inboxHasMore, setInboxHasMore] = useState(false)
@@ -263,6 +285,8 @@ export default function AdminChatCenterPage() {
   const [threadLoading, setThreadLoading] = useState(false)
   const [threadError, setThreadError] = useState('')
   const [threadHasMore, setThreadHasMore] = useState(false)
+  const [threadCursor, setThreadCursor] = useState(null)
+  const [olderLoading, setOlderLoading] = useState(false)
   const [people, setPeople] = useState([])
   const [peopleLoading, setPeopleLoading] = useState(false)
   const [peopleError, setPeopleError] = useState('')
@@ -299,6 +323,8 @@ export default function AdminChatCenterPage() {
     setThreadConversationId(null)
     setThreadError('')
     setThreadHasMore(false)
+    setThreadCursor(null)
+    setOlderLoading(false)
     if (!selectedId) { setThreadLoading(false); return () => controller.abort() }
     setThreadLoading(true)
     requestSupportChat(`/conversations/${encodeURIComponent(selectedId)}/messages`, controller.signal)
@@ -307,6 +333,7 @@ export default function AdminChatCenterPage() {
         setThreadMessages((Array.isArray(result.messages) ? result.messages : []).slice(-20).map(normalizeMessage))
         setThreadConversationId(selectedId)
         setThreadHasMore(Boolean(result.has_more))
+        setThreadCursor(result.next_before || null)
       })
       .catch((error) => {
         if (!current || controller.signal.aborted) return
@@ -340,8 +367,41 @@ export default function AdminChatCenterPage() {
   const filtered = useMemo(() => inbox.filter((chat) => matchesChatSearch(chat, search))
     .sort((first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime())
     .slice(0, RECENT_CHAT_LIMIT), [inbox, search])
-  const pendingAction = () => setNotice('This action needs the next authenticated Admin Chat write API. No server data was changed.')
-  const changeChat = () => pendingAction()
+  async function writeAction(work) {
+    if (writing.current) return false
+    writing.current = true
+    setWriteBusy(true)
+    try {
+      await work()
+      return true
+    } catch (error) {
+      setNotice(error?.message || 'Support Chat action could not be saved.')
+      return false
+    } finally {
+      writing.current = false
+      setWriteBusy(false)
+    }
+  }
+
+  async function updateChat(id, action, value = null) {
+    await writeAction(async () => {
+      await changeAdminSupportChat(id, action, value)
+      if (action === 'archive') {
+        setSelectedId((current) => current === id ? null : current)
+        setChats((rows) => rows.filter((chat) => chat.id !== id))
+        setRefreshCount((count) => count + 1)
+      } else if (action === 'read') {
+        setChats((rows) => rows.map((chat) => chat.id === id ? { ...chat, unread: 0 } : chat))
+        if (filter === 'Unread') setRefreshCount((count) => count + 1)
+      } else if (action === 'priority') {
+        setChats((rows) => rows.map((chat) => chat.id === id ? { ...chat, priority: value[0].toUpperCase() + value.slice(1) } : chat))
+      } else if (action === 'country') {
+        const [name, flag] = COUNTRY_CODES[value] || ['Other', '🌐']
+        setChats((rows) => rows.map((chat) => chat.id === id ? { ...chat, country: name, flag } : chat))
+      }
+    })
+  }
+
   const openMenu = (event, id) => {
     event.preventDefault()
     event.stopPropagation()
@@ -350,38 +410,127 @@ export default function AdminChatCenterPage() {
     setFolderMenu(false)
     setMenu({ id, x: Math.max(10, x), y: Math.max(10, y) })
   }
+
   const menuAction = (action) => {
-    if (!menu) return
+    const id = menu?.id
+    if (!id) return
     setMenu(null)
-    if (action === 'delete') setDialog(true)
-    else pendingAction()
+    if (action === 'delete') {
+      setDialog(true)
+      return
+    }
+    if (action === 'read' || action === 'archive') updateChat(id, action)
   }
-  const addFolder = () => {
-    setFolderMenu(false)
-    setMenu(null)
-    pendingAction()
+
+  async function openFolderOptions() {
+    setFolderMenu(true)
+    setFolderLoading(true)
+    try {
+      const result = await getAdminSupportFolders()
+      setFolders(Array.isArray(result.folders) ? result.folders.slice(0, 10) : [])
+    } catch (error) {
+      setNotice(error?.message || 'Folders could not be loaded.')
+    } finally {
+      setFolderLoading(false)
+    }
   }
-  const createFolder = () => {
-    setNewFolder('')
-    addFolder()
+
+  async function addFolder(folderId, id = menu?.id || selectedId) {
+    if (!id || !folderId) return
+    await writeAction(async () => {
+      await addChatToSupportFolder(folderId, id)
+      const folder = folders.find((item) => item.id === folderId)
+      if (folder) setChats((rows) => rows.map((chat) => chat.id === id ? { ...chat, folders: [...new Set([...chat.folders, folder.name])] } : chat))
+      setFolderMenu(false)
+      setMenu(null)
+    })
   }
-  const handlePendingReply = (event) => {
+
+  async function createFolder() {
+    const value = newFolder.trim().replace(/\s+/g, ' ').slice(0, 60)
+    const id = menu?.id || selectedId
+    if (!value || !id) return
+    await writeAction(async () => {
+      const result = await createAdminSupportFolder(value)
+      if (!result.folder?.id) throw new Error('The new folder was not returned by the server.')
+      setFolders((current) => [...current, result.folder])
+      await addChatToSupportFolder(result.folder.id, id)
+      setChats((rows) => rows.map((chat) => chat.id === id ? { ...chat, folders: [...new Set([...chat.folders, result.folder.name])] } : chat))
+      setFolderMenu(false)
+      setMenu(null)
+      setNewFolder('')
+    })
+  }
+
+  async function loadOlderMessages() {
+    const id = selectedId
+    const cursor = threadCursor
+    if (!id || !threadHasMore || !cursor || olderLoading) return
+    setOlderLoading(true)
+    try {
+      const result = await requestSupportChat(`/conversations/${encodeURIComponent(id)}/messages?before=${encodeURIComponent(cursor)}`)
+      if (selectedIdRef.current !== id) return
+      const older = (Array.isArray(result.messages) ? result.messages : []).map(normalizeMessage)
+      setThreadMessages((current) => {
+        const known = new Set(current.map((item) => item.id))
+        return [...older.filter((item) => !known.has(item.id)), ...current]
+      })
+      setThreadHasMore(Boolean(result.has_more))
+      setThreadCursor(result.next_before || null)
+    } catch (error) {
+      if (selectedIdRef.current === id) setNotice(error?.message || 'Unable to load older messages.')
+    } finally {
+      setOlderLoading(false)
+    }
+  }
+
+  const handleReply = async (event) => {
     event.preventDefault()
-    pendingAction()
+    const id = selectedId
+    const text = replyDraft.trim()
+    if (!id || !text || text.length > 2000) return
+    await writeAction(async () => {
+      const result = await sendAdminSupportMessage(id, text)
+      if (result.message?.id && selectedIdRef.current === id) {
+        setThreadMessages((rows) => [...rows, normalizeMessage(result.message)])
+        setThreadConversationId(id)
+      }
+      setReplyDraft('')
+      setRefreshCount((count) => count + 1)
+    })
   }
+
   const openSearchPerson = (person) => {
-    setNotice(`Found ${person.name || person.username || 'Shadow user'} (${person.id}). Starting a new support chat will be available when the secure create-conversation API is connected.`)
+    setStartPerson(person)
+    setStartDraft('')
+  }
+
+  const handleStartChat = async (event) => {
+    event.preventDefault()
+    const targetId = startPerson?.id
+    const text = startDraft.trim()
+    if (!targetId || !text || text.length > 2000) return
+    await writeAction(async () => {
+      const result = await startAdminSupportChat(targetId, text)
+      if (!result.conversation_id) throw new Error('Conversation was not returned by the server.')
+      setStartPerson(null)
+      setStartDraft('')
+      setSearch('')
+      setFilter('All')
+      setSelectedId(result.conversation_id)
+      setRefreshCount((count) => count + 1)
+    })
   }
   return <AdminLayout title="Chat Center" subtitle="Shadow Admin · Reader & Author conversations">
     <style>{styles}</style>
     <main className="scc" onClick={() => menu && setMenu(null)}>
-      <div className="scc-demo">Live Admin Chat inbox · read-only until the secure write APIs are connected. Only support conversations are shown, not private Reader/Author messages.</div>
+      <div className="scc-demo">Live Shadow Admin Support · separate from private Reader/Author chats. Deleting conversations and automatic assignment are not enabled.</div>
       <div className="scc-grid">
         <nav className="scc-nav" aria-label="Chat navigation">
           <div className="scc-logo"><Brand /></div>
           <button className="scc-navbtn active" type="button"><Icon name="inbox" /> All Inbox <span className="scc-count">{inbox.length}</span></button>
           <button className="scc-navbtn" type="button" onClick={() => navigate('/admin-chat/archived')}><Icon name="archive" /> Archived Chats</button>
-          <button className="scc-navbtn" type="button" disabled title="Folders own page will be created later"><Icon name="folder" /> Folders</button>
+          <button className="scc-navbtn" type="button" disabled title="Folders page will be connected in the next step"><Icon name="folder" /> Folders</button>
           <div className="scc-navfoot"><Icon name="shield" size={14} /> Deleting chats will require server-side passkey verification once the backend is connected.</div>
         </nav>
         <section className="scc-list" aria-label="Inbox conversation list">
@@ -418,25 +567,26 @@ export default function AdminChatCenterPage() {
         <section className="scc-chat" aria-label="Conversation thread">
           {active ? <>
             <header className="scc-chathead"><div className="scc-person"><span className="scc-avatar">{active.avatar_url ? <img src={active.avatar_url} alt="" loading="lazy" /> : active.is_author ? 'AU' : 'RD'}</span><div><b>{active.name}</b><small>{active.flag} {active.country} · ID {active.user_id || active.id}</small></div></div><span className="scc-status">{active.unread>0?'Unseen':'Seen'}</span></header>
-            <div className="scc-tools"><button className="scc-btn" type="button" onClick={pendingAction}><Icon name="transfer"/> Transfer</button><button className="scc-btn" type="button" onClick={pendingAction}><Icon name="user"/> Auto Assign</button><button className="scc-btn" type="button" onClick={()=>changeChat(active.id,c=>({...c,unread:0}))}><Icon name="check"/> Mark as Read</button></div>
-            <div className="scc-messages">{(threadLoading || (selectedId && threadConversationId !== selectedId && !threadError)) && <div className="scc-empty">Loading latest 20 messages…</div>}{threadError && <div className="scc-searchalert" role="alert">{threadError}</div>}{!threadLoading && !threadError && threadConversationId === selectedId && shownMessages.length === 0 && <div className="scc-empty">No support messages yet.</div>}{threadHasMore && <div className="scc-searchhelp">Older messages can be loaded when history pagination is connected.</div>}{shownMessages.map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent"><Brand compact /><span>Support ID {msg.agent}</span></span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}>{msg.text}</div><span className="scc-time">{msg.time}</span></div>)}</div>
-            <form className="scc-compose" onSubmit={handlePendingReply}><input placeholder="Replies available after secure send API is connected" aria-label="Message reply (not connected)" disabled /><button className="scc-btn gold" type="submit" disabled><Icon name="send"/> Send</button></form>
+            <div className="scc-tools"><button className="scc-btn" type="button" disabled title="Staff directory will be connected later"><Icon name="transfer"/> Transfer</button><button className="scc-btn" type="button" disabled title="Automatic assignment is not enabled"><Icon name="user"/> Auto Assign</button><button className="scc-btn" type="button" disabled={writeBusy || active.unread===0} onClick={()=>updateChat(active.id,'read')}><Icon name="check"/> Mark as Read</button></div>
+            <div className="scc-messages">{(threadLoading || (selectedId && threadConversationId !== selectedId && !threadError)) && <div className="scc-empty">Loading latest 20 messages…</div>}{threadError && <div className="scc-searchalert" role="alert">{threadError}</div>}{!threadLoading && !threadError && threadConversationId === selectedId && shownMessages.length === 0 && <div className="scc-empty">No support messages yet.</div>}{threadHasMore && <button className="scc-retry" type="button" disabled={olderLoading || !threadCursor} onClick={loadOlderMessages}>{olderLoading?'Loading…':'Load 20 older messages'}</button>}{shownMessages.map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent"><Brand compact /><span>Support ID {msg.agent}</span></span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}>{msg.text}</div><span className="scc-time">{msg.time}</span></div>)}</div>
+            <form className="scc-compose" onSubmit={handleReply}><input placeholder="Write a support reply…" aria-label="Write support message" maxLength={2000} value={replyDraft} onChange={(event)=>setReplyDraft(event.target.value)} disabled={writeBusy || threadLoading} /><button className="scc-btn gold" type="submit" disabled={writeBusy || threadLoading || !replyDraft.trim()}><Icon name="send"/> {writeBusy?'Sending…':'Send'}</button></form>
           </> : <div className="scc-empty">Choose a conversation to view its messages.</div>}
         </section>
         <aside className="scc-details" aria-label="Conversation Details"><h3>Conversation Details</h3>
           {active ? <>
-            <section className="scc-panel"><h4><Icon name="user"/> Assigned Staff</h4><div className="scc-priority">{['Manual','Auto'].map(v=><button key={v} type="button" className={active.assignedMode === v.toLowerCase()?'active':''} onClick={pendingAction}>{v}</button>)}</div><div className="scc-inline" style={{marginTop:9}}><select aria-label="Assigned agent" value={active.assigned} onChange={e=>changeChat(active.id,c=>({...c,assigned:e.target.value}))}><option value="">Unassigned</option>{active.assigned && !STAFF.includes(active.assigned) && <option value={active.assigned}>Agent ID {active.assigned}</option>}{STAFF.map(s=><option key={s} value={s}>Agent ID {s}</option>)}</select></div><small>Read-only: staff assignment requires secure Admin Chat API.</small></section>
-            <section className="scc-panel"><h4><Icon name="user"/> Country</h4><select aria-label="Country" value={active.country} onChange={e=>changeChat(active.id,c=>({...c,country:e.target.value,flag:COUNTRIES.find(v=>v[0]===e.target.value)?.[1]||'🌐'}))}>{active.country === 'Unknown' && <option value="Unknown">🌐 Unknown</option>}{COUNTRIES.map(([name,flag])=><option key={name} value={name}>{flag} {name}</option>)}</select><small>Detected country shown; corrections require secure Admin Chat API.</small></section>
-            <section className="scc-panel"><h4><Icon name="folder"/> Folders</h4><div className="scc-tags" style={{marginBottom:8}}>{active.folders.map(f=><span key={f} className="scc-tag gold">{f}</span>)}</div><select aria-label="Add conversation to folder" value="" onChange={e=>addFolder(e.target.value,active.id)}><option value="">Add to folder...</option>{folders.map(f=><option key={f} value={f}>{f}</option>)}</select></section>
-            <section className="scc-panel"><h4><Icon name="shield"/> Priority</h4><div className="scc-priority">{['Normal','High','Urgent'].map(p=><button key={p} type="button" className={active.priority===p?'active':''} onClick={()=>changeChat(active.id,c=>({...c,priority:p}))}>{p}</button>)}</div></section>
-            <section className="scc-panel"><h4><Icon name="check"/> Internal Notes</h4><textarea aria-label="Internal notes (read-only)" value={active.note} readOnly placeholder="Private notes will load when details API is connected"/><small>Internal notes are not editable in this read-only stage.</small></section>
+            <section className="scc-panel"><h4><Icon name="user"/> Assigned Staff</h4><div className="scc-priority">{['Manual','Auto'].map(v=><button key={v} type="button" disabled className={active.assignedMode === v.toLowerCase()?'active':''}>{v}</button>)}</div><div className="scc-inline" style={{marginTop:9}}><select aria-label="Assigned agent" value={active.assigned} disabled><option value="">Unassigned</option>{active.assigned && <option value={active.assigned}>Agent ID {active.assigned}</option>}</select></div><small>Staff transfer will be enabled after the verified staff directory is connected.</small></section>
+            <section className="scc-panel"><h4><Icon name="user"/> Country</h4><select aria-label="Country" value={active.country} disabled={writeBusy} onChange={e=>updateChat(active.id,'country',Object.keys(COUNTRY_CODES).find(code=>COUNTRY_CODES[code][0]===e.target.value)||'')}>{active.country === 'Unknown' && <option value="Unknown">🌐 Unknown</option>}{COUNTRIES.map(([name,flag])=><option key={name} value={name}>{flag} {name}</option>)}</select><small>Country correction is saved to the support conversation.</small></section>
+            <section className="scc-panel"><h4><Icon name="folder"/> Folders</h4><div className="scc-tags" style={{marginBottom:8}}>{active.folders.map(f=><span key={f} className="scc-tag gold">{f}</span>)}</div><button className="scc-btn" type="button" disabled={writeBusy} onClick={()=>{setMenu({id:active.id,x:Math.max(12,window.innerWidth-245),y:Math.max(12,window.innerHeight-340)});openFolderOptions()}}>Add to folder</button></section>
+            <section className="scc-panel"><h4><Icon name="shield"/> Priority</h4><div className="scc-priority">{['Normal','High','Urgent'].map(p=><button key={p} type="button" disabled={writeBusy} className={active.priority===p?'active':''} onClick={()=>updateChat(active.id,'priority',p.toLowerCase())}>{p}</button>)}</div></section>
+            <section className="scc-panel"><h4><Icon name="check"/> Internal Notes</h4><textarea aria-label="Internal notes (read-only)" value={active.note} readOnly placeholder="Private notes will load when details API is connected"/><small>Internal notes are read-only until the details endpoint is connected.</small></section>
             <section className="scc-panel"><h4><Icon name="clock"/> Activity</h4><small>Last message: {shortTime(active.updatedAt)}<br/>Assigned to Agent ID {active.assigned||'—'}.</small></section>
           </> : <div className="scc-empty">No chat selected.</div>}
         </aside>
       </div>
       {menu && <div className="scc-menu" style={{left:menu.x,top:menu.y}} role="menu" onClick={e=>e.stopPropagation()}>
-        {folderMenu ? <><button type="button" onClick={()=>setFolderMenu(false)}>← Back</button>{folders.map(f=><button key={f} type="button" onClick={()=>addFolder(f)}>{f}</button>)}<input style={{width:'100%',padding:8,fontSize:12}} placeholder="New folder name" value={newFolder} onChange={e=>setNewFolder(e.target.value)}/><button type="button" onClick={createFolder}>+ Create folder</button></> : <><button type="button" onClick={()=>menuAction('read')}>✓ Mark as read</button><button type="button" onClick={()=>menuAction('archive')}>▣ Archive chat</button><button type="button" onClick={()=>setFolderMenu(true)}>▱ Add to folder ›</button><button className="danger" type="button" onClick={()=>menuAction('delete')}>Delete · Passkey required</button></>}
+        {folderMenu ? <><button type="button" onClick={()=>setFolderMenu(false)}>← Back</button>{folderLoading && <div className="scc-empty">Loading folders…</div>}{!folderLoading && folders.map(f=><button key={f.id} type="button" disabled={writeBusy} onClick={()=>addFolder(f.id)}>{f.name}</button>)}<input style={{width:'100%',padding:8,fontSize:12}} placeholder="New folder name" maxLength={60} value={newFolder} onChange={e=>setNewFolder(e.target.value)}/><button type="button" disabled={writeBusy || !newFolder.trim()} onClick={createFolder}>+ Create folder</button></> : <><button type="button" disabled={writeBusy} onClick={()=>menuAction('read')}>✓ Mark as read</button><button type="button" disabled={writeBusy} onClick={()=>menuAction('archive')}>▣ Archive chat</button><button type="button" disabled={writeBusy} onClick={openFolderOptions}>▱ Add to folder ›</button><button className="danger" type="button" onClick={()=>menuAction('delete')}>Delete · Passkey required</button></>}
       </div>}
+      {startPerson && <div className="scc-dialogback" onMouseDown={()=>!writeBusy && setStartPerson(null)}><section role="dialog" aria-modal="true" aria-labelledby="scc-start-title" className="scc-dialog" onMouseDown={e=>e.stopPropagation()}><h3 id="scc-start-title">Start Support Chat</h3><p className="scc-startrecipient">To: {startPerson.name || startPerson.username || startPerson.id}</p><form className="scc-startform" onSubmit={handleStartChat}><textarea autoFocus maxLength={2000} aria-label="First message to reader" value={startDraft} onChange={e=>setStartDraft(e.target.value)} placeholder="Write the first support message…" disabled={writeBusy}/><div className="scc-startactions"><button className="scc-btn" type="button" onClick={()=>setStartPerson(null)} disabled={writeBusy}>Cancel</button><button className="scc-btn gold" type="submit" disabled={writeBusy || !startDraft.trim()}>{writeBusy?'Sending…':'Start & Send'}</button></div></form></section></div>}
       {notice && <div className="scc-dialogback" onMouseDown={()=>setNotice('')}><section role="alertdialog" aria-modal="true" className="scc-dialog" onMouseDown={e=>e.stopPropagation()}><h3>Admin Chat Center</h3><p>{notice}</p><button className="scc-btn gold" type="button" onClick={()=>setNotice('')}>OK</button></section></div>}
       {dialog && <div className="scc-dialogback" onMouseDown={()=>setDialog(false)}><section role="alertdialog" aria-modal="true" className="scc-dialog" onMouseDown={e=>e.stopPropagation()}><h3>Delete Conversation</h3><p>Deletion requires a server-verified Admin Passkey and audit log. Delete is not connected yet; no chat will be deleted.</p><button className="scc-btn gold" type="button" onClick={()=>setDialog(false)}>Close</button></section></div>}
     </main>
