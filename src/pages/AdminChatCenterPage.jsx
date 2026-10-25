@@ -361,6 +361,66 @@ export default function AdminChatCenterPage() {
   }, [selectedId])
 
   useEffect(() => {
+    if (writeBusy) return undefined
+    const controller = new AbortController()
+    let checking = false
+    let lastChecked = Date.now()
+
+    const checkNewMessages = async () => {
+      if (controller.signal.aborted || checking || document.hidden || Date.now() - lastChecked < 12000) return
+      lastChecked = Date.now()
+      checking = true
+      try {
+        const remoteFilter = ({ All: 'all', Unread: 'unread', Seen: 'seen', Assigned: 'assigned' })[filter] || 'all'
+        const result = await getAdminSupportInbox(remoteFilter, { page: inboxPage, signal: controller.signal })
+        if (controller.signal.aborted) return
+        const updated = (Array.isArray(result.conversations) ? result.conversations : [])
+          .slice(0, RECENT_CHAT_LIMIT).map(normalizeConversation)
+        setChats(current => {
+          const byId = new Map(current.map(chat => [chat.id, chat]))
+          return updated.map(chat => {
+            const previous = byId.get(chat.id)
+            return previous ? { ...chat, folders: previous.folders, note: previous.note } : chat
+          })
+        })
+        setInboxHasMore(Boolean(result.has_more))
+        setInboxError('')
+
+        if (!selectedId || !updated.some(chat => chat.id === selectedId)) return
+        const threadResult = await requestSupportChat(`/conversations/${encodeURIComponent(selectedId)}/messages`, controller.signal)
+        if (controller.signal.aborted || selectedIdRef.current !== selectedId) return
+        const incoming = (Array.isArray(threadResult.messages) ? threadResult.messages : [])
+          .slice(-20).map(normalizeMessage)
+        setThreadMessages(current => {
+          const existing = new Set(current.map(message => message.id))
+          const additions = incoming.filter(message => !existing.has(message.id))
+          return additions.length ? [...current, ...additions] : current
+        })
+        setThreadConversationId(selectedId)
+        setThreadError('')
+      } catch (error) {
+        if (!controller.signal.aborted && (error?.status === 401 || error?.status === 403)) {
+          setInboxError(error.message || 'Support chat access requires a valid Admin session.')
+        }
+      } finally {
+        checking = false
+      }
+    }
+
+    const onFocus = () => { void checkNewMessages() }
+    const onVisibility = () => { if (!document.hidden) void checkNewMessages() }
+    const interval = window.setInterval(() => { void checkNewMessages() }, 60000)
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      controller.abort()
+      window.clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [filter, inboxPage, selectedId, writeBusy])
+
+  useEffect(() => {
     const controller = new AbortController()
     let current = true
     const query = search.trim()
