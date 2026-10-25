@@ -99,6 +99,24 @@ function safePercent(value) {
   return Number.isFinite(amount) ? Math.max(0, Math.min(100, amount)) : 0
 }
 
+function formatDiamonds(value) {
+  const amount = Number(value)
+  return value === null || value === undefined || !Number.isSafeInteger(amount) || amount < 0
+    ? '—'
+    : `${amount.toLocaleString('en-US')} 💎`
+}
+
+function diamondBilling(campaign) {
+  return campaign?.funding_type === 'diamonds' || campaign?.funding_type === 'unfunded'
+}
+
+function campaignAmount(campaign, field) {
+  if (!campaign) return '—'
+  return diamondBilling(campaign)
+    ? formatDiamonds(campaign[`${field}_diamonds`])
+    : formatMoney(campaign[`${field}_usd`])
+}
+
 export default function BoostCampaignReview() {
   const [kind, setKind] = useState('post')
   const [spendingScope, setSpendingScope] = useState('all')
@@ -255,9 +273,11 @@ export default function BoostCampaignReview() {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const campaign = detail?.campaign || selected
   const canReview = detail?.campaign?.status === 'pending_review' && detail?.campaign?.review_status === 'pending'
-  const rejectBlocked = ['funded_usd', 'spent_usd', 'refunded_usd'].some((key) => Number(detail?.campaign?.[key] || 0) > 0)
+  const rejectBlocked = ['funded_usd', 'spent_usd', 'refunded_usd', 'funded_diamonds', 'spent_diamonds', 'refunded_diamonds'].some((key) => Number(detail?.campaign?.[key] || 0) > 0)
   const performance = detail?.performance || null
-  const spending = summary?.spending_available ? summary.spending?.[spendingScope] : null
+  const separatedTotals = summary?.spending_currency_separated === true
+  const spendingUsd = separatedTotals ? summary?.spending_usd?.[spendingScope] : null
+  const spendingDiamonds = separatedTotals ? summary?.spending_diamonds?.[spendingScope] : null
 
   return <section aria-label="Author Ads campaign review" style={{ marginTop: 22 }}>
     <header className="bad-heading-row">
@@ -273,24 +293,33 @@ export default function BoostCampaignReview() {
     <div className="bad-panel bad-panel-space" aria-label="Author campaign spending">
       <div className="bad-panel-header">
         <h3>Campaign Spending · All Time</h3>
-        <p>Amounts from recorded campaign budgets. Spent is money used for ad delivery, not the planned budget.</p>
+        <p>Diamonds are charged for unique reach. USD is shown separately for legacy campaigns.</p>
       </div>
       <nav className="bad-secondary-tabs" style={{ flexWrap: 'wrap', gap: 16 }} role="tablist" aria-label="Spending category">
         <button type="button" role="tab" aria-selected={spendingScope === 'all'} onClick={() => setSpendingScope('all')}>All</button>
         <button type="button" role="tab" aria-selected={spendingScope === 'post'} onClick={() => setSpendingScope('post')}>Boost Post</button>
         <button type="button" role="tab" aria-selected={spendingScope === 'book'} onClick={() => setSpendingScope('book')}>Boost Book</button>
       </nav>
-      {summary && summary.spending_available === false && <div className="bad-alert" role="alert">Spending totals unavailable. Check the Supabase SQL and Backend deployment. Campaign review remains available.</div>}
       {!summary && !summaryError && <p className="bad-loading" role="status">Loading spending totals...</p>}
-      <div className="bad-stats">
-        <DisplayCard label="Total Spent" value={formatMoney(spending?.spent_usd)} note="Actual campaign budget used" monetary />
-        <DisplayCard label="Total Funded" value={formatMoney(spending?.funded_usd)} note="Recorded campaign funding" monetary />
-        <DisplayCard label="Total Budget" value={formatMoney(spending?.budget_usd)} note="Planned budget, not money spent" monetary />
-        <DisplayCard label="Total Refunded" value={formatMoney(spending?.refunded_usd)} note="Recorded refunded amount" monetary />
-      </div>
-      <p className="bad-footnote" style={{ textAlign: 'left', margin: 0 }}>
-        {formatNumber(spending?.campaigns_with_spend)} campaigns with spending · Remaining funded balance: {formatMoney(spending?.remaining_funds_usd)}. These totals cover all campaign statuses, regardless of table search or pagination.
-      </p>
+      {summary && !separatedTotals && <div className="bad-alert" role="status">Separate Diamond and USD totals are not available from the Backend yet. Legacy totals are hidden to prevent incorrect accounting. Individual campaign balances below are available.</div>}
+      {separatedTotals && <>
+        <h4 style={{ margin: '14px 0 10px' }}>Diamond Boosts 💎</h4>
+        <div className="bad-stats">
+          <DisplayCard label="Spent" value={formatDiamonds(spendingDiamonds?.spent_diamonds)} note="Verified unique reach" monetary />
+          <DisplayCard label="Funded" value={formatDiamonds(spendingDiamonds?.funded_diamonds)} note="Diamonds reserved" monetary />
+          <DisplayCard label="Budget" value={formatDiamonds(spendingDiamonds?.budget_diamonds)} note="Planned Diamond budgets" monetary />
+          <DisplayCard label="Refunded" value={formatDiamonds(spendingDiamonds?.refunded_diamonds)} note="Returned to Reader Wallet" monetary />
+        </div>
+        <p className="bad-footnote" style={{ textAlign: 'left', margin: 0 }}>Remaining reserved: {formatDiamonds(spendingDiamonds?.remaining_diamonds)}</p>
+        <h4 style={{ margin: '18px 0 10px' }}>Legacy USD Campaigns</h4>
+        <div className="bad-stats">
+          <DisplayCard label="Spent" value={formatMoney(spendingUsd?.spent_usd)} note="Verified USD spend" monetary />
+          <DisplayCard label="Funded" value={formatMoney(spendingUsd?.funded_usd)} note="Verified USD funding" monetary />
+          <DisplayCard label="Budget" value={formatMoney(spendingUsd?.budget_usd)} note="USD budgets only" monetary />
+          <DisplayCard label="Refunded" value={formatMoney(spendingUsd?.refunded_usd)} note="USD refunds" monetary />
+        </div>
+        <p className="bad-footnote" style={{ textAlign: 'left', margin: 0 }}>Remaining USD funds: {formatMoney(spendingUsd?.remaining_funds_usd)}. Totals are all-time and independent of table pagination.</p>
+      </>}
     </div>
     <div className="bad-stats">
       <DisplayCard label="All Campaigns" value={formatNumber(summary?.total)} note="All submitted and draft campaigns" />
@@ -311,8 +340,8 @@ export default function BoostCampaignReview() {
           <select id="author-ad-review-status" value={status} onChange={(event) => changeStatus(event.target.value)} className="bad-refresh">
             {STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
-          <label htmlFor="author-ad-review-sort" style={{ fontSize: 12 }}>Sort by spent</label>
-          <select id="author-ad-review-sort" value={sort} onChange={(event) => changeSort(event.target.value)} className="bad-refresh" aria-label="Sort campaigns by money spent">
+          <label htmlFor="author-ad-review-sort" style={{ fontSize: 12 }}>Sort (legacy USD spend)</label>
+          <select id="author-ad-review-sort" value={sort} onChange={(event) => changeSort(event.target.value)} className="bad-refresh" aria-label="Sort campaigns by legacy USD spend">
             <option value="newest">Newest</option>
             <option value="top">Top → Low</option>
             <option value="low">Low → Top</option>
@@ -337,10 +366,10 @@ export default function BoostCampaignReview() {
               </div></div></td>
               <td>{item.goal || '—'}</td>
               <td>{item.audience_mode || '—'}</td>
-              <td>{formatMoney(item.budget_usd)}</td>
-              <td>{formatMoney(item.spent_usd)}</td>
+              <td>{campaignAmount(item, 'budget')}</td>
+              <td>{campaignAmount(item, 'spent')}</td>
               <td><strong>{formatPercent(item.budget_used_percent)}</strong><div className="bad-progress"><div style={{ width: `${safePercent(item.budget_used_percent)}%` }} /></div></td>
-              <td><span className="bad-status" data-status={item.status}>{item.status === 'approved' && item.payment_required ? 'Awaiting payment' : String(item.status || '—').replace(/_/g, ' ')}</span></td>
+              <td><span className="bad-status" data-status={item.status}>{item.status === 'approved' && item.funding_type === 'unfunded' ? 'Approved · Start to fund 💎' : item.status === 'approved' && item.payment_required ? 'Awaiting payment' : String(item.status || '—').replace(/_/g, ' ')}</span></td>
               <td><button type="button" className="bad-refresh" onClick={() => openDetails(item)}>{item.status === 'pending_review' ? 'Review' : 'Details'}</button></td>
             </tr>)}
           </tbody>
@@ -372,11 +401,15 @@ export default function BoostCampaignReview() {
           <InfoLine label="Audience">{campaign.audience_mode}</InfoLine>
           <InfoLine label="Placement">{(campaign.placements || []).join(', ')}</InfoLine>
           <InfoLine label="Duration">{`${campaign.duration_days || 0} days`}</InfoLine>
-          <InfoLine label="Budget">{formatMoney(campaign.budget_usd)}</InfoLine>
-          <InfoLine label="Funded / Spent">{`${formatMoney(campaign.funded_usd)} / ${formatMoney(campaign.spent_usd)}`}</InfoLine>
+          <InfoLine label="Payment type">{diamondBilling(campaign) ? 'Diamonds 💎' : 'Legacy USD'}</InfoLine>
+          <InfoLine label="Budget">{campaignAmount(campaign, 'budget')}</InfoLine>
+          <InfoLine label="Funded / Spent">{`${campaignAmount(campaign, 'funded')} / ${campaignAmount(campaign, 'spent')}`}</InfoLine>
+          <InfoLine label="Refunded">{campaignAmount(campaign, 'refunded')}</InfoLine>
+          <InfoLine label="Remaining funded">{diamondBilling(campaign) ? formatDiamonds(campaign.remaining_diamonds) : formatMoney(Math.max(0, Number(campaign.funded_usd || 0) - Number(campaign.spent_usd || 0) - Number(campaign.refunded_usd || 0)))}</InfoLine>
           <InfoLine label="Budget used">{formatPercent(campaign.budget_used_percent)}</InfoLine>
           <InfoLine label="Submitted">{formatDate(campaign.submitted_at)}</InfoLine>
           <InfoLine label="Status">{campaign.status}</InfoLine>
+          {campaign.status === 'approved' && campaign.funding_type === 'unfunded' && <p style={{ fontSize: 12, opacity: .8 }}>This approved campaign charges Diamonds from the Reader Wallet when the author starts it.</p>}
           {campaign.review_reason && <InfoLine label="Review note">{campaign.review_reason}</InfoLine>}
           {performance && <>
             <h4 style={{ margin: '23px 0 7px' }}>Recorded campaign performance</h4>
