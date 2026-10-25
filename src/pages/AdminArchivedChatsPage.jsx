@@ -277,7 +277,7 @@ export default function AdminArchivedChatsPage() {
             <div className="sac-brand">Shadow <small>Admin Chat Center</small></div>
             <button type="button" className="sac-navbtn" onClick={() => navigate('/admin-chat')}><Icon name="inbox" /> All Inbox</button>
             <button type="button" className="sac-navbtn active" aria-current="page"><Icon name="archive" /> Archived <span className="sac-count">{records.length}</span></button>
-            <button type="button" className="sac-navbtn" disabled title="Folders page will be connected after its route is registered"><Icon name="folder" /> Folders</button>
+            <button type="button" className="sac-navbtn" onClick={() => navigate('/admin-chat/folders')}><Icon name="folder" /> Folders</button>
             <div className="sac-retention"><strong><Icon name="clock" size={14} /> Archive Retention</strong>Automatic cleanup is not enabled here. Archive does not delete conversation messages.</div>
           </nav>
 
