@@ -68,10 +68,13 @@ function normalizeConversation(value) {
 function normalizeMessage(value) {
   const attachments = Array.isArray(value.attachments) ? value.attachments : []
   const hasText = typeof value.message_text === 'string' && value.message_text.trim()
+  const adminName = typeof value.sender_admin_name === 'string' ? value.sender_admin_name.trim() : ''
+  const adminRole = typeof value.sender_admin_role === 'string' ? value.sender_admin_role.toLowerCase() : ''
   return {
     id: value.id,
     side: value.sender_kind === 'admin' ? 'support' : 'reader',
-    agent: value.public_support_id || 'S-00',
+    agentName: adminName || 'Shadow Admin',
+    agentRole: adminRole === 'owner' ? 'Owner' : adminRole === 'staff' ? 'Staff' : adminRole === 'admin' ? 'Admin' : '',
     text: hasText || (attachments.length ? `${attachments.length} attachment(s)` : ''),
     time: value.created_at ? shortTime(value.created_at) : '—',
     seen: Boolean(value.seen_at),
@@ -506,8 +509,15 @@ export default function AdminChatCenterPage() {
     await writeAction(async () => {
       const result = await sendAdminSupportMessage(id, text)
       if (result.message?.id && selectedIdRef.current === id) {
-        setThreadMessages((rows) => [...rows, normalizeMessage(result.message)])
+        setThreadMessages((rows) => rows.some((row) => row.id === result.message.id) ? rows : [...rows, normalizeMessage(result.message)])
         setThreadConversationId(id)
+        void requestSupportChat(`/conversations/${encodeURIComponent(id)}/messages`)
+          .then((latest) => {
+            if (selectedIdRef.current !== id) return
+            const saved = (Array.isArray(latest.messages) ? latest.messages : []).find((message) => message.id === result.message.id)
+            if (saved) setThreadMessages((rows) => rows.map((row) => row.id === saved.id ? normalizeMessage(saved) : row))
+          })
+          .catch(() => {})
       }
       setReplyDraft('')
       setInboxPage(1)
@@ -589,7 +599,7 @@ export default function AdminChatCenterPage() {
           {active ? <>
             <header className="scc-chathead"><div className="scc-person"><span className="scc-avatar">{active.avatar_url ? <img src={active.avatar_url} alt="" loading="lazy" /> : active.is_author ? 'AU' : 'RD'}</span><div><b>{active.name}</b><small>{active.flag} {active.country} · ID {active.user_id || active.id}</small></div></div><span className="scc-status">{active.unread>0?'Unseen':'Seen'}</span></header>
             <div className="scc-tools"><button className="scc-btn" type="button" disabled title="Staff directory will be connected later"><Icon name="transfer"/> Transfer</button><button className="scc-btn" type="button" disabled title="Automatic assignment is not enabled"><Icon name="user"/> Auto Assign</button><button className="scc-btn" type="button" disabled={writeBusy || active.unread===0} onClick={()=>updateChat(active.id,'read')}><Icon name="check"/> Mark as Read</button></div>
-            <div className="scc-messages">{(threadLoading || (selectedId && threadConversationId !== selectedId && !threadError)) && <div className="scc-empty">Loading latest 20 messages…</div>}{threadError && <div className="scc-searchalert" role="alert">{threadError}</div>}{!threadLoading && !threadError && threadConversationId === selectedId && shownMessages.length === 0 && <div className="scc-empty">No support messages yet.</div>}{threadHasMore && <button className="scc-retry" type="button" disabled={olderLoading || !threadCursor} onClick={loadOlderMessages}>{olderLoading?'Loading…':'Load 20 older messages'}</button>}{shownMessages.map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent"><Brand compact /><span>Support ID {msg.agent}</span></span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}>{msg.text}</div><span className="scc-time">{msg.time}</span></div>)}</div>
+            <div className="scc-messages">{(threadLoading || (selectedId && threadConversationId !== selectedId && !threadError)) && <div className="scc-empty">Loading latest 20 messages…</div>}{threadError && <div className="scc-searchalert" role="alert">{threadError}</div>}{!threadLoading && !threadError && threadConversationId === selectedId && shownMessages.length === 0 && <div className="scc-empty">No support messages yet.</div>}{threadHasMore && <button className="scc-retry" type="button" disabled={olderLoading || !threadCursor} onClick={loadOlderMessages}>{olderLoading?'Loading…':'Load 20 older messages'}</button>}{shownMessages.map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent"><Brand compact /><span>{msg.agentName}{msg.agentRole ? ` · ${msg.agentRole}` : ''}</span></span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}>{msg.text}</div><span className="scc-time">{msg.time}</span></div>)}</div>
             <form className="scc-compose" onSubmit={handleReply}><input placeholder="Write a support reply…" aria-label="Write support message" maxLength={2000} value={replyDraft} onChange={(event)=>setReplyDraft(event.target.value)} disabled={writeBusy || threadLoading} /><button className="scc-btn gold" type="submit" disabled={writeBusy || threadLoading || !replyDraft.trim()}><Icon name="send"/> {writeBusy?'Sending…':'Send'}</button></form>
           </> : <div className="scc-empty">Choose a conversation to view its messages.</div>}
         </section>
