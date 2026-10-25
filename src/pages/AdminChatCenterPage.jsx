@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 
 const INITIAL_CHATS = [
@@ -34,6 +35,8 @@ const INITIAL_CHATS = [
   },
 ]
 
+const RECENT_CHAT_LIMIT = 10
+const SHADOW_ADMIN_LOGO = '/assets/Icons/Logo%20Shadow.jpg'
 const STAFF = ['A03', 'A07', 'A09', 'A12']
 const COUNTRIES = [
   ['Cambodia', '🇰🇭'], ['Thailand', '🇹🇭'], ['Philippines', '🇵🇭'], ['Indonesia', '🇮🇩'],
@@ -57,6 +60,48 @@ const svgPaths = {
 function Icon({ name, size = 17 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={svgPaths[name] || svgPaths.inbox} /></svg>
 }
+function Brand({ compact = false }) {
+  return (
+    <span className={`scc-brand ${compact ? 'compact' : ''}`}>
+      <img className="scc-brand-avatar" src={SHADOW_ADMIN_LOGO} alt="Shadow Admin" />
+      <span className="scc-brand-copy">
+        <span className="scc-brand-name">
+          Shadow Admin
+          <svg className="scc-verified" viewBox="0 0 24 24" aria-label="Verified" role="img">
+            <circle cx="12" cy="12" r="11" fill="#2085F4" />
+            <path d="m6.8 12.1 3.4 3.4 7-7" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        {!compact && <small>Admin Chat Center</small>}
+      </span>
+    </span>
+  )
+}
+
+function matchesChatSearch(chat, rawSearch) {
+  const query = String(rawSearch || '').trim().toLowerCase()
+  if (!query) return true
+  let parts = [query.replace(/^@+/, '')]
+  if (/^(https?:\/\/|www\.)/.test(query)) {
+    try {
+      const url = new URL(query.startsWith('www.') ? `https://${query}` : query)
+      const identifiers = ['id', 'uid', 'user_id', 'username', 'user']
+        .map((key) => url.searchParams.get(key))
+        .filter(Boolean)
+      const lastSegment = url.pathname.split('/').filter(Boolean).pop()
+      if (!identifiers.length && lastSegment) identifiers.push(lastSegment)
+      parts = identifiers.length ? identifiers : [query]
+    } catch {}
+  }
+  const fields = [
+    chat.name, chat.displayName, chat.username, chat.user_name,
+    chat.id, chat.user_id, chat.accountId, chat.profileUrl,
+    chat.accountLink, chat.accountUrl, chat.country,
+    chat.assigned, chat.preview, ...(chat.folders || []),
+  ].filter(Boolean).map((item) => String(item).toLowerCase())
+  return parts.some((part) => fields.some((field) => field.includes(part.replace(/^@+/, ''))))
+}
+
 function shortTime(value) {
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -67,10 +112,21 @@ const styles = `
   .scc * { box-sizing:border-box; }
   .scc button,.scc input,.scc select,.scc textarea { font:inherit; }
   .scc-demo { margin-bottom:12px; padding:10px 13px; border:1px solid #f1dba5; border-radius:11px; background:#fffaf0; color:#805a14; font-size:12px; line-height:1.5; }
-  .scc-grid { display:grid; grid-template-columns:150px minmax(235px,300px) minmax(310px,1fr) minmax(215px,260px); min-height:700px; height:calc(100vh - 170px); max-height:980px; overflow:hidden; background:#fff; border:1px solid var(--scc-line); border-radius:17px; box-shadow:0 14px 40px rgba(0,0,0,.04); }
+  .scc-grid { display:grid; grid-template-columns:175px minmax(235px,300px) minmax(310px,1fr) minmax(215px,260px); min-height:700px; height:calc(100vh - 170px); max-height:980px; overflow:hidden; background:#fff; border:1px solid var(--scc-line); border-radius:17px; box-shadow:0 14px 40px rgba(0,0,0,.04); }
   .scc-nav { border-right:1px solid var(--scc-line); background:#fdfdfd; padding:20px 10px; display:flex; flex-direction:column; gap:8px; }
-  .scc-logo { font-size:16px; font-weight:900; padding:5px 9px 26px; }
+  .scc-logo { font-size:16px; font-weight:900; padding:5px 4px 26px; }
   .scc-logo small { display:block; color:var(--scc-muted); font-size:10px; font-weight:600; margin-top:3px; }
+  .scc-brand { display:flex; align-items:center; gap:9px; min-width:0; }
+  .scc-brand-avatar { width:35px; height:35px; flex:0 0 35px; border-radius:50%; object-fit:cover; background:#f3ebdc; border:1px solid #e5d7ba; }
+  .scc-brand-copy { min-width:0; display:flex; flex-direction:column; }
+  .scc-brand-name { display:inline-flex; align-items:center; gap:4px; font-size:12px; white-space:nowrap; font-weight:900; }
+  .scc-brand-copy small { margin-top:2px; white-space:nowrap; font-weight:600; font-size:9px; }
+  .scc-verified { width:15px; height:15px; flex:0 0 15px; }
+  .scc-brand.compact .scc-brand-avatar { width:23px; height:23px; flex-basis:23px; }
+  .scc-brand.compact .scc-brand-name { font-size:10px; }
+  .scc-brand.compact .scc-verified { width:12px; height:12px; flex-basis:12px; }
+  .scc-agent { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .scc-searchhelp { color:#8b96a6; font-size:10px; margin-top:7px; line-height:1.45; }
   .scc-navbtn { width:100%; min-height:42px; display:flex; align-items:center; gap:9px; padding:0 10px; border:0; border-radius:10px; background:transparent; color:#4d5868; text-align:left; font-size:12px !important; font-weight:800 !important; cursor:pointer; }
   .scc-navbtn.active { background:#fff0d4; color:#94620f; box-shadow:inset 3px 0 #b68727; }
   .scc-navbtn:disabled { opacity:.58; cursor:not-allowed; }
@@ -140,11 +196,12 @@ const styles = `
   .scc-dialog h3 { margin:0 0 11px; font-size:18px; }
   .scc-dialog p { font-size:12px; color:#64748b; line-height:1.7; }
   .scc-empty { padding:24px; text-align:center; color:#94a3b8; font-size:12px; }
-  @media(max-width:1250px) { .scc-grid { grid-template-columns:130px minmax(225px,285px) minmax(280px,1fr); } .scc-details { display:none; } }
+  @media(max-width:1250px) { .scc-grid { grid-template-columns:155px minmax(225px,285px) minmax(280px,1fr); } .scc-details { display:none; } }
   @media(max-width:800px) { .scc-grid { display:flex; flex-direction:column; min-height:0; height:auto; max-height:none; } .scc-nav { flex-direction:row; gap:5px; overflow:auto; padding:8px; } .scc-logo,.scc-navfoot { display:none; } .scc-navbtn { width:auto; white-space:nowrap; } .scc-list { max-height:430px; min-height:350px; border-right:0; border-bottom:1px solid var(--scc-line); } .scc-chat { min-height:520px; } .scc-details { display:block; } }
 `
 
 export default function AdminChatCenterPage() {
+  const navigate = useNavigate()
   const [chats, setChats] = useState(INITIAL_CHATS)
   const [filter, setFilter] = useState('All')
   const [search, setSearch] = useState('')
@@ -161,9 +218,9 @@ export default function AdminChatCenterPage() {
   const inbox = chats.filter((c) => !c.archived)
   const unreadTotal = inbox.reduce((sum, c) => sum + (c.unread > 0 ? 1 : 0), 0)
   const filtered = useMemo(() => inbox.filter((c) => {
-    const matches = [c.name, c.id, c.country, c.assigned, c.preview, ...(c.folders || [])].join(' ').toLowerCase().includes(search.toLowerCase().trim())
+    const matches = matchesChatSearch(c, search)
     return matches && (filter === 'All' || (filter === 'Unread' && c.unread > 0) || (filter === 'Seen' && c.unread === 0) || (filter === 'Assigned' && Boolean(c.assigned)))
-  }).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()), [inbox, filter, search])
+  }).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, RECENT_CHAT_LIMIT), [inbox, filter, search])
   const changeChat = (id, action) => setChats((list) => list.map((chat) => chat.id === id ? action(chat) : chat))
   const openMenu = (event, id) => {
     event.preventDefault()
@@ -207,15 +264,16 @@ export default function AdminChatCenterPage() {
       <div className="scc-demo">UI preview only — these are sample chats. Nothing is being sent, archived or deleted in the real Shadow database.</div>
       <div className="scc-grid">
         <nav className="scc-nav" aria-label="Chat navigation">
-          <div className="scc-logo">Shadow <small>Admin Chat Center</small></div>
+          <div className="scc-logo"><Brand /></div>
           <button className="scc-navbtn active" type="button"><Icon name="inbox" /> All Inbox <span className="scc-count">{inbox.length}</span></button>
-          <button className="scc-navbtn" type="button" disabled title="Archived Chats route will be connected next"><Icon name="archive" /> Archived Chats</button>
+          <button className="scc-navbtn" type="button" onClick={() => navigate('/admin-chat/archived')}><Icon name="archive" /> Archived Chats</button>
           <button className="scc-navbtn" type="button" disabled title="Folders own page will be created later"><Icon name="folder" /> Folders</button>
           <div className="scc-navfoot"><Icon name="shield" size={14} /> Deleting chats will require server-side passkey verification once the backend is connected.</div>
         </nav>
         <section className="scc-list" aria-label="Inbox conversation list">
-          <header className="scc-listhead"><h2>All Inbox</h2><div className="scc-sub">{inbox.length} demo conversations</div>
-            <label className="scc-search"><Icon name="search" size={16}/><input aria-label="Search conversations" placeholder="Search by name, user ID, message..." value={search} onChange={(e) => setSearch(e.target.value)} /></label>
+          <header className="scc-listhead"><h2>All Inbox</h2><div className="scc-sub">Latest {RECENT_CHAT_LIMIT} chats · {inbox.length} demo conversations</div>
+            <label className="scc-search"><Icon name="search" size={16}/><input aria-label="Search conversations" placeholder="Name, @username, account link, ID..." value={search} onChange={(e) => setSearch(e.target.value)} /></label>
+            <div className="scc-searchhelp">Searches loaded chats only. Full account search requires the Admin Backend.</div>
             <div className="scc-tabs">{['All','Unread','Seen','Assigned'].map((x) => <button type="button" key={x} onClick={() => setFilter(x)} className={`scc-tab ${filter===x?'active':''}`}>{x}{x==='Unread'?` ${unreadTotal}`:''}</button>)}</div>
           </header>
           <div className="scc-rows">
@@ -234,7 +292,7 @@ export default function AdminChatCenterPage() {
           {active ? <>
             <header className="scc-chathead"><div className="scc-person"><span className="scc-avatar">{active.name.includes('Author')?'AU':'RD'}</span><div><b>{active.name}</b><small>{active.flag} {active.country} · ID {active.id.replace('demo-','')}</small></div></div><span className="scc-status">{active.unread>0?'Unseen':'Seen'}</span></header>
             <div className="scc-tools"><button className="scc-btn" type="button" onClick={()=>{setNotice('Demo: Transfer is not connected to staff permissions yet.')}}><Icon name="transfer"/> Transfer</button><button className="scc-btn" type="button" onClick={()=>{setMode('Auto');setNotice('Auto Assign preview enabled. Backend assignment will be connected later.')}}><Icon name="user"/> Auto Assign</button><button className="scc-btn" type="button" onClick={()=>changeChat(active.id,c=>({...c,unread:0}))}><Icon name="check"/> Mark as Read</button></div>
-            <div className="scc-messages">{(active.messages||[]).map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent">Support ID {msg.agent}</span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}>{msg.text}</div><span className="scc-time">{msg.time}</span></div>)}</div>
+            <div className="scc-messages">{(active.messages||[]).map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent"><Brand compact /><span>Support ID {msg.agent}</span></span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}>{msg.text}</div><span className="scc-time">{msg.time}</span></div>)}</div>
             <form className="scc-compose" onSubmit={sendDemo}><input placeholder="Type a demo reply..." aria-label="Demo reply" value={message} onChange={(e)=>setMessage(e.target.value)} /><button className="scc-btn gold" type="submit" disabled={!message.trim()}><Icon name="send"/> Send</button></form>
           </> : <div className="scc-empty">Choose a conversation to view its messages.</div>}
         </section>
