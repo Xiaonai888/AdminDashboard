@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import BinanceCheckoutReviewPanel from '../components/BinanceCheckoutReviewPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -1206,6 +1207,9 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <button type="button" className={`recovery-tab ${activeTab === 'recovery' ? 'active' : ''}`} onClick={() => changeTab('recovery')} disabled={historyEditWorking || binanceBusy}>Payment Recovery</button>
             <button type="button" className={`recovery-tab ${activeTab === 'topup' ? 'active' : ''}`} onClick={() => changeTab('topup')} disabled={historyEditWorking || binanceBusy}>Manual Top-Up</button>
             <button type="button" className={`recovery-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => changeTab('history')} disabled={historyEditWorking || binanceBusy}>Action History</button>
+            {paymentMethod === 'binance' ? (
+              <button type="button" className={`recovery-tab ${activeTab === 'checkout_review' ? 'active' : ''}`} onClick={() => changeTab('checkout_review')} disabled={historyEditWorking || binanceBusy}>Checkout Review</button>
+            ) : null}
           </div> : null}
         </section>
 
@@ -1222,6 +1226,8 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <h3>{paymentMethod === 'bank' ? 'Bank' : 'Binance'} payment tools</h3>
             <p className="recovery-muted">Choose Payment Recovery, Manual Top-Up, or Action History to continue. No data has been requested.</p>
           </section>
+        ) : paymentMethod === 'binance' && activeTab === 'checkout_review' ? (
+          <BinanceCheckoutReviewPanel onBusyChange={setBinanceBusy} />
         ) : paymentMethod === 'binance' ? (
           <BinanceAdminPanel key={activeTab} tab={activeTab} cacheRef={binanceCacheRef} onBusyChange={setBinanceBusy} />
         ) : activeTab === 'recovery' ? (
