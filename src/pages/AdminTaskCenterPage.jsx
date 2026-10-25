@@ -264,6 +264,7 @@ export default function AdminTaskCenterPage() {
   const [creatingMission, setCreatingMission] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
   const [readingMissions, setReadingMissions] = useState([])
+  const [selectedMissionId, setSelectedMissionId] = useState('')
   const [activeTab, setActiveTab] = useState('reading')
   const [readingMissionView, setReadingMissionView] = useState('home')
   useEffect(() => {
