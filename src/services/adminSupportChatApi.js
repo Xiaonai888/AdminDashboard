@@ -34,10 +34,11 @@ async function request(path, { method = 'GET', body, signal } = {}) {
   return data
 }
 
-export function getAdminSupportInbox(filter = 'all', { signal } = {}) {
+export function getAdminSupportInbox(filter = 'all', { signal, page = 1 } = {}) {
   const accepted = ['all', 'unread', 'seen', 'assigned', 'archived']
   const name = accepted.includes(filter) ? filter : 'all'
-  return request(`/conversations?${new URLSearchParams({ filter: name })}`, { signal })
+  const pageNumber = Number.isSafeInteger(page) && page >= 1 && page <= 10000 ? page : 1
+  return request(`/conversations?${new URLSearchParams({ filter: name, page: String(pageNumber) })}`, { signal })
 }
 
 export function searchAdminSupportPeople(search, { signal } = {}) {
