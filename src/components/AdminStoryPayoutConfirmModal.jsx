@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 const MAX_RECEIPT_BYTES = 2 * 1024 * 1024
 const ALLOWED_RECEIPT_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+const BINANCE_IDENTIFIER = /^[A-Za-z0-9_-]{4,64}$/
 
 export default function AdminStoryPayoutConfirmModal({
   payout,
@@ -49,14 +50,27 @@ export default function AdminStoryPayoutConfirmModal({
 
   const awaiting = recorded || payout.status === 'awaiting_receipt'
   const method = payout.payment_method_snapshot || {}
+  const isBinance = method.method_type === 'binance'
+  const uid = String(method.binance_uid || '').trim()
+  const payId = String(method.binance_pay_id || '').trim()
   const qrUrl = method.qr_image_url || ''
   const methodName = method.bank_name || method.display_name || method.method_type || 'Payment details missing'
   const accountName = method.account_name || method.paypal_name || ''
   const destination = method.account_number || method.paypal_email || method.phone_number || ''
+  const validBinanceSnapshot = !isBinance || (
+    Boolean(payout.payment_method_id) &&
+    String(method.id || '') === String(payout.payment_method_id) &&
+    method.bank_name === 'Binance Auto' &&
+    String(method.account_name || '').trim().length >= 2 &&
+    typeof qrUrl === 'string' && qrUrl.startsWith('https://') &&
+    (BINANCE_IDENTIFIER.test(uid) || BINANCE_IDENTIFIER.test(payId)) &&
+    (!uid || BINANCE_IDENTIFIER.test(uid)) &&
+    (!payId || BINANCE_IDENTIFIER.test(payId))
+  )
   const savedPath = receiptPath || payout.receipt_path || ''
   const validPin = /^\d{6}$/.test(pin)
-  const canRecord = !awaiting && !uncertain && !busy && confirmed && validPin && reference.trim().length >= 4 && reference.trim().length <= 120 && Boolean(payout.payment_method_id) && Number(payout.net_payout_usd) >= 10
-  const canFinish = awaiting && !uncertain && !busy && validPin && (Boolean(savedPath) || Boolean(file))
+  const canRecord = !awaiting && !uncertain && !busy && confirmed && validPin && reference.trim().length >= 4 && reference.trim().length <= 120 && Boolean(payout.payment_method_id) && Number(payout.net_payout_usd) >= 10 && validBinanceSnapshot
+  const canFinish = awaiting && !uncertain && !busy && validPin && (Boolean(savedPath) || Boolean(file)) && validBinanceSnapshot
 
   async function request(url, options) {
     const response = await fetch(url, options)
@@ -93,7 +107,7 @@ export default function AdminStoryPayoutConfirmModal({
   async function recordTransfer(event) {
     event.preventDefault()
     if (!canRecord) return
-    if (!window.confirm(`Have you ALREADY transferred ${formatUsd(payout.net_payout_usd)} to ${authorName(payout)}? This action records a completed bank transfer; it does not send money.`)) return
+    if (!window.confirm(`Have you ALREADY transferred ${formatUsd(payout.net_payout_usd)} to ${authorName(payout)}? This action records a completed ${isBinance ? 'Binance' : 'bank'} transfer; it does not send money.`)) return
     setBusy(true)
     setError('')
     try {
@@ -150,7 +164,7 @@ export default function AdminStoryPayoutConfirmModal({
         path = result.receipt_path
         setReceiptPath(path)
       }
-      if (!window.confirm('The transfer was recorded. Confirm this saved bank receipt belongs to that transfer and mark the payout paid?')) return
+      if (!window.confirm(`The transfer was recorded. Confirm this saved ${isBinance ? 'Binance' : 'bank'} receipt belongs to that transfer and mark the payout paid?`)) return
       const result = await request(`${apiUrl}/api/admin/income/payouts/${payout.id}/paid`, {
         method: 'POST',
         headers: authHeaders(true),
@@ -195,27 +209,33 @@ export default function AdminStoryPayoutConfirmModal({
         <div className="story-payout-info">
           <strong>{methodName}</strong>
           {accountName ? <span>{accountName}</span> : null}
-          {destination ? <span>{destination}</span> : null}
-          {qrUrl ? <img className="story-payout-qr" src={qrUrl} alt={`${authorName(payout)} payment QR`} /> : <span className="story-payout-muted">Bank QR not saved. Verify the recipient details before transferring outside Shadow.</span>}
+          {isBinance ? <>
+            <span className="story-payout-muted">Saved payout destination · Binance snapshot (not current profile)</span>
+            {uid ? <span>Binance UID: <strong>{uid}</strong></span> : null}
+            {payId ? <span>Binance Pay ID: <strong>{payId}</strong></span> : null}
+          </> : destination ? <span>{destination}</span> : null}
+          {qrUrl ? <img className="story-payout-qr" src={qrUrl} alt={`${authorName(payout)} payment QR`} /> : <span className="story-payout-muted">{isBinance ? 'Binance QR not saved.' : 'Bank QR not saved. Verify the recipient details before transferring outside Shadow.'}</span>}
+          {isBinance && !validBinanceSnapshot ? <p role="alert" className="story-payout-muted" style={{ color: '#B91C1C', fontWeight: 850 }}>Binance payout snapshot is incomplete or mismatched. Transfer and Paid actions are blocked. Verify the stored payout record before proceeding.</p> : null}
+          {isBinance && validBinanceSnapshot ? <p className="story-payout-muted">The saved identifiers are not proof of Binance account ownership. Verify the recipient in Binance before sending money.</p> : null}
         </div>
         <form onSubmit={awaiting ? confirmPaid : recordTransfer}>
           {awaiting ? (
             <>
               <p className="story-payout-muted" role="status" style={{ color: '#9A3412', fontWeight: 800 }}>Transfer recorded. DO NOT transfer again. Upload the receipt from that transfer, or finish using the saved receipt.</p>
               {payout.transfer_reference || reference ? <p className="story-payout-muted">Transfer reference: {payout.transfer_reference || reference}</p> : null}
-              {savedPath ? <p className="story-payout-muted" style={{ color: '#047857' }}>Receipt saved. Enter your Owner Passkey to finish.</p> : <><label className="story-payout-label" htmlFor="story-payout-receipt">Actual bank transfer receipt · required</label><input id="story-payout-receipt" className="story-payout-input" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || uncertain} onChange={(event) => chooseFile(event.target.files?.[0] || null)} /></>}
-              {preview.startsWith('blob:') && !savedPath ? <div role="img" aria-label="Selected bank transfer receipt" style={{ marginTop: 10, width: '100%', height: 230, borderRadius: 10, backgroundImage: `url("${preview}")`, backgroundPosition: 'center', backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }} /> : null}
+              {savedPath ? <p className="story-payout-muted" style={{ color: '#047857' }}>Receipt saved. Enter your Owner Passkey to finish.</p> : <><label className="story-payout-label" htmlFor="story-payout-receipt">Actual {isBinance ? 'Binance' : 'bank'} transfer receipt · required</label><input id="story-payout-receipt" className="story-payout-input" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy || uncertain || !validBinanceSnapshot} onChange={(event) => chooseFile(event.target.files?.[0] || null)} /></>}
+              {preview.startsWith('blob:') && !savedPath ? <div role="img" aria-label="Selected transfer receipt" style={{ marginTop: 10, width: '100%', height: 230, borderRadius: 10, backgroundImage: `url("${preview}")`, backgroundPosition: 'center', backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }} /> : null}
             </>
           ) : (
             <>
-              <p className="story-payout-muted" role="status" style={{ color: '#9A3412', fontWeight: 800 }}>Complete the bank transfer OUTSIDE Shadow first. Only then record the completed transaction here. Shadow does not send money automatically.</p>
-              <label className="story-payout-label" htmlFor="story-payout-reference">Actual bank transfer transaction reference · required</label>
-              <input id="story-payout-reference" className="story-payout-input" minLength={4} maxLength={120} value={reference} disabled={busy || uncertain} onChange={(event) => setReference(event.target.value)} placeholder="Bank transaction ID" />
-              <label style={{ display: 'flex', gap: 9, alignItems: 'start', marginTop: 15, fontSize: 12, fontWeight: 750, lineHeight: 1.5 }}><input type="checkbox" checked={confirmed} disabled={busy || uncertain} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that the money was ALREADY sent to this author and the bank transaction reference is correct.</label>
+              <p className="story-payout-muted" role="status" style={{ color: '#9A3412', fontWeight: 800 }}>Complete the {isBinance ? 'Binance' : 'bank'} transfer OUTSIDE Shadow first. Only then record the completed transaction here. Shadow does not send money automatically.</p>
+              <label className="story-payout-label" htmlFor="story-payout-reference">Actual {isBinance ? 'Binance' : 'bank'} transaction reference · required</label>
+              <input id="story-payout-reference" className="story-payout-input" minLength={4} maxLength={120} value={reference} disabled={busy || uncertain || !validBinanceSnapshot} onChange={(event) => setReference(event.target.value)} placeholder={isBinance ? 'Binance transaction ID' : 'Bank transaction ID'} />
+              <label style={{ display: 'flex', gap: 9, alignItems: 'start', marginTop: 15, fontSize: 12, fontWeight: 750, lineHeight: 1.5 }}><input type="checkbox" checked={confirmed} disabled={busy || uncertain || !validBinanceSnapshot} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that the money was ALREADY sent to this author and the {isBinance ? 'Binance' : 'bank'} transaction reference is correct.</label>
             </>
           )}
           <label className="story-payout-label" htmlFor="story-payout-pin">Owner Passkey · 6 digits</label>
-          <input id="story-payout-pin" className="story-payout-input" type="password" autoComplete="off" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={pin} disabled={busy || uncertain} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" />
+          <input id="story-payout-pin" className="story-payout-input" type="password" autoComplete="off" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={pin} disabled={busy || uncertain || !validBinanceSnapshot} onChange={(event) => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" />
           {uncertain ? <p role="alert" style={{ color: '#9A3412', fontWeight: 850, fontSize: 12 }}>Server response was uncertain. Close, refresh the payout list and check the current status before any further action. Do not transfer again.</p> : null}
           {error ? <div role="alert" style={{ marginTop: 12, padding: 10, borderRadius: 10, background: '#FEF2F2', color: '#B91C1C', fontSize: 12 }}>{error}</div> : null}
           <div className="story-payout-actions">
