@@ -3,7 +3,7 @@ import {
   decideBinanceCheckoutReview,
   getBinanceCheckoutReview,
   listBinanceCheckoutReviews,
-} from '../../services/binanceCheckoutAdminApi'
+} from '../services/binanceCheckoutAdminApi'
 import { BINANCE_REVIEW_LANGUAGES, binanceReviewText } from './binanceCheckoutReviewI18n'
 import BinanceCheckoutEvidencePanel from './BinanceCheckoutEvidencePanel'
 import BinanceCheckoutDecisionForm from './BinanceCheckoutDecisionForm'
