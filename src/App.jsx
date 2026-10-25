@@ -40,6 +40,7 @@ import AdminAuthorPageIncomePage from './pages/AdminAuthorPageIncomePage';
 import AdminShadowMallIncomePage from './pages/AdminShadowMallIncomePage';
 import AuthorStoresPage from './pages/AuthorStoresPage';
 import AdminTaskCenterPage from './pages/AdminTaskCenterPage';
+import AdminChatCenterPage from './pages/AdminChatCenterPage';
 import AdminPaymentRecoveryTopUpPage from './pages/AdminPaymentRecoveryTopUpPage';
 import AdminBalancePage from './pages/AdminBalancePage';
 import AdminAuthorIncomePage from './pages/AdminAuthorIncomePage';
@@ -261,6 +262,7 @@ export default function App() {
         <Route path="/admin-secret-reset/confirm" element={<AdminResetPasswordPage />} />
         <Route path="/author-stores" element={<ProtectedPage><AuthorStoresPage /></ProtectedPage>} />
         <Route path="/task-center" element={<ProtectedPage><AdminTaskCenterPage /></ProtectedPage>} />
+        <Route path="/admin-chat" element={<ProtectedPage><AdminChatCenterPage /></ProtectedPage>} />
         <Route path="/payment-recovery" element={<ProtectedPage permission="payment.view"><AdminPaymentRecoveryTopUpPage /></ProtectedPage>} />
         <Route path="/balance" element={<ProtectedPage><AdminBalancePage /></ProtectedPage>} />
         <Route path="/author-income" element={<ProtectedPage permission="income.view"><AdminAuthorIncomePage /></ProtectedPage>} />
