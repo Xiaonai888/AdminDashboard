@@ -20,6 +20,7 @@ export default function AdminStoryPayoutConfirmModal({
   const [pin, setPin] = useState('')
   const [reference, setReference] = useState('')
   const [confirmed, setConfirmed] = useState(false)
+  const [binanceRecipientChecked, setBinanceRecipientChecked] = useState(false)
   const [recorded, setRecorded] = useState(false)
   const [uncertain, setUncertain] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -31,6 +32,7 @@ export default function AdminStoryPayoutConfirmModal({
     setPin('')
     setReference('')
     setConfirmed(false)
+    setBinanceRecipientChecked(false)
     setRecorded(false)
     setUncertain(false)
     setError('')
@@ -69,7 +71,7 @@ export default function AdminStoryPayoutConfirmModal({
   )
   const savedPath = receiptPath || payout.receipt_path || ''
   const validPin = /^\d{6}$/.test(pin)
-  const canRecord = !awaiting && !uncertain && !busy && confirmed && validPin && reference.trim().length >= 4 && reference.trim().length <= 120 && Boolean(payout.payment_method_id) && Number(payout.net_payout_usd) >= 10 && validBinanceSnapshot
+  const canRecord = !awaiting && !uncertain && !busy && confirmed && (!isBinance || binanceRecipientChecked) && validPin && reference.trim().length >= 4 && reference.trim().length <= 120 && Boolean(payout.payment_method_id) && Number(payout.net_payout_usd) >= 10 && validBinanceSnapshot
   const canFinish = awaiting && !uncertain && !busy && validPin && (Boolean(savedPath) || Boolean(file)) && validBinanceSnapshot
 
   async function request(url, options) {
@@ -126,6 +128,7 @@ export default function AdminStoryPayoutConfirmModal({
       setRecorded(true)
       setPin('')
       setConfirmed(false)
+      setBinanceRecipientChecked(false)
       onRecorded?.(payout.id, reference.trim())
     } catch (caught) {
       if (caught.code === 'TRANSFER_ALREADY_RECORDED') {
@@ -231,6 +234,13 @@ export default function AdminStoryPayoutConfirmModal({
               <p className="story-payout-muted" role="status" style={{ color: '#9A3412', fontWeight: 800 }}>Complete the {isBinance ? 'Binance' : 'bank'} transfer OUTSIDE Shadow first. Only then record the completed transaction here. Shadow does not send money automatically.</p>
               <label className="story-payout-label" htmlFor="story-payout-reference">Actual {isBinance ? 'Binance' : 'bank'} transaction reference · required</label>
               <input id="story-payout-reference" className="story-payout-input" minLength={4} maxLength={120} value={reference} disabled={busy || uncertain || !validBinanceSnapshot} onChange={(event) => setReference(event.target.value)} placeholder={isBinance ? 'Binance transaction ID' : 'Bank transaction ID'} />
+              {isBinance && validBinanceSnapshot ? (
+                <div role="group" aria-label="Binance recipient verification" style={{ marginTop: 16, border: '1px solid #E8C980', borderRadius: 12, background: '#FFFBEB', padding: 12 }}>
+                  <strong style={{ fontSize: 12 }}>Required Binance recipient check</strong>
+                  <p className="story-payout-muted" style={{ marginTop: 7 }}>Independently check the recipient in Binance against the saved UID/Pay ID and the account name shown above before sending funds. If Binance cannot confirm the intended recipient, do not transfer.</p>
+                  <label style={{ display: 'flex', gap: 9, alignItems: 'start', marginTop: 10, fontSize: 12, fontWeight: 750, lineHeight: 1.5 }}><input type="checkbox" checked={binanceRecipientChecked} disabled={busy || uncertain} onChange={(event) => setBinanceRecipientChecked(event.target.checked)} />I independently checked the Binance recipient before transferring and confirmed that the recipient matches the payout snapshot.</label>
+                </div>
+              ) : null}
               <label style={{ display: 'flex', gap: 9, alignItems: 'start', marginTop: 15, fontSize: 12, fontWeight: 750, lineHeight: 1.5 }}><input type="checkbox" checked={confirmed} disabled={busy || uncertain || !validBinanceSnapshot} onChange={(event) => setConfirmed(event.target.checked)} />I confirm that the money was ALREADY sent to this author and the {isBinance ? 'Binance' : 'bank'} transaction reference is correct.</label>
             </>
           )}
