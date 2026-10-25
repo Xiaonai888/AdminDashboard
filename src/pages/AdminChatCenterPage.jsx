@@ -5,6 +5,7 @@ import {
   startAdminSupportChat,
   sendAdminSupportMessage,
   changeAdminSupportChat,
+  getAdminSupportInbox,
   getAdminSupportFolders,
   createAdminSupportFolder,
   addChatToSupportFolder,
@@ -181,6 +182,8 @@ const styles = `
   .scc-tab { border:1px solid #e9edf2; background:#f8fafc; color:#677283; padding:7px 9px; border-radius:8px; font-size:10px !important; font-weight:850 !important; cursor:pointer; }
   .scc-tab.active { background:var(--scc-gold); color:#fff; border-color:var(--scc-gold); }
   .scc-rows { flex:1; overflow:auto; }
+  .scc-pages { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-top:1px solid var(--scc-line); background:#fff; }
+  .scc-pages span { color:var(--scc-muted); white-space:nowrap; font-size:11px; }
   .scc-item { width:100%; border:0; border-bottom:1px solid #f1f3f6; background:#fff; text-align:left; padding:12px 10px; display:flex; gap:9px; cursor:pointer; color:inherit; }
   .scc-item:hover,.scc-item.active { background:#fff9ee; }
   .scc-avatar { width:38px; height:38px; border-radius:50%; background:#f4e5c8; color:#825e19; flex:0 0 38px; display:grid; place-items:center; font-size:12px; font-weight:900; }
@@ -279,6 +282,8 @@ export default function AdminChatCenterPage() {
   const [inboxLoading, setInboxLoading] = useState(true)
   const [inboxError, setInboxError] = useState('')
   const [inboxHasMore, setInboxHasMore] = useState(false)
+  const [inboxPage, setInboxPage] = useState(1)
+  const inboxScrollRef = useRef(null)
   const [refreshCount, setRefreshCount] = useState(0)
   const [threadMessages, setThreadMessages] = useState([])
   const [threadConversationId, setThreadConversationId] = useState(null)
@@ -297,11 +302,15 @@ export default function AdminChatCenterPage() {
     setInboxLoading(true)
     setInboxError('')
     const remoteFilter = ({ All: 'all', Unread: 'unread', Seen: 'seen', Assigned: 'assigned' })[filter] || 'all'
-    requestSupportChat(`/conversations?filter=${remoteFilter}`, controller.signal)
+    getAdminSupportInbox(remoteFilter, { page: inboxPage, signal: controller.signal })
       .then((result) => {
         if (!current) return
         const next = (Array.isArray(result.conversations) ? result.conversations : [])
           .slice(0, RECENT_CHAT_LIMIT).map(normalizeConversation)
+        if (!next.length && inboxPage > 1) {
+          setInboxPage(value => Math.max(1, value - 1))
+          return
+        }
         setChats(next)
         setInboxHasMore(Boolean(result.has_more))
         setSelectedId((old) => next.some((chat) => chat.id === old) ? old : null)
@@ -310,11 +319,16 @@ export default function AdminChatCenterPage() {
         if (!current || controller.signal.aborted) return
         setChats([])
         setSelectedId(null)
+        setInboxHasMore(false)
         setInboxError(error.message || 'Unable to load conversations.')
       })
       .finally(() => { if (current) setInboxLoading(false) })
     return () => { current = false; controller.abort() }
-  }, [filter, refreshCount])
+  }, [filter, inboxPage, refreshCount])
+
+  useEffect(() => {
+    if (inboxScrollRef.current) inboxScrollRef.current.scrollTop = 0
+  }, [filter, inboxPage])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -496,6 +510,7 @@ export default function AdminChatCenterPage() {
         setThreadConversationId(id)
       }
       setReplyDraft('')
+      setInboxPage(1)
       setRefreshCount((count) => count + 1)
     })
   }
@@ -517,6 +532,7 @@ export default function AdminChatCenterPage() {
       setStartDraft('')
       setSearch('')
       setFilter('All')
+      setInboxPage(1)
       setSelectedId(result.conversation_id)
       setRefreshCount((count) => count + 1)
     })
@@ -534,15 +550,15 @@ export default function AdminChatCenterPage() {
           <div className="scc-navfoot"><Icon name="shield" size={14} /> Deleting chats will require server-side passkey verification once the backend is connected.</div>
         </nav>
         <section className="scc-list" aria-label="Inbox conversation list">
-          <header className="scc-listhead"><h2>All Inbox</h2><div className="scc-sub">Latest {RECENT_CHAT_LIMIT} support conversations {inboxHasMore ? '· more available' : ''} <button className="scc-retry" type="button" onClick={() => setRefreshCount(n => n + 1)} disabled={inboxLoading}>Refresh</button></div>
+          <header className="scc-listhead"><h2>All Inbox</h2><div className="scc-sub">Page {inboxPage} · Up to {RECENT_CHAT_LIMIT} support conversations {inboxHasMore ? '· more available' : ''} <button className="scc-retry" type="button" onClick={() => setRefreshCount(n => n + 1)} disabled={inboxLoading}>Refresh</button></div>
             <label className="scc-search"><Icon name="search" size={16}/><input aria-label="Search conversations" placeholder="Name, @username, account link, ID..." value={search} onChange={(e) => setSearch(e.target.value)} /></label>
-            <div className="scc-searchhelp">Searches recent conversations and all active accounts on the server. Account results are limited to 10.</div>
-            <div className="scc-tabs">{['All','Unread','Seen','Assigned'].map((x) => <button type="button" key={x} onClick={() => setFilter(x)} className={`scc-tab ${filter===x?'active':''}`}>{x}{x==='Unread'?` ${unreadTotal}`:''}</button>)}</div>
+            <div className="scc-searchhelp">Searches conversations on this page and active accounts on the server (10 account results maximum).</div>
+            <div className="scc-tabs">{['All','Unread','Seen','Assigned'].map((x) => <button type="button" key={x} onClick={() => { setInboxPage(1); setFilter(x) }} className={`scc-tab ${filter===x?'active':''}`}>{x}{x==='Unread'?` ${unreadTotal}`:''}</button>)}</div>
           </header>
-          <div className="scc-rows">
+          <div className="scc-rows" ref={inboxScrollRef}>
             {inboxLoading && <div className="scc-empty">Loading recent support chats…</div>}
             {inboxError && <div className="scc-searchalert" role="alert">{inboxError} <button className="scc-retry" type="button" onClick={() => setRefreshCount(n => n + 1)}>Retry</button></div>}
-            {!inboxLoading && !inboxError && filtered.length === 0 && <div className="scc-empty">{search.trim() ? 'No matching recent chats.' : 'No support conversations yet.'}</div>}
+            {!inboxLoading && !inboxError && filtered.length === 0 && <div className="scc-empty">{search.trim() ? 'No matching chats on this page.' : 'No support conversations on this page.'}</div>}
             {!inboxLoading && !inboxError && filtered.map((chat) => <div key={chat.id} className={`scc-item ${active?.id === chat.id?'active':''}`} role="button" tabIndex={0} onClick={() => setSelectedId(chat.id)} onKeyDown={(e) => { if(e.key==='Enter')setSelectedId(chat.id) }} onContextMenu={(e) => openMenu(e,chat.id)}>
               <span className="scc-avatar">{chat.avatar_url ? <img src={chat.avatar_url} alt="" loading="lazy" /> : chat.is_author ? 'AU' : 'RD'}</span>
               <span className="scc-itembody"><span className="scc-itemtitle"><strong>{chat.name}</strong><time>{shortTime(chat.updatedAt)}</time></span>
@@ -562,6 +578,11 @@ export default function AdminChatCenterPage() {
                 <button className="scc-btn" type="button" onClick={() => openSearchPerson(person)}>Start Chat</button>
               </div>)}
             </>}
+          </div>
+          <div className="scc-pages">
+            <button className="scc-btn" type="button" disabled={inboxLoading || writeBusy || inboxPage === 1} onClick={() => { setSelectedId(null); setInboxPage(n => Math.max(1, n - 1)) }}>Previous</button>
+            <span aria-live="polite">Page {inboxPage} · 10 per page</span>
+            <button className="scc-btn gold" type="button" disabled={inboxLoading || writeBusy || Boolean(inboxError) || !inboxHasMore || inboxPage >= 10000} onClick={() => { setSelectedId(null); setInboxPage(n => Math.min(10000, n + 1)) }}>Next</button>
           </div>
         </section>
         <section className="scc-chat" aria-label="Conversation thread">
