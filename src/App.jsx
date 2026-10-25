@@ -55,6 +55,7 @@ import AdminMusicPage from './pages/AdminMusicPage';
 import AdminGamePage from './pages/AdminGamePage';
 import AdminAppPage from './pages/AdminAppPage';
 import AdminBoostDashboardPage from './pages/AdminBoostDashboardPage';
+import AdminCountrySettingsPage from './pages/AdminCountrySettingsPage';
 import AdminSystemControlPage from './pages/AdminSystemControlPage';
 import AdminSystemUsageAnalyticsPage from './pages/AdminSystemUsageAnalyticsPage';
 import AdminSystemRenderDetailPage from './pages/AdminSystemRenderDetailPage';
@@ -278,6 +279,7 @@ export default function App() {
         <Route path="/game" element={<ProtectedPage><AdminGamePage /></ProtectedPage>} />
         <Route path="/app" element={<ProtectedPage><AdminAppPage /></ProtectedPage>} />
         <Route path="/boost" element={<ProtectedPage><AdminBoostDashboardPage /></ProtectedPage>} />
+        <Route path="/country-settings" element={<ProtectedPage permission="system_control.manage"><AdminCountrySettingsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control" element={<ProtectedPage permission="system_control.view"><AdminSystemControlPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/usage" element={<ProtectedPage permission="system_control.view"><AdminSystemUsageAnalyticsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/render" element={<ProtectedPage permission="system_control.view"><AdminSystemRenderDetailPage /></ProtectedPage>} />
