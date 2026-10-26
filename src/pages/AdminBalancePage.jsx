@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import PremiumReaderBadge from '../components/PremiumReaderBadge'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -23,7 +24,7 @@ const styles = `
 
   .balance-toolbar {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) auto auto auto;
+    grid-template-columns: minmax(260px, 1fr) auto auto auto auto;
     gap: 10px;
     align-items: center;
   }
@@ -71,6 +72,12 @@ const styles = `
     color: #4338CA;
     background: #EEF2FF;
     border-color: #C7D2FE;
+  }
+
+  .balance-reader-tier-select {
+    min-width: 170px;
+    padding: 0 10px;
+    cursor: pointer;
   }
 
   .balance-filter-controls {
@@ -249,6 +256,9 @@ const styles = `
   }
 
   .balance-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-weight: 950;
   }
 
@@ -657,6 +667,7 @@ function cacheKey({
   search,
   sort,
   balanceType,
+  readerTier,
   dormantOnly,
 }) {
   return JSON.stringify([
@@ -664,6 +675,7 @@ function cacheKey({
     search.trim().toLowerCase(),
     sort,
     balanceType,
+    readerTier,
     Boolean(dormantOnly),
   ])
 }
@@ -749,6 +761,7 @@ async function loadBalancePage({
   search,
   sort,
   balanceType,
+  readerTier,
   dormantOnly,
   refresh = false,
   signal,
@@ -758,6 +771,7 @@ async function loadBalancePage({
     search,
     sort,
     balanceType,
+    readerTier,
     dormantOnly,
   })
 
@@ -777,6 +791,7 @@ async function loadBalancePage({
     limit: String(PAGE_SIZE),
     sort,
     balance_type: balanceType,
+    reader_tier: readerTier,
     dormant: dormantOnly ? '1' : '0',
     dormant_days: String(DORMANT_DAYS),
   })
@@ -812,10 +827,15 @@ async function loadBalancePage({
       return Number.isFinite(previous) && Number.isFinite(current) &&
         (sort === 'desc' ? previous >= current : previous <= current)
     })
+    const correctlyTiered = rows.every((item) =>
+      typeof item?.is_premium === 'boolean' &&
+      (readerTier === 'all' || item.is_premium === (readerTier === 'premium'))
+    )
     return {
       data,
       valid: data?.balance_type === balanceType && data?.sort === sort &&
-        Array.isArray(data?.items) && correctlySorted,
+        data?.reader_tier === readerTier &&
+        Array.isArray(data?.items) && correctlySorted && correctlyTiered,
     }
   }
 
@@ -825,7 +845,7 @@ async function loadBalancePage({
   }
   if (!result.valid) {
     throw new Error(
-      'Balance API is still using an old or incorrect ranking. Deploy the latest Shadow-Backend and confirm AdminDashboard VITE_API_URL points to that service.'
+      'Balance API needs the Premium-filter Backend and Balance SQL v4. Deploy the latest Shadow-Backend and verify VITE_API_URL.'
     )
   }
 
@@ -1006,7 +1026,10 @@ function DiamondHistoryDrawer({
             <ReaderAvatar item={reader} large />
             <div>
               <h2 className="balance-drawer-title">
-                {reader.name || reader.username || 'Reader'}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <PremiumReaderBadge isPremium={reader.is_premium === true} />
+                  {reader.name || reader.username || 'Reader'}
+                </span>
               </h2>
               <div className="balance-username">
                 {reader.username
@@ -1226,6 +1249,7 @@ export default function AdminBalancePage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [sort, setSort] = useState('desc')
   const [balanceType, setBalanceType] = useState('diamond')
+  const [readerTier, setReaderTier] = useState('all')
   const [dormantOnly, setDormantOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [items, setItems] = useState([])
@@ -1277,6 +1301,7 @@ export default function AdminBalancePage() {
           search: debouncedSearch,
           sort,
           balanceType,
+          readerTier,
           dormantOnly,
           signal: controller.signal,
         })
@@ -1302,6 +1327,7 @@ export default function AdminBalancePage() {
             search: debouncedSearch,
             sort,
             balanceType,
+            readerTier,
             dormantOnly,
             signal: controller.signal,
           }).catch(() => {})
@@ -1327,7 +1353,7 @@ export default function AdminBalancePage() {
     run()
 
     return () => controller.abort()
-  }, [page, debouncedSearch, sort, balanceType, dormantOnly])
+  }, [page, debouncedSearch, sort, balanceType, readerTier, dormantOnly])
 
   const orderLabel = useMemo(
     () => `${({ diamond: 'Diamond', coin: 'Coin', story_card: 'Story Card', voucher: 'Voucher' })[balanceType]}: ${sort === 'desc' ? 'High → Low' : 'Low → High'}`,
@@ -1347,6 +1373,7 @@ export default function AdminBalancePage() {
         search: debouncedSearch,
         sort,
         balanceType,
+        readerTier,
         dormantOnly,
       })
 
@@ -1357,6 +1384,7 @@ export default function AdminBalancePage() {
         search: debouncedSearch,
         sort,
         balanceType,
+        readerTier,
         dormantOnly,
         refresh: true,
         signal: controller.signal,
@@ -1572,6 +1600,20 @@ export default function AdminBalancePage() {
             autoComplete="off"
           />
 
+          <select
+            className="balance-button balance-sort balance-reader-tier-select"
+            value={readerTier}
+            aria-label="Reader Premium status"
+            onChange={(event) => {
+              setReaderTier(event.target.value)
+              setPage(1)
+            }}
+          >
+            <option value="all">All Readers</option>
+            <option value="regular">Regular Reader</option>
+            <option value="premium">Premium Reader</option>
+          </select>
+
           <div className="balance-filter-controls">
             <select
               className="balance-button balance-sort balance-type-select"
@@ -1698,6 +1740,7 @@ export default function AdminBalancePage() {
                           <ReaderAvatar item={item} />
                           <div>
                             <div className="balance-name">
+                              <PremiumReaderBadge isPremium={item.is_premium === true} />
                               {item.name ||
                                 item.username ||
                                 'Reader'}
