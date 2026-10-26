@@ -47,6 +47,19 @@ function getHistoryRange(key, customFrom, customTo) {
   }
 }
 
+function bucketHistorySeries(series, rangeMs) {
+  const hour = 60 * 60 * 1000
+  const bucketMs = rangeMs > 24 * hour ? 24 * hour : rangeMs > 6 * hour ? hour : rangeMs > hour ? 30 * 60 * 1000 : 15 * 60 * 1000
+  const totals = new Map()
+  for (const item of series) {
+    const startedAt = new Date(item.started_at).getTime()
+    if (!Number.isFinite(startedAt)) continue
+    const key = Math.floor(startedAt / bucketMs) * bucketMs
+    totals.set(key, (totals.get(key) || 0) + number(item.mb))
+  }
+  return [...totals].sort((a, b) => a[0] - b[0]).map((entry) => entry[1])
+}
+
 function compactChart(values, maxPoints = 120) {
   if (values.length <= maxPoints) return values
 
@@ -988,18 +1001,6 @@ function LineChart({ values = [] }) {
         .join(' L ')} L ${points[points.length - 1][0]} ${height - 22} Z`
     : ''
 
-  const previous = safe.map((value, index) =>
-    Math.max(0, number(value) * (0.72 + ((index % 4) * 0.04)))
-  )
-
-  const previousPoints = previous
-    .map((value, index) => {
-      const x = (index / (previous.length - 1)) * width
-      const y = height - 22 - ((value - min) / range) * (height - 44)
-      return `${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
-
   return (
     <>
       <svg className="sc-line-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
@@ -1015,14 +1016,13 @@ function LineChart({ values = [] }) {
         ))}
 
         <path d={areaPath} className="sc-area" />
-        <polyline points={previousPoints} className="sc-line-soft" />
         <polyline points={pointString} className="sc-line" />
       </svg>
 
       <div className="sc-chart-labels">
-        <span>Earlier</span>
-        <span>Recent measured traffic</span>
-        <span>Now</span>
+        <span>Range start</span>
+        <span>Measured traffic</span>
+        <span>Range end</span>
       </div>
     </>
   )
@@ -1179,6 +1179,10 @@ export default function AdminSystemControlPage() {
     from: initialCustomFrom,
     to: initialCustomTo,
   })
+  const [customReady, setCustomReady] = useState(false)
+  const historyControllerRef = useRef(null)
+  const historyRequestRef = useRef(0)
+  const historyCacheRef = useRef(new Map())
   const [loading, setLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [reportLoading, setReportLoading] = useState('')
@@ -1261,78 +1265,79 @@ export default function AdminSystemControlPage() {
     }
   }, [])
 
-  const loadHistory = useCallback(async () => {
-    const token = getToken()
+  const loadHistory = useCallback(async ({ force = false } = {}) => {
+    historyControllerRef.current?.abort()
+    const requestId = ++historyRequestRef.current
 
+    if (rangeKey === 'custom' && !customReady) {
+      setHistoryReport(null)
+      setHistoryLoading(false)
+      return
+    }
+
+    const token = getToken()
     if (!token) {
+      setHistoryReport(null)
+      setHistoryLoading(false)
       setError('Admin token is missing.')
       return
     }
 
-    const range = getHistoryRange(
-      rangeKey,
-      appliedCustom.from,
-      appliedCustom.to
-    )
-
-    if (
-      !Number.isFinite(range.from) ||
-      !Number.isFinite(range.to)
-    ) {
-      setError('Please select a valid date and time range.')
+    const range = getHistoryRange(rangeKey, appliedCustom.from, appliedCustom.to)
+    if (!Number.isFinite(range.from) || !Number.isFinite(range.to) || range.to <= range.from || range.to - range.from > 31 * 24 * 60 * 60 * 1000 || range.to > Date.now() + 1000) {
+      setHistoryReport(null)
+      setHistoryLoading(false)
+      setError('Please select a valid range of up to 31 days.')
       return
     }
 
-    if (range.to <= range.from) {
-      setError('End time must be after start time.')
+    const cacheKey = rangeKey === 'custom'
+      ? `custom:${range.from}:${range.to}`
+      : `${rangeKey}:${Math.floor(range.to / 60000)}`
+    const cached = historyCacheRef.current.get(cacheKey)
+    if (!force && cached && Date.now() - cached.savedAt < 60000) {
+      setHistoryReport(cached.history)
+      setHistoryLoading(false)
+      setError('')
       return
     }
 
-    if (
-      range.to - range.from >
-      31 * 24 * 60 * 60 * 1000
-    ) {
-      setError('Custom range cannot exceed 31 days.')
-      return
-    }
+    const controller = new AbortController()
+    historyControllerRef.current = controller
+    setHistoryReport(null)
+    setHistoryLoading(true)
+    setError('')
 
     try {
-      setHistoryLoading(true)
-
       const query = new URLSearchParams({
         from: new Date(range.from).toISOString(),
         to: new Date(range.to).toISOString(),
       })
-
-      const response = await fetch(
-        `${API_URL}/api/admin/system-control/history?${query}`,
-        {
-          credentials: 'include',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
+      const response = await fetch(`${API_URL}/api/admin/system-control/history?${query}`, {
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      })
       const data = await response.json().catch(() => ({}))
-
-      if (!response.ok || data?.ok !== true) {
-        throw new Error(
-          data?.message || 'Usage history failed.'
-        )
+      if (requestId !== historyRequestRef.current || controller.signal.aborted) return
+      if (!response.ok || data?.ok !== true || !data.history) {
+        throw new Error(data?.message || 'Usage history failed.')
       }
-
-      setHistoryReport(data.history || null)
+      historyCacheRef.current.set(cacheKey, { history: data.history, savedAt: Date.now() })
+      while (historyCacheRef.current.size > 5) historyCacheRef.current.delete(historyCacheRef.current.keys().next().value)
+      setHistoryReport(data.history)
       setUpdatedAt(Date.now())
-      setError('')
     } catch (loadError) {
-      setError(
-        loadError?.message || 'Usage history failed.'
-      )
+      if (requestId !== historyRequestRef.current || controller.signal.aborted) return
+      setHistoryReport(null)
+      setError(loadError?.message || 'Usage history failed.')
     } finally {
-      setHistoryLoading(false)
+      if (requestId === historyRequestRef.current) {
+        setHistoryLoading(false)
+        historyControllerRef.current = null
+      }
     }
-  }, [rangeKey, appliedCustom])
+  }, [rangeKey, appliedCustom, customReady])
 
   const applyCustomRange = useCallback(() => {
     const range = getHistoryRange(
@@ -1367,33 +1372,29 @@ export default function AdminSystemControlPage() {
       return
     }
 
+    historyRequestRef.current += 1
+    historyControllerRef.current?.abort()
+    setHistoryReport(null)
+    setHistoryLoading(false)
     setError('')
     setAppliedCustom({
       from: customFrom,
       to: customTo,
     })
+    setCustomReady(true)
   }, [customFrom, customTo])
 
   const handleRangeChange = useCallback((event) => {
     const next = event.target.value
-
-    if (next === 'custom') {
-      const now = Date.now()
-      const nextFrom = toLocalInputValue(
-        now - RANGE_MS['24h']
-      )
-      const nextTo = toLocalInputValue(now)
-
-      setCustomFrom(nextFrom)
-      setCustomTo(nextTo)
-      setAppliedCustom({
-        from: nextFrom,
-        to: nextTo,
-      })
-    }
-
+    if (next === rangeKey) return
+    historyRequestRef.current += 1
+    historyControllerRef.current?.abort()
+    setHistoryReport(null)
+    setHistoryLoading(false)
+    setError('')
+    setCustomReady(false)
     setRangeKey(next)
-  }, [])
+  }, [rangeKey])
 
   const downloadReport = useCallback(async (type) => {
     const token = getToken()
@@ -1403,28 +1404,17 @@ export default function AdminSystemControlPage() {
       return
     }
 
-    const fallback = getHistoryRange(
-      rangeKey,
-      appliedCustom.from,
-      appliedCustom.to
-    )
-
-    const from =
-      historyReport?.range?.requested_from ||
-      (Number.isFinite(fallback.from)
-        ? new Date(fallback.from).toISOString()
-        : null)
-
-    const to =
-      historyReport?.range?.effective_to ||
-      (Number.isFinite(fallback.to)
-        ? new Date(fallback.to).toISOString()
-        : null)
-
-    if (!from || !to) {
-      setError('Please load a valid time range before downloading.')
+    if (historyLoading || !historyReport || (rangeKey === 'custom' && (!customReady || customFrom !== appliedCustom.from || customTo !== appliedCustom.to))) {
+      setError('Load the selected time range before downloading.')
       return
     }
+    const selected = getHistoryRange(rangeKey, appliedCustom.from, appliedCustom.to)
+    if (!Number.isFinite(selected.from) || !Number.isFinite(selected.to) || selected.to <= selected.from || selected.to - selected.from > 31 * 24 * 60 * 60 * 1000) {
+      setError('Please select a valid time range.')
+      return
+    }
+    const from = new Date(selected.from).toISOString()
+    const to = new Date(Math.min(selected.to, Date.now())).toISOString()
 
     try {
       setReportLoading(type)
@@ -1477,7 +1467,7 @@ export default function AdminSystemControlPage() {
     } finally {
       setReportLoading('')
     }
-  }, [rangeKey, appliedCustom, historyReport])
+  }, [rangeKey, appliedCustom, historyReport, historyLoading, customReady, customFrom, customTo])
 
   useEffect(() => {
     loadSnapshot()
@@ -1507,7 +1497,12 @@ export default function AdminSystemControlPage() {
 
   useEffect(() => {
     loadHistory()
-  }, [loadHistory, rangeKey])
+  }, [loadHistory])
+
+  useEffect(() => () => {
+    historyRequestRef.current += 1
+    historyControllerRef.current?.abort()
+  }, [])
 
   const rows = useMemo(
     () =>
@@ -1521,8 +1516,9 @@ export default function AdminSystemControlPage() {
     () =>
       compactChart(
         Array.isArray(historyReport?.series)
-          ? historyReport.series.map(
-              (item) => number(item.mb)
+          ? bucketHistorySeries(
+              historyReport.series,
+              new Date(historyReport?.range?.effective_to).getTime() - new Date(historyReport?.range?.requested_from).getTime()
             )
           : []
       ),
@@ -1661,9 +1657,21 @@ export default function AdminSystemControlPage() {
   const partialHistory =
     historyReport?.coverage?.partial === true
 
-  const usageRangeNote = partialHistory
-    ? `${selectedRangeLabel} · Partial history`
-    : selectedRangeLabel
+  const customDirty = rangeKey === 'custom' && (customFrom !== appliedCustom.from || customTo !== appliedCustom.to)
+
+  const usageRangeNote = historyLoading
+    ? `${selectedRangeLabel} · Loading…`
+    : rangeKey === 'custom' && !customReady
+      ? 'Custom Range · Choose dates and Apply'
+      : customDirty
+        ? 'Custom Range · Apply changes to update history'
+        : !historyReport
+        ? `${selectedRangeLabel} · Data unavailable`
+        : partialHistory
+          ? `${selectedRangeLabel} · Partial history (${formatNumber(historyReport.coverage?.missing_minutes || 0)} minutes missing)`
+          : selectedRangeLabel
+
+  const canDownloadHistory = !historyLoading && Boolean(historyReport) && !customDirty && (rangeKey !== 'custom' || customReady)
 
   const anomalyStatus = String(
     anomaly?.status || 'learning'
@@ -1766,7 +1774,6 @@ export default function AdminSystemControlPage() {
                   <button
                     type="button"
                     className="sc-range-apply"
-                    disabled={historyLoading}
                     onClick={applyCustomRange}
                   >
                     Apply
@@ -1776,7 +1783,7 @@ export default function AdminSystemControlPage() {
             </div>
 
             <span className="sc-updated">
-              Updated {formatTime(updatedAt)}
+              {historyLoading ? `Loading ${selectedRangeLabel}…` : rangeKey === 'custom' && !customReady ? 'Choose dates, then Apply' : customDirty ? 'Edited dates not applied' : historyReport?.range ? `History ${new Date(historyReport.range.requested_from).toLocaleString()} – ${new Date(historyReport.range.effective_to).toLocaleString()}${partialHistory ? ' · Partial' : ''}` : 'No loaded history'} · Updated {formatTime(updatedAt)}
             </span>
 
             <details className="sc-report-menu">
@@ -1785,26 +1792,26 @@ export default function AdminSystemControlPage() {
               </summary>
 
               <div className="sc-report-options">
-                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('summary-pdf') }}>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('summary-pdf') }}>
                   <strong>Summary Report</strong><span>PDF</span>
                 </button>
-                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('summary-md') }}>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('summary-md') }}>
                   <strong>Summary Report</strong><span>MD</span>
                 </button>
-                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('usage-csv') }}>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('usage-csv') }}>
                   <strong>Usage Data</strong><span>CSV</span>
                 </button>
-                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('problems-pdf') }}>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('problems-pdf') }}>
                   <strong>Problems Report</strong><span>PDF</span>
                 </button>
-                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('problems-md') }}>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('problems-md') }}>
                   <strong>Problems Report</strong><span>MD</span>
                 </button>
-                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('evidence-json') }}>
+                <button type="button" className="sc-report-option" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('evidence-json') }}>
                   <strong>Raw Evidence</strong><span>JSON</span>
                 </button>
                 <div className="sc-report-divider" />
-                <button type="button" className="sc-report-option full" disabled={Boolean(reportLoading)} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('full-zip') }}>
+                <button type="button" className="sc-report-option full" disabled={Boolean(reportLoading) || !canDownloadHistory} onClick={(event) => { event.currentTarget.closest('details')?.removeAttribute('open'); downloadReport('full-zip') }}>
                   <strong>Full Report</strong><span>ZIP</span>
                 </button>
               </div>
@@ -1826,7 +1833,7 @@ export default function AdminSystemControlPage() {
               disabled={loading || historyLoading}
               onClick={() => {
                 loadSnapshot()
-                loadHistory()
+                loadHistory({ force: true })
                 loadIncidents()
               }}
             >
@@ -1844,7 +1851,7 @@ export default function AdminSystemControlPage() {
             tone="purple"
             icon="◉"
             label="Total Data Usage"
-            value={formatUsage(totalMb)}
+            value={historyReport ? formatUsage(totalMb) : '—'}
             note={totalUsageNote}
             spark={sparkBase}
             onClick={() =>
@@ -1859,8 +1866,8 @@ export default function AdminSystemControlPage() {
             value={formatUsage(renderDisplayMb)}
             note={
               renderBilling
-                ? 'Official Render outbound · provider hour'
-                : `Measured external traffic · ${selectedRangeLabel}`
+                ? 'Official Render outbound · provider period, not selected range'
+                : `Measured request payloads · ${selectedRangeLabel} · top saved rows`
             }
             spark={sparkBase.map(
               (value, index) =>
@@ -1875,8 +1882,8 @@ export default function AdminSystemControlPage() {
             tone="green"
             icon="▤"
             label="Supabase Activity"
-            value={formatNumber(supabaseCalls)}
-            note={`Calls · ${selectedRangeLabel}`}
+            value={historyReport ? formatNumber(supabaseCalls) : '—'}
+            note={`Observed calls from saved top rows · ${usageRangeNote}`}
             spark={sparkBase.map(
               (value, index) =>
                 value * (0.64 + (index % 3) * 0.09)
@@ -2043,22 +2050,22 @@ export default function AdminSystemControlPage() {
               </div>
 
               <div className="sc-chart-value">
-                <strong>{formatUsage(totalMb)}</strong>
+                <strong>{historyReport ? formatUsage(totalMb) : '—'}</strong>
                 <span>selected period</span>
               </div>
 
-              <LineChart
-                values={
-                  historyValues.length >= 2
-                    ? historyValues
-                    : sparkBase
-                }
-              />
+              {historyReport && historyValues.length >= 2 ? (
+                <LineChart values={historyValues} />
+              ) : (
+                <div className="sc-empty" style={{ padding: 20 }}>
+                  {historyLoading ? 'Loading selected period…' : 'No history chart data available for this period.'}
+                </div>
+              )}
             </div>
 
             <div className="sc-panel">
               <div className="sc-panel-head">
-                <div className="sc-panel-title">Measured Traffic by Dependency</div>
+                <div className="sc-panel-title">Measured Traffic by Dependency (top saved rows)</div>
                 <div className="sc-panel-meta">{selectedRangeLabel}</div>
               </div>
 
@@ -2073,7 +2080,7 @@ export default function AdminSystemControlPage() {
                   }}
                 >
                   <div className="sc-donut-center">
-                    <strong>{formatUsage(totalMb)}</strong>
+                    <strong>{historyReport ? formatUsage(totalMb) : '—'}</strong>
                     <span>Total measured</span>
                   </div>
                 </div>
@@ -2113,7 +2120,7 @@ export default function AdminSystemControlPage() {
 
             <div className="sc-panel">
               <div className="sc-panel-head">
-                <div className="sc-panel-title">Top Data Contributors</div>
+                <div className="sc-panel-title">Top Data Contributors (saved detail)</div>
                 <div className="sc-panel-meta">{selectedRangeLabel}</div>
               </div>
 
