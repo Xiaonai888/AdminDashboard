@@ -163,14 +163,14 @@ function createProgressView(fileCount, totalBytes) {
       </div>
 
       <div class="shadow-upload-progress-details">
-        <div class="shadow-upload-progress-detail">
-          <span>Images</span>
-          <strong>${fileCount} files</strong>
-        </div>
-        <div class="shadow-upload-progress-detail">
-          <span>Total size</span>
-          <strong>${formatMegabytes(totalBytes)}</strong>
-        </div>
+          <div class="shadow-upload-progress-detail">
+            <span>Images</span>
+            <strong>${fileCount} files</strong>
+          </div>
+          <div class="shadow-upload-progress-detail">
+            <span>Total size</span>
+            <strong>${formatMegabytes(totalBytes)}</strong>
+          </div>
       </div>
     </div>
   `
@@ -202,7 +202,9 @@ function createProgressView(fileCount, totalBytes) {
         ? `Using existing upload service for remaining images (${fileIndex}/${totalFiles})...`
         : stage === 'finalizing'
           ? `Saving image ${fileIndex} of ${totalFiles} to Cloudflare...`
-          : `Uploading image ${fileIndex} of ${totalFiles} directly to Cloudflare...`
+          : stage === 'parallel'
+            ? `Uploading directly to Cloudflare (${fileIndex}/${totalFiles} complete)...`
+            : `Uploading image ${fileIndex} of ${totalFiles} directly to Cloudflare...`
     },
     showProcessing() {
       card.classList.add('shadow-upload-progress-processing')
@@ -216,7 +218,9 @@ function createProgressView(fileCount, totalBytes) {
       card.classList.add('shadow-upload-progress-success')
       title.textContent = 'Upload complete'
       percent.textContent = '100%'
-      status.textContent = `${fileCount} images were compressed and saved successfully.`
+      size.textContent = `${formatMegabytes(totalBytes)} / ${formatMegabytes(totalBytes)}`
+      bar.style.width = '100%'
+      status.textContent = `${fileCount} images were saved successfully.`
     },
     showError(message) {
       card.classList.remove('shadow-upload-progress-processing')
@@ -232,6 +236,9 @@ function createProgressView(fileCount, totalBytes) {
 
 const DIRECT_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const DIRECT_MEDIA_MAX_BYTES = 5 * 1024 * 1024
+const DIRECT_CONCURRENCY = 3
+const MAX_BATCH_FILES = 20
+const finalizedImages = new WeakMap()
 let directUnavailableUntil = 0
 
 function uploadError(message, status = 0, code = '') {
@@ -244,11 +251,7 @@ function uploadError(message, status = 0, code = '') {
 async function readMediaResponse(response, fallbackMessage) {
   const result = await response.json().catch(() => ({}))
   if (!response.ok || result.ok === false) {
-    throw uploadError(
-      result.message || fallbackMessage,
-      response.status,
-      result.code || ''
-    )
+    throw uploadError(result.message || fallbackMessage, response.status, result.code || '')
   }
   return result
 }
@@ -260,9 +263,7 @@ function uploadDirectImageBytes(url, file, onProgress) {
     xhr.setRequestHeader('Content-Type', file.type)
     xhr.timeout = 180000
     xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable && event.total) {
-        onProgress(Math.min(file.size, event.loaded))
-      }
+      if (event.lengthComputable && event.total) onProgress(Math.min(file.size, event.loaded))
     })
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -297,28 +298,21 @@ async function uploadImageDirect(apiUrl, token, file, onProgress) {
     throw uploadError('Cloudflare upload session is unavailable', 503)
   }
 
-    try {
+  try {
     await uploadDirectImageBytes(init.upload_url, file, onProgress)
-
-  const finalizeResponse = await fetch(`${apiUrl}/api/media-direct/admin/finalize`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ upload_token: init.upload_token }),
-  })
-  const result = await readMediaResponse(finalizeResponse, 'Cannot finish direct image upload')
-  const imageUrl = result.image_url || result.imageUrl || ''
-  const storageKey = result.path || result.storage_key || ''
-  if (!imageUrl || !storageKey) {
-    throw uploadError('Cloudflare returned an incomplete image reference', 503)
-  }
-  return {
-    original_name: file.name,
-    image_url: imageUrl,
-        storage_key: storageKey,
-  }
+    const finalizeResponse = await fetch(`${apiUrl}/api/media-direct/admin/finalize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ upload_token: init.upload_token }),
+    })
+    const result = await readMediaResponse(finalizeResponse, 'Cannot finish direct image upload')
+    const imageUrl = result.image_url || result.imageUrl || ''
+    const storageKey = result.path || result.storage_key || ''
+    if (!imageUrl || !storageKey) throw uploadError('Cloudflare returned an incomplete image reference', 503)
+    return { original_name: file.name, image_url: imageUrl, storage_key: storageKey }
   } catch (error) {
     error.directPutStarted = true
     throw error
@@ -334,11 +328,8 @@ function uploadImagesThroughRender(apiUrl, token, files, onProgress) {
     xhr.open('POST', `${apiUrl}/api/admin/media-library/upload`)
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
     xhr.timeout = 300000
-
     xhr.upload.addEventListener('progress', (event) => {
-      if (event.lengthComputable && event.total) {
-        onProgress(Math.min(1, event.loaded / event.total))
-      }
+      if (event.lengthComputable && event.total) onProgress(Math.min(1, event.loaded / event.total))
     })
     xhr.addEventListener('load', () => {
       let data = {}
@@ -379,77 +370,100 @@ function canTryExistingService(error) {
   return ![400, 401, 403, 413, 415, 422, 429].includes(status)
 }
 
-export async function uploadMediaLibraryWithProgress({
-  apiUrl,
-  token,
-  files,
-}) {
+export async function uploadMediaLibraryWithProgress({ apiUrl, token, files }) {
   const selectedFiles = Array.from(files || [])
-  const totalBytes = selectedFiles.reduce(
-    (sum, file) => sum + Number(file?.size || 0),
-    0
-  )
+  const totalBytes = selectedFiles.reduce((sum, file) => sum + Number(file?.size || 0), 0)
+  if (!selectedFiles.length) throw uploadError('Please choose at least one image')
+  if (selectedFiles.length > MAX_BATCH_FILES) throw uploadError(`Choose up to ${MAX_BATCH_FILES} images per batch`)
+  if (!token) throw uploadError('Please log in again before uploading images', 401)
+
   const view = createProgressView(selectedFiles.length, totalBytes)
+  const baseUrl = String(apiUrl || '').replace(/\/+$/, '')
+  const results = new Array(selectedFiles.length)
+  const progressBytes = new Array(selectedFiles.length).fill(0)
+  const pendingLegacy = []
+  let completed = 0
+  let nextIndex = 0
+  let fatalError = null
+  let directEnabled = Date.now() >= directUnavailableUntil
 
-  try {
-    if (!selectedFiles.length) throw uploadError('Please choose at least one image')
-    if (!token) throw uploadError('Please log in again before uploading images', 401)
+  function renderProgress(stage = 'parallel') {
+    const bytes = progressBytes.reduce((sum, current) => sum + current, 0)
+    view.updateDirect(bytes, completed, selectedFiles.length, stage)
+  }
 
-    const results = new Array(selectedFiles.length)
-    const pendingLegacy = []
-    let completedBytes = 0
-    let directEnabled = Date.now() >= directUnavailableUntil
-    const baseUrl = String(apiUrl || '').replace(/\/+$/, '')
-
-    for (let index = 0; index < selectedFiles.length; index += 1) {
+  async function worker() {
+    while (!fatalError) {
+      const index = nextIndex++
+      if (index >= selectedFiles.length) return
       const file = selectedFiles[index]
+      const cached = finalizedImages.get(file)
+      if (cached?.apiUrl === baseUrl && cached?.token === token && cached?.image) {
+        results[index] = cached.image
+        progressBytes[index] = file.size
+        completed += 1
+        renderProgress()
+        continue
+      }
       if (!directEnabled || !canUseDirectUpload(file)) {
         pendingLegacy.push(index)
         continue
       }
-
       try {
-        view.updateDirect(completedBytes, index + 1, selectedFiles.length, 'uploading')
-        const uploaded = await uploadImageDirect(baseUrl, token, file, (uploadedBytes) => {
-          view.updateDirect(completedBytes + uploadedBytes, index + 1, selectedFiles.length, 'uploading')
+        const image = await uploadImageDirect(baseUrl, token, file, (bytes) => {
+          progressBytes[index] = Math.max(progressBytes[index], Math.min(file.size, bytes))
+          renderProgress()
         })
-        results[index] = uploaded
-        completedBytes += file.size
-        view.updateDirect(completedBytes, index + 1, selectedFiles.length, 'finalizing')
+        results[index] = image
+        finalizedImages.set(file, { apiUrl: baseUrl, token, image })
+        progressBytes[index] = file.size
+        completed += 1
+        renderProgress()
       } catch (error) {
-        if (!canTryExistingService(error)) throw error
+        if (!canTryExistingService(error)) {
+          fatalError = error
+          return
+        }
         directEnabled = false
         directUnavailableUntil = Date.now() + 60000
+        progressBytes[index] = 0
         pendingLegacy.push(index)
+        renderProgress()
       }
     }
+  }
+
+  try {
+    renderProgress()
+    await Promise.all(Array.from({ length: Math.min(DIRECT_CONCURRENCY, selectedFiles.length) }, () => worker()))
+    if (fatalError) throw fatalError
 
     if (pendingLegacy.length) {
+      pendingLegacy.sort((a, b) => a - b)
       const legacyFiles = pendingLegacy.map((index) => selectedFiles[index])
-      const legacyBytes = legacyFiles.reduce((sum, file) => sum + file.size, 0)
-      view.updateDirect(completedBytes, selectedFiles.length - pendingLegacy.length, selectedFiles.length, 'fallback')
-      const uploaded = await uploadImagesThroughRender(baseUrl, token, legacyFiles, (ratio) => {
-        view.updateDirect(
-          completedBytes + Math.round(legacyBytes * ratio),
-          selectedFiles.length - pendingLegacy.length,
-          selectedFiles.length,
-          'fallback'
-        )
-      })
-      pendingLegacy.forEach((index, offset) => {
-        results[index] = uploaded[offset]
+      const legacyTotal = legacyFiles.reduce((sum, file) => sum + file.size, 0)
+      await uploadImagesThroughRender(baseUrl, token, legacyFiles, (ratio) => {
+        const baseBytes = progressBytes.reduce((sum, bytes) => sum + bytes, 0)
+        view.updateDirect(baseBytes + Math.round(legacyTotal * ratio), completed, selectedFiles.length, 'fallback')
+      }).then((uploaded) => {
+        pendingLegacy.forEach((index, offset) => {
+          results[index] = uploaded[offset]
+          progressBytes[index] = selectedFiles[index].size
+          completed += 1
+        })
       })
     }
-
-    if (results.some((item) => !item?.image_url || !item?.storage_key)) {
+    if (results.some((image) => !image?.image_url || !image?.storage_key)) {
       throw uploadError('Some images could not be uploaded. Please try again.')
     }
-
+    selectedFiles.forEach((file) => finalizedImages.delete(file))
     view.showSuccess()
     view.remove(900)
     return { ok: true, images: results }
   } catch (error) {
-    view.showError(error?.message || 'Failed to upload images')
+    const saved = results.filter((image) => image?.image_url && image?.storage_key).length
+    const message = saved ? `${error?.message || 'Upload failed'} (${saved}/${selectedFiles.length} already on Cloudflare; retry the same selection)` : error?.message
+    view.showError(message || 'Failed to upload images')
     view.remove(2200)
     throw error
   }
