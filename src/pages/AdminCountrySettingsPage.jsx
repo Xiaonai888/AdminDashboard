@@ -5,14 +5,16 @@ const API = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrende
 const ROOT = `${API}/api/admin/country-settings`
 const REGIONS = ['kh', 'international']
 const DEFAULT_RULES = {
-  kh: { app: true, physicalBooks: true, binancePay: false, payway: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
-  international: { app: false, physicalBooks: false, binancePay: true, payway: false, storyLanguage: 'en', shopTarget: 'diamonds' },
+  kh: { app: true, physicalBooks: true, binancePay: false, payway: true, shadowMall: true, readerMall: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
+  international: { app: false, physicalBooks: false, binancePay: true, payway: false, shadowMall: false, readerMall: false, storyLanguage: 'en', shopTarget: 'diamonds' },
 }
 const FEATURES = [
   { key: 'app', title: 'Mine > App', detail: 'Display the App entry and its available tools.', icon: '▦', tone: 'violet' },
   { key: 'physicalBooks', title: 'Physical Books', detail: 'Allow access to physical book shopping.', icon: '▤', tone: 'rose' },
   { key: 'binancePay', title: 'Binance Pay', detail: 'Show Binance in Diamond payment methods.', icon: '◆', tone: 'amber' },
   { key: 'payway', title: 'ABA / PayWay', detail: 'Show PayWay in Diamond payment methods.', icon: '▣', tone: 'blue' },
+  { key: 'shadowMall', title: 'Shadow Mall', detail: 'Show or hide the Shadow Mall shopping entry.', icon: '🛍', tone: 'orange' },
+  { key: 'readerMall', title: 'Reader Mall', detail: 'Show or hide Reader Profile > Mall.', icon: '🛒', tone: 'green' },
 ]
 const LANGUAGE_OPTIONS = [
   { value: 'km', label: 'Khmer' },
@@ -35,6 +37,8 @@ const DEFAULT_OVERRIDE = {
   physicalBooks: 'inherit',
   binancePay: 'inherit',
   payway: 'inherit',
+  shadowMall: 'inherit',
+  readerMall: 'inherit',
   storyLanguage: 'inherit',
   shopTarget: 'inherit',
 }
@@ -146,8 +150,10 @@ function normalizeRules(rules) {
     if (!rules[region] || typeof rules[region] !== 'object') throw new Error('Missing region rules')
     normalized[region] = {}
     for (const feature of FEATURES) {
-      if (typeof rules[region][feature.key] !== 'boolean') throw new Error('Invalid feature rule')
-      normalized[region][feature.key] = rules[region][feature.key]
+      const flag = rules[region][feature.key]
+      if (flag !== undefined && typeof flag !== 'boolean') throw new Error('Invalid feature rule')
+      if (flag === undefined && !['shadowMall', 'readerMall'].includes(feature.key)) throw new Error('Invalid feature rule')
+      normalized[region][feature.key] = flag === undefined ? DEFAULT_RULES[region][feature.key] : flag
     }
     const language = rules[region].storyLanguage
     const shopTarget = rules[region].shopTarget
@@ -166,14 +172,6 @@ function getQuickMode(rules, key) {
   if (kh && !abroad) return 'kh'
   if (!kh && abroad) return 'international'
   return 'none'
-}
-
-function countryLabel(value) {
-  return LANGUAGE_OPTIONS.find(item => item.value === value)?.label || value
-}
-
-function shopLabel(value) {
-  return SHOP_OPTIONS.find(item => item.value === value)?.label || value
 }
 
 function Toggle({ checked, label, onChange }) {
@@ -432,18 +430,6 @@ export default function AdminCountrySettingsPage() {
                   {REGIONS.map(region => <td key={region}><Toggle checked={rules[region][feature.key]} label={`${feature.title} in ${region === 'kh' ? 'Cambodia' : 'International'}`} onChange={value => setFeature(region, feature.key, value)} /></td>)}
                   <td><select className="csp-select compact" aria-label={`${feature.title} availability`} value={getQuickMode(rules, feature.key)} onChange={event => setQuickMode(feature.key, event.target.value)}><option value="kh">Cambodia Only</option><option value="international">International Only</option><option value="all">All Countries</option><option value="none">Disabled</option></select></td>
                 </tr>)}
-                <tr>
-                  <td><div className="csp-feature"><span className="csp-feature-icon green">文</span><span className="csp-feature-name">Default Story Language</span></div></td>
-                  <td><span className="csp-feature-desc">Initial story language for first-time readers.</span></td>
-                  {REGIONS.map(region => <td key={region}><select aria-label={`${region} default language`} className="csp-select" value={rules[region].storyLanguage} onChange={event => setFeature(region, 'storyLanguage', event.target.value)}>{LANGUAGE_OPTIONS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></td>)}
-                  <td><span className="csp-chip">Per Region</span></td>
-                </tr>
-                <tr>
-                  <td><div className="csp-feature"><span className="csp-feature-icon orange">🛒</span><span className="csp-feature-name">Stories/Manga → Shop</span></div></td>
-                  <td><span className="csp-feature-desc">Destination when readers select Shop.</span></td>
-                  {REGIONS.map(region => <td key={region}><select aria-label={`${region} Shop destination`} className="csp-select" value={rules[region].shopTarget} onChange={event => setFeature(region, 'shopTarget', event.target.value)}>{SHOP_OPTIONS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></td>)}
-                  <td><span className="csp-chip">Per Region</span></td>
-                </tr>
               </tbody>
             </table>
           </div>
@@ -455,8 +441,6 @@ export default function AdminCountrySettingsPage() {
             {REGIONS.map(region => <div className="csp-preview-card" key={region}>
               <div className="csp-preview-title"><span className="csp-flag">{region === 'kh' ? '🇰🇭' : '🌍'}</span><span>{region === 'kh' ? 'Cambodia (KH)' : 'International (Other Countries)'}</span><span className="csp-chip">{connected ? 'Current Selection' : 'Example'}</span></div>
               {FEATURES.map(feature => <PreviewItem key={feature.key} allowed={rules[region][feature.key]}>{feature.title}</PreviewItem>)}
-              <PreviewItem allowed>Story Language: {countryLabel(rules[region].storyLanguage)}</PreviewItem>
-              <PreviewItem allowed>Shop Button: {shopLabel(rules[region].shopTarget)}</PreviewItem>
             </div>)}
           </div></div>
         </section>
@@ -473,8 +457,6 @@ export default function AdminCountrySettingsPage() {
             <div className="csp-field"><label htmlFor="csp-mode" className="csp-field-label">Exception Type</label><select id="csp-mode" className="csp-select" value={exceptionMode} onChange={event => setExceptionMode(event.target.value)}><option value="cambodia_experience">Cambodia Experience</option><option value="all_eligible">Allow All Eligible Features</option><option value="custom">Custom Permissions</option></select></div>
             {exceptionMode === 'custom' && <div className="csp-override-grid" style={{ marginTop: 14 }}>
               {FEATURES.map(feature => <div key={feature.key} className="csp-field"><label className="csp-field-label">{feature.title}</label><select aria-label={`${feature.title} exception`} className="csp-select" value={overrides[feature.key]} onChange={event => setOverrides(current => ({ ...current, [feature.key]: event.target.value }))}>{OVERRIDE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>)}
-              <div className="csp-field"><label className="csp-field-label">Story Language</label><select className="csp-select" value={overrides.storyLanguage} onChange={event => setOverrides(current => ({ ...current, storyLanguage: event.target.value }))}><option value="inherit">Use Country Rule</option>{LANGUAGE_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-              <div className="csp-field"><label className="csp-field-label">Shop Destination</label><select className="csp-select" value={overrides.shopTarget} onChange={event => setOverrides(current => ({ ...current, shopTarget: event.target.value }))}><option value="inherit">Use Country Rule</option>{SHOP_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
             </div>}
             <div className="csp-row" style={{ marginTop: 15 }}><span className="csp-help">The account will be identified by its User ID.</span><button className="csp-button primary" type="button" disabled={!connected || exceptionSaving} onClick={saveException}>{exceptionSaving ? 'Saving…' : 'Save Exception'}</button></div>
           </div>}
