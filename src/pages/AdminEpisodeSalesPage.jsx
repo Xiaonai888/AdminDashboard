@@ -6,6 +6,7 @@ import React, {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import PremiumReaderBadge from '../components/PremiumReaderBadge'
 import EpisodeSalesEventPopup, {
   EpisodeSalesEventAmount,
   useEpisodeSalesEventPopup,
@@ -16,6 +17,16 @@ const API_URL =
   'https://shadow-backend-kucw.onrender.com'
 
 const PAGE_SIZE = 20
+
+function isPremiumAtPurchase(item) {
+  const metadata = item?.metadata || {}
+  return String(metadata.reader_tier || '').toLowerCase() === 'premium' ||
+    (Array.isArray(metadata.applied_discounts) &&
+      metadata.applied_discounts.some((discount) =>
+        String(discount?.key || '').toLowerCase() === 'premium' &&
+        Number(discount?.percent || 0) > 0
+      ))
+}
 
 const styles = `
   .episode-sales-page {
@@ -1678,10 +1689,11 @@ export default function AdminEpisodeSalesPage() {
                                 </td>
                                 <td>
                                   <div className="episode-sales-name">
-                                    {buyerName(
-                                      item
-                                    )}
-                                  </div>
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <PremiumReaderBadge isPremium={isPremiumAtPurchase(item)} />
+    {buyerName(item)}
+  </span>
+</div>
                                   <div className="episode-sales-small">
                                     {buyerUsername(
                                       item
@@ -1874,10 +1886,11 @@ export default function AdminEpisodeSalesPage() {
                         Name
                       </div>
                       <div className="episode-sales-v">
-                        {buyerName(
-                          selected
-                        )}
-                      </div>
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <PremiumReaderBadge isPremium={isPremiumAtPurchase(selected)} />
+    {buyerName(selected)}
+  </span>
+</div>
                     </div>
                     <div className="episode-sales-kv">
                       <div className="episode-sales-k">
