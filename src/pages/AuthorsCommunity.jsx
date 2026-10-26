@@ -407,7 +407,129 @@ function DetailItem({ label, value }) {
   )
 }
 
+const READER_COUNTRY_CODES = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW XK'.split(' ')
+const READER_COUNTRY_OPTIONS = READER_COUNTRY_CODES.map(code => {
+  let name = code
+  try { name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code } catch {}
+  return { code, name }
+}).sort((a, b) => a.name.localeCompare(b.name))
+
+function canManageReaderCountry() {
+  try {
+    const admin = JSON.parse(sessionStorage.getItem('shadow_admin_user') || localStorage.getItem('shadow_admin_user') || '{}')
+    const role = String(admin?.role || '').toLowerCase()
+    return admin.has_all_permissions === true || role === 'owner' || role === 'admin' || admin.permission_keys?.includes('system_control.manage') === true
+  } catch { return false }
+}
+
+function ReaderCountryEditor({ reader, onClose }) {
+  const [record, setRecord] = useState(null)
+  const [country, setCountry] = useState('')
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+  const choices = useMemo(() => READER_COUNTRY_OPTIONS.filter(item => item.code === country || `${item.name} ${item.code}`.toLowerCase().includes(search.trim().toLowerCase())), [search, country])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    async function load() {
+      try {
+        const token = getAdminToken()
+        if (!token) throw new Error('Admin session expired')
+        const q = encodeURIComponent(String(reader.id))
+        const response = await fetch(`${API_URL}/api/admin/reader-classification?page=1&limit=10&group=all&q=${q}`, {
+          headers: { Authorization: `Bearer ${token}` }, signal: controller.signal, cache: 'no-store'
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok || result?.ok !== true) throw new Error(result?.message || `Failed to load (${response.status})`)
+        const item = (result.items || []).find(value => String(value.id) === String(reader.id))
+        if (!item) throw new Error('Reader country record was not found')
+        if (controller.signal.aborted) return
+        setRecord(item)
+        setCountry(item.admin_country_override || '')
+      } catch (err) {
+        if (!controller.signal.aborted) setError(err?.message || 'Failed to load country')
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+    void load()
+    return () => controller.abort()
+  }, [reader.id])
+
+  useEffect(() => {
+    const escape = event => { if (event.key === 'Escape' && !saving) onClose() }
+    document.addEventListener('keydown', escape)
+    return () => document.removeEventListener('keydown', escape)
+  }, [onClose, saving])
+
+  async function save(event) {
+    event.preventDefault()
+    if (loading || saving || !record || !canManageReaderCountry()) return
+    setSaving(true)
+    setSaved(false)
+    setError('')
+    try {
+      const token = getAdminToken()
+      if (!token) throw new Error('Admin session expired')
+      const response = await fetch(`${API_URL}/api/admin/reader-classification/${encodeURIComponent(String(reader.id))}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_country_override: country || null }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || result?.ok !== true) throw new Error(result?.message || `Cannot save (${response.status})`)
+      setRecord(current => ({ ...current, admin_country_override: country || null, effective_country: result.effective_country || current.detected_country }))
+      setSaved(true)
+    } catch (err) {
+      setError(err?.message || 'Failed to save country')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const panel = { width: 'min(460px, 100%)', maxHeight: '90vh', overflowY: 'auto', padding: 22, borderRadius: 20, border: '1px solid #e2e8f0', background: '#fff', boxShadow: '0 24px 65px rgba(15,23,42,.2)', display: 'grid', gap: 14, color: '#0f172a' }
+  const control = { width: '100%', minHeight: 42, padding: '9px 12px', borderRadius: 11, border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontSize: 13 }
+  const button = { minHeight: 39, padding: '9px 15px', border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', cursor: 'pointer', fontWeight: 800 }
+  return (
+    <div role="presentation" onMouseDown={event => { event.stopPropagation(); if (event.target === event.currentTarget && !saving) onClose() }} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.62)', display: 'grid', placeItems: 'center', padding: 16, zIndex: 20000 }}>
+      <form role="dialog" aria-modal="true" aria-label="Edit Reader Country" onSubmit={save} onMouseDown={event => event.stopPropagation()} style={panel}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div><h3 style={{ margin: '0 0 5px', fontSize: 19 }}>Edit Reader Country</h3><div style={{ fontSize: 12, color: '#64748b' }}>{reader.name || reader.username || 'Reader'}</div></div>
+          <button type="button" disabled={saving} onClick={onClose} aria-label="Close" style={button}>✕</button>
+        </div>
+        {loading ? <div role="status">Loading saved country…</div> : null}
+        {record ? <div style={{ padding: 12, borderRadius: 12, background: '#f8fafc', lineHeight: 1.9, fontSize: 12 }}>
+          <div>IP Detected: <strong>{record.detected_country || 'Unknown'}</strong></div>
+          <div>Effective Country: <strong>{record.effective_country || 'Unknown'}</strong></div>
+          <div>Reader Group: <strong>{record.reader_group || 'Unknown'}</strong></div>
+        </div> : null}
+        <label style={{ display: 'grid', gap: 7, fontSize: 12, fontWeight: 800 }}>Search Country
+          <input style={control} type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Country name or two-letter code" maxLength={60}/>
+        </label>
+        <label style={{ display: 'grid', gap: 7, fontSize: 12, fontWeight: 800 }}>Saved Country Override
+          <select style={control} disabled={loading || !record || saving} value={country} onChange={event => { setCountry(event.target.value); setSaved(false) }}>
+            <option value="">Use originally detected country</option>
+            {choices.map(item => <option key={item.code} value={item.code}>{item.name} ({item.code})</option>)}
+          </select>
+        </label>
+        <div style={{ fontSize: 12, color: '#64748b' }}>Country is saved until Admin changes it again. Reader Group is managed separately by Story Language.</div>
+        {error ? <div role="alert" style={{ padding: 10, borderRadius: 10, background: '#fef2f2', color: '#b91c1c', fontSize: 12 }}>{error}</div> : null}
+        {saved ? <div role="status" style={{ padding: 10, borderRadius: 10, background: '#ecfdf5', color: '#047857', fontSize: 12 }}>Country saved successfully.</div> : null}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 9 }}>
+          <button type="button" disabled={saving} onClick={onClose} style={button}>{saved ? 'Done' : 'Cancel'}</button>
+          <button type="submit" disabled={loading || saving || !record || saved} style={{ ...button, background: '#4f46e5', color: '#fff', borderColor: '#4f46e5' }}>{saving ? 'Saving…' : 'Save Country'}</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 function UserDetailDrawer({ item, type, onClose, onOpenBooks, detailLoading = false, detailError = '', onRetry }) {
+  const [countryOpen, setCountryOpen] = useState(false)
+  useEffect(() => { setCountryOpen(false) }, [item?.id])
   if (!item) return null
 
   const isAuthor = type === 'author'
@@ -459,6 +581,7 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks, detailLoading = fa
           <button type="button" onClick={() => copyToClipboard(username ? `@${username}` : '')}>Copy Username</button>
           <button type="button" onClick={() => copyToClipboard(id)}>Copy {isAuthor ? 'Author ID' : 'User ID'}</button>
           {isAuthor ? <button type="button" onClick={() => copyToClipboard(userId)}>Copy User ID</button> : null}
+          {!isAuthor && canManageReaderCountry() ? <button type="button" onClick={() => setCountryOpen(true)}>Edit Country</button> : null}
         </div>
 
         <div className="community-detail-grid">
@@ -528,6 +651,7 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks, detailLoading = fa
           </div>
         ) : null}
       </aside>
+      {!isAuthor && countryOpen ? <ReaderCountryEditor reader={item} onClose={() => setCountryOpen(false)} /> : null}
     </div>
   )
 }
