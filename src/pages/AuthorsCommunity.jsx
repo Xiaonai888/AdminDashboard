@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import PremiumReaderBadge from '../components/PremiumReaderBadge'
 import AuthorBooksModal from '../components/AuthorBooksModal'
 import ReaderCountryWorldMap from '../components/ReaderCountryWorldMap'
 import ReaderGrowthSection from '../components/ReaderGrowthSection'
@@ -353,12 +354,15 @@ function Avatar({ name, username, email, avatarUrl, type, size = 'normal' }) {
   )
 }
 
-function PersonCell({ name, username, email, avatarUrl, type }) {
+function PersonCell({ name, username, email, avatarUrl, type, isPremium = false }) {
   return (
     <div className="community-person">
       <Avatar name={name} username={username} email={email} avatarUrl={avatarUrl} type={type} />
       <div className="community-person-copy">
-        <div className="community-name">{name || username || 'Unnamed'}</div>
+        <div className="community-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <PremiumReaderBadge isPremium={isPremium === true} size={18} />
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name || username || 'Unnamed'}</span>
+        </div>
         <div className="community-username">@{username || 'no_username'}</div>
       </div>
     </div>
@@ -566,7 +570,10 @@ function UserDetailDrawer({ item, type, onClose, onOpenBooks, detailLoading = fa
         <div className="community-drawer-profile">
           <Avatar name={name} username={username} email={email} avatarUrl={avatarUrl} type={isAuthor ? 'author' : 'reader'} size="large" />
           <div>
-            <div className="community-drawer-name">{name || username || 'Unnamed'}</div>
+            <div className="community-drawer-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {!isAuthor ? <PremiumReaderBadge isPremium={item.is_premium === true} size={18} /> : null}
+              <span>{name || username || 'Unnamed'}</span>
+            </div>
             <div className="community-drawer-username">@{username || 'no_username'}</div>
             <div className="community-drawer-badges">
               {isAuthor ? <span className="community-role-badge author">Author</span> : <RoleBadge isAuthor={item.is_author} />}
@@ -2866,7 +2873,7 @@ const [filter, setFilter] = useState(initialFilter)
                     <LoadingRows columns={6} label="Loading readers..." />
                   ) : readers.length ? readers.map((reader) => (
                     <tr key={reader.id} className="community-clickable-row" onClick={() => setSelectedItem(reader)}>
-                      <td><PersonCell name={reader.name} username={reader.username} email={reader.email} avatarUrl={reader.avatar_url} type="reader" /></td>
+                      <td><PersonCell name={reader.name} username={reader.username} email={reader.email} avatarUrl={reader.avatar_url} type="reader" isPremium={reader.is_premium === true} /></td>
                       <td><span className="community-email">{reader.email || '-'}</span></td>
                       <td><RoleBadge isAuthor={reader.is_author} /></td>
                       <td>{formatDate(reader.joined_at)}</td>
