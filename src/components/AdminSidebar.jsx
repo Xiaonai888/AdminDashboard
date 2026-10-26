@@ -326,7 +326,12 @@ export default function AdminSidebar() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const sidebarRef = useRef(null);
-  const visibleSections = filterAdminNavSections(navSections);
+  const visibleSections = filterAdminNavSections(navSections).map(section => ({
+  ...section,
+  items: section.items.flatMap(item => item.path === '/country-settings'
+    ? [item, { path: '/reader-classification', label: 'Reader Classification', icon: 'M4 7h16 M4 12h10 M4 17h16 M18 10l2 2-2 2' }]
+    : [item]),
+}));
   const allItems = visibleSections.flatMap(section => section.items);
   const activeItem = [...allItems]
     .sort((a, b) => b.path.length - a.path.length)
