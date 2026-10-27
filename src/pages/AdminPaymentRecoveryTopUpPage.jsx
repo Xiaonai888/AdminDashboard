@@ -1497,7 +1497,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
             <div className="recovery-section-head" style={{ padding: 0, border: 0 }}>
               <div>
                 <h3>Recovery & Top-Up Action History</h3>
-                <p className="recovery-muted">10 records per page. Details and full edit history load only after selecting an action.</p>
+                <p className="recovery-muted">10 records per page. Bank Manual Coins show the credited, spent, remaining and expired amounts. Refresh for the latest expiry status.</p>
               </div>
               <button type="button" className="recovery-button" onClick={refreshHistory} disabled={historyLoading || historyEditWorking}>Refresh</button>
             </div>
@@ -1509,7 +1509,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
               const editCount = Number(detail.edit_count || 0)
               return <div className="recovery-history-item" key={action.id}>
                 <div className="recovery-actions">
-                  <strong>{detail.user_name || action.user_name || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
+                  <strong>{detail.user_name || action.user_name || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds{action.action_type === 'topup' ? ` · +${Number(action.coin_grant?.issued_coins ?? 0).toLocaleString()} Coins` : ''}</strong>
                   {editCount > 0 ? <span className="recovery-update-badge">Updated · {editCount}</span> : null}
                 </div>
                 <div className="recovery-sub">Reference {detail.display_reference || detail.reference || '—'} · {formatDate(action.created_at)}</div>
@@ -1536,6 +1536,17 @@ export default function AdminPaymentRecoveryTopUpPage() {
                     <div><dt>Mark / Note</dt><dd>{detail.mark_note || '—'}</dd></div>
                     <div><dt>USD</dt><dd>{detail.amount_usd == null ? '—' : Number(detail.amount_usd).toFixed(2)}</dd></div>
                     <div><dt>Diamonds credited</dt><dd>{Number(detail.diamonds || 0).toLocaleString()}</dd></div>
+                    {action.action_type === 'topup' ? <>
+                      <div><dt>Manual Coins credited</dt><dd>{Number(action.coin_grant?.issued_coins ?? 0).toLocaleString()}</dd></div>
+                      {action.coin_grant ? <>
+                        <div><dt>Coins spent</dt><dd>{Number(action.coin_grant.spent_coins || 0).toLocaleString()}</dd></div>
+                        <div><dt>Coins expired</dt><dd>{Number(action.coin_grant.expired_coins || 0).toLocaleString()}</dd></div>
+                        <div><dt>Coins remaining</dt><dd>{Number(action.coin_grant.remaining_coins || 0).toLocaleString()}</dd></div>
+                        <div><dt>Coins credited at</dt><dd>{formatDate(action.coin_grant.credited_at)}</dd></div>
+                        <div><dt>Coins expire at</dt><dd>{formatDate(action.coin_grant.expires_at)}</dd></div>
+                        <div><dt>Expiry status</dt><dd>{action.coin_grant.processed_at ? 'Expired / processed' : Number(action.coin_grant.remaining_coins || 0) === 0 ? 'Fully spent' : new Date(action.coin_grant.expires_at).getTime() <= Date.now() ? 'Expiry pending' : 'Active (7 days)'}</dd></div>
+                      </> : null}
+                    </> : null}
                     <div><dt>Bank paid at</dt><dd>{formatDate(detail.bank_paid_at)}</dd></div>
                     <div><dt>Wallet before</dt><dd>{Number(detail.balance_before || 0).toLocaleString()}</dd></div>
                     <div><dt>Wallet after</dt><dd>{Number(detail.balance_after || 0).toLocaleString()}</dd></div>
