@@ -768,6 +768,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
   const [recipients, setRecipients] = useState([])
   const [recipient, setRecipient] = useState(null)
   const [topupAmount, setTopupAmount] = useState('')
+  const [topupCoins, setTopupCoins] = useState('0')
   const [topupRef, setTopupRef] = useState('')
   const [topupReason, setTopupReason] = useState('')
   const [topupPin, setTopupPin] = useState('')
@@ -1042,7 +1043,12 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setFeedback('')
     setRecipient(null)
     setRecipients([])
+    setTopupAmount('')
+    setTopupCoins('0')
+    setTopupRef('')
+    setTopupReason('')
     setTopupConfirmed(false)
+    setTopupPin('')
     setWorking(true)
     try {
       const data = await request(`/recipients?q=${encodeURIComponent(recipientSearch.trim())}`)
@@ -1057,6 +1063,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setRecipients([])
     setRecipientSearch('')
     setTopupAmount('')
+    setTopupCoins('0')
     setTopupRef('')
     setTopupReason('')
     clearSensitive()
@@ -1070,6 +1077,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setRecipients([])
     setRecipientSearch('')
     setTopupAmount('')
+    setTopupCoins('0')
     setTopupRef('')
     setTopupReason('')
     clearSensitive()
@@ -1080,8 +1088,19 @@ export default function AdminPaymentRecoveryTopUpPage() {
   async function handleTopUp(event) {
     event.preventDefault()
     if (!recipient || !topupConfirmed || working) { setError('Select and confirm the correct recipient'); return }
+    const diamondCount = Number(topupAmount)
+    const coinCount = Number(topupCoins)
+    if (!Number.isSafeInteger(diamondCount) || diamondCount < 1 || diamondCount > 10000) {
+      setError('Enter 1–10,000 Diamonds')
+      return
+    }
+    if (topupCoins === '' || !Number.isSafeInteger(coinCount) || coinCount < 0 || coinCount > 100000) {
+      setError('Enter 0–100,000 Coins')
+      return
+    }
     if (!/^\d{6}$/.test(topupPin)) { setError('Enter six-digit Passkey'); return }
-    if (!window.confirm(`Manual Top-Up\nRecipient: ${recipient.name} (@${recipient.username})\nAmount: ${topupAmount} Diamonds\nReference: ${topupRef}\nThis credits the wallet immediately.`)) return
+    const accountName = recipient.name || recipient.username || 'Unknown account'
+    if (!window.confirm(`Bank Manual Top-Up\nAccount: ${accountName} (@${recipient.username || 'unknown'})\nUser ID: ${recipient.id}\nDiamonds: ${diamondCount.toLocaleString()}\nCoins: ${coinCount.toLocaleString()} (expire 7 days after credit)\nReference: ${topupRef.trim()}\n\nConfirm this permanent Diamond credit and temporary Coin credit?`)) return
     setWorking(true)
     setError('')
     setFeedback('')
@@ -1090,16 +1109,23 @@ export default function AdminPaymentRecoveryTopUpPage() {
         method: 'POST',
         body: JSON.stringify({
           user_id: recipient.id,
-          diamonds: Number(topupAmount),
+          diamonds: diamondCount,
+          coins: coinCount,
           reference: topupRef.trim(),
           reason: topupReason.trim(),
           passkey: topupPin,
           confirmed: topupConfirmed,
         }),
       })
-      setFeedback(`Success: ${Number(data.result?.diamonds || 0)} Diamonds credited · Wallet ${Number(data.result?.balance_before || 0)} → ${Number(data.result?.balance_after || 0)}`)
-      setRecipient({ ...recipient, diamond_balance: Number(data.result?.balance_after || 0) })
+      const result = data.result || {}
+      const walletBefore = Number(result.balance_before ?? recipient.diamond_balance ?? 0)
+      const walletAfter = Number(result.balance_after ?? recipient.diamond_balance ?? 0)
+      const coinsCredited = Number(result.coins ?? 0)
+      const expiryText = result.coins_expires_at ? ` · Coins expire ${formatDate(result.coins_expires_at)}` : ''
+      setFeedback(`Success: ${Number(result.diamonds ?? diamondCount).toLocaleString()} Diamonds · Wallet ${walletBefore.toLocaleString()} → ${walletAfter.toLocaleString()} · +${coinsCredited.toLocaleString()} Coins${expiryText}`)
+      setRecipient((user) => user ? { ...user, diamond_balance: walletAfter } : user)
       setTopupAmount('')
+      setTopupCoins('0')
       setTopupRef('')
       setTopupReason('')
       historyCacheRef.current.clear()
@@ -1238,6 +1264,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setRecipients([])
     setRecipientSearch('')
     setTopupAmount('')
+    setTopupCoins('0')
     setTopupRef('')
     setTopupReason('')
     closeHistoryDetail()
@@ -1254,6 +1281,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setRecipients([])
     setRecipientSearch('')
     setTopupAmount('')
+    setTopupCoins('0')
     setTopupRef('')
     setTopupReason('')
     closeHistoryDetail()
@@ -1417,8 +1445,8 @@ export default function AdminPaymentRecoveryTopUpPage() {
           </>
         ) : activeTab === 'topup' ? (
           <section className="recovery-card recovery-preview">
-            <h3>Manual Diamond Top-Up</h3>
-            <p className="recovery-muted">Only Owner/Admin accounts with Passkey can credit Diamonds. Use Payment Recovery when an existing ABA order is available. Manual adjustments require a unique reference and detailed reason.</p>
+            <h3>Bank · Manual Diamonds + Coins Top-Up</h3>
+            <p className="recovery-muted">Only Owner/Admin accounts with Passkey can credit Diamonds and Coins. Diamonds are permanent; Coins expire 7 days after credit. Use Payment Recovery for an existing ABA order. Manual adjustments require a unique reference and detailed reason.</p>
             {recipient ? (
               <div className="recovery-person chosen">
                 <div>
@@ -1454,14 +1482,15 @@ export default function AdminPaymentRecoveryTopUpPage() {
               <form className="recovery-form" onSubmit={handleTopUp}>
                 <div className="recovery-form-grid">
                   <label>Diamonds to credit (1–10,000)<input className="recovery-input" type="number" min="1" max="10000" step="1" value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} required /></label>
+                  <label>Coins to credit (0–100,000 · expire in 7 days)<input className="recovery-input" type="number" min="0" max="100000" step="1" value={topupCoins} onChange={(e) => setTopupCoins(e.target.value)} required /></label>
                   <label>Unique ABA / adjustment reference<input className="recovery-input" value={topupRef} onChange={(e) => setTopupRef(e.target.value)} maxLength={100} required placeholder="ABA reference or ADJ-XXXXXX" /></label>
                   <label>Six-digit Admin Passkey<input className="recovery-input" type="password" inputMode="numeric" autoComplete="off" maxLength={6} value={topupPin} onChange={(e) => setTopupPin(e.target.value)} required placeholder="******" /></label>
                 </div>
                 <label>Detailed reason<textarea className="recovery-input" minLength={12} maxLength={500} required value={topupReason} onChange={(e) => setTopupReason(e.target.value)} placeholder="Explain why this adjustment was approved and identify the supporting record" /></label>
-                <label className="recovery-check"><input type="checkbox" checked={topupConfirmed} onChange={(e) => setTopupConfirmed(e.target.checked)} /> I confirm this exact recipient, Diamond amount, reference, and that this credit is authorized and not a duplicate of an order.</label>
+                <label className="recovery-check"><input type="checkbox" checked={topupConfirmed} onChange={(e) => setTopupConfirmed(e.target.checked)} /> I confirm this exact recipient, Diamond and Coin amounts, the 7-day Coin expiry, and that the reference is authorized and not a duplicate.</label>
                 <button type="submit" className="recovery-button recovery-primary" disabled={working || !topupConfirmed}>{working ? 'Processing...' : 'Confirm Manual Top-Up'}</button>
               </form>
-            ) : <p className="recovery-notice" style={{ margin: 0 }}>Select a recipient first. No Diamonds will be credited until Passkey is verified by the Backend.</p>}
+            ) : <p className="recovery-notice" style={{ margin: 0 }}>Select a recipient first. No Diamonds or Coins will be credited until Passkey is verified by the Backend.</p>}
           </section>
         ) : (
           <section className="recovery-card recovery-history">
