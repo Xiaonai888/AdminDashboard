@@ -117,10 +117,13 @@ function countryLabel(code) {
 }
 
 function sourceLabel(value) {
-  const name = String(value || '').toLowerCase()
-  if (name.includes('admin')) return 'Admin'
-  if (name.includes('story')) return 'Story Language'
-  if (name.includes('ip') || name.includes('cloudflare')) return 'IP Country'
+  const source = String(value || '').trim().toLowerCase()
+  if (source === 'admin_override') return 'Admin Override'
+  if (source === 'admin_reader_presence') return 'Reader Presence'
+  if (source === 'cloudflare') return 'Cloudflare'
+  if (source === 'admin_ip_lookup') return 'IP Lookup'
+  if (source === 'ip_country') return 'Saved IP Country'
+  if (source === 'story_language') return 'Story Language'
   return 'Not determined'
 }
 
@@ -355,7 +358,7 @@ export default function AdminReaderClassificationPage() {
         {!loading && rows.length === 0 && <div className="rcp-empty">{error ? 'Reader data is not available yet.' : 'No matching readers found.'}</div>}
         {!loading && rows.length > 0 && <div className="rcp-table-wrap"><table className="rcp-table"><thead><tr><th>Reader</th><th>Detected IP Country</th><th>Saved Country</th><th>Story Language Reading</th><th>Khmer Episodes</th><th>Reader Group</th><th>Source</th><th>Action</th></tr></thead><tbody>{rows.map(item => {
           const percent = entryRatio(item)
-          return <tr key={item.id}><td><div className="rcp-person"><span className="rcp-avatar">{String(item.name || item.username || 'R').charAt(0).toUpperCase()}</span><div><strong>{item.name || item.username || 'Reader'}</strong><small>{item.username ? `@${item.username}` : String(item.id || '').slice(0, 12)}</small></div></div></td><td><span className="rcp-flag">{flag(item.detected_country)}</span>{countryLabel(item.detected_country)}</td><td><span className="rcp-flag">{flag(item.effective_country)}</span>{countryLabel(item.effective_country)}{item.admin_country_override && <div className="rcp-muted">Admin override</div>}</td><td><strong>{percent === null ? '—' : `${Math.round(percent)}% Khmer`}</strong><Progress percent={percent}/><div className="rcp-muted">{count(item.khmer_stories)} KH / {count(item.international_stories)} Foreign stories</div></td><td>{count(item.khmer_episodes)} / {count(item.total_episodes)}</td><td><span className={`rcp-pill ${item.reader_group === 'kh' ? 'kh' : item.reader_group === 'international' ? 'intl' : ''}`}>{groupLabel(item.reader_group)}</span></td><td><span className={`rcp-pill ${sourceLabel(item.classification_source) === 'Admin' ? 'admin' : ''}`}>{sourceLabel(item.classification_source)}</span></td><td><button type="button" className="rcp-btn" onClick={() => { setEditing(item); setSaveError('') }}>Edit</button></td></tr>
+          return <tr key={item.id}><td><div className="rcp-person"><span className="rcp-avatar">{String(item.name || item.username || 'R').charAt(0).toUpperCase()}</span><div><strong>{item.name || item.username || 'Reader'}</strong><small>{item.username ? `@${item.username}` : String(item.id || '').slice(0, 12)}</small></div></div></td><td><span className="rcp-flag">{flag(item.detected_country)}</span>{countryLabel(item.detected_country)}</td><td><span className="rcp-flag">{flag(item.effective_country)}</span>{countryLabel(item.effective_country)}{item.admin_country_override && <div className="rcp-muted">Admin override</div>}</td><td><strong>{percent === null ? '—' : `${Math.round(percent)}% Khmer`}</strong><Progress percent={percent}/><div className="rcp-muted">{count(item.khmer_stories)} KH / {count(item.international_stories)} Foreign stories</div></td><td>{count(item.khmer_episodes)} / {count(item.total_episodes)}</td><td><span className={`rcp-pill ${item.reader_group === 'kh' ? 'kh' : item.reader_group === 'international' ? 'intl' : ''}`}>{groupLabel(item.reader_group)}</span></td><td><span className={`rcp-pill ${item.admin_country_override || item.classification_source === 'admin_override' ? 'admin' : ''}`}>{sourceLabel(item.classification_source)}</span></td><td><button type="button" className="rcp-btn" onClick={() => { setEditing(item); setSaveError('') }}>Edit</button></td></tr>
         })}</tbody></table></div>}
         <div className="rcp-panel-footer"><span>Maximum 10 readers per request · Search checks all readers on the server</span><span>Only reloads on page entry, filter/search change or Refresh</span></div>
       </section>
