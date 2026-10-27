@@ -75,7 +75,9 @@ function normalizeMessage(value) {
     side: value.sender_kind === 'admin' ? 'support' : 'reader',
     agentName: adminName || 'Shadow Admin',
     agentRole: adminRole === 'owner' ? 'Owner' : adminRole === 'staff' ? 'Staff' : adminRole === 'admin' ? 'Admin' : '',
-    text: hasText || (attachments.length ? `${attachments.length} attachment(s)` : ''),
+    text: value.deleted_at
+  ? 'Message deleted'
+  : `${value.reply_to_message_id ? '↪ Reply\n' : ''}${hasText || (attachments.length ? `${attachments.length} attachment(s)` : '')}${value.edited_at ? '\n(Edited)' : ''}`,
     time: value.created_at ? shortTime(value.created_at) : '—',
     seen: Boolean(value.seen_at),
   }
@@ -392,10 +394,15 @@ export default function AdminChatCenterPage() {
         const incoming = (Array.isArray(threadResult.messages) ? threadResult.messages : [])
           .slice(-20).map(normalizeMessage)
         setThreadMessages(current => {
-          const existing = new Set(current.map(message => message.id))
-          const additions = incoming.filter(message => !existing.has(message.id))
-          return additions.length ? [...current, ...additions] : current
-        })
+  const byId = new Map(current.map(message => [message.id, message]))
+  let changed = false
+  incoming.forEach(message => {
+    const previous = byId.get(message.id)
+    if (!previous || previous.text !== message.text || previous.seen !== message.seen) changed = true
+    byId.set(message.id, message)
+  })
+  return changed ? [...byId.values()] : current
+})
         setThreadConversationId(selectedId)
         setThreadError('')
       } catch (error) {
