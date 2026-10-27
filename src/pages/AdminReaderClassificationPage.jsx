@@ -23,6 +23,22 @@ const COUNTRY_OPTIONS = [...new Set([...COUNTRY_PRIORITY, ...COUNTRY_CODES])].ma
   if (left >= 0 || right >= 0) return left < 0 ? 1 : right < 0 ? -1 : left - right
   return a.name.localeCompare(b.name)
 })
+// Search normalization mirrors the classification API without affecting other Admin pages.
+function normalizeReaderSearch(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/[’‘`]/g, "'")
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .toLocaleLowerCase()
+    .slice(0, 90)
+}
+
+function isValidReaderSearch(value) {
+  return Array.from(value.replace(/^@+/, '').trim()).length >= 2
+}
+
 const responseCache = new Map()
 let cacheOwner = ''
 
@@ -66,6 +82,7 @@ const CSS = `
 .rcp-person{display:flex;align-items:center;gap:11px;min-width:140px}
 .rcp-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#eef2ff;color:#4f46e5;font-weight:900;flex-shrink:0}
 .rcp-person strong{display:block;font-weight:900;font-size:12px}.rcp-person small{display:block;font-size:11px;color:var(--rcp-muted);margin-top:2px}
+.rcp-reader-id{word-break:break-word;font-variant-numeric:tabular-nums}
 .rcp-flag{font-size:19px;vertical-align:middle;margin-right:5px}
 .rcp-pill{display:inline-flex;align-items:center;gap:5px;background:#f1f5f9;color:#475569;border-radius:99px;padding:6px 10px;font-size:11px;font-weight:850;white-space:nowrap}
 .rcp-pill.kh{background:#ecfdf5;color:#047857}.rcp-pill.intl{background:#eef2ff;color:#4338ca}.rcp-pill.admin{background:#fffbeb;color:#92400e}
@@ -272,6 +289,7 @@ export default function AdminReaderClassificationPage() {
   const [query, setQuery] = useState('')
   const [refresh, setRefresh] = useState(0)
   const [rows, setRows] = useState([])
+  const [hasNext, setHasNext] = useState(false)
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -281,30 +299,59 @@ export default function AdminReaderClassificationPage() {
   const [saveError, setSaveError] = useState('')
   const forceRef = useRef(false)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(search.trim().length >= 2 ? search.trim().slice(0, 90) : ''), 400)
-    return () => clearTimeout(timer)
-  }, [search])
+  const normalizedSearch = useMemo(() => normalizeReaderSearch(search), [search])
+  const shortSearch = Boolean(normalizedSearch) && !isValidReaderSearch(normalizedSearch)
+  const searchPending = normalizedSearch !== query
+  const showResults = !shortSearch && !searchPending
 
   useEffect(() => {
+    // Do not turn a one-character query into an unfiltered database request.
+    const timer = setTimeout(() => setQuery(normalizedSearch), normalizedSearch ? 400 : 0)
+    return () => clearTimeout(timer)
+  }, [normalizedSearch])
+
+  useEffect(() => {
+    // Cancel a previous request as soon as the input changes, before the next debounce fires.
+    if (normalizedSearch !== query) return undefined
+    if (query && !isValidReaderSearch(query)) {
+      setRows([])
+      setHasNext(false)
+      setError('')
+      setCached(false)
+      setLoading(false)
+      return undefined
+    }
+
     const controller = new AbortController()
     const force = forceRef.current
     forceRef.current = false
     const params = new URLSearchParams({ page: '1', limit: String(LIMIT), group: filter })
     if (query) params.set('q', query)
+    setRows([])
+    setHasNext(false)
     setLoading(true)
     setError('')
+
     api(`?${params.toString()}`, { signal: controller.signal, force })
       .then(result => {
         if (controller.signal.aborted) return
         setRows(Array.isArray(result.items) ? result.items.slice(0, LIMIT) : [])
+        setHasNext(result.has_next === true)
         setSummary(result.summary || null)
-        setCached(result.fromCache)
+        setCached(Boolean(result.fromCache))
       })
-      .catch(err => { if (!controller.signal.aborted) setError(err?.message || 'Unable to load readers') })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+      .catch(err => {
+        if (controller.signal.aborted) return
+        setRows([])
+        setHasNext(false)
+        setError(err?.message || 'Unable to load readers')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+
     return () => controller.abort()
-  }, [filter, query, refresh])
+  }, [filter, query, refresh, normalizedSearch])
 
   async function save(reader, country, group) {
     if (!reader?.id || saving) return
@@ -337,7 +384,9 @@ export default function AdminReaderClassificationPage() {
   ]
 
   function refreshNow() {
+    if (shortSearch) return
     forceRef.current = true
+    if (searchPending) setQuery(normalizedSearch)
     setRefresh(value => value + 1)
   }
 
@@ -346,7 +395,7 @@ export default function AdminReaderClassificationPage() {
     <div className="rcp">
       <div className="rcp-heading">
         <div><span className="rcp-eyebrow">Country Settings / Reader Classification</span><h2>Reader Classification</h2><p>Manage saved countries and understand what languages readers actually read.</p></div>
-        <div className="rcp-actions"><span className="rcp-pill">10 newest readers</span><button type="button" className="rcp-btn primary" disabled={loading} onClick={refreshNow}>↻ Refresh</button></div>
+        <div className="rcp-actions"><span className="rcp-pill">{normalizedSearch ? "Search readers" : "10 newest readers"}</span><button type="button" className="rcp-btn primary" disabled={loading || shortSearch} onClick={refreshNow}>↻ Refresh</button></div>
       </div>
       <div className="rcp-stats">{stats.map(item => <div className="rcp-stat" key={item.label}><div className="rcp-card-label"><span className={`rcp-card-icon ${item.shade}`}>{item.icon}</span>{item.label}</div><strong>{count(item.value)}</strong><small>{item.label === 'Total Readers' ? 'All registered readers' : 'Saved classification summary'}</small></div>)}</div>
       <div className="rcp-analysis-grid">
@@ -354,16 +403,75 @@ export default function AdminReaderClassificationPage() {
         <section className="rcp-panel"><div className="rcp-panel-heading"><h3>Country Management</h3><span className="rcp-pill admin">Admin can override</span></div><div className="rcp-muted">Country is detected and saved once. It does not change with later IP changes. Admin can change any saved country using the Edit action.</div><div className="rcp-note" style={{ marginTop: 12 }}>Country = feature visibility · Reader Group = reading preference. No automatic country rewrite from Story Language.</div></section>
       </div>
       <section className="rcp-panel">
-        <div className="rcp-panel-heading"><div><h3>Readers</h3><div className="rcp-muted">Newest 10 accounts, server-side search and filters. No background polling.</div></div><span className="rcp-pill">{cached ? 'Cached result' : 'On-demand loading'}</span></div>
-        <div className="rcp-toolbar"><div className="rcp-toolbar-left"><input className="rcp-input" type="search" value={search} maxLength={90} onChange={event => setSearch(event.target.value)} placeholder="Search name, username or Reader ID" aria-label="Search readers" /><select className="rcp-select" value={filter} onChange={event => setFilter(event.target.value)} aria-label="Reader group filter">{FILTERS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div><button type="button" className="rcp-btn" disabled={loading} onClick={() => { setFilter('all'); setSearch('') }}>Clear Filters</button></div>
-        {search.trim().length === 1 && <div className="rcp-muted">Enter at least 2 characters to search all readers.</div>}
-        {error && <div className="rcp-alert error" role="alert">{error} {rows.length ? 'Showing previous results.' : 'The UI is ready; connect the Backend Reader Classification route to load real data.'}</div>}
-        {loading && <div className="rcp-empty" role="status">Loading the latest readers…</div>}
-        {!loading && rows.length === 0 && <div className="rcp-empty">{error ? 'Reader data is not available yet.' : 'No matching readers found.'}</div>}
-        {!loading && rows.length > 0 && <div className="rcp-table-wrap"><table className="rcp-table"><thead><tr><th>Reader</th><th>Detected IP Country</th><th>Saved Country</th><th>Story Language Reading</th><th>Khmer Episodes</th><th>Reader Group</th><th>Source</th><th>Action</th></tr></thead><tbody>{rows.map(item => {
-          const percent = entryRatio(item)
-          return <tr key={item.id}><td><div className="rcp-person"><span className="rcp-avatar">{String(item.name || item.username || 'R').charAt(0).toUpperCase()}</span><div><strong>{item.name || item.username || 'Reader'}</strong><small>{item.username ? `@${item.username}` : String(item.id || '').slice(0, 12)}</small></div></div></td><td><span className="rcp-flag">{flag(item.detected_country)}</span>{countryLabel(item.detected_country)}</td><td><span className="rcp-flag">{flag(item.effective_country)}</span>{countryLabel(item.effective_country)}{item.admin_country_override && <div className="rcp-muted">Admin override</div>}</td><td><strong>{percent === null ? '—' : `${Math.round(percent)}% Khmer`}</strong><Progress percent={percent}/><div className="rcp-muted">{count(item.khmer_stories)} KH / {count(item.international_stories)} Foreign stories</div></td><td>{count(item.khmer_episodes)} / {count(item.total_episodes)}</td><td><span className={`rcp-pill ${item.reader_group === 'kh' ? 'kh' : item.reader_group === 'international' ? 'intl' : ''}`}>{groupLabel(item.reader_group)}</span></td><td><span className={`rcp-pill ${item.admin_country_override || item.classification_source === 'admin_override' ? 'admin' : ''}`}>{sourceLabel(item.classification_source)}</span></td><td><button type="button" className="rcp-btn" onClick={() => { setEditing(item); setSaveError('') }}>Edit</button></td></tr>
-        })}</tbody></table></div>}
+        <div className="rcp-panel-heading">
+          <div>
+            <h3>Readers</h3>
+            <div className="rcp-muted">
+              {normalizedSearch ? 'Top matching readers across the database.' : 'Newest 10 accounts, server-side search and filters.'} No background polling.
+            </div>
+          </div>
+          <span className="rcp-pill">{cached && showResults ? 'Cached result' : 'On-demand loading'}</span>
+        </div>
+        <div className="rcp-toolbar">
+          <div className="rcp-toolbar-left">
+            <input
+              className="rcp-input"
+              type="search"
+              value={search}
+              maxLength={90}
+              onChange={event => setSearch(event.target.value)}
+              placeholder="Search name, @username, nickname or Reader ID"
+              aria-label="Search readers"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <select className="rcp-select" value={filter} onChange={event => setFilter(event.target.value)} aria-label="Reader group filter">
+              {FILTERS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+            </select>
+          </div>
+          <button type="button" className="rcp-btn" disabled={loading} onClick={() => { setFilter('all'); setSearch(''); setQuery('') }}>Clear Filters</button>
+        </div>
+        {shortSearch && <div className="rcp-muted" role="status">Enter at least 2 characters after @ (or in the name) to search. An ID search works best with 4 or more characters.</div>}
+        {!shortSearch && searchPending && <div className="rcp-muted" role="status">Preparing search…</div>}
+        {showResults && error && <div className="rcp-alert error" role="alert">{error} Check the Backend deployment and the Reader Classification SQL function, then select Refresh.</div>}
+        {showResults && loading && <div className="rcp-empty" role="status">{query ? 'Searching readers…' : 'Loading the latest readers…'}</div>}
+        {showResults && !loading && !error && rows.length === 0 && <div className="rcp-empty">{query ? 'No matching readers found. Check the spelling or try another name, username or longer ID.' : 'No readers found.'}</div>}
+        {showResults && !loading && !error && hasNext && <div className="rcp-muted" role="status">Showing the top {rows.length} results. More readers match; enter a more specific name or ID to narrow the list.</div>}
+        {showResults && !loading && !error && rows.length > 0 &&
+          <div className="rcp-table-wrap">
+            <table className="rcp-table">
+              <thead><tr><th>Reader</th><th>Detected IP Country</th><th>Saved Country</th><th>Story Language Reading</th><th>Khmer Episodes</th><th>Reader Group</th><th>Source</th><th>Action</th></tr></thead>
+              <tbody>
+                {rows.map(item => {
+                  const percent = entryRatio(item)
+                  const readerId = String(item.id || '')
+                  const nickname = String(item.nickname || '').trim()
+                  const showNickname = nickname && nickname !== item.name && nickname !== item.username
+                  return <tr key={item.id}>
+                    <td>
+                      <div className="rcp-person">
+                        <span className="rcp-avatar">{String(item.name || item.username || 'R').charAt(0).toUpperCase()}</span>
+                        <div>
+                          <strong>{item.name || item.username || 'Reader'}</strong>
+                          {item.username && <small>@{item.username}</small>}
+                          {showNickname && <small>Nickname: {nickname}</small>}
+                          <small className="rcp-reader-id" title={readerId}>ID: {readerId.length > 12 ? `${readerId.slice(0, 12)}…` : readerId}</small>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span className="rcp-flag">{flag(item.detected_country)}</span>{countryLabel(item.detected_country)}</td>
+                    <td><span className="rcp-flag">{flag(item.effective_country)}</span>{countryLabel(item.effective_country)}{item.admin_country_override && <div className="rcp-muted">Admin override</div>}</td>
+                    <td><strong>{percent === null ? '—' : `${Math.round(percent)}% Khmer`}</strong><Progress percent={percent}/><div className="rcp-muted">{count(item.khmer_stories)} KH / {count(item.international_stories)} Foreign stories</div></td>
+                    <td>{count(item.khmer_episodes)} / {count(item.total_episodes)}</td>
+                    <td><span className={`rcp-pill ${item.reader_group === 'kh' ? 'kh' : item.reader_group === 'international' ? 'intl' : ''}`}>{groupLabel(item.reader_group)}</span></td>
+                    <td><span className={`rcp-pill ${item.admin_country_override || item.classification_source === 'admin_override' ? 'admin' : ''}`}>{sourceLabel(item.classification_source)}</span></td>
+                    <td><button type="button" className="rcp-btn" onClick={() => { setEditing(item); setSaveError('') }}>Edit</button></td>
+                  </tr>
+                })}
+              </tbody>
+            </table>
+          </div>
+        }
         <div className="rcp-panel-footer"><span>Maximum 10 readers per request · Search checks all readers on the server</span><span>Only reloads on page entry, filter/search change or Refresh</span></div>
       </section>
     </div>
