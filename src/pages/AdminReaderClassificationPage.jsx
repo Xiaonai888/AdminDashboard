@@ -71,6 +71,9 @@ const CSS = `
 .rcp-pill.kh{background:#ecfdf5;color:#047857}.rcp-pill.intl{background:#eef2ff;color:#4338ca}.rcp-pill.admin{background:#fffbeb;color:#92400e}
 .rcp-mini-progress{width:92px;height:6px;border-radius:99px;background:#e2e8f0;overflow:hidden;margin-top:6px}.rcp-mini-progress span{display:block;height:100%;background:#10b981}
 .rcp-empty{border:1px dashed var(--rcp-border);border-radius:13px;padding:30px 18px;text-align:center;color:var(--rcp-muted);font-size:13px}
+.rcp-snapshot-status{display:grid;gap:6px;margin-top:14px;padding:12px 14px;border:1px solid var(--rcp-border);background:var(--rcp-soft);border-radius:12px;font-size:12px;line-height:1.55}
+.rcp-snapshot-status strong{font-weight:900}
+.rcp-snapshot-status .rcp-muted{font-size:11px}
 .rcp-alert{padding:13px 15px;border-radius:12px;font-size:12px;line-height:1.65;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412}
 .rcp-alert.error{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
 .rcp-panel-footer{border-top:1px solid var(--rcp-border);padding-top:13px;margin-top:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--rcp-muted)}
@@ -170,6 +173,39 @@ async function api(path, { signal, method = 'GET', body, force = false } = {}) {
     responseCache.clear()
   }
   return { ...result, fromCache: false }
+}
+
+function snapshotStatus(summary) {
+  const value = summary?.snapshot_refreshed_at
+  const date = typeof value === 'string' && value ? new Date(value) : null
+  const readers = summary?.snapshot_readers
+  const snapshotCount = readers !== null && readers !== undefined && Number.isFinite(Number(readers))
+    ? Number(readers).toLocaleString()
+    : '—'
+  if (!date || !Number.isFinite(date.getTime())) {
+    return {
+      time: 'Unavailable',
+      readers: snapshotCount,
+      note: 'The API has no snapshot timestamp. Check whether the latest SQL analytics file was run in Supabase.',
+    }
+  }
+  const formatted = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Phnom_Penh',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+  const hoursSinceRefresh = (Date.now() - date.getTime()) / 3600000
+  return {
+    time: `${formatted} (Cambodia)`,
+    readers: snapshotCount,
+    note: hoursSinceRefresh > 7
+      ? 'Reading snapshot is more than 7 hours old. Check the SQL refresh schedule.'
+      : 'Reading snapshot is updated on a 6-hour schedule. Refresh reloads saved results, not the background snapshot.',
+  }
 }
 
 function Progress({ percent }) {
@@ -285,6 +321,7 @@ export default function AdminReaderClassificationPage() {
   const f = Number(summary?.international_episodes)
   const haveEpisodeTotals = summary?.khmer_episodes != null && summary?.international_episodes != null && Number.isFinite(k) && Number.isFinite(f)
   const khPercent = haveEpisodeTotals && k + f > 0 ? ratio(k / (k + f) * 100) : null
+  const snapshot = snapshotStatus(summary)
   const stats = [
     { label: 'Total Readers', value: summary?.total, icon: '👥', shade: '' },
     { label: 'Khmer Readers', value: summary?.kh, icon: '🇰🇭', shade: 'green' },
@@ -306,7 +343,7 @@ export default function AdminReaderClassificationPage() {
       </div>
       <div className="rcp-stats">{stats.map(item => <div className="rcp-stat" key={item.label}><div className="rcp-card-label"><span className={`rcp-card-icon ${item.shade}`}>{item.icon}</span>{item.label}</div><strong>{count(item.value)}</strong><small>{item.label === 'Total Readers' ? 'All registered readers' : 'Saved classification summary'}</small></div>)}</div>
       <div className="rcp-analysis-grid">
-        <section className="rcp-panel"><div className="rcp-panel-heading"><h3>Story Language Reading</h3><span className="rcp-pill">Historical activity</span></div><div className="rcp-legend"><span><i className="rcp-dot" />Khmer episodes: {count(summary?.khmer_episodes)}</span><span><i className="rcp-dot purple" />Foreign episodes: {count(summary?.international_episodes)}</span></div><div className="rcp-progress-track"><div className="rcp-progress-kh" style={{ width: `${khPercent || 0}%` }} /><div className="rcp-progress-international" style={{ width: `${khPercent === null ? 0 : 100 - khPercent}%` }} /></div><div className="rcp-muted">{khPercent === null ? 'No reading summary available yet.' : `${Math.round(khPercent)}% of counted reading is Khmer Story Language.`}</div></section>
+        <section className="rcp-panel"><div className="rcp-panel-heading"><h3>Story Language Reading</h3><span className="rcp-pill">Historical activity</span></div><div className="rcp-legend"><span><i className="rcp-dot" />Khmer episodes: {count(summary?.khmer_episodes)}</span><span><i className="rcp-dot purple" />Foreign episodes: {count(summary?.international_episodes)}</span></div><div className="rcp-progress-track"><div className="rcp-progress-kh" style={{ width: `${khPercent || 0}%` }} /><div className="rcp-progress-international" style={{ width: `${khPercent === null ? 0 : 100 - khPercent}%` }} /></div><div className="rcp-muted">{khPercent === null ? 'No reading summary available yet.' : `${Math.round(khPercent)}% of counted reading is Khmer Story Language.`}</div>{!loading && summary && <div className="rcp-snapshot-status" role="status"><div><strong>Reading snapshot as of:</strong> {snapshot.time}</div><div className="rcp-muted">Readers with saved reading evidence: {snapshot.readers}</div><div className="rcp-muted">{snapshot.note}</div></div>}</section>
         <section className="rcp-panel"><div className="rcp-panel-heading"><h3>Country Management</h3><span className="rcp-pill admin">Admin can override</span></div><div className="rcp-muted">Country is detected and saved once. It does not change with later IP changes. Admin can change any saved country using the Edit action.</div><div className="rcp-note" style={{ marginTop: 12 }}>Country = feature visibility · Reader Group = reading preference. No automatic country rewrite from Story Language.</div></section>
       </div>
       <section className="rcp-panel">
