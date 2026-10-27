@@ -308,7 +308,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
 
   async function findRecipient(event) {
     event.preventDefault()
-    if (searchingRecipient || working) return
+    if (searchingRecipient || working || recipient) return
     if (recipientSearch.trim().length < 2) {
       setError('Enter at least two characters to find a Shadow account')
       return
@@ -326,6 +326,29 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
     } finally {
       setSearchingRecipient(false)
     }
+  }
+
+  function selectBinanceRecipient(user) {
+    if (working || searchingRecipient) return
+    setRecipient(user)
+    setRecipientResults([])
+    setRecipientSearch('')
+    setDiamonds('')
+    setAdjustmentReference('')
+    setReason('')
+    resetSensitive()
+    setError('')
+    setFeedback('')
+  }
+
+  function changeBinanceRecipient() {
+    if (working || searchingRecipient) return
+    resetRecipient()
+    setDiamonds('')
+    setAdjustmentReference('')
+    setReason('')
+    setError('')
+    setFeedback('')
   }
 
   async function applyCredit(event) {
@@ -531,7 +554,8 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
             {receiptDetail && Number(receiptDetail.amount_usdt) >= 1 && canCredit ? <BinanceRecipientForm
               recipientSearch={recipientSearch} setRecipientSearch={setRecipientSearch}
               recipientResults={recipientResults} recipient={recipient} searchingRecipient={searchingRecipient}
-              onSearch={findRecipient} onSelect={(user) => { setRecipient(user); resetSensitive(); setFeedback('') }}
+              onSearch={findRecipient} onSelect={selectBinanceRecipient}
+              onChangeRecipient={changeBinanceRecipient} busy={working}
             /> : null}
             {receiptDetail && recipient && Number(receiptDetail.amount_usdt) >= 1 && canCredit ? <form className="recovery-form" onSubmit={applyCredit}>
               <h4 style={{ margin: 0 }}>Credit verified purchase</h4>
@@ -560,10 +584,10 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
           <BinanceRecipientForm
             recipientSearch={recipientSearch} setRecipientSearch={setRecipientSearch}
             recipientResults={recipientResults} recipient={recipient} searchingRecipient={searchingRecipient}
-            onSearch={findRecipient} onSelect={(user) => { setRecipient(user); resetSensitive(); setFeedback('') }}
+            onSearch={findRecipient} onSelect={selectBinanceRecipient}
+            onChangeRecipient={changeBinanceRecipient} busy={working}
           />
           {recipient && canCredit ? <form className="recovery-form" onSubmit={applyCredit}>
-            <h4 style={{ margin: 0 }}>Selected: {recipient.name || recipient.username} (@{recipient.username})</h4>
             <div className="recovery-form-grid">
               <label>Diamonds to credit<input className="recovery-input" type="number" min="1" max="10000" step="1" value={diamonds} onChange={(event) => setDiamonds(event.target.value)} required /></label>
               <label>Unique adjustment reference<input className="recovery-input" value={adjustmentReference} maxLength={100} onChange={(event) => setAdjustmentReference(event.target.value)} required placeholder="BN-ADJ-XXXXXX" /></label>
@@ -662,18 +686,40 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
   )
 }
 
-function BinanceRecipientForm({ recipientSearch, setRecipientSearch, recipientResults, recipient, searchingRecipient, onSearch, onSelect }) {
+function BinanceRecipientForm({ recipientSearch, setRecipientSearch, recipientResults, recipient, searchingRecipient, onSearch, onSelect, onChangeRecipient, busy = false }) {
   return (
     <div className="recovery-form">
-      <form className="recovery-actions" onSubmit={onSearch}>
-        <input className="recovery-input" style={{ flex: '1 1 220px' }} value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} minLength={2} maxLength={80} placeholder="Search Shadow account, username, email or User ID" required />
-        <button className="recovery-button" type="submit" disabled={searchingRecipient}>{searchingRecipient ? 'Searching...' : 'Find account'}</button>
-      </form>
-      {recipientResults.length ? <div className="recovery-result-list">{recipientResults.map((user) => <div className={'recovery-person ' + (recipient?.id === user.id ? 'chosen' : '')} key={user.id}>
-        <div><strong>{user.name || user.username || 'Unknown account'}</strong><div className="recovery-sub">@{user.username || 'unknown'} · {user.id}</div><div className="recovery-sub">Wallet: {Number(user.diamond_balance || 0).toLocaleString()} Diamonds</div></div>
-        <button className="recovery-button" type="button" onClick={() => onSelect(user)}>Select</button>
-      </div>)}</div> : null}
-      {recipient ? <div className="recovery-subheading">Selected: {recipient.name || recipient.username} (@{recipient.username}) · {recipient.id}</div> : null}
+      {recipient ? (
+        <div className="recovery-person chosen">
+          <div>
+            <strong>Selected account: {recipient.name || recipient.username || 'Unknown account'}</strong>
+            <div className="recovery-sub">@{recipient.username || 'unknown'} · {recipient.id}</div>
+            <div className="recovery-sub">Wallet: {Number(recipient.diamond_balance || 0).toLocaleString()} Diamonds</div>
+          </div>
+          <button className="recovery-button" type="button" disabled={busy || searchingRecipient} onClick={onChangeRecipient}>Change Account</button>
+        </div>
+      ) : (
+        <>
+          <form className="recovery-actions" onSubmit={onSearch}>
+            <input className="recovery-input" style={{ flex: '1 1 220px' }} value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} minLength={2} maxLength={80} placeholder="Search Shadow account, username, email or User ID" required />
+            <button className="recovery-button" type="submit" disabled={searchingRecipient || busy}>{searchingRecipient ? 'Searching...' : 'Find account'}</button>
+          </form>
+          {recipientResults.length > 0 ? (
+            <div className="recovery-result-list">
+              {recipientResults.map((user) => (
+                <div className="recovery-person" key={user.id}>
+                  <div>
+                    <strong>{user.name || user.username || 'Unknown account'}</strong>
+                    <div className="recovery-sub">@{user.username || 'unknown'} · {user.id}</div>
+                    <div className="recovery-sub">Wallet: {Number(user.diamond_balance || 0).toLocaleString()} Diamonds</div>
+                  </div>
+                  <button className="recovery-button" type="button" disabled={busy || searchingRecipient} onClick={() => onSelect(user)}>Select account</button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   )
 }
@@ -992,6 +1038,32 @@ export default function AdminPaymentRecoveryTopUpPage() {
     finally { setWorking(false) }
   }
 
+  function selectBankRecipient(user) {
+    if (working) return
+    setRecipient(user)
+    setRecipients([])
+    setRecipientSearch('')
+    setTopupAmount('')
+    setTopupRef('')
+    setTopupReason('')
+    clearSensitive()
+    setFeedback('')
+    setError('')
+  }
+
+  function changeBankRecipient() {
+    if (working) return
+    setRecipient(null)
+    setRecipients([])
+    setRecipientSearch('')
+    setTopupAmount('')
+    setTopupRef('')
+    setTopupReason('')
+    clearSensitive()
+    setFeedback('')
+    setError('')
+  }
+
   async function handleTopUp(event) {
     event.preventDefault()
     if (!recipient || !topupConfirmed || working) { setError('Select and confirm the correct recipient'); return }
@@ -1149,6 +1221,12 @@ export default function AdminPaymentRecoveryTopUpPage() {
     setPaymentMethod(method)
     setActiveTab('')
     setSelectedId('')
+    setRecipient(null)
+    setRecipients([])
+    setRecipientSearch('')
+    setTopupAmount('')
+    setTopupRef('')
+    setTopupReason('')
     closeHistoryDetail()
     setError('')
     setFeedback('')
@@ -1159,6 +1237,12 @@ export default function AdminPaymentRecoveryTopUpPage() {
     if (historyEditWorking || binanceBusy) return
     setActiveTab(tab)
     setSelectedId('')
+    setRecipient(null)
+    setRecipients([])
+    setRecipientSearch('')
+    setTopupAmount('')
+    setTopupRef('')
+    setTopupReason('')
     closeHistoryDetail()
     setError('')
     setFeedback('')
@@ -1322,19 +1406,39 @@ export default function AdminPaymentRecoveryTopUpPage() {
           <section className="recovery-card recovery-preview">
             <h3>Manual Diamond Top-Up</h3>
             <p className="recovery-muted">Only Owner/Admin accounts with Passkey can credit Diamonds. Use Payment Recovery when an existing ABA order is available. Manual adjustments require a unique reference and detailed reason.</p>
-            <form className="recovery-actions" onSubmit={searchRecipient}>
-              <input className="recovery-input" style={{ flex: '1 1 220px' }} value={recipientSearch} onChange={(e) => setRecipientSearch(e.target.value)} placeholder="Exact username, name, email or User ID" minLength={2} required />
-              <button type="submit" className="recovery-button" disabled={working}>{working ? 'Searching...' : 'Find account'}</button>
-            </form>
-            {recipients.length ? <div className="recovery-result-list">
-              {recipients.map((user) => <div key={user.id} className={`recovery-person ${recipient?.id === user.id ? 'chosen' : ''}`}>
-                <div><strong>{user.name || user.username}</strong><div className="recovery-sub">@{user.username} · {user.id}</div><div className="recovery-sub">Wallet: {Number(user.diamond_balance || 0).toLocaleString()} Diamonds</div></div>
-                <button type="button" className="recovery-button" onClick={() => { setRecipient(user); setTopupConfirmed(false); setTopupPin(''); setFeedback('') }}>Select account</button>
-              </div>)}
-            </div> : null}
+            {recipient ? (
+              <div className="recovery-person chosen">
+                <div>
+                  <strong>Selected account: {recipient.name || recipient.username || 'Unknown account'}</strong>
+                  <div className="recovery-sub">@{recipient.username || 'unknown'} · {recipient.id}</div>
+                  <div className="recovery-sub">Wallet: {Number(recipient.diamond_balance || 0).toLocaleString()} Diamonds</div>
+                </div>
+                <button type="button" className="recovery-button" disabled={working} onClick={changeBankRecipient}>Change Account</button>
+              </div>
+            ) : (
+              <>
+                <form className="recovery-actions" onSubmit={searchRecipient}>
+                  <input className="recovery-input" style={{ flex: '1 1 220px' }} value={recipientSearch} onChange={(e) => setRecipientSearch(e.target.value)} placeholder="Exact username, name, email or User ID" minLength={2} maxLength={80} required />
+                  <button type="submit" className="recovery-button" disabled={working}>{working ? 'Searching...' : 'Find account'}</button>
+                </form>
+                {recipients.length ? (
+                  <div className="recovery-result-list">
+                    {recipients.map((user) => (
+                      <div key={user.id} className="recovery-person">
+                        <div>
+                          <strong>{user.name || user.username || 'Unknown account'}</strong>
+                          <div className="recovery-sub">@{user.username || 'unknown'} · {user.id}</div>
+                          <div className="recovery-sub">Wallet: {Number(user.diamond_balance || 0).toLocaleString()} Diamonds</div>
+                        </div>
+                        <button type="button" className="recovery-button" disabled={working} onClick={() => selectBankRecipient(user)}>Select account</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            )}
             {recipient ? (
               <form className="recovery-form" onSubmit={handleTopUp}>
-                <div className="recovery-subheading">Selected: {recipient.name || recipient.username} (@{recipient.username}) · {recipient.id}</div>
                 <div className="recovery-form-grid">
                   <label>Diamonds to credit (1–10,000)<input className="recovery-input" type="number" min="1" max="10000" step="1" value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} required /></label>
                   <label>Unique ABA / adjustment reference<input className="recovery-input" value={topupRef} onChange={(e) => setTopupRef(e.target.value)} maxLength={100} required placeholder="ABA reference or ADJ-XXXXXX" /></label>
