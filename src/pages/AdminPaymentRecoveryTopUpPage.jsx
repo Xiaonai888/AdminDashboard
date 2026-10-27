@@ -144,6 +144,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
   const [recipient, setRecipient] = useState(null)
   const [searchingRecipient, setSearchingRecipient] = useState(false)
   const [diamonds, setDiamonds] = useState('')
+  const [manualVouchers, setManualVouchers] = useState('0')
   const [adjustmentReference, setAdjustmentReference] = useState('')
   const [reason, setReason] = useState('')
   const [pin, setPin] = useState('')
@@ -283,6 +284,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
     setRecipient(null)
     setRecipientResults([])
     setRecipientSearch('')
+    setManualVouchers('0')
     resetSensitive()
   }
 
@@ -334,6 +336,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
     setRecipientResults([])
     setRecipientSearch('')
     setDiamonds('')
+    setManualVouchers('0')
     setAdjustmentReference('')
     setReason('')
     resetSensitive()
@@ -345,6 +348,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
     if (working || searchingRecipient) return
     resetRecipient()
     setDiamonds('')
+    setManualVouchers('0')
     setAdjustmentReference('')
     setReason('')
     setError('')
@@ -371,8 +375,14 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
       setError('Provide a unique adjustment reference containing 6–100 allowed characters')
       return
     }
+    const voucherText = String(manualVouchers).trim()
+    if (!isRecovery && (!/^\d{1,6}$/.test(voucherText) || Number(voucherText) > 100000)) {
+      setError('Enter a whole number of Vouchers between 0 and 100,000')
+      return
+    }
+    const manualVoucherCount = isRecovery ? 100 : Number(voucherText)
     const reference = isRecovery ? receiptDetail.transaction_id : adjustmentReference.trim().toUpperCase()
-    if (!window.confirm('Confirm permanent wallet credit?\nAccount: ' + (recipient.name || recipient.username) + '\nDiamonds: ' + count + '\nReference: ' + reference + '\nBonus: ' + (isRecovery ? '100 Vouchers' : '0 Vouchers') + '\nThis action cannot be undone.')) return
+    if (!window.confirm('Confirm permanent wallet credit?\nAccount: ' + (recipient.name || recipient.username) + '\nDiamonds: ' + count + '\nReference: ' + reference + '\nVouchers: ' + manualVoucherCount + '\nThis action cannot be undone.')) return
     setWorking(true)
     setError('')
     setFeedback('')
@@ -390,6 +400,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
         user_id: recipient.id,
         reference,
         diamonds: count,
+        vouchers: manualVoucherCount,
         reason: reason.trim(),
         passkey: pin,
         confirmed: verifiedRecipient,
@@ -402,6 +413,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
       setFeedback('Credit successful: ' + Number(result.diamonds || 0).toLocaleString() + ' Diamonds · Wallet ' + Number(result.diamond_balance_before || 0).toLocaleString() + ' → ' + Number(result.diamond_balance_after || 0).toLocaleString() + ' · +' + Number(result.bonus_vouchers || 0) + ' Vouchers')
       setRecipient((user) => user ? { ...user, diamond_balance: Number(result.diamond_balance_after || user.diamond_balance || 0) } : user)
       setDiamonds('')
+      setManualVouchers('0')
       setAdjustmentReference('')
       setReason('')
       setSelectedTransaction('')
@@ -579,8 +591,8 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
         </section>
       ) : tab === 'topup' ? (
         <section className="recovery-card recovery-preview">
-          <h3>Binance · Manual Diamond Top-Up</h3>
-          <p className="recovery-muted">This is an Admin adjustment, not a Binance purchase. It adds Diamonds only, with 0 bonus Vouchers. Use Payment Recovery for a received USDT purchase.</p>
+          <h3>Binance · Manual Diamonds + Vouchers Top-Up</h3>
+          <p className="recovery-muted">Manually enter Diamonds and Vouchers for an Admin adjustment. This is not a verified USDT purchase. Use Payment Recovery for an official received USDT purchase (+100 Vouchers).</p>
           <BinanceRecipientForm
             recipientSearch={recipientSearch} setRecipientSearch={setRecipientSearch}
             recipientResults={recipientResults} recipient={recipient} searchingRecipient={searchingRecipient}
@@ -589,12 +601,13 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
           />
           {recipient && canCredit ? <form className="recovery-form" onSubmit={applyCredit}>
             <div className="recovery-form-grid">
-              <label>Diamonds to credit<input className="recovery-input" type="number" min="1" max="10000" step="1" value={diamonds} onChange={(event) => setDiamonds(event.target.value)} required /></label>
+              <label>Diamonds to credit (1–10,000)<input className="recovery-input" type="number" min="1" max="10000" step="1" value={diamonds} onChange={(event) => setDiamonds(event.target.value)} required /></label>
+              <label>Vouchers to credit (0–100,000)<input className="recovery-input" type="number" min="0" max="100000" step="1" value={manualVouchers} onChange={(event) => setManualVouchers(event.target.value)} required /></label>
               <label>Unique adjustment reference<input className="recovery-input" value={adjustmentReference} maxLength={100} onChange={(event) => setAdjustmentReference(event.target.value)} required placeholder="BN-ADJ-XXXXXX" /></label>
               <label>Six-digit Admin Passkey<input className="recovery-input" type="password" inputMode="numeric" autoComplete="off" minLength={6} maxLength={6} pattern="[0-9]{6}" value={pin} onChange={(event) => setPin(event.target.value)} required /></label>
             </div>
             <label>Detailed reason<textarea className="recovery-input" minLength={12} maxLength={500} required value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Explain this adjustment and reference the supporting evidence" /></label>
-            <label className="recovery-check"><input type="checkbox" checked={verifiedRecipient} onChange={(event) => setVerifiedRecipient(event.target.checked)} /> I confirm this account, the Diamond amount, and that this is not a duplicate or purchase credit.</label>
+            <label className="recovery-check"><input type="checkbox" checked={verifiedRecipient} onChange={(event) => setVerifiedRecipient(event.target.checked)} /> I confirm this account, both Diamond and Voucher amounts, and that this is not a duplicate or purchase credit.</label>
             <button className="recovery-button recovery-primary" type="submit" disabled={working || !verifiedRecipient}>{working ? 'Processing...' : 'Confirm Manual Top-Up with Passkey'}</button>
           </form> : <p className="recovery-notice" style={{ margin: 0 }}>{canCredit ? 'Select a recipient to continue.' : 'Manual credit is disabled until the Backend confirms that the Binance Ledger is ready.'}</p>}
         </section>
@@ -619,7 +632,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
               <strong>{action.user_name || action.user?.name || action.user?.username || 'Unknown account'} · {Number(action.diamonds || 0).toLocaleString()} Diamonds</strong>
               {Number(action.edit_count || 0) > 0 ? <span className="recovery-update-badge">Updated · {action.edit_count}</span> : null}
             </div>
-            <div className="recovery-sub">{action.action_type === 'recovery' ? Number(action.amount_usdt || 0).toLocaleString() + ' USDT · +100 Vouchers' : 'Manual adjustment · 0 Vouchers'} · Reference: {action.display_reference || action.reference} · {formatDate(action.created_at)}</div>
+            <div className="recovery-sub">{action.action_type === 'recovery' ? Number(action.amount_usdt || 0).toLocaleString() + ' USDT · +100 Vouchers' : 'Manual adjustment · +' + Number(action.bonus_vouchers || 0).toLocaleString() + ' Vouchers'} · Reference: {action.display_reference || action.reference} · {formatDate(action.created_at)}</div>
             {action.mark_note ? <div className="recovery-sub">Mark: {action.mark_note}</div> : null}
             <div className="recovery-actions" style={{ marginTop: 10 }}>
               <button type="button" className="recovery-button" disabled={working} onClick={() => { auditRequestRef.current += 1; setSelectedAction(selectedAction === action.id ? '' : action.id); setActionDetail(null); setEditing(false); setError('') }}>{selectedAction === action.id ? 'Hide Details' : 'View Details'}</button>
@@ -633,7 +646,7 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
                   <div><dt>Transaction ID</dt><dd>{actionDetail.transaction_id || 'Manual adjustment'}</dd></div>
                   <div><dt>USDT amount</dt><dd>{actionDetail.amount_usdt == null ? '—' : String(actionDetail.amount_usdt)}</dd></div>
                   <div><dt>Diamonds credited</dt><dd>{Number(actionDetail.diamonds || 0).toLocaleString()}</dd></div>
-                  <div><dt>Voucher bonus</dt><dd>{Number(actionDetail.bonus_vouchers || 0).toLocaleString()}</dd></div>
+                  <div><dt>{actionDetail.action_type === 'topup' ? 'Vouchers credited' : 'Voucher bonus'}</dt><dd>{Number(actionDetail.bonus_vouchers || 0).toLocaleString()}</dd></div>
                   <div><dt>Diamond wallet before → after</dt><dd>{Number(actionDetail.diamond_balance_before || 0).toLocaleString()} → {Number(actionDetail.diamond_balance_after || 0).toLocaleString()}</dd></div>
                   <div><dt>Voucher wallet before → after</dt><dd>{Number(actionDetail.voucher_balance_before || 0).toLocaleString()} → {Number(actionDetail.voucher_balance_after || 0).toLocaleString()}</dd></div>
                   <div><dt>Original reference</dt><dd>{actionDetail.reference || '—'}</dd></div>
