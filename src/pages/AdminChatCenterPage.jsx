@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import { useAdminSmartSearch } from '../hooks/useAdminSmartSearch'
 import {
   startAdminSupportChat,
   sendAdminSupportMessage,
@@ -289,7 +290,6 @@ export default function AdminChatCenterPage() {
   const navigate = useNavigate()
   const [chats, setChats] = useState([])
   const [filter, setFilter] = useState('All')
-  const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
   const [menu, setMenu] = useState(null)
   const [folderMenu, setFolderMenu] = useState(false)
@@ -318,9 +318,27 @@ export default function AdminChatCenterPage() {
   const [threadHasMore, setThreadHasMore] = useState(false)
   const [threadCursor, setThreadCursor] = useState(null)
   const [olderLoading, setOlderLoading] = useState(false)
-  const [people, setPeople] = useState([])
-  const [peopleLoading, setPeopleLoading] = useState(false)
-  const [peopleError, setPeopleError] = useState('')
+  // Pilot: only this Search Box uses the shared search hook.
+  // Inbox filtering and all chat actions retain their existing behavior.
+  const {
+    query: search,
+    setQuery: setSearch,
+    items: people,
+    loading: peopleLoading,
+    error: peopleError,
+    status: peopleSearchStatus,
+  } = useAdminSmartSearch({
+    scope: 'admin-support-chat:people',
+    limit: 10,
+    minLength: 2,
+    maxLength: 400,
+    debounceMs: 450,
+    cacheMs: 3 * 60 * 1000,
+    searcher: async ({ query, signal }) => {
+      const result = await requestSupportChat(`/users/search?q=${encodeURIComponent(query)}`, signal)
+      return { items: Array.isArray(result.users) ? result.users : [], has_next: false }
+    },
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -449,23 +467,6 @@ export default function AdminChatCenterPage() {
       document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [filter, inboxPage, selectedId, writeBusy])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    let current = true
-    const query = search.trim()
-    setPeople([])
-    setPeopleError('')
-    if (query.length < 2) { setPeopleLoading(false); return () => controller.abort() }
-    setPeopleLoading(true)
-    const timer = setTimeout(() => {
-      requestSupportChat(`/users/search?q=${encodeURIComponent(query)}`, controller.signal)
-        .then((result) => { if (current) setPeople((Array.isArray(result.users) ? result.users : []).slice(0, 10)) })
-        .catch((error) => { if (current && !controller.signal.aborted) setPeopleError(error.message || 'Search unavailable.') })
-        .finally(() => { if (current) setPeopleLoading(false) })
-    }, 450)
-    return () => { current = false; clearTimeout(timer); controller.abort() }
-  }, [search])
 
   const active = chats.find((chat) => chat.id === selectedId && !chat.archived) || null
   const inbox = chats.filter((chat) => !chat.archived)
@@ -651,7 +652,7 @@ export default function AdminChatCenterPage() {
         </nav>
         <section className="scc-list" aria-label="Inbox conversation list">
           <header className="scc-listhead"><h2>All Inbox</h2><div className="scc-sub">Page {inboxPage} · Up to {RECENT_CHAT_LIMIT} support conversations {inboxHasMore ? '· more available' : ''} <button className="scc-retry" type="button" onClick={() => setRefreshCount(n => n + 1)} disabled={inboxLoading}>Refresh</button></div>
-            <label className="scc-search"><Icon name="search" size={16}/><input aria-label="Search conversations" placeholder="Name, @username, account link, ID..." value={search} onChange={(e) => setSearch(e.target.value)} /></label>
+            <label className="scc-search"><Icon name="search" size={16}/><input aria-label="Search conversations" placeholder="Name, @username, account link, ID..." maxLength={400} value={search} onChange={(e) => setSearch(e.target.value)} /></label>
             <div className="scc-searchhelp">Searches conversations on this page and active accounts on the server (10 account results maximum).</div>
             <div className="scc-tabs">{['All','Unread','Seen','Assigned'].map((x) => <button type="button" key={x} onClick={() => { setInboxPage(1); setFilter(x) }} className={`scc-tab ${filter===x?'active':''}`}>{x}{x==='Unread'?` ${unreadTotal}`:''}</button>)}</div>
           </header>
@@ -667,12 +668,13 @@ export default function AdminChatCenterPage() {
               </span>
               <button type="button" className="scc-more" aria-label={`Actions for ${chat.name}`} onClick={(e)=>{e.stopPropagation(); openMenu(e,chat.id)}}><Icon name="dots" /></button>
             </div>)}
-            {search.trim().length >= 2 && <>
+            {peopleSearchStatus === 'too_short' && <div className="scc-searchhelp" role="status">Enter at least 2 letters (after @) to search accounts.</div>}
+            {!['idle', 'too_short'].includes(peopleSearchStatus) && <>
               <div className="scc-searchgroup">People search <small>· 10 results max</small></div>
-              {peopleLoading && <div className="scc-empty">Searching accounts…</div>}
+              {peopleLoading && <div className="scc-empty" role="status">Searching accounts…</div>}
               {peopleError && <div className="scc-searchalert" role="alert">{peopleError}</div>}
-              {!peopleLoading && !peopleError && people.length === 0 && <div className="scc-empty">No matching accounts.</div>}
-              {!peopleLoading && !peopleError && people.map((person) => <div key={person.id} className="scc-personhit">
+              {peopleSearchStatus === 'ready' && people.length === 0 && <div className="scc-empty">No matching accounts.</div>}
+              {peopleSearchStatus === 'ready' && people.map((person) => <div key={person.id} className="scc-personhit">
                 <span className="scc-avatar">{person.avatar_url ? <img src={person.avatar_url} alt="" loading="lazy" /> : person.is_author ? 'AU' : 'RD'}</span>
                 <span className="scc-itembody"><strong>{person.name || person.username || person.id}</strong><small>@{person.username || '—'} · {person.id.slice(0, 8)}…</small></span>
                 <button className="scc-btn" type="button" onClick={() => openSearchPerson(person)}>Start Chat</button>
