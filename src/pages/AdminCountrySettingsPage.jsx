@@ -5,8 +5,8 @@ const API = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrende
 const ROOT = `${API}/api/admin/country-settings`
 const REGIONS = ['kh', 'international']
 const DEFAULT_RULES = {
-  kh: { app: true, physicalBooks: true, binancePay: false, payway: true, shadowMall: true, readerMall: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
-  international: { app: false, physicalBooks: false, binancePay: true, payway: false, shadowMall: false, readerMall: false, storyLanguage: 'en', shopTarget: 'diamonds' },
+  kh: { app: true, physicalBooks: true, binancePay: false, payway: true, shadowMall: true, readerMall: true, payoutBank: true, payoutBinance: false, payoutPhone: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
+  international: { app: false, physicalBooks: false, binancePay: true, payway: false, shadowMall: false, readerMall: false, payoutBank: false, payoutBinance: false, payoutPhone: true, storyLanguage: 'en', shopTarget: 'diamonds' },
 }
 const FEATURES = [
   { key: 'app', title: 'Mine > App', detail: 'Display the App entry and its available tools.', icon: '▦', tone: 'violet' },
@@ -15,6 +15,9 @@ const FEATURES = [
   { key: 'payway', title: 'ABA / PayWay', detail: 'Show PayWay in Diamond payment methods.', icon: '▣', tone: 'blue' },
   { key: 'shadowMall', title: 'Shadow Mall', detail: 'Show or hide the Shadow Mall shopping entry.', icon: '🛍', tone: 'orange' },
   { key: 'readerMall', title: 'Reader Mall', detail: 'Show or hide Reader Profile > Mall.', icon: '🛒', tone: 'green' },
+  { key: 'payoutBank', title: 'Author Payout · Bank QR', detail: 'Allow authors to choose Bank QR for receiving payouts.', icon: '▣', tone: 'blue' },
+  { key: 'payoutBinance', title: 'Author Payout · Binance', detail: 'Allow authors to choose Binance for receiving payouts. Separate from Diamond purchases.', icon: '◆', tone: 'amber' },
+  { key: 'payoutPhone', title: 'Author Payout · Phone', detail: 'Allow authors to choose a phone-number payout provider.', icon: '☎', tone: 'rose' },
 ]
 const LANGUAGE_OPTIONS = [
   { value: 'km', label: 'Khmer' },
@@ -39,6 +42,9 @@ const DEFAULT_OVERRIDE = {
   payway: 'inherit',
   shadowMall: 'inherit',
   readerMall: 'inherit',
+  payoutBank: 'inherit',
+  payoutBinance: 'inherit',
+  payoutPhone: 'inherit',
   storyLanguage: 'inherit',
   shopTarget: 'inherit',
 }
@@ -152,7 +158,7 @@ function normalizeRules(rules) {
     for (const feature of FEATURES) {
       const flag = rules[region][feature.key]
       if (flag !== undefined && typeof flag !== 'boolean') throw new Error('Invalid feature rule')
-      if (flag === undefined && !['shadowMall', 'readerMall'].includes(feature.key)) throw new Error('Invalid feature rule')
+      if (flag === undefined && !['shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone'].includes(feature.key)) throw new Error('Invalid feature rule')
       normalized[region][feature.key] = flag === undefined ? DEFAULT_RULES[region][feature.key] : flag
     }
     const language = rules[region].storyLanguage
