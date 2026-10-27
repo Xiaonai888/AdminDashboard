@@ -7,6 +7,7 @@ import React, {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
+import AdminStoredErrorHistory from '../components/AdminStoredErrorHistory'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -1729,6 +1730,8 @@ export default function AdminSystemProblemReportsPage() {
             ) : null}
           </div>
         </section>
+
+        <AdminStoredErrorHistory />
 
         <section className="pr-block">
           <div className="pr-head">
