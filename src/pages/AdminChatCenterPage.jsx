@@ -66,21 +66,37 @@ function normalizeConversation(value) {
 }
 
 function normalizeMessage(value) {
-  const attachments = Array.isArray(value.attachments) ? value.attachments : []
-  const hasText = typeof value.message_text === 'string' && value.message_text.trim()
+  const deleted = Boolean(value.deleted_at)
+  const attachments = !deleted && Array.isArray(value.attachments) ? value.attachments : []
+  const imageCount = attachments.filter((attachment) => Boolean(supportImageSource(attachment))).length
+  const hasText = typeof value.message_text === 'string' ? value.message_text.trim() : ''
   const adminName = typeof value.sender_admin_name === 'string' ? value.sender_admin_name.trim() : ''
   const adminRole = typeof value.sender_admin_role === 'string' ? value.sender_admin_role.toLowerCase() : ''
   return {
     id: value.id,
+    replyTo: !deleted ? value.reply_to_message_id || null : null,
+    deleted,
+    edited: !deleted && Boolean(value.edited_at),
+    attachments,
     side: value.sender_kind === 'admin' ? 'support' : 'reader',
     agentName: adminName || 'Shadow Admin',
     agentRole: adminRole === 'owner' ? 'Owner' : adminRole === 'staff' ? 'Staff' : adminRole === 'admin' ? 'Admin' : '',
-    text: value.deleted_at
-  ? 'Message deleted'
-  : `${value.reply_to_message_id ? '↪ Reply\n' : ''}${hasText || (attachments.length ? `${attachments.length} attachment(s)` : '')}${value.edited_at ? '\n(Edited)' : ''}`,
+    text: deleted ? 'Message deleted' : hasText || (attachments.length > imageCount ? `${attachments.length} attachment(s)` : ''),
     time: value.created_at ? shortTime(value.created_at) : '—',
     seen: Boolean(value.seen_at),
   }
+}
+
+function supportImageSource(attachment) {
+  const url = typeof attachment === 'string'
+    ? attachment
+    : attachment?.url || attachment?.public_url || attachment?.image_url || attachment?.file_url || ''
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) return ''
+  const type = typeof attachment === 'object'
+    ? String(attachment?.mime_type || attachment?.content_type || attachment?.type || '').toLowerCase()
+    : ''
+  if (type && !type.startsWith('image') && !['photo', 'picture'].includes(type)) return ''
+  return url
 }
 
 const SHADOW_ADMIN_LOGO = '/assets/Icons/Logo%20Shadow.jpg'
@@ -219,6 +235,11 @@ const styles = `
   .scc-agent { font-size:10px; font-weight:850; margin-bottom:4px; }
   .scc-bubble { max-width:83%; padding:11px 13px; border-radius:13px; border:1px solid #e5e9f0; background:#fff; color:#405066; font-size:12px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
   .scc-supportbubble { background:#fff3da; border-color:#fff0c9; }
+  .scc-reply-preview { max-width:100%; border-left:3px solid #c69c39; padding:5px 8px; margin-bottom:7px; background:#f8f5ec; border-radius:4px; font-size:11px; color:#696d74; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .scc-attachment-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:7px; max-width:260px; }
+  .scc-attachment-grid a { display:block; min-width:0; }
+  .scc-attachment-grid img { display:block; width:100%; max-height:235px; border-radius:9px; object-fit:cover; }
+  .scc-edited { margin-top:4px; text-align:right; color:#8b96a6; font-size:10px; }
   .scc-time { margin-top:5px; color:#99a4b1; font-size:10px; }
   .scc-compose { padding:13px; border-top:1px solid var(--scc-line); display:flex; align-items:center; gap:8px; }
   .scc-compose input { min-width:0; width:100%; height:40px; border:1px solid #e1e5ec; border-radius:10px; padding:0 12px; outline:0; font-size:12px; }
@@ -394,15 +415,17 @@ export default function AdminChatCenterPage() {
         const incoming = (Array.isArray(threadResult.messages) ? threadResult.messages : [])
           .slice(-20).map(normalizeMessage)
         setThreadMessages(current => {
-  const byId = new Map(current.map(message => [message.id, message]))
-  let changed = false
-  incoming.forEach(message => {
-    const previous = byId.get(message.id)
-    if (!previous || previous.text !== message.text || previous.seen !== message.seen) changed = true
-    byId.set(message.id, message)
-  })
-  return changed ? [...byId.values()] : current
-})
+          const byId = new Map(current.map(message => [message.id, message]))
+          let changed = false
+          incoming.forEach(message => {
+            const previous = byId.get(message.id)
+            if (!previous || previous.text !== message.text || previous.seen !== message.seen || previous.replyTo !== message.replyTo || previous.edited !== message.edited || previous.deleted !== message.deleted || previous.attachments.length !== message.attachments.length) {
+              changed = true
+            }
+            byId.set(message.id, message)
+          })
+          return changed ? [...byId.values()] : current
+        })
         setThreadConversationId(selectedId)
         setThreadError('')
       } catch (error) {
@@ -666,10 +689,40 @@ export default function AdminChatCenterPage() {
           {active ? <>
             <header className="scc-chathead"><div className="scc-person"><span className="scc-avatar">{active.avatar_url ? <img src={active.avatar_url} alt="" loading="lazy" /> : active.is_author ? 'AU' : 'RD'}</span><div><b>{active.name}</b><small>{active.flag} {active.country} · ID {active.user_id || active.id}</small></div></div><span className="scc-status">{active.unread>0?'Unseen':'Seen'}</span></header>
             <div className="scc-tools"><button className="scc-btn" type="button" disabled title="Staff directory will be connected later"><Icon name="transfer"/> Transfer</button><button className="scc-btn" type="button" disabled title="Automatic assignment is not enabled"><Icon name="user"/> Auto Assign</button><button className="scc-btn" type="button" disabled={writeBusy || active.unread===0} onClick={()=>updateChat(active.id,'read')}><Icon name="check"/> Mark as Read</button></div>
-            <div className="scc-messages">{(threadLoading || (selectedId && threadConversationId !== selectedId && !threadError)) && <div className="scc-empty">Loading latest 20 messages…</div>}{threadError && <div className="scc-searchalert" role="alert">{threadError}</div>}{!threadLoading && !threadError && threadConversationId === selectedId && shownMessages.length === 0 && <div className="scc-empty">No support messages yet.</div>}{threadHasMore && <button className="scc-retry" type="button" disabled={olderLoading || !threadCursor} onClick={loadOlderMessages}>{olderLoading?'Loading…':'Load 20 older messages'}</button>}{shownMessages.map((msg)=><div key={msg.id} className={`scc-bubblewrap ${msg.side==='support'?'support':''}`}>{msg.side==='support' && <span className="scc-agent"><Brand compact /><span>{msg.agentName}{msg.agentRole ? ` · ${msg.agentRole}` : ''}</span></span>}<div className={`scc-bubble ${msg.side==='support'?'scc-supportbubble':''}`}{msg.time}</span></div>)}</div>
-    >
-{msg.replyTo && <div style={{borderLeft:'3px solid #c69c39',paddingLeft:8,marginBottom:6,opacity:.8}}>{shownMessages.find(x => x.id === msg.replyTo)?.text?.replace(/^↪ Reply\n/, '') || 'Original message unavailable'}</div>}
-{msg.replyTo ? msg.text.replace(/^↪ Reply\n/, '') : msg.text}</div><span className="scc-time">
+            <div className="scc-messages">
+              {(threadLoading || (selectedId && threadConversationId !== selectedId && !threadError)) && <div className="scc-empty">Loading latest 20 messages…</div>}
+              {threadError && <div className="scc-searchalert" role="alert">{threadError}</div>}
+              {!threadLoading && !threadError && threadConversationId === selectedId && shownMessages.length === 0 && <div className="scc-empty">No support messages yet.</div>}
+              {threadHasMore && <button className="scc-retry" type="button" disabled={olderLoading || !threadCursor} onClick={loadOlderMessages}>{olderLoading ? 'Loading…' : 'Load 20 older messages'}</button>}
+              {shownMessages.map((msg) => {
+                const original = msg.replyTo ? shownMessages.find((item) => item.id === msg.replyTo) : null
+                const images = msg.deleted ? [] : msg.attachments.map(supportImageSource).filter(Boolean)
+                return (
+                  <div key={msg.id} className={`scc-bubblewrap ${msg.side === 'support' ? 'support' : ''}`}>
+                    {msg.side === 'support' && <span className="scc-agent"><Brand compact /><span>{msg.agentName}{msg.agentRole ? ` · ${msg.agentRole}` : ''}</span></span>}
+                    <div className={`scc-bubble ${msg.side === 'support' ? 'scc-supportbubble' : ''}`}>
+                      {msg.replyTo && (
+                        <div className="scc-reply-preview">
+                          {original ? original.deleted ? 'Message deleted' : original.text || 'Attachment' : 'Original message unavailable'}
+                        </div>
+                      )}
+                      {msg.text && <div>{msg.text}</div>}
+                      {images.length > 0 && (
+                        <div className="scc-attachment-grid">
+                          {images.map((src, index) => (
+                            <a key={`${src}-${index}`} href={src} target="_blank" rel="noopener noreferrer" aria-label="View chat image">
+                              <img src={src} loading="lazy" alt="Chat attachment" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {msg.edited && <div className="scc-edited">Edited</div>}
+                    </div>
+                    <span className="scc-time">{msg.time}</span>
+                  </div>
+                )
+              })}
+            </div>
             <form className="scc-compose" onSubmit={handleReply}><input placeholder="Write a support reply…" aria-label="Write support message" maxLength={2000} value={replyDraft} onChange={(event)=>setReplyDraft(event.target.value)} disabled={writeBusy || threadLoading} /><button className="scc-btn gold" type="submit" disabled={writeBusy || threadLoading || !replyDraft.trim()}><Icon name="send"/> {writeBusy?'Sending…':'Send'}</button></form>
           </> : <div className="scc-empty">Choose a conversation to view its messages.</div>}
         </section>
