@@ -14,6 +14,26 @@ const titleCase = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 const blankAnimation = { animationType: 'none', animationSpeed: 'normal', animationRepeat: 'loop' }
 const newFolder = () => ({ name: '', icon: '📁', description: '', sortOrder: 0, active: true, coverFile: null, removeCover: false })
 
+// Accept only browser-safe image URLs. Never pass data:, javascript: or other
+// executable/unexpected schemes from stored records to an image element.
+function safeStickerSrc(value) {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  try {
+    const url = new URL(value.trim(), window.location.origin)
+    if (url.username || url.password) return undefined
+    if (url.protocol === 'blob:') {
+      return url.origin === window.location.origin ? url.href : undefined
+    }
+    if (url.protocol === 'https:') return url.href
+    // Allow HTTP image URLs only while developing on localhost.
+    const local = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+    if (local && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) return url.href
+  } catch {
+    // Ignore malformed URL values rather than rendering them.
+  }
+  return undefined
+}
+
 function AnimatedSticker({ item, className = '' }) {
   const kind = TYPES.includes(item.animationType) ? item.animationType : 'none'
   const speed = SPEEDS.includes(item.animationSpeed) ? item.animationSpeed : 'normal'
@@ -21,7 +41,7 @@ function AnimatedSticker({ item, className = '' }) {
   return (
     <img
       className={`sticker-preview-img sticker-${kind} sticker-${speed} sticker-${repeat} ${className}`}
-      src={item.previewUrl || item.imageUrl}
+      src={safeStickerSrc(item.previewUrl) || safeStickerSrc(item.imageUrl)}
       alt={item.altText || item.title || 'Sticker'}
       loading="lazy"
       decoding="async"
@@ -240,7 +260,7 @@ export default function AdminStickerLibraryPage() {
                   onDrop={(e) => { e.preventDefault(); reorder(f.id) }}
                   className={`sticker-folder ${f.id === lib.folderId ? 'selected' : ''}`}
                 >
-                  <div className="sticker-folder-cover">{f.coverUrl ? <img src={f.coverUrl} alt="" /> : f.icon}</div>
+                  <div className="sticker-folder-cover">{safeStickerSrc(f.coverUrl) ? <img src={safeStickerSrc(f.coverUrl)} alt="" /> : f.icon}</div>
                   <button type="button" className="sticker-folder-open" onClick={() => { lib.setFolderId(f.id); setSearch('') }}>
                     <strong>{f.name}</strong><small>{f.active ? `#${f.sortOrder} · Visible` : `#${f.sortOrder} · Hidden`}</small>
                   </button>
