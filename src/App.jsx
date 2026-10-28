@@ -74,6 +74,8 @@ import ShadowMallPromotionPage from './pages/ShadowMallPromotionPage';
 import AdminPromotionInsightsPage from './pages/AdminPromotionInsightsPage';
 import HelpCenterManagementPage from './pages/HelpCenterManagementPage';
 import ShadowMediaLibraryPage from './pages/ShadowMediaLibraryPage';
+import ShadowMediaLibraryHomePage from './pages/ShadowMediaLibraryHomePage';
+import AdminStickerLibraryPage from './pages/AdminStickerLibraryPage';
 import AdminChatStoryLibraryPage from './pages/AdminChatStoryLibraryPage';
 import AdminFrameManagementPage from './pages/AdminFrameManagementPage';
 import AdminNewOrdersPage from './pages/AdminNewOrdersPage';
@@ -261,7 +263,9 @@ export default function App() {
         <Route path="/shadow-mall/publishers" element={<ProtectedPage><ShadowMallPublishersPage /></ProtectedPage>} />
         <Route path="/readers-today" element={<ProtectedPage permission="readers.view"><AdminReadersTodayPage /></ProtectedPage>} />
         <Route path="/reader-online" element={<ProtectedPage><AdminReaderOnlinePage /></ProtectedPage>} />
-        <Route path="/media-library" element={<ProtectedPage><ShadowMediaLibraryPage /></ProtectedPage>} />
+        <Route path="/media-library" element={<ProtectedPage><ShadowMediaLibraryHomePage /></ProtectedPage>} />
+        <Route path="/media-library/character" element={<ProtectedPage><ShadowMediaLibraryPage /></ProtectedPage>} />
+        <Route path="/media-library/sticker" element={<ProtectedPage><AdminStickerLibraryPage /></ProtectedPage>} />
         <Route path="/chat-story-library" element={<ProtectedPage permission="media_library.view"><AdminChatStoryLibraryPage /></ProtectedPage>} />
         <Route path="/profile-frames" element={<ProtectedPage permission="media_library.manage"><AdminFrameManagementPage /></ProtectedPage>} />
         <Route path="/admin-secret-reset/request" element={<AdminForgotPasswordPage />} />
