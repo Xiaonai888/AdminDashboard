@@ -1,5 +1,6 @@
 const API_ROOT = `${(import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com').replace(/\/$/, '')}/api/admin/purchases/binance`
 const UUID_RE = /^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i
+const TRANSACTION_RE = /^[A-Za-z0-9_-]{6,128}$/
 
 function getAdminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -38,15 +39,37 @@ function cleanOrderId(value) {
   return encodeURIComponent(id)
 }
 
-export async function listBinanceCheckoutReviews({ page = 1, status = 'submitted', signal } = {}) {
+export async function listBinanceCheckoutReviews({ page = 1, status = 'awaiting_receipt', signal } = {}) {
   if (!Number.isSafeInteger(page) || page < 1 || page > 1000) throw new Error('Invalid page.')
-  if (!['submitted', 'approved', 'rejected', 'all'].includes(status)) throw new Error('Invalid review status.')
+  if (!['awaiting_receipt', 'submitted', 'approved', 'rejected', 'all'].includes(status)) throw new Error('Invalid review status.')
   const params = new URLSearchParams({ page: String(page), status })
   return request(`/checkout-reviews?${params}`, { signal })
 }
 
 export async function getBinanceCheckoutReview(orderId, { signal } = {}) {
   return request(`/checkout-reviews/${cleanOrderId(orderId)}`, { signal })
+}
+
+// This only links a verified receipt; wallet credit still requires /approve.
+export async function linkBinanceCheckoutReceipt(orderId, fields) {
+  const transactionId = String(fields?.transaction_id || '').trim()
+  const reason = String(fields?.reason || '').trim()
+  const passkey = String(fields?.passkey || '').trim()
+  if (!TRANSACTION_RE.test(transactionId)) throw new Error('Enter the verified Binance transaction ID (6–128 characters).')
+  if (reason.length < 12 || reason.length > 500) throw new Error('Review reason must contain 12 to 500 characters.')
+  if (!/^\d{6}$/.test(passkey)) throw new Error('Enter a six-digit Admin Passkey.')
+  if (fields?.official_receipt_verified !== true || fields?.recipient_verified !== true || fields?.receiver_verified !== true) {
+    throw new Error('Confirm the official transfer, reader and Binance receiver first.')
+  }
+  return request(`/checkout-reviews/${cleanOrderId(orderId)}/link-receipt`, {
+    method: 'POST',
+    body: {
+      transaction_id: transactionId, reason, passkey,
+      official_receipt_verified: true,
+      recipient_verified: true,
+      receiver_verified: true,
+    },
+  })
 }
 
 export async function decideBinanceCheckoutReview(orderId, action, fields) {
