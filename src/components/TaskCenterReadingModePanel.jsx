@@ -47,7 +47,12 @@ function formatRotationDate(value) {
   return text || 'Not rotated yet'
 }
 
-export default function TaskCenterReadingModePanel({ settings = {}, readingMissions = [], onChanged }) {
+export default function TaskCenterReadingModePanel({
+  settings = {},
+  readingMissions = [],
+  onChanged,
+  audience = 'khmer',
+}) {
   const [savingMode, setSavingMode] = useState('')
   const [localMessage, setLocalMessage] = useState({ type: '', text: '' })
 
@@ -79,7 +84,11 @@ export default function TaskCenterReadingModePanel({ settings = {}, readingMissi
       setSavingMode(nextMode)
       setLocalMessage({ type: '', text: '' })
 
-      const response = await fetch(`${API_URL}/api/task-center/admin/reading-mode`, {
+      const modePath = audience === 'international'
+  ? '/api/task-center/admin/international/reading-mode'
+  : '/api/task-center/admin/reading-mode'
+
+const response = await fetch(`${API_URL}${modePath}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -116,10 +125,16 @@ export default function TaskCenterReadingModePanel({ settings = {}, readingMissi
       <div className="reading-mode-panel">
         <div className="reading-mode-top">
           <div>
-            <div className="reading-mode-title">Reading Mission Mode</div>
-            <div className="reading-mode-sub">
-              Manual uses the story links you choose. Auto keeps 2 missions and selects stories automatically every day.
-            </div>
+            <div className="reading-mode-title">
+  {audience === 'international'
+    ? '🌐 International Reading Mission Mode'
+    : '🇰🇭 Khmer Reading Mission Mode'}
+</div>
+<div className="reading-mode-sub">
+  {audience === 'international'
+    ? 'Manual uses your selected stories. Auto selects 2 eligible English stories every day.'
+    : 'Manual uses the story links you choose. Auto keeps 2 missions and selects stories automatically every day.'}
+</div>
           </div>
 
           <div className="reading-mode-toggle">
