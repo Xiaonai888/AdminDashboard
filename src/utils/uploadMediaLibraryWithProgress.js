@@ -211,7 +211,7 @@ function createProgressView(fileCount, totalBytes) {
       percent.textContent = '100%'
       size.textContent = `${formatMegabytes(totalBytes)} / ${formatMegabytes(totalBytes)}`
       bar.style.width = '100%'
-      status.textContent = 'Upload received. Compressing and saving images to Cloudflare...'
+      status.textContent = 'Images uploaded. Saving library records...'
     },
     showSuccess() {
       card.classList.remove('shadow-upload-progress-processing')
@@ -370,7 +370,7 @@ function canTryExistingService(error) {
   return ![400, 401, 403, 413, 415, 422, 429].includes(status)
 }
 
-export async function uploadMediaLibraryWithProgress({ apiUrl, token, files }) {
+export async function uploadMediaLibraryWithProgress({ apiUrl, token, files, onProcess }) {
   const selectedFiles = Array.from(files || [])
   const totalBytes = selectedFiles.reduce((sum, file) => sum + Number(file?.size || 0), 0)
   if (!selectedFiles.length) throw uploadError('Please choose at least one image')
@@ -456,6 +456,12 @@ export async function uploadMediaLibraryWithProgress({ apiUrl, token, files }) {
     if (results.some((image) => !image?.image_url || !image?.storage_key)) {
       throw uploadError('Some images could not be uploaded. Please try again.')
     }
+        if (typeof onProcess === 'function') {
+      selectedFiles.forEach((file, i) => finalizedImages.set(file, { apiUrl: baseUrl, token, image: results[i] }))
+      view.showProcessing()
+      await onProcess(results)
+    }
+    
     selectedFiles.forEach((file) => finalizedImages.delete(file))
     view.showSuccess()
     view.remove(900)
