@@ -3,7 +3,7 @@ import { uploadMediaLibraryWithProgress } from '../utils/uploadMediaLibraryWithP
 import { prepareStickerBatch, prepareStickerImage } from '../utils/stickerImageOptimizer'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com').replace(/\/+$/, '')
-// Separate REST namespace & DB records from Character; backend will be added in the next step.
+// Separate REST namespace and DB records from the Character library.
 const BASE = '/api/admin/sticker-library'
 const MAX_AGE = 10 * 60 * 1000
 let store = { account: '', folders: null, foldersAt: 0, pages: new Map() }
@@ -15,9 +15,15 @@ function cache() {
   return store
 }
 function safeURL(value) {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  // URL('', API_URL) resolves to the backend homepage. A missing folder
+  // cover must instead remain blank, so the folder icon can be displayed.
+  if (!raw) return ''
   try {
-    const u = new URL(String(value || ''), API_URL)
-    return ['https:', 'http:'].includes(u.protocol) && !u.username && !u.password ? u.href : ''
+    const u = new URL(raw, API_URL)
+    const allowed = u.protocol === 'https:' ||
+      (u.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(u.hostname))
+    return allowed && !u.username && !u.password ? u.href : ''
   } catch { return '' }
 }
 const folderModel = (x) => ({
@@ -151,6 +157,11 @@ export function useAdminStickerLibrary() {
   }
 
   const saveFolder = (draft) => run(async () => {
+    // Validate/compress a selected cover before creating the DB record.
+    // Animation remains independent of image compression.
+    const preparedCover = draft.coverFile
+      ? await prepareStickerImage(draft.coverFile, { cover: true })
+      : null
     const existing = Boolean(draft.id)
     const path = existing ? `/folders/${encodeURIComponent(draft.id)}` : '/folders'
     const data = await api(path, { method: existing ? 'PATCH' : 'POST', body: {
@@ -158,12 +169,30 @@ export function useAdminStickerLibrary() {
       sort_order: Number(draft.sortOrder || 0), is_active: Boolean(draft.active),
     } })
     let updated = folderModel(data.folder)
-    if (draft.coverFile) {
-      const form = new FormData()
-      form.append('cover', await prepareStickerImage(draft.coverFile, { cover: true }))
-      updated = folderModel((await api(`/folders/${updated.id}/cover`, { method: 'POST', body: form })).folder)
-    } else if (draft.removeCover) {
-      updated = folderModel((await api(`/folders/${updated.id}/cover`, { method: 'DELETE' })).folder)
+    try {
+      if (preparedCover) {
+        const form = new FormData()
+        form.append('cover', preparedCover)
+        updated = folderModel((await api(`/folders/${updated.id}/cover`, { method: 'POST', body: form })).folder)
+      } else if (draft.removeCover) {
+        updated = folderModel((await api(`/folders/${updated.id}/cover`, { method: 'DELETE' })).folder)
+      }
+    } catch (error) {
+      // A failed cover upload must not leave an invisible newly-created
+      // folder that gets duplicated when the admin retries Save.
+      if (!existing) {
+        try {
+          await api(`/folders/${encodeURIComponent(updated.id)}`, { method: 'DELETE' })
+        } catch (cleanupError) {
+          cache().folders = null
+          await loadFolders(true)
+          throw new Error(`Folder was created but its cover failed. It could not be rolled back: ${cleanupError.message}. Please edit or delete the folder before retrying.`)
+        }
+      } else {
+        cache().folders = null
+        await loadFolders(true)
+      }
+      throw error
     }
     const rows = existing ? folders.map((f) => f.id === updated.id ? updated : f) : [...folders, updated]
     setFolders(rows)
@@ -200,7 +229,13 @@ export function useAdminStickerLibrary() {
       for (const f of changed) await api(`/folders/${encodeURIComponent(f.id)}`, { method: 'PATCH', body: { sort_order: f.sortOrder } })
       cache().folders = next
       cache().foldersAt = Date.now()
-    } catch (e) { setFolders(previous); throw e }
+    } catch (e) {
+      // Some reorder PATCH requests may have already succeeded. Refetch
+      // server order instead of displaying a stale optimistic rollback.
+      cache().folders = null
+      try { await loadFolders(true) } catch { setFolders(previous) }
+      throw e
+    }
   })
 
   const resetUploadCache = () => {
