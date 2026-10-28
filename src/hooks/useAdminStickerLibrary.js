@@ -246,38 +246,51 @@ export function useAdminStickerLibrary() {
 
   const uploadImages = (drafts) => run(async () => {
     if (!drafts.length || drafts.length > 20) throw new Error('Choose between 1 and 20 images.')
-    const unprepared = drafts.filter((draft) => !preparedUploads.current.has(draft.id))
+
+    // Keep successfully saved records when a later image fails. Retrying the
+    // same selection must not create a duplicate row or repeat an R2 upload.
+    const unsaved = drafts.filter((draft) => !savedUploads.current.has(draft.id))
+    const unprepared = unsaved.filter((draft) => !preparedUploads.current.has(draft.id))
     if (unprepared.length) {
-      const files = await prepareStickerBatch(unprepared.map((item) => item.file))
-      unprepared.forEach((item, index) => preparedUploads.current.set(item.id, files[index]))
+      const prepared = await prepareStickerBatch(unprepared.map((draft) => draft.file))
+      unprepared.forEach((draft, index) => preparedUploads.current.set(draft.id, prepared[index]))
     }
-    const missing = drafts.filter((draft) => !uploadedFiles.current.has(draft.id) && !savedUploads.current.has(draft.id))
-    if (missing.length) {
-      // Uses existing Cloudflare direct upload and Render fallback. Prepared files
-      // retain identity so the shared uploader can resume successful files on retry.
-      const files = missing.map((draft) => preparedUploads.current.get(draft.id))
-      const result = await uploadMediaLibraryWithProgress({ apiUrl: API_URL, token: token(), files })
-      if (result.images?.length !== missing.length) throw new Error('Some uploaded images are missing.')
-      missing.forEach((draft, index) => uploadedFiles.current.set(draft.id, result.images[index]))
+
+    if (unsaved.length) {
+      const files = unsaved.map((draft) => preparedUploads.current.get(draft.id))
+      // The same shared upload popup now stays in Processing until the
+      // Sticker database rows have been saved. Character calls are unchanged.
+      await uploadMediaLibraryWithProgress({
+        apiUrl: API_URL,
+        token: token(),
+        files,
+        onProcess: async (uploaded) => {
+          if (uploaded.length !== unsaved.length) {
+            throw new Error('Some uploaded images are missing. Retry to continue.')
+          }
+          unsaved.forEach((draft, index) => uploadedFiles.current.set(draft.id, uploaded[index]))
+          for (const draft of unsaved) {
+            if (savedUploads.current.has(draft.id)) continue
+            const file = uploadedFiles.current.get(draft.id)
+            if (!file?.image_url || !file?.storage_key) {
+              throw new Error('Missing uploaded image. Retry to continue.')
+            }
+            const data = await api('/images', { method: 'POST', body: {
+              folder_id: draft.folderId, title: draft.title.trim() || 'Untitled Sticker',
+              alt_text: draft.title.trim() || 'Sticker', image_url: file.image_url,
+              storage_key: file.storage_key, is_active: true, sort_order: Number(draft.sortOrder || 0),
+              animation_type: draft.animationType, animation_speed: draft.animationSpeed,
+              animation_repeat: draft.animationRepeat,
+            } })
+            savedUploads.current.set(draft.id, imageModel(data.image))
+          }
+        },
+      })
     }
-    const created = []
-    for (const draft of drafts) {
-      const saved = savedUploads.current.get(draft.id)
-      if (saved) { created.push(saved); continue }
-      const file = uploadedFiles.current.get(draft.id)
-      if (!file?.image_url || !file?.storage_key) throw new Error('Missing uploaded image. Retry to continue.')
-      const data = await api('/images', { method: 'POST', body: {
-        folder_id: draft.folderId, title: draft.title.trim() || 'Untitled Sticker',
-        alt_text: draft.title.trim() || 'Sticker', image_url: file.image_url,
-        storage_key: file.storage_key, is_active: true, sort_order: Number(draft.sortOrder || 0),
-        animation_type: draft.animationType, animation_speed: draft.animationSpeed,
-        animation_repeat: draft.animationRepeat,
-      } })
-      const normalized = imageModel(data.image)
-      savedUploads.current.set(draft.id, normalized)
-      created.push(normalized)
-    }
-    await invalidate(...new Set(created.map((item) => item.folderId)))
+
+    const created = drafts.map((draft) => savedUploads.current.get(draft.id))
+    if (created.some((image) => !image)) throw new Error('Some stickers were not saved. Retry to continue.')
+    await invalidate(...new Set(created.map((image) => image.folderId)))
     resetUploadCache()
     return created
   })
