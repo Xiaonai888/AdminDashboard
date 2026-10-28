@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import StoryUpdateActivityPanel from '../components/StoryUpdateActivityPanel'
 import StoryLibraryPanel from '../components/StoryLibraryPanel'
+import StoryGrowthSection from '../components/StoryGrowthSection'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -707,7 +708,7 @@ export default function AdminStoriesPage() {
   }
 
   const requestedTab = searchParams.get('tab')
-  const [activeTab, setActiveTab] = useState(['updates', 'library'].includes(requestedTab) ? requestedTab : 'active')
+  const [activeTab, setActiveTab] = useState(['updates', 'library', 'growth'].includes(requestedTab) ? requestedTab : 'active')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [status, setStatus] = useState('all')
@@ -769,7 +770,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     let alive = true
 
     async function loadStories() {
-  if (activeTab === 'updates' || activeTab === 'library') {
+  if (['updates', 'library', 'growth'].includes(activeTab)) {
     setLoading(false)
     return
   }
@@ -854,6 +855,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     { key: 'all', label: 'All Stories', count: summary.total_stories },
     { key: 'library', label: 'Story Library', count: null },
     { key: 'updates', label: 'Story Updates', count: null },
+    { key: 'growth', label: 'Story Growth', count: null },
   ]
 
   const storyTypeTabs = [
@@ -952,7 +954,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             ))}
           </div>
 
-          {!['updates', 'library'].includes(activeTab) ? (
+          {!['updates', 'library', 'growth'].includes(activeTab) ? (
             <div className="story-admin-type-tabs">
               {storyTypeTabs.map((tab) => (
                 <button
@@ -971,6 +973,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
           ) : null}
 
           {activeTab === 'updates' ? <StoryUpdateActivityPanel /> : null}
+          {activeTab === 'growth' ? <StoryGrowthSection /> : null}
           {activeTab === 'library' ? (
   <StoryLibraryPanel
     onSelectStory={(story) => {
@@ -980,7 +983,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
   />
 ) : null}
 
-          <div className="story-admin-toolbar" hidden={activeTab === 'updates' || activeTab === 'library'}>
+          <div className="story-admin-toolbar" hidden={['updates', 'library', 'growth'].includes(activeTab)}>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, genre, language, or exact Story ID..." />
             <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}>
               <option value="all">All Status</option>
@@ -1001,7 +1004,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             <button type="button" onClick={() => { clearStoriesRequestCache(); setRefreshKey((value) => value + 1) }}>Refresh</button>
           </div>
 
-          <div className="story-admin-table-wrap" hidden={activeTab === 'updates' || activeTab === 'library'}>
+          <div className="story-admin-table-wrap" hidden={['updates', 'library', 'growth'].includes(activeTab)}>
             {loading ? <LoadingState /> : stories.length ? (
               <table className="story-admin-table">
                 <thead>
@@ -1085,7 +1088,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             ) : <EmptyState />}
           </div>
 
-          <div className="story-admin-pagination" hidden={activeTab === 'updates' || activeTab === 'library'}>
+          <div className="story-admin-pagination" hidden={['updates', 'library', 'growth'].includes(activeTab)}>
             <div>Page {pagination.page} of {pagination.total_pages} · {formatNumber(pagination.total)} records</div>
             <div>
               <button type="button" disabled={!pagination.has_prev || loading} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
