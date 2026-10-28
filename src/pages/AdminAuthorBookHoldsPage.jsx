@@ -50,10 +50,22 @@ function dateLabel(value) {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
 }
+const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i
+const PRIVATE_PROOF_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const MAX_PROOF_SIZE = 5 * 1024 * 1024
+
 function proofsFrom(row) {
-  return (Array.isArray(row?.proof_refs) ? row.proof_refs : [])
-    .map(item => typeof item === 'string' ? item : item?.url)
-    .filter(url => typeof url === 'string' && /^https:\/\//i.test(url))
+  const refs = Array.isArray(row?.proof_refs) ? row.proof_refs : []
+  return refs.flatMap((item, index) => {
+    const proofId = item && typeof item === 'object' ? String(item.proof_id || '') : ''
+    // New R2 proofs contain a private UUID reference, never a public URL.
+    if (UUID.test(proofId)) return [{ key: `private:${proofId}`, proofId }]
+    // Retain support for legacy HTTPS delivery photos.
+    const url = typeof item === 'string' ? item : item?.url
+    return typeof url === 'string' && /^https:\/\//i.test(url)
+      ? [{ key: `legacy:${index}`, url }]
+      : []
+  })
 }
 function badgeLabel(value) {
   return STATUSES.find(item => item.value === value)?.label || String(value || 'Unknown').replaceAll('_', ' ')
@@ -126,6 +138,8 @@ const CSS = `
 .sbp-proofs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
 .sbp-proof { display:flex; flex-direction:column; justify-content:center; align-items:center; min-height:77px; gap:5px; color:#4f46e5; background:#f1f4fb; border:1px solid #e1e7f1; border-radius:10px; text-decoration:none; overflow:hidden; font-size:10px; }
 .sbp-proof img { width:100%; height:70px; object-fit:cover; }
+.sbp-proof-pending { padding:9px 4px; text-align:center; color:#7282a1; }
+.sbp-proof-pending.error { color:#b91c1c; background:#fff1f2; border-color:#fecdd3; }
 .sbp-textarea { border:1px solid #dce4f0; border-radius:10px; padding:12px; resize:vertical; min-height:85px; width:100%; color:#24365f; background:#fff; outline-color:#4f46e5; }
 .sbp-detail-action { border:0; background:#4f46e5; color:#fff; width:100%; padding:13px 12px; border-radius:11px; font-weight:800 !important; display:flex; align-items:center; justify-content:center; gap:8px; }
 .sbp-hint { color:#7c8aab; font-size:11px; line-height:1.6; }
@@ -168,7 +182,12 @@ export default function AdminAuthorBookHoldsPage() {
   const [modal, setModal] = useState(false)
   const [actionError, setActionError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [privateProofUrls, setPrivateProofUrls] = useState({})
+  const [proofLoadErrors, setProofLoadErrors] = useState({})
   const owner = isOwner()
+  const selectedProofs = useMemo(() => proofsFrom(selected), [selected])
+  const canRelease = owner && selected?.status === 'under_review' && selectedProofs.length > 0 &&
+    selectedProofs.every(proof => !proof.proofId || Boolean(privateProofUrls[proof.key]))
 
   const refresh = useCallback(() => setRevision(value => value + 1), [])
 
@@ -229,6 +248,55 @@ export default function AdminAuthorBookHoldsPage() {
     return () => controller.abort()
   }, [status, page, revision])
 
+  // Only load private R2 evidence for the currently selected order.
+  // Bearer credentials are sent by fetch, never embedded in image URLs.
+  useEffect(() => {
+    setPrivateProofUrls({})
+    setProofLoadErrors({})
+    const privateProofs = selectedProofs.filter(item => item.proofId)
+    if (!owner || !UUID.test(String(selected?.hold_id || '')) || !privateProofs.length) return undefined
+
+    const controller = new AbortController()
+    const objectUrls = []
+    let cancelled = false
+
+    async function loadPrivateProofs() {
+      const adminToken = token()
+      if (!adminToken) {
+        setProofLoadErrors(Object.fromEntries(privateProofs.map(item => [item.key, 'Admin session expired'])))
+        return
+      }
+      await Promise.all(privateProofs.map(async item => {
+        try {
+          const response = await fetch(
+            `${API_URL}/api/author-store/admin/books/holds/${encodeURIComponent(selected.hold_id)}/proofs/${encodeURIComponent(item.proofId)}`,
+            { headers: { Authorization: `Bearer ${adminToken}` }, cache: 'no-store', signal: controller.signal }
+          )
+          if (!response.ok) throw new Error(response.status === 403 ? 'Owner access required' : 'Private proof unavailable')
+          const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase()
+          const contentLength = Number(response.headers.get('content-length') || '0')
+          if (!PRIVATE_PROOF_MIMES.has(mime) || contentLength > MAX_PROOF_SIZE) throw new Error('Invalid proof image')
+          const imageBlob = await response.blob()
+          if (imageBlob.size < 1 || imageBlob.size > MAX_PROOF_SIZE) throw new Error('Invalid proof size')
+          if (cancelled || controller.signal.aborted) return
+          const url = URL.createObjectURL(imageBlob)
+          objectUrls.push(url)
+          setPrivateProofUrls(previous => ({ ...previous, [item.key]: url }))
+        } catch (error) {
+          if (!cancelled && !controller.signal.aborted) {
+            setProofLoadErrors(previous => ({ ...previous, [item.key]: error?.message || 'Unable to load proof' }))
+          }
+        }
+      }))
+    }
+    void loadPrivateProofs()
+    return () => {
+      cancelled = true
+      controller.abort()
+      objectUrls.forEach(url => URL.revokeObjectURL(url))
+    }
+  }, [owner, selected?.hold_id, selectedProofs])
+
   useEffect(() => {
     if (!modal) return undefined
     const previousOverflow = document.body.style.overflow
@@ -265,7 +333,7 @@ export default function AdminAuthorBookHoldsPage() {
     setActionError('')
   }
   function openModal() {
-    if (!owner || !selected || selected.status !== 'under_review' || proofsFrom(selected).length === 0) return
+    if (!canRelease) return
     setPin('')
     setShowPin(false)
     setActionError('')
@@ -273,7 +341,7 @@ export default function AdminAuthorBookHoldsPage() {
   }
   async function approve(event) {
     event.preventDefault()
-    if (saving || !owner || !selected || selected.status !== 'under_review' || proofsFrom(selected).length === 0) return
+    if (saving || !canRelease) return
     if (!/^\d{6}$/.test(pin) || Array.from(reason.trim()).length < 15) {
       setActionError('Enter a six-digit Owner Passkey and at least 15 characters of review reason.')
       return
@@ -301,9 +369,6 @@ export default function AdminAuthorBookHoldsPage() {
       setSaving(false)
     }
   }
-
-  const canRelease = owner && selected?.status === 'under_review' && proofsFrom(selected).length > 0
-  const selectedProofs = proofsFrom(selected)
 
   return (
     <AdminLayout title="Book Pending" subtitle="Review held payments for physical books before releasing author funds. Owner release requires Passkey confirmation.">
@@ -402,13 +467,25 @@ export default function AdminAuthorBookHoldsPage() {
               <div>
                 <div className="sbp-section-head"><span>Shipping Proof</span><span className="sbp-sub">{selectedProofs.length} file(s)</span></div>
                 {selectedProofs.length ? <div className="sbp-proofs" style={{marginTop:11}}>
-                  {selectedProofs.map((url,index) => (
-                    <a className="sbp-proof" href={url} target="_blank" rel="noopener noreferrer" key={`${url}-${index}`} title={`View shipping proof ${index+1}`}>
-                      <img src={url} alt={`Shipping proof ${index + 1}`} loading="lazy" onError={event => { event.currentTarget.style.display = 'none' }} />
-                      <span>Proof {index+1}</span>
-                    </a>
-                  ))}
+                  {selectedProofs.map((proof, index) => {
+                    const imageUrl = proof.proofId ? privateProofUrls[proof.key] : proof.url
+                    const loadError = proofLoadErrors[proof.key]
+                    return imageUrl ? (
+                      <a className="sbp-proof" href={imageUrl} target="_blank" rel="noopener noreferrer" key={proof.key} title={`View shipping proof ${index + 1}`}>
+                        <img src={imageUrl} alt={`Shipping proof ${index + 1}`} loading="lazy" />
+                        <span>Proof {index + 1}</span>
+                      </a>
+                    ) : (
+                      <div className={`sbp-proof sbp-proof-pending ${loadError ? 'error' : ''}`} key={proof.key} role="status">
+                        <Icon name="image" size={20}/>
+                        <span>{loadError || 'Loading private proof...'}</span>
+                      </div>
+                    )
+                  })}
                 </div> : <div className="sbp-hint" style={{marginTop:8}}>No delivery evidence uploaded.</div>}
+                {selectedProofs.some(item => item.proofId && !privateProofUrls[item.key]) && (
+                  <div className="sbp-hint" style={{marginTop:8}}>Release is disabled until private evidence can be inspected.</div>
+                )}
               </div>
               <div className="sbp-detail-divider"/>
               <div>
