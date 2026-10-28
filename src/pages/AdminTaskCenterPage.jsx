@@ -157,7 +157,7 @@ function digitsOnly(value) {
 function isRealMissionId(value) {
   const text = String(value || '').trim()
 
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)
 }
 
 function hasLegacyReadingTask(task) {
@@ -264,20 +264,19 @@ export default function AdminTaskCenterPage() {
   const [creatingMission, setCreatingMission] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
   const [khmerMissions, setKhmerMissions] = useState([])
-const [internationalMissions, setInternationalMissions] = useState([])
-const [internationalSettings, setInternationalSettings] = useState({
-  reading_mission_mode: 'manual',
-})
-const [internationalLoading, setInternationalLoading] = useState(false)
-const [missionAudience, setMissionAudience] = useState('khmer')
+  const [internationalMissions, setInternationalMissions] = useState([])
+  const [internationalSettings, setInternationalSettings] = useState({ reading_mission_mode: 'manual' })
+  const [internationalLoading, setInternationalLoading] = useState(false)
+  const [internationalLoaded, setInternationalLoaded] = useState(false)
+  const [missionAudience, setMissionAudience] = useState('khmer')
 
-const readingMissions = missionAudience === 'international'
-  ? internationalMissions
-  : khmerMissions
+  const readingMissions = missionAudience === 'international'
+    ? internationalMissions
+    : khmerMissions
 
-const setReadingMissions = missionAudience === 'international'
-  ? setInternationalMissions
-  : setKhmerMissions
+  const setReadingMissions = missionAudience === 'international'
+    ? setInternationalMissions
+    : setKhmerMissions
   const [selectedMissionId, setSelectedMissionId] = useState('')
   const [activeTab, setActiveTab] = useState('reading')
   const [readingMissionView, setReadingMissionView] = useState('home')
@@ -291,31 +290,30 @@ const setReadingMissions = missionAudience === 'international'
   ? previewUrl
   : safeTaskCoverUrl(settings.cover_url)
   const selectedSettings = missionAudience === 'international'
-  ? internationalSettings
-  : settings
-
-const isAutoMode = selectedSettings?.reading_mission_mode === 'auto'
-
-const missionApiBase = `${API_URL}/api/task-center/admin${
-  missionAudience === 'international' ? '/international' : ''
-}/reading-missions`
+    ? internationalSettings
+    : settings
+  const isAutoMode = selectedSettings?.reading_mission_mode === 'auto'
+  const missionApiBase = `${API_URL}/api/task-center/admin${
+    missionAudience === 'international' ? '/international' : ''
+  }/reading-missions`
 
   function normalizeMissionList(list = []) {
-  return (Array.isArray(list) ? list : [])
-    .slice(0, MAX_READING_MISSIONS)
-    .map((mission, index) => normalizeReadingMission(mission, index))
-}
+    return (Array.isArray(list) ? list : [])
+      .slice(0, MAX_READING_MISSIONS)
+      .map((mission, index) => normalizeReadingMission(mission, index))
+  }
 
-function syncReadingMissions(list = []) {
-  setReadingMissions(normalizeMissionList(list))
-}
+  function syncReadingMissions(list = []) {
+    setReadingMissions(normalizeMissionList(list))
+  }
 
   function syncReadingMissionsFromResponse(data, fallbackList = []) {
     syncReadingMissions(extractReadingMissionsFromResponse(data, fallbackList))
   }
 
   function updateReadingMission(missionId, field, value) {
-    if (isAutoMode && !['reward_coins', 'target_minutes'].includes(field)) return
+    if (isAutoMode && (missionAudience === 'international' ||
+      !['reward_coins', 'target_minutes'].includes(field))) return
     setReadingMissions((current) =>
       current.map((mission) =>
         mission.id === missionId
@@ -345,9 +343,7 @@ function syncReadingMissions(list = []) {
       }
 
       setSettings(data.settings || { cover_url: '' })
-      setKhmerMissions(
-  normalizeMissionList(extractReadingMissionsFromResponse(data, []))
-)
+      setKhmerMissions(normalizeMissionList(extractReadingMissionsFromResponse(data, [])))
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to load task center settings' })
     } finally {
@@ -356,40 +352,36 @@ function syncReadingMissions(list = []) {
   }
 
   async function loadInternationalSettings() {
-  try {
-    setInternationalLoading(true)
-
-    const response = await fetch(
-      `${API_URL}/api/task-center/admin/international/reading-missions`,
-      {
-        headers: {
-          Authorization: `Bearer ${getAdminToken()}`,
-        },
+    try {
+      setInternationalLoading(true)
+      const response = await fetch(
+        `${API_URL}/api/task-center/admin/international/reading-missions`,
+        { headers: { Authorization: `Bearer ${getAdminToken()}` } }
+      )
+      const data = await response.json()
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'Failed to load International missions')
       }
-    )
-
-    const data = await response.json()
-
-    if (!response.ok || !data.ok) {
-      throw new Error(data.message || 'Failed to load International missions')
+      setInternationalSettings(data.settings || { reading_mission_mode: 'manual' })
+      setInternationalMissions(normalizeMissionList(extractReadingMissionsFromResponse(data, [])))
+      setInternationalLoaded(true)
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Failed to load International missions' })
+    } finally {
+      setInternationalLoading(false)
     }
-
-    setInternationalSettings(data.settings || {
-      reading_mission_mode: 'manual',
-    })
-
-    setInternationalMissions(
-      normalizeMissionList(extractReadingMissionsFromResponse(data, []))
-    )
-  } catch (error) {
-    setMessage({
-      type: 'error',
-      text: error.message || 'Failed to load International missions',
-    })
-  } finally {
-    setInternationalLoading(false)
   }
-}
+
+  function openReadingAudience(audience) {
+    if (missionSavingId || creatingMission) return
+    setMissionAudience(audience)
+    setSelectedMissionId('')
+    setMessage({ type: 'info', text: '' })
+    setReadingMissionView('overview')
+    if (audience === 'international') {
+      loadInternationalSettings()
+    }
+  }
   
 
   function handleSelectFile(file) {
@@ -448,6 +440,7 @@ function syncReadingMissions(list = []) {
   }
 
   async function addReadingMission() {
+    if (isAutoMode || internationalLoading) return
     if (readingMissions.length >= MAX_READING_MISSIONS) {
       setMessage({ type: 'info', text: 'Only 2 reading missions are allowed.' })
       return
@@ -487,7 +480,7 @@ function syncReadingMissions(list = []) {
 
       const nextMissions = extractReadingMissionsFromResponse(data, readingMissions)
       syncReadingMissions(nextMissions)
-      setSelectedMissionId(nextMissions[0]?.id || '')
+      setSelectedMissionId(data?.mission?.id || nextMissions[0]?.id || '')
       setReadingMissionView('editor')
       setMessage({ type: 'success', text: 'Reading mission added.' })
     } catch (error) {
@@ -498,6 +491,13 @@ function syncReadingMissions(list = []) {
   }
 
   async function saveReadingMission(mission, index) {
+    if (missionAudience === 'international' && isAutoMode) {
+      setMessage({
+        type: 'error',
+        text: 'Switch International missions to Manual mode before editing.',
+      })
+      return
+    }
     try {
       setMissionSavingId(mission.id)
 
@@ -539,6 +539,7 @@ function syncReadingMissions(list = []) {
   }
 
   async function deleteReadingMission(mission) {
+    if (isAutoMode || internationalLoading) return
     if (!window.confirm('Delete this reading mission?')) return
 
     if (!isRealMissionId(mission.id)) {
@@ -730,10 +731,7 @@ function syncReadingMissions(list = []) {
         <div className="task-list">
           <div
             className="task-card featured"
-            onClick={() => {
-              setReadingMissionView('overview')
-              setSelectedMissionId('')
-            }}
+            onClick={() => openReadingAudience('khmer')}
             style={{ cursor: 'pointer' }}
           >
             <div className="task-top">
@@ -746,8 +744,8 @@ function syncReadingMissions(list = []) {
                   <div className="task-title">🇰🇭 Khmer Reading Mission</div>
                   <div className="task-sub">Add up to 2 story reading missions for the reader Task Page.</div>
                   <div className="task-preview-meta">
-                    <span className="task-preview-pill">{readingMissions.length}/{MAX_READING_MISSIONS} Missions</span>
-                    <span className="task-preview-pill">{readingMissions.filter((mission) => mission.is_active).length} Active</span>
+                    <span className="task-preview-pill">{khmerMissions.length}/{MAX_READING_MISSIONS} Missions</span>
+                    <span className="task-preview-pill">{khmerMissions.filter((mission) => mission.is_active).length} Active</span>
                   </div>
                 </div>
               </div>
@@ -758,8 +756,48 @@ function syncReadingMissions(list = []) {
                   className="btn-secondary"
                   onClick={(event) => {
                     event.stopPropagation()
-                    setReadingMissionView('overview')
-                    setSelectedMissionId('')
+                    openReadingAudience('khmer')
+                  }}
+                  style={{ padding: '8px 12px', borderRadius: 999 }}
+                >
+                  Open
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="task-card featured"
+            onClick={() => openReadingAudience('international')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="task-top">
+              <div className="task-left">
+                <div className="task-icon featured">
+                  <Icon d={READING_MISSION_ICON} size={18} />
+                </div>
+                <div>
+                  <div className="task-title">🌐 International Reading Mission</div>
+                  <div className="task-sub">
+                    Up to 2 International missions. Auto chooses English stories.
+                  </div>
+                  <div className="task-preview-meta">
+                    <span className="task-preview-pill">
+                      {internationalLoaded ? internationalMissions.length : '—'}/{MAX_READING_MISSIONS} Missions
+                    </span>
+                    <span className="task-preview-pill">
+                      {internationalLoaded ? internationalMissions.filter((mission) => mission.is_active).length : '—'} Active
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mission-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openReadingAudience('international')
                   }}
                   style={{ padding: '8px 12px', borderRadius: 999 }}
                 >
@@ -775,7 +813,7 @@ function syncReadingMissions(list = []) {
     <>
       <div className="panel-header">
         <div>
-          <h3>Edit Reading Mission</h3>
+          <h3>Edit {missionAudience === 'international' ? 'International' : 'Khmer'} Reading Mission</h3>
           <p>Update the full mission fields and preview before saving.</p>
         </div>
 
@@ -847,6 +885,7 @@ function syncReadingMissions(list = []) {
                   inputMode="numeric"
                   value={selectedMission.reward_coins}
                   onChange={(event) => updateReadingMission(selectedMission.id, 'reward_coins', digitsOnly(event.target.value))}
+                  disabled={missionAudience === 'international' && isAutoMode}
                   placeholder="5"
                 />
               </div>
@@ -858,6 +897,7 @@ function syncReadingMissions(list = []) {
                   inputMode="numeric"
                   value={selectedMission.target_minutes}
                   onChange={(event) => updateReadingMission(selectedMission.id, 'target_minutes', digitsOnly(event.target.value))}
+                  disabled={missionAudience === 'international' && isAutoMode}
                   placeholder="2"
                 />
               </div>
@@ -910,7 +950,7 @@ function syncReadingMissions(list = []) {
                 type="button"
                 className="btn-primary"
                 onClick={() => saveReadingMission(selectedMission, selectedMissionIndex)}
-                disabled={missionSavingId === selectedMission.id}
+                disabled={missionSavingId === selectedMission.id || (missionAudience === 'international' && isAutoMode)}
               >
                 {missionSavingId === selectedMission.id ? 'Saving...' : 'Save Mission'}
               </button>
@@ -932,7 +972,7 @@ function syncReadingMissions(list = []) {
     <>
       <div className="panel-header">
         <div>
-          <h3>Reading Mission Overview</h3>
+          <h3>{missionAudience === 'international' ? '🌐 International' : '🇰🇭 Khmer'} Reading Mission Overview</h3>
           <p>Manage reading missions as short cards. Open a mission to edit full details.</p>
         </div>
 
@@ -954,7 +994,7 @@ function syncReadingMissions(list = []) {
               type="button"
               className="btn-secondary"
               onClick={addReadingMission}
-              disabled={creatingMission}
+              disabled={creatingMission || isAutoMode || internationalLoading}
               style={{ width: 'auto', padding: '10px 16px' }}
             >
               {creatingMission ? 'Adding...' : '+ Add Mission'}
@@ -968,20 +1008,26 @@ function syncReadingMissions(list = []) {
       <div className="panel-body">
         {message.text ? <div className={`message ${message.type}`}>{message.text}</div> : null}
 
-        <TaskCenterReadingModePanel
-  settings={settings}
-  readingMissions={readingMissions}
-  onChanged={loadSettings}
-/>
+        {missionAudience === 'international' && internationalLoading ? (
+          <div className="note-box" role="status">Loading International missions...</div>
+        ) : (
+          <TaskCenterReadingModePanel
+            key={missionAudience}
+            audience={missionAudience}
+            settings={selectedSettings}
+            readingMissions={readingMissions}
+            onChanged={missionAudience === 'international' ? loadInternationalSettings : loadSettings}
+          />
+        )}
 
         <div className="task-list">
-          {readingMissions.length === 0 ? (
+          {!internationalLoading && readingMissions.length === 0 ? (
             <div className="note-box">
               No reading mission yet. Click Add Mission to create one. You can create up to 2 missions.
             </div>
           ) : null}
 
-          {readingMissions.map((mission, index) => {
+          {!internationalLoading && readingMissions.map((mission, index) => {
             const savingThis = missionSavingId === mission.id
 
             return (
