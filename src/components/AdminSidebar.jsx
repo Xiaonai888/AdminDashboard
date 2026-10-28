@@ -93,6 +93,19 @@ const sidebarStyles = `
     color: #4F46E5;
   }
 
+  /* Nested Book Pending item stays in the same sidebar, not a new route. */
+  .admin-main-sidebar-item.subitem {
+    min-height: 36px;
+    padding-left: 24px;
+    font-size: 13px;
+  }
+
+  .admin-main-sidebar-item.subitem svg {
+    width: 12px;
+    height: 12px;
+    min-width: 12px !important;
+  }
+
   .admin-main-sidebar-text {
     opacity: 0;
     margin-left: 14px;
@@ -186,6 +199,11 @@ const sidebarStyles = `
       min-height: 46px;
       padding: 0 13px;
     }
+
+    .admin-main-sidebar-item.subitem {
+      min-height: 40px;
+      padding-left: 24px;
+    }
   }
 `;
 
@@ -199,12 +217,13 @@ const navSections = [
       { path: '/payment-recovery', label: 'Payment Recovery & Top-Up', icon: 'M12 2v20 M7 7h10 M7 17h10 M4 12h16' },
       { path: '/balance', label: 'Balance', icon: 'M20 7H4a2 2 0 0 0-2 2v10h20V9a2 2 0 0 0-2-2z M16 13h4 M4 7V5a2 2 0 0 1 2-2h12v4' },
       { path: '/author-income', label: 'Author Income', icon: 'M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M4 22a8 8 0 0 1 16 0' },
+      { path: '/author-store/book-holds', label: 'Book Pending', subItem: true, icon: 'M12 12h.01' },
       { path: '/device-offline-control', label: 'Device Offline Control', icon: 'M4 5h16v12H4z M9 21h6 M12 17v4' },
       { path: '/author-library', label: 'Author Library', icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z' },
       { path: '/discover-control', label: 'Discover Control', icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z M9 12l2 2 4-5' },
       { path: '/google-ads', label: 'Google Ads', icon: 'M4 4h16v16H4z M8 8h8 M8 12h8 M8 16h5' },
       { path: '/search-insights', label: 'Search Insights', icon: 'M11 3a8 8 0 1 0 4.9 14.3L21 22l1-1-4.7-5.1A8 8 0 0 0 11 3z' },
-      { path: '/music', label: 'Music', icon: 'M9 18V5l10-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M16 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6' },
+      { path: '/music', label: 'Music', icon: 'M9 18V5l10-2v13 M6 21a3 3 0 1 0 0-6 3 3 0 1 0 0 6 M16 19a3 3 0 1 0 0-6 3 3 0 1 0 0 6' },
       { path: '/game', label: 'Game', icon: 'M6 12h12 M8 9v6 M16 10h.01 M18 14h.01 M7 5h10a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5v-4a5 5 0 0 1 5-5z' },
       { path: '/app', label: 'App', icon: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z' },
       { path: '/boost', label: 'Boost', icon: 'M3 17l6-6 4 4 8-8 M15 7h6v6' },
@@ -242,10 +261,9 @@ const navSections = [
     { path: '/shadow-mall/promotion', label: 'Promotion', icon: 'M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7 M2 7h20v5H2z M12 22V7 M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7z M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z' },
     { path: '/author-stores', label: 'Author Stores', icon: 'M3 9l2-6h14l2 6 M5 13v8h14v-8 M9 21v-6h6v6 M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0' },
     { path: '/author-store/review', label: 'Store Review', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
-    { path: '/author-store/book-holds', label: 'Book Holds', icon: 'M4 7h16v14H4z M8 7V4h8v3 M8 12h8 M8 16h5 M16 16l2 2 3-4' },
   ],
 },
-  
+
   {
     label: 'Content',
     items: [
@@ -271,7 +289,6 @@ const navSections = [
       { path: '/recommended', label: 'Recommended', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
     ],
   },
- 
   {
     label: 'Moderation',
     items: [
@@ -289,8 +306,8 @@ const navSections = [
     label: 'Finance & Growth',
     items: [
       { path: '/payment', label: 'Payment', icon: 'M21 12V7H5v10h16v-5z M5 7l8 5 8-5 M7 17h10' },
-      { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6' },
-      { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5-5 5 5 M12 5v12' },
+      { path: '/income', label: 'Income', icon: 'M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+      { path: '/withdraw', label: 'Withdraw', icon: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5-5 5 5 M12 5v12' },
     ],
   },
   {
@@ -455,7 +472,7 @@ export default function AdminSidebar() {
               <button
                 key={item.path}
                 type="button"
-                className={`admin-main-sidebar-item ${activeItem?.path === item.path ? 'active' : ''}`}
+                className={`admin-main-sidebar-item ${item.subItem ? 'subitem' : ''} ${activeItem?.path === item.path || (item.path === '/author-income' && activeItem?.path === '/author-store/book-holds') ? 'active' : ''}`}
                 onClick={() => goToPage(item.path)}
               >
                 <Icon path={item.icon} />
