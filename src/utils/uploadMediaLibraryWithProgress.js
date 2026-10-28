@@ -147,41 +147,43 @@ function createProgressView(fileCount, totalBytes) {
 
   const layer = document.createElement('div')
   layer.className = 'shadow-upload-progress-layer'
-  layer.innerHTML = `
-    <div class="shadow-upload-progress-card">
-      <div class="shadow-upload-progress-kicker">Shadow Media Library</div>
-      <h2>Uploading ${fileCount} images</h2>
-      <p class="shadow-upload-progress-status">Preparing one batch for upload...</p>
+  // Build the fixed layout with DOM APIs. Never interpret upload values as HTML.
+  const element = (tag, className, text) => {
+    const node = document.createElement(tag)
+    if (className) node.className = className
+    if (text !== undefined) node.textContent = String(text)
+    return node
+  }
 
-      <div class="shadow-upload-progress-row">
-        <div class="shadow-upload-progress-percent">0%</div>
-        <div class="shadow-upload-progress-size">0.0 MB / ${formatMegabytes(totalBytes)}</div>
-      </div>
+  const card = element('div', 'shadow-upload-progress-card')
+  const title = element('h2', '', `Uploading ${fileCount} images`)
+  const status = element('p', 'shadow-upload-progress-status', 'Preparing one batch for upload...')
+  const percent = element('div', 'shadow-upload-progress-percent', '0%')
+  const size = element('div', 'shadow-upload-progress-size', `0.0 MB / ${formatMegabytes(totalBytes)}`)
+  const bar = element('div', 'shadow-upload-progress-bar')
 
-      <div class="shadow-upload-progress-track">
-        <div class="shadow-upload-progress-bar"></div>
-      </div>
+  const row = element('div', 'shadow-upload-progress-row')
+  row.append(percent, size)
+  const track = element('div', 'shadow-upload-progress-track')
+  track.appendChild(bar)
 
-      <div class="shadow-upload-progress-details">
-          <div class="shadow-upload-progress-detail">
-            <span>Images</span>
-            <strong>${fileCount} files</strong>
-          </div>
-          <div class="shadow-upload-progress-detail">
-            <span>Total size</span>
-            <strong>${formatMegabytes(totalBytes)}</strong>
-          </div>
-      </div>
-    </div>
-  `
+  const detail = (label, value) => {
+    const item = element('div', 'shadow-upload-progress-detail')
+    item.append(element('span', '', label), element('strong', '', value))
+    return item
+  }
+  const details = element('div', 'shadow-upload-progress-details')
+  details.append(
+    detail('Images', `${fileCount} files`),
+    detail('Total size', formatMegabytes(totalBytes)),
+  )
+
+  card.append(
+    element('div', 'shadow-upload-progress-kicker', 'Shadow Media Library'),
+    title, status, row, track, details,
+  )
+  layer.appendChild(card)
   document.body.appendChild(layer)
-
-  const card = layer.querySelector('.shadow-upload-progress-card')
-  const title = layer.querySelector('h2')
-  const status = layer.querySelector('.shadow-upload-progress-status')
-  const percent = layer.querySelector('.shadow-upload-progress-percent')
-  const size = layer.querySelector('.shadow-upload-progress-size')
-  const bar = layer.querySelector('.shadow-upload-progress-bar')
 
   return {
     updateUpload(progress, estimatedLoadedBytes) {
