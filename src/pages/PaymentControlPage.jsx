@@ -460,7 +460,25 @@ export default function PaymentControlPage() {
                     const disabled = workingId === item.id
                     return (
                       <tr key={item.id || item.order_id}>
-                        <td><div className="pay-user"><strong>{item.user?.username ? `@${item.user.username}` : item.user?.name || 'Reader'}</strong><span>{item.user?.email || item.user_id || '-'}</span></div></td>
+                        <td>
+  <div className="pay-user">
+    <strong>
+      {item.user?.username
+        ? `@${item.user.username}`
+        : item.user?.name || 'Reader'}
+    </strong>
+
+    <span>{item.user?.email || item.user_id || '-'}</span>
+
+    <span>
+      <strong>Source: </strong>
+      {item.purchase_type === 'premium' ||
+       item.payment_method === 'premium_aba_payment_link'
+        ? `Shadow Premium · ${item.premium_plan_months || '?'} Month(s) · ABA/PayWay`
+        : 'Diamond Store · ABA/PayWay'}
+    </span>
+  </div>
+</td>
                         <td><StatusBadge status={item.status} /></td>
                         <td><span className="pay-money">{formatMoney(item.package_usd || item.amount_usd || 0)}</span></td>
                         <td>{formatNumber(item.diamonds)}</td>
