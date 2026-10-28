@@ -263,7 +263,21 @@ export default function AdminTaskCenterPage() {
   const [missionSavingId, setMissionSavingId] = useState('')
   const [creatingMission, setCreatingMission] = useState(false)
   const [message, setMessage] = useState({ type: 'info', text: '' })
-  const [readingMissions, setReadingMissions] = useState([])
+  const [khmerMissions, setKhmerMissions] = useState([])
+const [internationalMissions, setInternationalMissions] = useState([])
+const [internationalSettings, setInternationalSettings] = useState({
+  reading_mission_mode: 'manual',
+})
+const [internationalLoading, setInternationalLoading] = useState(false)
+const [missionAudience, setMissionAudience] = useState('khmer')
+
+const readingMissions = missionAudience === 'international'
+  ? internationalMissions
+  : khmerMissions
+
+const setReadingMissions = missionAudience === 'international'
+  ? setInternationalMissions
+  : setKhmerMissions
   const [selectedMissionId, setSelectedMissionId] = useState('')
   const [activeTab, setActiveTab] = useState('reading')
   const [readingMissionView, setReadingMissionView] = useState('home')
@@ -276,17 +290,25 @@ export default function AdminTaskCenterPage() {
   const coverUrl = previewUrl.startsWith('blob:')
   ? previewUrl
   : safeTaskCoverUrl(settings.cover_url)
-  const isAutoMode = settings?.reading_mission_mode === 'auto'
+  const selectedSettings = missionAudience === 'international'
+  ? internationalSettings
+  : settings
 
-  function syncReadingMissions(list = []) {
-    const safeList = Array.isArray(list) ? list : []
+const isAutoMode = selectedSettings?.reading_mission_mode === 'auto'
 
-    setReadingMissions(
-      safeList
-        .slice(0, MAX_READING_MISSIONS)
-        .map((mission, index) => normalizeReadingMission(mission, index))
-    )
-  }
+const missionApiBase = `${API_URL}/api/task-center/admin${
+  missionAudience === 'international' ? '/international' : ''
+}/reading-missions`
+
+  function normalizeMissionList(list = []) {
+  return (Array.isArray(list) ? list : [])
+    .slice(0, MAX_READING_MISSIONS)
+    .map((mission, index) => normalizeReadingMission(mission, index))
+}
+
+function syncReadingMissions(list = []) {
+  setReadingMissions(normalizeMissionList(list))
+}
 
   function syncReadingMissionsFromResponse(data, fallbackList = []) {
     syncReadingMissions(extractReadingMissionsFromResponse(data, fallbackList))
@@ -323,13 +345,52 @@ export default function AdminTaskCenterPage() {
       }
 
       setSettings(data.settings || { cover_url: '' })
-      syncReadingMissionsFromResponse(data, [])
+      setKhmerMissions(
+  normalizeMissionList(extractReadingMissionsFromResponse(data, []))
+)
     } catch (error) {
       setMessage({ type: 'error', text: error.message || 'Failed to load task center settings' })
     } finally {
       setLoading(false)
     }
   }
+
+  async function loadInternationalSettings() {
+  try {
+    setInternationalLoading(true)
+
+    const response = await fetch(
+      `${API_URL}/api/task-center/admin/international/reading-missions`,
+      {
+        headers: {
+          Authorization: `Bearer ${getAdminToken()}`,
+        },
+      }
+    )
+
+    const data = await response.json()
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.message || 'Failed to load International missions')
+    }
+
+    setInternationalSettings(data.settings || {
+      reading_mission_mode: 'manual',
+    })
+
+    setInternationalMissions(
+      normalizeMissionList(extractReadingMissionsFromResponse(data, []))
+    )
+  } catch (error) {
+    setMessage({
+      type: 'error',
+      text: error.message || 'Failed to load International missions',
+    })
+  } finally {
+    setInternationalLoading(false)
+  }
+}
+  
 
   function handleSelectFile(file) {
     if (!file) return
@@ -409,7 +470,7 @@ export default function AdminTaskCenterPage() {
         0
       )
 
-      const response = await fetch(`${API_URL}/api/task-center/admin/reading-missions`, {
+      const response = await fetch(missionApiBase, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -443,8 +504,8 @@ export default function AdminTaskCenterPage() {
       const payload = buildReadingMissionPayload(mission, index)
       const isUpdate = isRealMissionId(mission.id)
       const url = isUpdate
-        ? `${API_URL}/api/task-center/admin/reading-missions/${mission.id}`
-        : `${API_URL}/api/task-center/admin/reading-missions`
+  ? `${missionApiBase}/${mission.id}`
+  : missionApiBase
 
       const response = await fetch(url, {
         method: isUpdate ? 'PUT' : 'POST',
@@ -491,7 +552,7 @@ export default function AdminTaskCenterPage() {
     try {
       setMissionSavingId(mission.id)
 
-      const response = await fetch(`${API_URL}/api/task-center/admin/reading-missions/${mission.id}`, {
+      const response = await fetch(`${missionApiBase}/${mission.id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${getAdminToken()}`,
@@ -682,7 +743,7 @@ export default function AdminTaskCenterPage() {
                 </div>
 
                 <div>
-                  <div className="task-title">Reading Mission</div>
+                  <div className="task-title">🇰🇭 Khmer Reading Mission</div>
                   <div className="task-sub">Add up to 2 story reading missions for the reader Task Page.</div>
                   <div className="task-preview-meta">
                     <span className="task-preview-pill">{readingMissions.length}/{MAX_READING_MISSIONS} Missions</span>
