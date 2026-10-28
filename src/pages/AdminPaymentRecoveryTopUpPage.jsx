@@ -1383,7 +1383,19 @@ export default function AdminPaymentRecoveryTopUpPage() {
                   <thead><tr><th>Account</th><th>Order ID</th><th>USD</th><th>Diamonds</th><th>Status</th><th>Created (KH)</th><th></th></tr></thead>
                   <tbody>{payments.map((payment) => (
                     <tr key={payment.id} className={selectedId === payment.id ? 'recovery-row-active' : ''}>
-                      <td><strong>{displayName(payment)}</strong><div className="recovery-sub">@{payment.user?.username || 'unknown'} · {payment.purchase_type || 'diamonds'}</div></td>
+                      <td><strong>{displayName(payment)}</strong><div className="recovery-sub">
+  @{payment.user?.username || 'unknown'}
+</div>
+<div className="recovery-sub">
+  <strong>
+    Source: {
+      payment.purchase_type === 'premium' ||
+      payment.payment_method === 'premium_aba_payment_link'
+        ? `Shadow Premium · ${payment.premium_plan_months || '?'} Months`
+        : 'Diamond Store Purchase'
+    }
+  </strong>
+</div>
                       <td><strong>{payment.order_id || '—'}</strong><div className="recovery-sub">{payment.payer_name || 'Payer not recorded'}</div></td>
                       <td>${Number(payment.amount_usd ?? payment.package_usd ?? 0).toFixed(2)}</td>
                       <td>{Number(payment.diamonds || 0).toLocaleString()}</td>
