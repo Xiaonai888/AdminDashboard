@@ -125,14 +125,28 @@ function cleanUrl(value) {
 
 // Permit preview images only when this page created their Blob URLs itself.
 const activeFramePreviewUrls = new Set()
-function cleanPreviewUrl(value) {
-  if (typeof value !== 'string' || !activeFramePreviewUrls.has(value)) return ''
+function cleanOwnedPreviewUrl(value, registry) {
+  if (typeof value !== 'string' || !registry?.has(value)) return ''
   try {
     const url = new URL(value)
-    return url.protocol === 'blob:' && url.origin === window.location.origin ? url.href : ''
-  } catch { return '' }
+    return url.protocol === 'blob:' &&
+      url.origin === window.location.origin ? url.href : ''
+  } catch {
+    return ''
+  }
 }
 
+function SafeFrameImage({ src, alt, loading, ownedBlobUrls }) {
+  const safeSrc = ownedBlobUrls
+    ? cleanOwnedPreviewUrl(src, ownedBlobUrls)
+    : cleanUrl(src)
+
+  if (!safeSrc) return null
+
+  return <img src={safeSrc} alt={alt || 'Frame'}
+    loading={loading} decoding="async"
+    referrerPolicy="no-referrer" />
+}
 function cacheForUser() {
   const current = getToken()
   if (listCache.token !== current) listCache = { token: current, pages: new Map(), pending: new Map() }
