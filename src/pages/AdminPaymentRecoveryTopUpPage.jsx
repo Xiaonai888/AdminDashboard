@@ -1396,6 +1396,7 @@ export default function AdminPaymentRecoveryTopUpPage() {
     }
   </strong>
 </div>
+</td>
                       <td><strong>{payment.order_id || '—'}</strong><div className="recovery-sub">{payment.payer_name || 'Payer not recorded'}</div></td>
                       <td>${Number(payment.amount_usd ?? payment.package_usd ?? 0).toFixed(2)}</td>
                       <td>{Number(payment.diamonds || 0).toLocaleString()}</td>
