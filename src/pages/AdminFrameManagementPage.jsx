@@ -515,7 +515,7 @@ export default function AdminFrameManagementPage() {
             {picked.length > 0 && <>
               <div className="sfm-selected-head"><strong>{picked.length} selected {picked.length === 1 ? 'image' : 'images'}</strong><span className="sfm-note">Each will be saved as a separate frame</span></div>
               <div className="sfm-selected">{picked.map((item, i) => <div className="sfm-selected-item" key={item.key}>
-                {cleanPreviewUrl(previews[i]) && <img src={cleanPreviewUrl(previews[i])} alt={item.name || `Frame ${i + 1}`} loading="lazy"/>}
+                <SafeFrameImage src={previews[i]} alt={item.name || `Frame ${i + 1}`} loading="lazy" ownedBlobUrls={activeFramePreviewUrls}/>
                 {!form.id && <input className="sfm-field" aria-label={`Name for frame ${i + 1}`} maxLength={100} disabled={busy || batchCount > 0} value={item.name} onChange={event => updatePickedName(i, event.target.value)}/>}
                 <small>{item.file.name}</small>
                 {!busy && !batchCount && <button type="button" className="sfm-button danger" style={{ padding: '5px 9px', minHeight: 28, marginTop: 8 }} onClick={() => removePicked(i)}>Remove</button>}
