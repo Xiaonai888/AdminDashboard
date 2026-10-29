@@ -136,6 +136,18 @@ function cleanOwnedPreviewUrl(value, registry) {
   }
 }
 
+function safeFramePreviewUrl(preview, fallback) {
+  if (typeof preview === 'string' && preview.startsWith('blob:')) {
+    try {
+      const url = new URL(preview)
+      if (url.origin === window.location.origin) return url.href
+    } catch {
+      return cleanUrl(fallback)
+    }
+  }
+  return cleanUrl(fallback)
+}
+
 function SafeFrameImage({ src, alt, loading, ownedBlobUrls }) {
   const safeSrc = ownedBlobUrls
     ? cleanOwnedPreviewUrl(src, ownedBlobUrls)
