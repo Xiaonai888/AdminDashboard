@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
+import { createPortal } from 'react-dom'
 
 const API = (import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com').replace(/\/$/, '')
 const ROOT = `${API}/api/admin/reader-classification`
@@ -94,9 +95,9 @@ const CSS = `
 .rcp-alert{padding:13px 15px;border-radius:12px;font-size:12px;line-height:1.65;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412}
 .rcp-alert.error{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
 .rcp-panel-footer{border-top:1px solid var(--rcp-border);padding-top:13px;margin-top:12px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--rcp-muted)}
-.rcp-overlay{--rcp-border:var(--shadow-admin-border,#e2e8f0);--rcp-surface:var(--shadow-admin-card,#fff);--rcp-muted:var(--shadow-admin-muted,#64748b);--rcp-soft:var(--shadow-admin-bg,#f8fafc);position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.44);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;overscroll-behavior:contain}
+.rcp-overlay{--rcp-border:#e2e8f0;--rcp-surface:#fff;--rcp-muted:#64748b;--rcp-soft:#f8fafc;--shadow-admin-text:#17213b;position:fixed;inset:0;z-index:2147483647;isolation:isolate;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;overscroll-behavior:contain}
 .rcp-overlay,.rcp-overlay *{box-sizing:border-box}
-.rcp-modal{position:relative;isolation:isolate;opacity:1;width:min(100%,580px);min-width:0;max-height:min(92dvh,790px);overflow-y:auto;background-color:var(--rcp-surface,#fff);color:var(--shadow-admin-text,#17213b);border:1px solid var(--rcp-border,#e2e8f0);border-radius:19px;box-shadow:0 25px 80px rgba(0,0,0,.25);padding:22px;display:grid;gap:15px;line-height:1.5}
+.rcp-modal{position:relative;z-index:1;isolation:isolate;opacity:1;width:min(100%,580px);min-width:0;max-height:min(92dvh,790px);overflow-y:auto;background-color:#fff;color:#17213b;border:1px solid #e2e8f0;border-radius:19px;box-shadow:0 25px 80px rgba(0,0,0,.25);padding:22px;display:grid;gap:15px;line-height:1.5}
 .rcp-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;min-width:0}.rcp-modal-head>div{min-width:0;flex:1}.rcp-modal-head h3{margin:4px 0;font-size:18px;line-height:1.35;overflow-wrap:anywhere}.rcp-modal-head .rcp-muted{margin-top:6px;line-height:1.55}.rcp-modal-head .rcp-btn{flex-shrink:0}
 .rcp-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .rcp-info{min-width:0;border:1px solid var(--rcp-border,#e2e8f0);border-radius:12px;padding:12px;background-color:var(--rcp-soft,#f8fafc);overflow-wrap:anywhere}
@@ -105,6 +106,11 @@ const CSS = `
 .rcp-modal .rcp-input,.rcp-modal .rcp-select{display:block;width:100%;min-width:0;max-width:100%;min-height:44px;background-color:var(--rcp-surface,#fff);border-color:var(--rcp-border,#e2e8f0);color:var(--shadow-admin-text,#17213b)}
 .rcp-modal .rcp-select option{background-color:var(--rcp-surface,#fff);color:var(--shadow-admin-text,#17213b)}
 .rcp-modal .rcp-note,.rcp-modal .rcp-muted{overflow-wrap:anywhere;color:var(--rcp-muted,#64748b)}
+.rcp-overlay .rcp-modal{width:min(580px,calc(100vw - 32px))!important;max-width:580px!important;background-color:#fff!important;color:#17213b!important;opacity:1!important;filter:none!important;backdrop-filter:none!important}
+.rcp-overlay .rcp-info{background:#f8fafc!important;color:#17213b}
+.rcp-overlay .rcp-field{color:#17213b}
+.rcp-overlay .rcp-input,.rcp-overlay .rcp-select{background:#fff!important;color:#17213b!important}
+.rcp-overlay .rcp-btn:not(.primary){background:#fff;color:#17213b}
 .rcp-modal-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--rcp-border,#e2e8f0)}
 .rcp-note{padding:11px 13px;border:1px solid var(--rcp-border);border-radius:12px;color:var(--rcp-muted);font-size:11px;line-height:1.6}
 @media(max-width:1050px){.rcp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -252,7 +258,7 @@ function CountryEditor({ reader, saving, error, onClose, onSave }) {
     onSave(reader, country, group)
   }
 
-  return <div className="rcp-overlay" onMouseDown={event => { if (event.target === event.currentTarget && !saving) onClose() }}>
+  return createPortal(<div className="rcp-overlay" onMouseDown={event => { if (event.target === event.currentTarget && !saving) onClose() }}>
     <form className="rcp-modal" role="dialog" aria-modal="true" aria-label="Edit Reader Country" onSubmit={submit}>
       <div className="rcp-modal-head"><div><span className="rcp-eyebrow">Reader country management</span><h3>Edit {reader.name || reader.username || 'Reader'}</h3><div className="rcp-muted">Save a country permanently until Admin changes it again.</div></div><button className="rcp-btn" type="button" onClick={onClose} disabled={saving} aria-label="Close dialog">✕</button></div>
       <div className="rcp-modal-grid">
@@ -280,7 +286,7 @@ function CountryEditor({ reader, saving, error, onClose, onSave }) {
       {error && <div className="rcp-alert error" role="alert">{error}</div>}
       <div className="rcp-modal-actions"><button type="button" className="rcp-btn" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="rcp-btn primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button></div>
     </form>
-  </div>
+  </div>, document.body)
 }
 
 export default function AdminReaderClassificationPage() {
