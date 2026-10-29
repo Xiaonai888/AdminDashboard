@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 const TIME_ZONE = 'Asia/Phnom_Penh'
 
 function getAdminToken() {
