@@ -8,11 +8,12 @@ const FUTURE_FLAG = /^[a-z][a-zA-Z0-9_]{0,63}$/
 const NON_BOOLEAN_KEYS = new Set(['storyLanguage', 'shopTarget'])
 
 const DEFAULT_RULES = {
-  kh: { app: true, physicalBooks: true, binancePay: false, payway: true, shadowMall: true, readerMall: true, payoutBank: true, payoutBinance: false, payoutPhone: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
-  international: { app: false, physicalBooks: false, binancePay: true, payway: false, shadowMall: false, readerMall: false, payoutBank: false, payoutBinance: false, payoutPhone: true, storyLanguage: 'en', shopTarget: 'diamonds' },
+  kh: { app: true, game: true, physicalBooks: true, binancePay: false, payway: true, shadowMall: true, readerMall: true, payoutBank: true, payoutBinance: false, payoutPhone: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
+  international: { app: false, game: false, physicalBooks: false, binancePay: true, payway: false, shadowMall: false, readerMall: false, payoutBank: false, payoutBinance: false, payoutPhone: true, storyLanguage: 'en', shopTarget: 'diamonds' },
 }
 const FEATURES = [
   { key: 'app', title: 'Mine > App', detail: 'Display the App entry and its available tools.', icon: '▦', tone: 'violet' },
+  { key: 'game', title: 'Mine > Game', detail: 'Control Game availability by country.', icon: '♟', tone: 'violet' },
   { key: 'physicalBooks', title: 'Physical Books', detail: 'Allow access to physical book shopping.', icon: '▤', tone: 'rose' },
   { key: 'binancePay', title: 'Binance Pay', detail: 'Show Binance in Diamond payment methods.', icon: '◆', tone: 'amber' },
   { key: 'payway', title: 'ABA / PayWay', detail: 'Show PayWay in Diamond payment methods.', icon: '▣', tone: 'blue' },
@@ -40,6 +41,7 @@ const OVERRIDE_OPTIONS = [
 ]
 const DEFAULT_OVERRIDE = {
   app: 'inherit',
+  game: 'inherit',
   physicalBooks: 'inherit',
   binancePay: 'inherit',
   payway: 'inherit',
@@ -245,7 +247,7 @@ function normalizeRules(rules) {
     normalized[region] = {}
     for (const key of [...knownKeys, ...extraKeys]) {
       const flag = rules[region][key]
-      const optionalLegacy = ['shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone'].includes(key)
+      const optionalLegacy = ['game', 'shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone'].includes(key)
       if (flag !== undefined && typeof flag !== 'boolean') throw new Error('Invalid feature rule')
       if (flag === undefined && !optionalLegacy) throw new Error('Missing feature rule')
       normalized[region][key] = flag === undefined ? DEFAULT_RULES[region][key] : flag
