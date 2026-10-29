@@ -116,15 +116,20 @@ function canManage() {
 }
 
 function cleanUrl(value) {
-  try { const url = new URL(String(value || '').trim()); return url.protocol === 'https:' && !url.username && !url.password ? url.href : '' }
-  catch { return '' }
+  if (typeof value !== 'string' || !value.trim()) return ''
+  try {
+    const url = new URL(value.trim())
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : ''
+  } catch { return '' }
 }
 
+// Permit preview images only when this page created their Blob URLs itself.
+const activeFramePreviewUrls = new Set()
 function cleanPreviewUrl(value) {
-  if (typeof value !== 'string' || !value.startsWith('blob:')) return ''
+  if (typeof value !== 'string' || !activeFramePreviewUrls.has(value)) return ''
   try {
     const url = new URL(value)
-    return url.origin === window.location.origin ? url.href : ''
+    return url.protocol === 'blob:' && url.origin === window.location.origin ? url.href : ''
   } catch { return '' }
 }
 
@@ -244,9 +249,16 @@ export default function AdminFrameManagementPage() {
   const allowed = canManage()
 
   useEffect(() => {
-    const urls = picked.map(item => URL.createObjectURL(item.file))
+    const urls = picked.map(item => {
+      const url = URL.createObjectURL(item.file)
+      activeFramePreviewUrls.add(url)
+      return url
+    })
     setPreviews(urls)
-    return () => urls.forEach(url => URL.revokeObjectURL(url))
+    return () => urls.forEach(url => {
+      activeFramePreviewUrls.delete(url)
+      URL.revokeObjectURL(url)
+    })
   }, [picked])
 
   useEffect(() => {
