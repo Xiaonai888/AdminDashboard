@@ -6,7 +6,7 @@ import StoryLibraryPanel from '../components/StoryLibraryPanel'
 import StoryGrowthSection from '../components/StoryGrowthSection'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 const STORIES_CACHE_TTL = 5 * 60 * 1000
 const storiesRequestCache = new Map()
 
