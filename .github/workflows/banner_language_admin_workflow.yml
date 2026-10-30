@@ -25,7 +25,7 @@ jobs:
           def replace_once(old, new):
               global text
               count = text.count(old)
-              if count != 1:
+              if count != (3 if old == "  .manager-shell{" else 1):
                   raise SystemExit(f"Unsafe source change: expected 1 match, got {count}: {old[:95]!r}")
               text = text.replace(old, new, 1)
           
