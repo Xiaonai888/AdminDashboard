@@ -235,9 +235,12 @@ export default function SlideSection() {
 
   const currentSection = SECTIONS.find((item) => item.key === sectionKey) || SECTIONS[0];
   const slotMap = useMemo(
-    () => SLOTS.reduce((acc, slot) => ({ ...acc, [slot]: getLatestSlide(slides, slot) }), {}),
-    [slides],
-  );
+  () => SLOTS.reduce((acc, slot) => ({
+    ...acc,
+    [slot]: getLatestSlide(slides.filter(slide => slide.section_key === sectionKey), slot),
+  }), {}),
+  [slides, sectionKey],
+);
   const selectedSlide = slotMap[selectedSlot];
 
   const apiFetch = async (url, options = {}) => {
