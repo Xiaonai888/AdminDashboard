@@ -532,8 +532,11 @@ export default function AdminFrameManagementPage() {
             {form.access_tier === 'diamonds' && <><label className="sfm-label" htmlFor="sfm-diamond-price">Diamond Price</label><input id="sfm-diamond-price" className="sfm-field" type="number" min="1" max="1000000000" step="1" required disabled={busy} value={form.diamond_price} onChange={event => setForm(current => ({ ...current, diamond_price: event.target.value }))}/><p className="sfm-note">Reader access does not expire.</p></>}
             <label className="sfm-label" htmlFor="sfm-order">Display Order</label><input id="sfm-order" className="sfm-field" type="number" min={0} max={100000} disabled={busy} value={form.sort_order} onChange={event => setForm(current => ({ ...current, sort_order: event.target.value }))}/>
             <label className="sfm-label" htmlFor="sfm-active">Visibility</label><select id="sfm-active" className="sfm-field" disabled={busy} value={form.is_active ? 'active' : 'hidden'} onChange={event => setForm(current => ({ ...current, is_active: event.target.value === 'active' }))}><option value="active">Active</option><option value="hidden">Hidden</option></select>
-            {!!batchCount && <p className="sfm-note">Saved {batchCount}/{picked.length}. Retry keeps completed frames.</p>}
-            <div className="sfm-form-actions"><button type="submit" className="sfm-button gold" disabled={busy || (!form.id && !picked.length) || !!folderError}>{busy ? 'Processing…' : batchCount ? `Retry remaining ${picked.length - batchCount}` : form.id ? 'Save Frame' : `Upload ${picked.length || ''} ${picked.length === 1 ? 'Frame' : 'Frames'}`}</button><button type="button" className="sfm-button" disabled={busy} onClick={() => changeMode('home')}>Cancel</button></div>
+            {!!batchCount && <>
+  <p className="sfm-note">Saved {batchCount}/{picked.length}. Retry keeps completed frames.</p>
+  <button type="button" className="sfm-button" disabled={busy} onClick={startAdd}>Start New Batch</button>
+</>}
+            <div className="sfm-form-actions"><button type="submit" className="sfm-button gold" disabled={busy || (!form.id && !picked.length)}>{busy ? 'Processing…' : batchCount ? `Retry remaining ${picked.length - batchCount}` : form.id ? 'Save Frame' : `Upload ${picked.length || ''} ${picked.length === 1 ? 'Frame' : 'Frames'}`}</button><button type="button" className="sfm-button" disabled={busy} onClick={() => changeMode('home')}>Cancel</button></div>
             <p className="sfm-note">Images upload directly to Cloudflare R2 when available. The existing upload fallback remains unchanged.</p>
           </div>
         </form>
