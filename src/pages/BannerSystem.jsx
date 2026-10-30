@@ -190,12 +190,26 @@ const BANNER_SECTIONS = {
   },
 };
 
+const BANNER_LANGUAGES = [
+  { code: 'km', label: 'Khmer', flag: '🇰🇭' },
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'zh', label: 'Chinese', flag: '🇨🇳' },
+  { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+  { code: 'ko', label: 'Korean', flag: '🇰🇷' },
+];
+
 const styles = `
   :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--success:#10B981;--successBg:#D1FAE5;--danger:#EF4444;--dangerBg:#FEE2E2}
   *{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text)}
   .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}
   .main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900}.content-body{padding:28px 36px 48px;max-width:1600px;margin:0 auto}.page-title-row{margin-bottom:22px}.page-title-row h1{font-size:27px;font-weight:900;letter-spacing:-.04em}.page-title-row p{font-size:13.5px;color:var(--muted);margin-top:5px}
   .banner-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}.banner-tab{border:1px solid var(--border);background:#fff;color:var(--muted);height:40px;border-radius:999px;padding:0 15px;font-family:inherit;font-size:12.5px;font-weight:900;cursor:pointer}.banner-tab.active{border-color:var(--primary);background:var(--primary);color:#fff;box-shadow:0 10px 22px rgba(79,70,229,.18)}
+  .banner-language-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 20px}
+  .banner-language-card{display:flex;align-items:center;gap:12px;min-height:68px;padding:11px 13px;border:1px solid transparent;border-radius:17px;background:#F5F5F8;text-align:left;font-family:inherit;cursor:pointer;transition:background .15s,border-color .15s}
+  .banner-language-card:hover{background:#EDF2FF}.banner-language-card.selected{background:#EDF2FF;border-color:#AFC5FF}
+  .banner-language-flag{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:#fff;font-size:28px;line-height:1;flex-shrink:0}
+  .banner-language-name{display:block;font-size:13px;font-weight:900;color:#141E35}
+  .banner-language-selected{display:block;margin-top:3px;font-size:11px;font-weight:800;color:#355DF4}
   .manager-shell{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,.7fr);gap:24px;align-items:start}.panel{background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:0 8px 28px rgba(15,23,42,.06);overflow:hidden}.panel-header{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;align-items:center}.panel-header h3{font-size:16px;font-weight:900}.panel-header p{font-size:12.5px;color:var(--muted);margin-top:4px}.count-pill{font-size:12px;font-weight:800;color:var(--primary);background:var(--light);border:1px solid #E0E7FF;padding:7px 11px;border-radius:999px}
   .slots-grid{padding:18px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.slot-card{border:1px solid var(--border);border-radius:18px;background:#fff;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit;transition:.18s;box-shadow:0 2px 10px rgba(15,23,42,.04)}.slot-card:hover{transform:translateY(-2px);border-color:#C7D2FE;box-shadow:0 14px 34px rgba(79,70,229,.12)}.slot-card.selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.14),0 14px 34px rgba(79,70,229,.16)}.slot-preview{position:relative;aspect-ratio:3/1;background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden}.slot-preview img{width:100%;height:100%;object-fit:cover;display:block}.empty-preview{height:100%;display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:12px;font-weight:800}.slot-number,.slot-status{position:absolute;top:10px;z-index:2;border-radius:999px;font-size:10.5px;font-weight:900;padding:6px 9px;backdrop-filter:blur(8px)}.slot-number{left:10px;background:rgba(15,23,42,.78);color:#fff}.slot-status{right:10px}.slot-status.active{background:rgba(209,250,229,.92);color:#047857}.slot-status.inactive{background:rgba(254,226,226,.92);color:#B91C1C}.slot-status.empty{background:rgba(241,245,249,.92);color:#475569}.slot-meta{padding:13px 14px 15px}.slot-title{font-size:13.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.slot-link{margin-top:4px;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .editor-panel{position:sticky;top:92px}.editor-body{padding:20px}.selected-preview{aspect-ratio:3/1;border-radius:16px;border:1px solid var(--border);background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden;margin-bottom:16px}.selected-preview img{width:100%;height:100%;object-fit:cover}.selected-preview-empty{height:100%;display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:13px;font-weight:800}.field-label{display:block;font-size:12px;font-weight:900;color:#334155;margin:12px 0 7px}.input,.textarea{width:100%;padding:13px 14px;border-radius:13px;border:1px solid var(--border);outline:none;background:#F8FAFC;font-size:14px;font-family:inherit}.textarea{min-height:86px;resize:vertical}.input:focus,.textarea:focus{background:#fff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.1)}.upload-box{border:1.5px dashed #CBD5E1;background:#F8FAFC;border-radius:15px;padding:15px;margin-top:12px;cursor:pointer;text-align:center}.upload-box:hover{border-color:var(--primary);background:var(--light)}.upload-title{font-size:13px;font-weight:900}.upload-help{margin-top:4px;font-size:11.5px;color:var(--muted)}
@@ -308,6 +322,13 @@ export default function BannerSystem() {
   const fileInputRef = useRef(null);
   const [activeType, setActiveType] = useState('shadow_spotlight');
   const activeConfig = BANNER_SECTIONS[activeType];
+  const [activeLanguage, setActiveLanguage] = useState('km');
+  const activeSectionKey =
+    activeType === 'author_center' || activeLanguage === 'km'
+      ? activeConfig.sectionKey
+      : `${activeConfig.sectionKey}_${activeLanguage}`;
+  const activeSectionRef = useRef(activeSectionKey);
+  activeSectionRef.current = activeSectionKey;
   const [selectedSlot, setSelectedSlot] = useState(1);
   const [banners, setBanners] = useState([]);
   const [title, setTitle] = useState('');
@@ -359,30 +380,34 @@ export default function BannerSystem() {
     return data;
   };
 
-  const fetchBanners = async (sectionKey = activeConfig.sectionKey) => {
+  const fetchBanners = async (sectionKey = activeSectionKey) => {
     try {
       const data = await apiFetch(`${API_URL}/api/slides?section_key=${sectionKey}&include_inactive=true`);
-      setBanners(data.slides || []);
+      if (sectionKey === activeSectionRef.current) setBanners(data.slides || []);
     } catch (error) {
-      setMessage({ type: 'error', text: `Cannot load banners: ${error.message}` });
+      if (sectionKey === activeSectionRef.current) setMessage({ type: 'error', text: `Cannot load banners: ${error.message}` });
     }
   };
 
-  const fetchRecords = async (page = recordPage, sectionKey = activeConfig.sectionKey) => {
+  const fetchRecords = async (page = recordPage, sectionKey = activeSectionKey) => {
     try {
       setRecordsLoading(true);
       const data = await apiFetch(
         `${API_URL}/api/slides/records?page=${page}&limit=${RECORDS_PER_PAGE}&section_key=${sectionKey}`,
       );
-      setRecords(data.records || []);
-      setRecordPage(data.page || page);
-      setRecordTotalPages(data.total_pages || 1);
+      if (sectionKey === activeSectionRef.current) {
+        setRecords(data.records || []);
+        setRecordPage(data.page || page);
+        setRecordTotalPages(data.total_pages || 1);
+      }
     } catch {
-      setRecords([]);
-      setRecordPage(1);
-      setRecordTotalPages(1);
+      if (sectionKey === activeSectionRef.current) {
+        setRecords([]);
+        setRecordPage(1);
+        setRecordTotalPages(1);
+      }
     } finally {
-      setRecordsLoading(false);
+      if (sectionKey === activeSectionRef.current) setRecordsLoading(false);
     }
   };
 
@@ -408,9 +433,9 @@ export default function BannerSystem() {
       fileInputRef.current.value = '';
     }
 
-    fetchBanners(activeConfig.sectionKey);
-    fetchRecords(1, activeConfig.sectionKey);
-  }, [activeType]);
+    fetchBanners(activeSectionKey);
+    fetchRecords(1, activeSectionKey);
+  }, [activeType, activeLanguage]);
 
   useEffect(() => {
     const banner = slotMap[selectedSlot];
@@ -433,8 +458,8 @@ export default function BannerSystem() {
   }, [selectedSlot, slotMap, activeConfig.defaultLink]);
 
   const refreshAll = async () => {
-    await fetchBanners(activeConfig.sectionKey);
-    await fetchRecords(recordPage, activeConfig.sectionKey);
+    await fetchBanners(activeSectionKey);
+    await fetchRecords(recordPage, activeSectionKey);
   };
 
   const selectBannerFile = (file) => {
@@ -490,10 +515,10 @@ export default function BannerSystem() {
         }
       }
 
-      formData.append('section_key', activeConfig.sectionKey);
+      formData.append('section_key', activeSectionKey);
 
       const defaultBadgeBySlot =
-        activeConfig.sectionKey === 'author_center'
+        activeSectionKey === 'author_center'
           ? { 1: 'NEW', 2: 'HOT', 3: 'TOP' }[selectedSlot] || ''
           : '';
 
@@ -646,6 +671,29 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                 </button>
               ))}
             </div>
+
+            {activeType !== 'author_center' && (
+              <section className="banner-language-grid" aria-label="Banner story languages">
+                {BANNER_LANGUAGES.map((language) => (
+                  <button
+                    key={language.code}
+                    type="button"
+                    className={`banner-language-card ${activeLanguage === language.code ? 'selected' : ''}`}
+                    onClick={() => setActiveLanguage(language.code)}
+                    disabled={loading}
+                    aria-pressed={activeLanguage === language.code}
+                  >
+                    <span className="banner-language-flag" aria-hidden="true">{language.flag}</span>
+                    <span>
+                      <span className="banner-language-name">{language.label}</span>
+                      {activeLanguage === language.code && (
+                        <span className="banner-language-selected">Selected</span>
+                      )}
+                    </span>
+                  </button>
+                ))}
+              </section>
+            )}
 
             <div className="manager-shell">
               <section className="panel">
@@ -868,7 +916,7 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                 <button
                   className="page-btn"
                   type="button"
-                  onClick={() => fetchRecords(recordPage, activeConfig.sectionKey)}
+                  onClick={() => fetchRecords(recordPage, activeSectionKey)}
                   disabled={recordsLoading}
                 >
                   {recordsLoading ? 'Loading...' : 'Refresh'}
@@ -896,7 +944,7 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                         </div>
 
                         <div className="record-detail">
-                          {normalizeRecordText(record, activeConfig.sectionKey)}
+                          {normalizeRecordText(record, activeSectionKey)}
                         </div>
 
                         <div className="record-time">
@@ -913,7 +961,7 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                   className="page-btn"
                   type="button"
                   disabled={recordPage <= 1 || recordsLoading}
-                  onClick={() => fetchRecords(recordPage - 1, activeConfig.sectionKey)}
+                  onClick={() => fetchRecords(recordPage - 1, activeSectionKey)}
                 >
                   Previous
                 </button>
@@ -926,7 +974,7 @@ const currentPreview = localPreviewUrl.startsWith('blob:')
                   className="page-btn"
                   type="button"
                   disabled={recordPage >= recordTotalPages || recordsLoading}
-                  onClick={() => fetchRecords(recordPage + 1, activeConfig.sectionKey)}
+                  onClick={() => fetchRecords(recordPage + 1, activeSectionKey)}
                 >
                   Next
                 </button>
