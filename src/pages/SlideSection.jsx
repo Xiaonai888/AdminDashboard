@@ -78,12 +78,33 @@ const SECTIONS = [
   { key: 'mall_top_slider', label: 'Mall Slide', title: 'Mall Slide', text: 'Manage Shadow Mall slides, book visuals, and promotional links.' },
 ];
 
+const HOME_LANGUAGES = [
+  { key: 'home_top_slider', code: 'km', label: 'Khmer', flag: '🇰🇭' },
+  { key: 'home_top_slider_en', code: 'en', label: 'English', flag: '🇺🇸' },
+  { key: 'home_top_slider_zh', code: 'zh', label: 'Chinese', flag: '🇨🇳' },
+  { key: 'home_top_slider_ja', code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+  { key: 'home_top_slider_ko', code: 'ko', label: 'Korean', flag: '🇰🇷' },
+];
+
 const styles = `
   :root{--bg:#F8FAFC;--card:#fff;--primary:#4F46E5;--light:#EEF2FF;--text:#0F172A;--muted:#64748B;--soft:#94A3B8;--border:#E2E8F0;--success:#10B981;--successBg:#D1FAE5;--danger:#EF4444;--dangerBg:#FEE2E2}
   *{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text)}
   .dashboard-wrapper{height:100vh;display:flex;background:var(--bg);overflow:hidden}
   .main-content{flex:1;overflow:auto}.header{height:70px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 36px;position:sticky;top:0;z-index:10}.header h2{font-size:17px;font-weight:900}.content-body{padding:28px 36px 48px;max-width:1600px;margin:0 auto}.page-title-row{margin-bottom:22px}.page-title-row h1{font-size:27px;font-weight:900;letter-spacing:-.04em}.page-title-row p{font-size:13.5px;color:var(--muted);margin-top:5px}
   .section-tabs{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}.section-tab{height:42px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#475569;padding:0 18px;font-weight:900;cursor:pointer}.section-tab.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 10px 20px rgba(79,70,229,.18)}
+  .language-picker{margin:0 0 22px}
+  .language-picker-heading{font-size:13px;font-weight:900;color:#334155;margin:0 0 12px}
+  .language-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
+  .language-card{position:relative;display:flex;align-items:center;gap:12px;min-width:0;min-height:102px;padding:16px 17px;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 2px 7px rgba(15,23,42,.05);font-family:inherit;color:var(--text);text-align:left;cursor:pointer;transition:border-color .18s,box-shadow .18s,transform .18s}
+  .language-card:hover{border-color:#A5B4FC;box-shadow:0 7px 20px rgba(15,23,42,.10);transform:translateY(-1px)}
+  .language-card.selected{border-color:#4F46E5;box-shadow:0 0 0 2px rgba(79,70,229,.11),0 5px 15px rgba(79,70,229,.08)}
+  .language-flag{font-size:28px;line-height:1;flex:none}
+  .language-info{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .language-name{font-size:14px;font-weight:850}
+  .language-subtitle{font-size:11px;color:var(--muted)}
+  .language-card.selected .language-subtitle{color:#4F46E5;font-weight:800}
+  .language-tick{position:absolute;right:12px;top:11px;color:#4F46E5;font-size:16px;font-weight:900}
+  .language-card:disabled{opacity:.6;cursor:wait;transform:none}
   .manager-shell{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(360px,.7fr);gap:24px;align-items:start}.panel{background:#fff;border:1px solid var(--border);border-radius:22px;box-shadow:0 8px 28px rgba(15,23,42,.06);overflow:hidden}.panel-header{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:14px;align-items:center}.panel-header h3{font-size:16px;font-weight:900}.panel-header p{font-size:12.5px;color:var(--muted);margin-top:4px}.count-pill{font-size:12px;font-weight:800;color:var(--primary);background:var(--light);border:1px solid #E0E7FF;padding:7px 11px;border-radius:999px}
   .slots-grid{padding:18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.slot-card{border:1px solid var(--border);border-radius:18px;background:#fff;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit;transition:.18s;box-shadow:0 2px 10px rgba(15,23,42,.04)}.slot-card:hover{transform:translateY(-2px);border-color:#C7D2FE;box-shadow:0 14px 34px rgba(79,70,229,.12)}.slot-card.selected{border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.14),0 14px 34px rgba(79,70,229,.16)}
   .slot-preview{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#F8FAFC,#EEF2FF);overflow:hidden}.slot-preview img{width:100%;height:100%;object-fit:cover;display:block}.empty-preview{height:100%;display:flex;align-items:center;justify-content:center;color:var(--soft);font-size:12px;font-weight:800}.slot-number,.slot-status{position:absolute;top:10px;z-index:2;border-radius:999px;font-size:10.5px;font-weight:900;padding:6px 9px;backdrop-filter:blur(8px)}.slot-number{left:10px;background:rgba(15,23,42,.78);color:#fff}.slot-status{right:10px}.slot-status.active{background:rgba(209,250,229,.92);color:#047857}.slot-status.inactive{background:rgba(254,226,226,.92);color:#B91C1C}.slot-status.empty{background:rgba(241,245,249,.92);color:#475569}.slot-meta{padding:13px 14px 15px}.slot-title{font-size:13.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.slot-link{margin-top:4px;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -110,6 +131,7 @@ const styles = `
     }
     .section-tabs::-webkit-scrollbar{display:none}
     .section-tab{flex:0 0 auto}
+    .language-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
     .manager-shell{gap:18px}
     .slots-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px}
     .panel-header{padding:18px}
@@ -124,6 +146,9 @@ const styles = `
     .page-title-row{margin-bottom:18px}
     .page-title-row h1{font-size:22px}
     .section-tab{height:40px;padding:0 15px;font-size:12px}
+    .language-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .language-card{min-height:85px;padding:13px}
+    .language-flag{font-size:24px}
     .slots-grid{grid-template-columns:1fr}
     .panel-header{align-items:flex-start}
     .count-pill{flex-shrink:0}
@@ -203,6 +228,10 @@ export default function SlideSection() {
   const [recordPage, setRecordPage] = useState(1);
   const [recordTotalPages, setRecordTotalPages] = useState(1);
   const [authExpired, setAuthExpired] = useState(false);
+  const activeSectionKeyRef = useRef(sectionKey);
+  activeSectionKeyRef.current = sectionKey;
+  const isHomeSlideTab = HOME_LANGUAGES.some((language) => language.key === sectionKey);
+  const selectedHomeLanguage = HOME_LANGUAGES.find((language) => language.key === sectionKey) || HOME_LANGUAGES[0];
 
   const currentSection = SECTIONS.find((item) => item.key === sectionKey) || SECTIONS[0];
   const slotMap = useMemo(
@@ -247,24 +276,28 @@ export default function SlideSection() {
   const fetchSlides = async (nextSectionKey = sectionKey) => {
     try {
       const data = await apiFetch(`${API_URL}/api/slides?section_key=${nextSectionKey}&include_inactive=true`);
-      setSlides(data.slides || []);
+      if (activeSectionKeyRef.current === nextSectionKey) setSlides(data.slides || []);
     } catch (error) {
-      setSlides([]);
-      setMessage({ type: 'error', text: `Cannot load slides: ${error.message}` });
+      if (activeSectionKeyRef.current === nextSectionKey) {
+        setSlides([]);
+        setMessage({ type: 'error', text: `Cannot load slides: ${error.message}` });
+      }
     }
   };
 
   const fetchRecords = async (page = recordPage, nextSectionKey = sectionKey) => {
     try {
-      setRecordsLoading(true);
+      if (activeSectionKeyRef.current === nextSectionKey) setRecordsLoading(true);
       const data = await apiFetch(`${API_URL}/api/slides/records?page=${page}&limit=${RECORDS_PER_PAGE}&section_key=${nextSectionKey}`);
-      setRecords(data.records || []);
-      setRecordPage(data.page || page);
-      setRecordTotalPages(data.total_pages || 1);
+      if (activeSectionKeyRef.current === nextSectionKey) {
+        setRecords(data.records || []);
+        setRecordPage(data.page || page);
+        setRecordTotalPages(data.total_pages || 1);
+      }
     } catch {
-      setRecords([]);
+      if (activeSectionKeyRef.current === nextSectionKey) setRecords([]);
     } finally {
-      setRecordsLoading(false);
+      if (activeSectionKeyRef.current === nextSectionKey) setRecordsLoading(false);
     }
   };
 
@@ -456,16 +489,42 @@ export default function SlideSection() {
                 <button
                   key={section.key}
                   type="button"
-                  className={`section-tab ${sectionKey === section.key ? 'active' : ''}`}
+                  className={`section-tab ${sectionKey === section.key || (section.key === 'home_top_slider' && isHomeSlideTab) ? 'active' : ''}`}
                   onClick={() => setSectionKey(section.key)}
+                  disabled={loading}
                 >
                   {section.label}
                 </button>
               ))}
             </div>
 
+            {isHomeSlideTab && (
+              <section className="language-picker" aria-label="Home Slide language selector">
+                <div className="language-picker-heading">Story Language</div>
+                <div className="language-grid">
+                  {HOME_LANGUAGES.map((language) => (
+                    <button
+                      type="button"
+                      key={language.key}
+                      className={`language-card ${sectionKey === language.key ? 'selected' : ''}`}
+                      aria-pressed={sectionKey === language.key}
+                      onClick={() => setSectionKey(language.key)}
+                      disabled={loading}
+                    >
+                      <span className="language-flag" aria-hidden="true">{language.flag}</span>
+                      <span className="language-info">
+                        <span className="language-name">{language.label}</span>
+                        <span className="language-subtitle">{sectionKey === language.key ? 'Selected' : 'Manage Slides'}</span>
+                      </span>
+                      {sectionKey === language.key && <span className="language-tick" aria-hidden="true">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <div className="page-title-row">
-              <h1>{currentSection.title}</h1>
+              <h1>{currentSection.title}{isHomeSlideTab ? ` — ${selectedHomeLanguage.label}` : ''}</h1>
               <p>{currentSection.text}</p>
             </div>
 
@@ -635,7 +694,7 @@ export default function SlideSection() {
                 <div>
                   <h3>Slide Records</h3>
                   <p>
-                    Recent slide actions for {currentSection.label}. Records are shown 20 per page and old records are cleaned after 30 days by the backend.
+                    Recent slide actions for {currentSection.label}. Records are shown 20 per page and old records are cleaned after 90 days by the backend.
                   </p>
                 </div>
 
