@@ -1,0 +1,172 @@
+name: Install Banner System Five Languages
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-banner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Update BannerSystem.jsx safely
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          
+          path = Path("src/pages/BannerSystem.jsx")
+          source = path.read_text(encoding="utf-8")
+          text = source
+          
+          def replace_once(old, new):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Unsafe source change: expected 1 match, got {count}: {old[:95]!r}")
+              text = text.replace(old, new, 1)
+          
+          if "const BANNER_LANGUAGES" in text:
+              raise SystemExit("Banner language selector already installed. No changes made.")
+          
+          legacy_calls = text.count("activeConfig.sectionKey")
+          if legacy_calls < 8:
+              raise SystemExit(f"Unexpected section routing ({legacy_calls} calls). No changes made.")
+          text = text.replace("activeConfig.sectionKey", "activeSectionKey")
+          
+          replace_once(
+              "const styles = `",
+              """const BANNER_LANGUAGES = [
+            { code: 'km', label: 'Khmer', flag: '🇰🇭' },
+            { code: 'en', label: 'English', flag: '🇺🇸' },
+            { code: 'zh', label: 'Chinese', flag: '🇨🇳' },
+            { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+            { code: 'ko', label: 'Korean', flag: '🇰🇷' },
+          ];
+          
+          const styles = `"""
+          )
+          
+          replace_once(
+              "  .manager-shell{display:grid",
+              """  .banner-language-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 20px}
+            .banner-language-card{display:flex;align-items:center;gap:12px;min-height:68px;padding:11px 13px;border:1px solid transparent;border-radius:17px;background:#F5F5F8;text-align:left;font-family:inherit;cursor:pointer;transition:background .15s,border-color .15s}
+            .banner-language-card:hover{background:#EDF2FF}.banner-language-card.selected{background:#EDF2FF;border-color:#AFC5FF}
+            .banner-language-flag{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:#fff;font-size:28px;line-height:1;flex-shrink:0}
+            .banner-language-name{display:block;font-size:13px;font-weight:900;color:#141E35}
+            .banner-language-selected{display:block;margin-top:3px;font-size:11px;font-weight:800;color:#355DF4}
+            .manager-shell{display:grid"""
+          )
+          
+          replace_once(
+              "  const activeConfig = BANNER_SECTIONS[activeType];",
+              """  const activeConfig = BANNER_SECTIONS[activeType];
+            const [activeLanguage, setActiveLanguage] = useState('km');
+            const activeSectionKey =
+              activeType === 'author_center' || activeLanguage === 'km'
+                ? activeConfig.sectionKey
+                : `${activeConfig.sectionKey}_${activeLanguage}`;
+            const activeSectionRef = useRef(activeSectionKey);
+            activeSectionRef.current = activeSectionKey;"""
+          )
+          
+          replace_once(
+              "      setBanners(data.slides || []);",
+              "      if (sectionKey === activeSectionRef.current) setBanners(data.slides || []);"
+          )
+          replace_once(
+              "      setMessage({ type: 'error', text: `Cannot load banners: ${error.message}` });",
+              "      if (sectionKey === activeSectionRef.current) setMessage({ type: 'error', text: `Cannot load banners: ${error.message}` });"
+          )
+          replace_once(
+              """      setRecords(data.records || []);
+                setRecordPage(data.page || page);
+                setRecordTotalPages(data.total_pages || 1);""",
+              """      if (sectionKey === activeSectionRef.current) {
+                  setRecords(data.records || []);
+                  setRecordPage(data.page || page);
+                  setRecordTotalPages(data.total_pages || 1);
+                }"""
+          )
+          replace_once(
+              """    } catch {
+                setRecords([]);
+                setRecordPage(1);
+                setRecordTotalPages(1);
+              } finally {
+                setRecordsLoading(false);
+              }
+            };""",
+              """    } catch {
+                if (sectionKey === activeSectionRef.current) {
+                  setRecords([]);
+                  setRecordPage(1);
+                  setRecordTotalPages(1);
+                }
+              } finally {
+                if (sectionKey === activeSectionRef.current) setRecordsLoading(false);
+              }
+            };"""
+          )
+          replace_once("  }, [activeType]);", "  }, [activeType, activeLanguage]);")
+          
+          replace_once(
+              """            </div>
+          
+                      <div className="manager-shell">""",
+              """            </div>
+          
+                      {activeType !== 'author_center' && (
+                        <section className="banner-language-grid" aria-label="Banner story languages">
+                          {BANNER_LANGUAGES.map((language) => (
+                            <button
+                              key={language.code}
+                              type="button"
+                              className={`banner-language-card ${activeLanguage === language.code ? 'selected' : ''}`}
+                              onClick={() => setActiveLanguage(language.code)}
+                              disabled={loading}
+                              aria-pressed={activeLanguage === language.code}
+                            >
+                              <span className="banner-language-flag" aria-hidden="true">{language.flag}</span>
+                              <span>
+                                <span className="banner-language-name">{language.label}</span>
+                                {activeLanguage === language.code && (
+                                  <span className="banner-language-selected">Selected</span>
+                                )}
+                              </span>
+                            </button>
+                          ))}
+                        </section>
+                      )}
+          
+                      <div className="manager-shell">"""
+          )
+          
+          if "formData.append('section_key', activeSectionKey)" not in text:
+              raise SystemExit("Save routing did not update correctly. No changes made.")
+          if "[activeType, activeLanguage]" not in text:
+              raise SystemExit("Language change reload is missing. No changes made.")
+          if "fetchRecords(recordPage, activeSectionKey)" not in text:
+              raise SystemExit("Records routing did not update correctly. No changes made.")
+          
+          path.write_text(text, encoding="utf-8")
+          print(f"Updated {path}: {legacy_calls} section references, five languages.")
+          PY
+      - name: Validate and commit update
+        shell: bash
+        run: |
+          if [ -f package.json ]; then
+            npm ci --no-audit --no-fund
+            npm run build
+          fi
+          git diff --check
+          git add src/pages/BannerSystem.jsx
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Add five story languages to Banner System"
+          git push
