@@ -89,6 +89,7 @@ export default function AdminReadEventTab() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [preparing, setPreparing] = useState(false)
+  const [changingStatus, setChangingStatus] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -138,9 +139,39 @@ export default function AdminReadEventTab() {
     }
   }
 
+  async function changeEventStatus() {
+    if (!data?.exists || !data?.event?.id || loading || preparing || changingStatus) return
+    const enabled = data.event.is_enabled !== true
+    if (enabled && data.plan_complete !== true) return
+    if (cambodiaToday() >= dayDate(startsOn, 8)) return
+    const question = enabled
+      ? `Enable the Shadow Read Event starting ${startsOn}? This activates missions and rewards.`
+      : `Disable the Shadow Read Event starting ${startsOn}? Readers will lose event access and reward settlement will be paused while disabled.`
+    if (!window.confirm(question)) return
+
+    setChangingStatus(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await request('/status', {
+        method: 'PATCH',
+        body: JSON.stringify({ event_id: data.event.id, enabled }),
+      })
+      setNotice(result.changed
+        ? enabled ? 'Read Event enabled.' : 'Read Event disabled.'
+        : 'Event is already in this state.')
+      setRefreshNumber((value) => value + 1)
+    } catch (err) {
+      setError(err.message || 'Unable to change event status')
+    } finally {
+      setChangingStatus(false)
+    }
+  }
+
   const prize = data?.prize_rules || {}
   const complete = data?.plan_complete === true
   const eventEnabled = data?.event?.is_enabled === true
+  const eventClosed = cambodiaToday() >= dayDate(startsOn, 8)
 
   return (
     <div className="rde">
@@ -187,6 +218,21 @@ export default function AdminReadEventTab() {
                 <div className="rde-entry">
                   <div className="rde-label">Featured prize story</div>
                   <div className="rde-mono">{data.event?.featured_story_id || '—'}</div>
+                </div>
+                <div className="rde-row">
+                  <button
+                    type="button"
+                    className={`rde-btn ${eventEnabled ? '' : 'primary'}`}
+                    disabled={changingStatus || preparing || loading || eventClosed || (!eventEnabled && !complete)}
+                    onClick={changeEventStatus}
+                  >
+                    {changingStatus ? 'Saving...' : eventEnabled ? 'Disable Event' : 'Enable Event'}
+                  </button>
+                  <span className="rde-muted">
+                    {eventClosed ? 'The event week has finished. Status changes are locked.'
+                      : eventEnabled ? 'Event is enabled for eligible Khmer Readers.'
+                        : 'Event is disabled until an Admin enables it.'}
+                  </span>
                 </div>
               </>
             )}
@@ -245,7 +291,7 @@ export default function AdminReadEventTab() {
                 <p className="rde-muted">Other participants: {prize.participation?.story_cards || 10} cards + {prize.participation?.vouchers || 10} vouchers + random coins.</p>
               </div>
             </div>
-            <p className="rde-muted">This page does not enable, disable, pay out, or change rewards. Activation controls will be added separately.</p>
+            <p className="rde-muted">Enable and Disable affect this event only. Prize amounts cannot be changed here; payouts remain server-controlled.</p>
           </section>
         </>
       )}
