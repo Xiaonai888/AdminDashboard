@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import AdminAuthor100PercentEventTab from '../components/events/AdminAuthor100PercentEventTab'
+import AdminReadEventTab from '../components/events/AdminReadEventTab'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -511,6 +512,7 @@ if (!form.image_url) {
         <div className="event-tabs" aria-label="Event management sections">
           <button type="button" className={`event-tab ${activeTab === 'general' ? 'active' : ''}`} aria-pressed={activeTab === 'general'} onClick={() => setActiveTab('general')}>General Events</button>
           <button type="button" className={`event-tab ${activeTab === 'author100' ? 'active' : ''}`} aria-pressed={activeTab === 'author100'} onClick={() => setActiveTab('author100')}>100% Author Event</button>
+          <button type="button" className={`event-tab ${activeTab === 'read-event' ? 'active' : ''}`} aria-pressed={activeTab === 'read-event'} onClick={() => setActiveTab('read-event')}>Shadow Read Event</button>
         </div>
 
         {activeTab === 'general' ? (
@@ -1016,11 +1018,13 @@ if (!form.image_url) {
           </div>
         </div>
           </>
-        ) : (
+        ) : activeTab === 'author100' ? (
           <>
             <div className="event-alert" style={{ background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }} role="note">Testing only: do not add authors until the revenue calculations and Supabase event checks have been validated.</div>
             <AdminAuthor100PercentEventTab />
           </>
+        ) : (
+          <AdminReadEventTab />
         )}
       </div>
     </AdminLayout>
