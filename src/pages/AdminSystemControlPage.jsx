@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import AdminRequestEvidencePanel from '../components/AdminRequestEvidencePanel'
 import AdminPerformanceDiagnosticsPanel from '../components/AdminPerformanceDiagnosticsPanel'
+import AdminImageDiagnosticsPanel from '../components/AdminImageDiagnosticsPanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -1172,6 +1173,7 @@ export default function AdminSystemControlPage() {
   const [incidents, setIncidents] = useState([])
   const [requestEvidence, setRequestEvidence] = useState([])
   const [performanceDiagnostics, setPerformanceDiagnostics] = useState(null)
+  const [imageDiagnostics, setImageDiagnostics] = useState(null)
   const [guestRequestSnapshot, setGuestRequestSnapshot] = useState(null)
   const [historyReport, setHistoryReport] = useState(null)
   const [rangeKey, setRangeKey] = useState('24h')
@@ -1224,6 +1226,7 @@ export default function AdminSystemControlPage() {
       setRegression(data.regression || null)
       setRequestEvidence(Array.isArray(data.evidence) ? data.evidence : [])
       setPerformanceDiagnostics(data.performance_diagnostics || null)
+      setImageDiagnostics(data.image_diagnostics || null)
       setGuestRequestSnapshot(data.guest_requests || null)
       setProviderState(data.providers || null)
       setUpdatedAt(Date.now())
@@ -2160,6 +2163,7 @@ export default function AdminSystemControlPage() {
 
         <GuestRequestControlPanel snapshot={guestRequestSnapshot} loading={loading} />
         <AdminPerformanceDiagnosticsPanel diagnostics={performanceDiagnostics} />
+        <AdminImageDiagnosticsPanel diagnostics={imageDiagnostics} />
         <AdminRequestEvidencePanel evidence={requestEvidence} />
         <section className="sc-block">
           <div className="sc-block-head">
