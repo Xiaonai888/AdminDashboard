@@ -2159,6 +2159,7 @@ export default function AdminSystemControlPage() {
         </section>
 
         <GuestRequestControlPanel snapshot={guestRequestSnapshot} loading={loading} />
+        <AdminPerformanceDiagnosticsPanel diagnostics={performanceDiagnostics} />
         <AdminRequestEvidencePanel evidence={requestEvidence} />
         <section className="sc-block">
           <div className="sc-block-head">
