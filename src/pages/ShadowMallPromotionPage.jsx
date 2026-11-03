@@ -1727,11 +1727,7 @@ async function changeAdMode(nextMode) {
             </div>
           ) : null}
 
-          {adMode !== 'auto' ? (
-  <>
-    <section
-      className="promotion-editor-grid"
-            <section
+          <section
   style={{
     background: '#FFFFFF',
     border: '1px solid #E2E8F0',
