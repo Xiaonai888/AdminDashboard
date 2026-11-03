@@ -1806,8 +1806,138 @@ async function changeAdMode(nextMode) {
     </p>
   ) : null}
 </section>
-            style={{
-              display: 'grid',
+
+{adModeReady && adMode === 'auto' ? (
+  <section
+    style={{
+      background: '#FFFFFF',
+      border: '1px solid #E2E8F0',
+      borderRadius: 20,
+      padding: 20,
+      marginBottom: 20,
+    }}
+  >
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 16,
+      }}
+    >
+      <div>
+        <h2 style={{ fontSize: 18, fontWeight: 800 }}>
+          Daily Auto Ads ({autoAds.length}/10)
+        </h2>
+        <p style={{ fontSize: 12, color: '#64748B' }}>
+          Low-view and new stories · 6+ episodes or completed
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          loadAdControl().catch((error) =>
+            setAdModeError(error.message)
+          )
+        }
+        style={{
+          background: '#F1F5F9',
+          border: 0,
+          borderRadius: 10,
+          padding: '10px 14px',
+          cursor: 'pointer',
+        }}
+      >
+        Refresh
+      </button>
+    </div>
+
+    <p style={{ fontSize: 12, color: '#64748B' }}>
+      Date: {autoAdsDay || '—'}
+      {' · '}
+      Generated: {autoAdsGeneratedAt || '—'}
+    </p>
+
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns:
+          'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: 14,
+        marginTop: 16,
+      }}
+    >
+      {autoAds.map((ad, index) => (
+        <article
+          key={ad.story_id || ad.id || index}
+          style={{
+            border: '1px solid #E2E8F0',
+            borderRadius: 14,
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{
+            width: '100%',
+            aspectRatio: '16 / 9',
+            background: '#F1F5F9',
+          }}>
+            {ad.preview_image_url ? (
+              <img
+                src={ad.preview_image_url}
+                alt={ad.title || 'Story'}
+                loading="lazy"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : null}
+          </div>
+
+          <div style={{ padding: 12 }}>
+            <div style={{ fontSize: 11, color: '#64748B' }}>
+              Auto Ad #{index + 1}
+            </div>
+
+            <strong style={{ fontSize: 13 }}>
+              {ad.title}
+            </strong>
+
+            <div style={{
+              color: '#64748B',
+              fontSize: 11,
+              marginTop: 6,
+            }}>
+              {ad.episode_count ?? 0} Episodes
+              {' · '}
+              {ad.total_views ?? 0} Views
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+
+    {!autoAds.length ? (
+      <p style={{
+        color: '#64748B',
+        textAlign: 'center',
+        padding: 24,
+      }}>
+        No eligible stories selected yet.
+      </p>
+    ) : null}
+  </section>
+) : null}
+
+{adMode !== 'auto' ? (
+  <>
+    <section
+      className="promotion-editor-grid"
+      style={{
+        display: 'grid',
               gridTemplateColumns: 'minmax(360px, 1fr) minmax(320px, 460px)',
               gap: 20,
               alignItems: 'start',
