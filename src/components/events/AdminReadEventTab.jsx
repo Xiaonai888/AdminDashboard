@@ -4,7 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onr
 const API_PATH = '/api/admin/events/read-event'
 const FIRST_CYCLE = Date.UTC(2026, 10, 2)
 const DAY_MS = 86400000
-const CYCLE_DAYS = 28
+const CYCLE_DAYS = 14
 
 function getToken() {
   return sessionStorage.getItem('shadow_admin_token') ||
@@ -179,7 +179,7 @@ export default function AdminReadEventTab() {
       <section className="rde-panel rde-row">
         <div className="rde-stack">
           <h2>Shadow Read Event</h2>
-          <p className="rde-muted">7 days every 4 weeks · Cambodia Reader group · Asia/Phnom_Penh</p>
+          <p className="rde-muted">7 days every 2 weeks · Cambodia Reader group · Asia/Phnom_Penh</p>
         </div>
         <div className="rde-row">
           <button type="button" className="rde-btn" onClick={() => navigate(-1)} disabled={startsOn === dateAt(FIRST_CYCLE) || loading || preparing}>Previous</button>
