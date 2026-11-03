@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import BinanceCheckoutReviewPanel from '../components/BinanceCheckoutReviewPanel'
 import AdminBinanceTelegramReconcilePanel from '../components/AdminBinanceTelegramReconcilePanel'
+import AdminBinanceTelegramEditQueuePanel from '../components/AdminBinanceTelegramEditQueuePanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -518,6 +519,8 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
             <button type="button" className={'recovery-tab ' + (receiptView === 'received' ? 'active' : '')} disabled={working} onClick={() => { setReceiptView('received'); setReceiptPage(1); setSelectedTransaction(''); resetSensitive() }}>Received USDT</button>
             <button type="button" className={'recovery-tab ' + (receiptView === 'alerts' ? 'active' : '')} disabled={working} onClick={() => { setReceiptView('alerts'); setReceiptPage(1); setSelectedTransaction(''); resetSensitive() }}>Telegram Alert History</button>
           </div>
+          {receiptView === 'alerts' ? <AdminBinanceTelegramEditQueuePanel request={binanceRequest} /> : null}
+
           <form className="recovery-controls" onSubmit={(event) => { event.preventDefault(); setReceiptPage(1); setSelectedTransaction(''); setReceiptApplied({ ...receiptFilters, q: receiptFilters.q.trim() }) }}>
             <input className="recovery-input" value={receiptFilters.q} maxLength={80} onChange={(event) => setReceiptFilters((f) => ({ ...f, q: event.target.value }))} placeholder="Transaction ID, payer..." aria-label="Search Binance receipts" />
             <select className="recovery-input" value={receiptFilters.status} onChange={(event) => setReceiptFilters((f) => ({ ...f, status: event.target.value }))} aria-label="Telegram alert status">
