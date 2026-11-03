@@ -251,6 +251,106 @@ export default function ShadowMallPromotionPage() {
   const [reordering, setReordering] = useState(false)
   const [message, setMessage] = useState('')
 
+const [adMode, setAdMode] = useState('manual')
+const [adModeReady, setAdModeReady] = useState(false)
+const [adModeBusy, setAdModeBusy] = useState(false)
+const [adModeError, setAdModeError] = useState('')
+const [autoAds, setAutoAds] = useState([])
+const [autoAdsDay, setAutoAdsDay] = useState('')
+const [autoAdsGeneratedAt, setAutoAdsGeneratedAt] = useState('')
+
+const applyAdControl = useCallback((data) => {
+  if (!['manual', 'auto'].includes(data?.mode)) {
+    throw new Error('Invalid promotion mode')
+  }
+
+  setAdMode(data.mode)
+  setAutoAds(
+    Array.isArray(data.ads) ? data.ads.slice(0, 10) : []
+  )
+  setAutoAdsDay(data.day || '')
+  setAutoAdsGeneratedAt(data.generated_at || '')
+  setAdModeReady(true)
+  setAdModeError('')
+}, [])
+
+const loadAdControl = useCallback(async () => {
+  const token = getAdminToken()
+
+  const response = await fetch(
+    `${API_URL}/api/shadow-mall/admin/auto-ads`,
+    {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {},
+      cache: 'no-store',
+    }
+  )
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok || data.ok !== true) {
+    throw new Error(
+      data.message || 'Failed to load Auto Ad settings'
+    )
+  }
+
+  applyAdControl(data)
+}, [applyAdControl])
+
+useEffect(() => {
+  loadAdControl().catch((error) => {
+    setAdModeError(error.message)
+  })
+}, [loadAdControl])
+
+async function changeAdMode(nextMode) {
+  if (
+    !adModeReady ||
+    adModeBusy ||
+    nextMode === adMode
+  ) return
+
+  setAdModeBusy(true)
+  setAdModeError('')
+
+  try {
+    const token = getAdminToken()
+
+    const response = await fetch(
+      `${API_URL}/api/shadow-mall/admin/auto-ads`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token
+            ? { Authorization: `Bearer ${token}` }
+            : {}),
+        },
+        body: JSON.stringify({ mode: nextMode }),
+      }
+    )
+
+    const data = await response.json().catch(() => ({}))
+
+    if (
+      !response.ok ||
+      data.ok !== true ||
+      data.mode !== nextMode
+    ) {
+      throw new Error(
+        data.message || 'Failed to change Ad mode'
+      )
+    }
+
+    applyAdControl(data)
+  } catch (error) {
+    setAdModeError(error.message)
+  } finally {
+    setAdModeBusy(false)
+  }
+}
+
   function applyPromotionPages(pages, visiblePageCount = adsPageRef.current) {
     const visiblePages = pages.slice(0, Math.max(1, visiblePageCount))
     const seen = new Set()
@@ -1627,8 +1727,89 @@ export default function ShadowMallPromotionPage() {
             </div>
           ) : null}
 
-          <section
-            className="promotion-editor-grid"
+          {adMode !== 'auto' ? (
+  <>
+    <section
+      className="promotion-editor-grid"
+            <section
+  style={{
+    background: '#FFFFFF',
+    border: '1px solid #E2E8F0',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+  }}
+>
+  <h2 style={{ fontSize: 18, fontWeight: 800 }}>
+    Discover Ad Control
+  </h2>
+
+  <p style={{
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 6,
+    marginBottom: 16,
+  }}>
+    Select one promotion system. Only the active
+    system delivers ads to Discover.
+  </p>
+
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 12,
+  }}>
+    {[
+      { id: 'manual', title: 'Manual Ad', icon: '📣' },
+      { id: 'auto', title: 'Auto Ad', icon: '📚' },
+    ].map((option) => {
+      const active = adModeReady && adMode === option.id
+
+      return (
+        <button
+          key={option.id}
+          type="button"
+          disabled={!adModeReady || adModeBusy}
+          onClick={() => changeAdMode(option.id)}
+          style={{
+            padding: 18,
+            borderRadius: 14,
+            border: active
+              ? '2px solid #4F46E5'
+              : '1px solid #E2E8F0',
+            background: active ? '#EEF2FF' : '#F8FAFC',
+            color: '#0F172A',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: adModeReady ? 'pointer' : 'not-allowed',
+          }}
+        >
+          <div style={{ fontSize: 24, marginBottom: 8 }}>
+            {option.icon}
+          </div>
+          {option.title}
+          <div style={{
+            marginTop: 7,
+            fontSize: 11,
+            color: active ? '#4F46E5' : '#64748B',
+          }}>
+            {active ? '● Active' : '○ Inactive'}
+          </div>
+        </button>
+      )
+    })}
+  </div>
+
+  {adModeError ? (
+    <p style={{
+      color: '#DC2626',
+      fontSize: 12,
+      marginTop: 12,
+    }}>
+      {adModeError}
+    </p>
+  ) : null}
+</section>
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(360px, 1fr) minmax(320px, 460px)',
@@ -4143,6 +4324,8 @@ export default function ShadowMallPromotionPage() {
               </div>
             ) : null}
           </section>
+  </>
+) : null}
         </main>
       </div>
     </AdminLayout>
