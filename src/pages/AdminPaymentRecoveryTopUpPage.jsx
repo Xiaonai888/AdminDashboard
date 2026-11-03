@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import BinanceCheckoutReviewPanel from '../components/BinanceCheckoutReviewPanel'
+import AdminBinanceTelegramReconcilePanel from '../components/AdminBinanceTelegramReconcilePanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 
@@ -542,7 +543,14 @@ function BinanceAdminPanel({ tab, cacheRef, onBusyChange }) {
                   <td>{row.order_type || '—'}</td>
                   <td><span className={'recovery-pill ' + (row.telegram_alert_status === 'sent' ? 'success' : 'pending_review')}>{row.telegram_alert_status || 'unknown'}</span>{receiptView === 'alerts' ? <div className="recovery-sub">Attempts: {row.attempt_count || 0}{row.last_alert_error ? ' · ' + row.last_alert_error : ''}</div> : null}</td>
                   <td>{row.transaction_time_ms ? formatDate(Number(row.transaction_time_ms)) : formatDate(row.created_at)}</td>
-                  <td>{receiptView === 'received' ? <button type="button" className="recovery-button" disabled={working} onClick={() => chooseReceipt(row.transaction_id)}>{selectedTransaction === row.transaction_id ? 'Close' : 'Verify'}</button> : <span className="recovery-read-only">Read only</span>}</td>
+                  <td>{receiptView === 'received' ? <button type="button" className="recovery-button" disabled={working} onClick={() => chooseReceipt(row.transaction_id)}>{selectedTransaction === row.transaction_id ? 'Close' : 'Verify'}</button> : <AdminBinanceTelegramReconcilePanel
+    row={row}
+    onSuccess={refresh}
+    onReconcile={(id, body) => binanceRequest(
+      '/telegram/' + encodeURIComponent(id) + '/reconcile',
+      { method: 'POST', body: JSON.stringify(body) }
+    )}
+  />}</td>
                 </tr>
               ))}</tbody>
             </table>
