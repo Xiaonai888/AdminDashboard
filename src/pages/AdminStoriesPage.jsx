@@ -485,8 +485,84 @@ function AdminEpisodePreview({ storyType, episode }) {
   ) : <div className="story-admin-muted-box">No content found.</div>
 }
 
-function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) {
+function getAdminEpisodeRestoreState(episode, story) {
+  if (!episode?.deleted_at) return { canRestore: false, reason: '' }
+
+  const deletedAt = Date.parse(episode.deleted_at)
+  const expiresAt = Date.parse(episode.delete_expires_at || '')
+  const now = Date.now()
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000
+
+  if (!Number.isFinite(deletedAt) || !Number.isFinite(expiresAt)) {
+    return { canRestore: false, reason: 'Restore period unavailable' }
+  }
+
+  const deadline = Math.min(deletedAt + thirtyDays, expiresAt)
+  if (deadline <= now) {
+    return { canRestore: false, reason: 'Restore period expired' }
+  }
+
+  if (story?.deleted_at) {
+    return { canRestore: false, reason: 'Restore the story first' }
+  }
+
+  return {
+    canRestore: true,
+    reason: `${Math.ceil((deadline - now) / 86400000)} day(s) left`,
+  }
+}
+
+function StoryDrawer({ story, details, loading, onClose, onAction, canManage, onEpisodeRestored, onAdminTokenExpired }) {
   const [readingEpisode, setReadingEpisode] = useState(null)
+  const [restoreCandidate, setRestoreCandidate] = useState(null)
+  const [restoringEpisode, setRestoringEpisode] = useState(false)
+  const [restoreError, setRestoreError] = useState('')
+  const [restoreNotice, setRestoreNotice] = useState('')
+
+  useEffect(() => {
+    setReadingEpisode(null)
+    setRestoreCandidate(null)
+    setRestoreError('')
+    setRestoreNotice('')
+  }, [story?.id])
+
+  async function confirmRestoreEpisode() {
+    if (!story?.id || !restoreCandidate || !canManage || restoringEpisode) return
+    if (!getAdminEpisodeRestoreState(restoreCandidate, details?.story || story).canRestore) {
+      setRestoreError('This episode can no longer be restored.')
+      return
+    }
+
+    const episodeId = String(restoreCandidate.id)
+    const storyId = String(story.id)
+    const token = getAdminToken()
+    if (!token) {
+      setRestoreError('Admin login required.')
+      return
+    }
+
+    try {
+      setRestoringEpisode(true)
+      setRestoreError('')
+      const response = await fetch(
+        `${API_URL}/api/admin/stories/${encodeURIComponent(storyId)}/episodes/${encodeURIComponent(episodeId)}/restore`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+      )
+      const data = await response.json().catch(() => ({}))
+      if (onAdminTokenExpired?.(response, data)) return
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || 'Failed to restore episode')
+      }
+
+      onEpisodeRestored({ storyId, episodeId, totalEpisodes: data.total_episodes })
+      setRestoreNotice(`Episode #${restoreCandidate.episode_number} restored to Draft. It has not been published.`)
+      setRestoreCandidate(null)
+    } catch (error) {
+      setRestoreError(error.message || 'Failed to restore episode')
+    } finally {
+      setRestoringEpisode(false)
+    }
+  }
 
   if (!story) return null
 
@@ -604,6 +680,9 @@ function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) 
             </div>
 
             <div className="story-admin-section-title">Episodes</div>
+            {restoreNotice ? (
+              <div className="story-admin-restore-notice" role="status">{restoreNotice}</div>
+            ) : null}
             <div className="story-admin-mini-table">
               {episodes.length ? episodes.map((episode) => (
                 <div key={episode.id} className="story-admin-mini-row">
@@ -614,6 +693,22 @@ function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) 
                   <div className="story-admin-mini-right">
                     <StoryStatus label={episode.deleted_at ? 'deleted' : episode.status} />
                     <span>{formatNumber(episode.character_count)} chars</span>
+                    {episode.deleted_at ? (
+                      <span className="story-admin-muted">{getAdminEpisodeRestoreState(episode, fullStory).reason}</span>
+                    ) : null}
+                    {canManage && getAdminEpisodeRestoreState(episode, fullStory).canRestore ? (
+                      <button
+                        type="button"
+                        className="story-admin-btn primary"
+                        disabled={restoringEpisode}
+                        onClick={() => {
+                          setRestoreError('')
+                          setRestoreCandidate(episode)
+                        }}
+                      >
+                        Restore to Draft
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="story-admin-btn light"
@@ -641,6 +736,39 @@ function StoryDrawer({ story, details, loading, onClose, onAction, canManage }) 
           </>
         )}
       </aside>
+
+      {restoreCandidate ? (
+        <div
+          className="story-admin-modal-layer"
+          onMouseDown={(event) => {
+            event.stopPropagation()
+            if (!restoringEpisode) setRestoreCandidate(null)
+          }}
+        >
+          <div className="story-admin-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="story-admin-modal-top">
+              <div>
+                <div className="story-admin-kicker">Episode Recovery</div>
+                <h3>Restore this episode to Draft?</h3>
+              </div>
+              <button type="button" disabled={restoringEpisode} onClick={() => setRestoreCandidate(null)}>×</button>
+            </div>
+            <p className="story-admin-restore-description">
+              EP {restoreCandidate.episode_number}: {restoreCandidate.title || 'Untitled Episode'}
+            </p>
+            <p className="story-admin-restore-description">
+              The episode will be restored as a Draft only. It will not be published, scheduled, or overwrite another episode.
+            </p>
+            {restoreError ? <div className="story-admin-alert" role="alert">{restoreError}</div> : null}
+            <div className="story-admin-modal-actions">
+              <button type="button" className="story-admin-btn light" disabled={restoringEpisode} onClick={() => setRestoreCandidate(null)}>Cancel</button>
+              <button type="button" className="story-admin-btn primary" disabled={restoringEpisode} onClick={confirmRestoreEpisode}>
+                {restoringEpisode ? 'Restoring...' : 'Confirm Restore'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {readingEpisode ? (
         <div className="story-admin-modal-layer" onMouseDown={() => setReadingEpisode(null)}>
@@ -869,6 +997,36 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     const values = stories.map((story) => story.main_genre).filter(Boolean)
     return ['all', ...Array.from(new Set(values))]
   }, [stories])
+
+  function handleEpisodeRestored({ storyId, episodeId, totalEpisodes }) {
+    const count = Number(totalEpisodes)
+    const validCount = Number.isFinite(count) && count >= 0
+    const now = new Date().toISOString()
+
+    setDetails((current) => {
+      if (!current || String(current.story?.id) !== String(storyId)) return current
+      const episodes = (current.episodes || []).map((episode) =>
+        String(episode.id) === String(episodeId)
+          ? { ...episode, status: 'draft', deleted_at: null, delete_expires_at: null,
+              scheduled_at: null, published_at: null, updated_at: now }
+          : episode
+      )
+      const activeCount = episodes.filter((episode) => !episode.deleted_at).length
+      const nextCount = validCount ? count : activeCount
+      return {
+        ...current,
+        story: { ...current.story, total_episodes: nextCount },
+        episodes,
+      }
+    })
+
+    if (validCount) {
+      setStories((current) => current.map((item) =>
+        String(item.id) === String(storyId) ? { ...item, total_episodes: count } : item
+      ))
+    }
+    clearStoriesRequestCache()
+  }
 
   function openAction(action, story) {
     if (!canManageStories) return
@@ -1108,6 +1266,8 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
         }}
         onAction={openAction}
         canManage={canManageStories}
+        onEpisodeRestored={handleEpisodeRestored}
+        onAdminTokenExpired={handleExpiredAdminToken}
       />
 
       {canManageStories ? (
@@ -1125,6 +1285,8 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
 
 const styles = `
   .story-admin-page { display: flex; flex-direction: column; gap: 18px; }
+  .story-admin-restore-notice { margin: 8px 0; padding: 12px; border-radius: 12px; background: #ecfdf5; color: #047857; font-weight: 750; font-size: 13px; }
+  .story-admin-restore-description { margin: 12px 0; color: #475569; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
   .story-admin-alert { border: 1px solid #FECACA; background: #FEF2F2; color: #B91C1C; border-radius: 14px; padding: 12px 14px; font-weight: 850; font-size: 13px; }
   .story-admin-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
   .story-admin-lifecycle-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
