@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import TurnstileBox from '../components/TurnstileBox';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com';
+// Admin login calls use the same-origin Vercel proxy to preserve device cookies.
 
 function makeVerifyCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -285,7 +285,7 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await fetch(`/api/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -350,7 +350,7 @@ export default function LoginPage() {
 
       navigate('/admin', { replace: true });
     } catch {
-      setError('Cannot connect to backend API. Please check VITE_API_URL or backend status.');
+      setError('Cannot connect to the Admin login API. Please check the Vercel proxy and backend status.');
       refreshVerifyCode();
       resetSecurityCheck();
     } finally {
@@ -370,7 +370,7 @@ export default function LoginPage() {
     try {
       setEmailSending(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login/2fa/email/send`, {
+      const response = await fetch(`/api/auth/login/2fa/email/send`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -417,7 +417,7 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login/2fa/verify`, {
+      const response = await fetch(`/api/auth/login/2fa/verify`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -494,7 +494,7 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login/passkey-pin/verify`, {
+      const response = await fetch(`/api/auth/login/passkey-pin/verify`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -559,7 +559,7 @@ export default function LoginPage() {
     try {
       setPasskeyResetSending(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login/passkey-pin/reset/email/send`, {
+      const response = await fetch(`/api/auth/login/passkey-pin/reset/email/send`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -636,7 +636,7 @@ export default function LoginPage() {
     try {
       setPasskeyResetSubmitting(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login/passkey-pin/reset/confirm`, {
+      const response = await fetch(`/api/auth/login/passkey-pin/reset/confirm`, {
         method: 'POST',
         credentials: 'include',
         headers: {
