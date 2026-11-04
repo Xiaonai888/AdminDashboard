@@ -4,6 +4,14 @@
   },
   "rewrites": [
     {
+      "source": "/api/auth/login",
+      "destination": "https://shadow-backend-kucw.onrender.com/api/auth/login"
+    },
+    {
+      "source": "/api/auth/login/:path*",
+      "destination": "https://shadow-backend-kucw.onrender.com/api/auth/login/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
