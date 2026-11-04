@@ -8,15 +8,19 @@ const FUTURE_FLAG = /^[a-z][a-zA-Z0-9_]{0,63}$/
 const NON_BOOLEAN_KEYS = new Set(['storyLanguage', 'shopTarget'])
 
 const DEFAULT_RULES = {
-  kh: { app: true, game: true, physicalBooks: true, binancePay: false, payway: true, shadowMall: true, readerMall: true, payoutBank: true, payoutBinance: false, payoutPhone: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
-  international: { app: false, game: false, physicalBooks: false, binancePay: true, payway: false, shadowMall: false, readerMall: false, payoutBank: false, payoutBinance: false, payoutPhone: true, storyLanguage: 'en', shopTarget: 'diamonds' },
+  kh: { app: true, game: true, physicalBooks: true, binancePay: false, payway: true, premiumPayway: true, premiumBinancePay: false, pdfPayway: true, pdfBinancePay: false, shadowMall: true, readerMall: true, payoutBank: true, payoutBinance: false, payoutPhone: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
+  international: { app: false, game: false, physicalBooks: false, binancePay: true, payway: false, premiumPayway: false, premiumBinancePay: false, pdfPayway: false, pdfBinancePay: false, shadowMall: false, readerMall: false, payoutBank: false, payoutBinance: false, payoutPhone: true, storyLanguage: 'en', shopTarget: 'diamonds' },
 }
 const FEATURES = [
   { key: 'app', title: 'Mine > App', detail: 'Display the App entry and its available tools.', icon: '▦', tone: 'violet' },
   { key: 'game', title: 'Mine > Game', detail: 'Control Game availability by country.', icon: '♟', tone: 'violet' },
   { key: 'physicalBooks', title: 'Physical Books', detail: 'Allow access to physical book shopping.', icon: '▤', tone: 'rose' },
-  { key: 'binancePay', title: 'Binance Pay', detail: 'Show Binance in Diamond payment methods.', icon: '◆', tone: 'amber' },
-  { key: 'payway', title: 'ABA / PayWay', detail: 'Show PayWay in Diamond payment methods.', icon: '▣', tone: 'blue' },
+  { key: 'binancePay', title: 'Diamonds · Binance Pay', detail: 'Allow Binance for Diamond purchases only.', icon: '◆', tone: 'amber' },
+  { key: 'payway', title: 'Diamonds · ABA / PayWay', detail: 'Allow ABA / PayWay for Diamond purchases only.', icon: '▣', tone: 'blue' },
+  { key: 'premiumBinancePay', title: 'Premium · Binance Pay', detail: 'Allow verified Binance Premium checkout. OFF by default until Admin enables it.', icon: '◆', tone: 'amber' },
+  { key: 'premiumPayway', title: 'Premium · ABA / PayWay', detail: 'Allow ABA / PayWay for Premium subscriptions. Independent of Diamonds.', icon: '▣', tone: 'blue' },
+  { key: 'pdfBinancePay', title: 'PDF · Binance Pay', detail: 'Allow Binance to purchase PDF books once PDF checkout launches. OFF by default.', icon: '◆', tone: 'amber' },
+  { key: 'pdfPayway', title: 'PDF · ABA / PayWay', detail: 'Allow ABA / PayWay for PDF books. Independent of Premium and Diamonds.', icon: '▣', tone: 'blue' },
   { key: 'shadowMall', title: 'Shadow Mall', detail: 'Show or hide the Shadow Mall shopping entry.', icon: '🛍', tone: 'orange' },
   { key: 'readerMall', title: 'Reader Mall', detail: 'Show or hide Reader Profile > Mall.', icon: '🛒', tone: 'green' },
   { key: 'payoutBank', title: 'Author Payout · Bank QR', detail: 'Allow authors to choose Bank QR for receiving payouts.', icon: '▣', tone: 'blue' },
@@ -45,6 +49,10 @@ const DEFAULT_OVERRIDE = {
   physicalBooks: 'inherit',
   binancePay: 'inherit',
   payway: 'inherit',
+  premiumPayway: 'inherit',
+  premiumBinancePay: 'inherit',
+  pdfPayway: 'inherit',
+  pdfBinancePay: 'inherit',
   shadowMall: 'inherit',
   readerMall: 'inherit',
   payoutBank: 'inherit',
@@ -247,10 +255,12 @@ function normalizeRules(rules) {
     normalized[region] = {}
     for (const key of [...knownKeys, ...extraKeys]) {
       const flag = rules[region][key]
-      const optionalLegacy = ['game', 'shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone'].includes(key)
+      const optionalLegacy = ['game', 'shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone', 'premiumPayway', 'premiumBinancePay', 'pdfPayway', 'pdfBinancePay'].includes(key)
       if (flag !== undefined && typeof flag !== 'boolean') throw new Error('Invalid feature rule')
       if (flag === undefined && !optionalLegacy) throw new Error('Missing feature rule')
-      normalized[region][key] = flag === undefined ? DEFAULT_RULES[region][key] : flag
+      normalized[region][key] = flag === undefined
+        ? (key === 'premiumPayway' || key === 'pdfPayway' ? rules[region].payway : DEFAULT_RULES[region][key])
+        : flag
     }
     const language = rules[region].storyLanguage
     const shopTarget = rules[region].shopTarget
