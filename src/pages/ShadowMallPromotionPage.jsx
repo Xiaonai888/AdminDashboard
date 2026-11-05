@@ -206,6 +206,35 @@ const defaultForm = {
 
 
 
+// Local countdown only: no extra API calls and no full-page re-render each second.
+function AutoAdCountdown({ nextRefreshAt }) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const next = Date.parse(nextRefreshAt || '')
+  if (!Number.isFinite(next)) return <span>--:--:--</span>
+  const remaining = Math.max(0, next - now)
+  const h = String(Math.floor(remaining / 3600000)).padStart(2, '0')
+  const m = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0')
+  const s = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0')
+  return <span aria-live="off">{`${h}:${m}:${s}`}</span>
+}
+
+// All Auto Ad times shown in Cambodia local time regardless of the admin device timezone.
+function formatAutoAdCambodiaTime(value) {
+  const date = new Date(value || '')
+  if (!Number.isFinite(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Phnom_Penh',
+    year: 'numeric', month: 'short', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(date)
+}
+
 export default function ShadowMallPromotionPage() {
   const navigate = useNavigate()
   const imageInputRef = useRef(null)
@@ -258,6 +287,9 @@ const [adModeError, setAdModeError] = useState('')
 const [autoAds, setAutoAds] = useState([])
 const [autoAdsDay, setAutoAdsDay] = useState('')
 const [autoAdsGeneratedAt, setAutoAdsGeneratedAt] = useState('')
+const [autoAdsSlotKey, setAutoAdsSlotKey] = useState('')
+const [autoAdsSlotStartAt, setAutoAdsSlotStartAt] = useState('')
+const [autoAdsNextRefreshAt, setAutoAdsNextRefreshAt] = useState('')
 
 const applyAdControl = useCallback((data) => {
   if (!['manual', 'auto'].includes(data?.mode)) {
@@ -270,6 +302,9 @@ const applyAdControl = useCallback((data) => {
   )
   setAutoAdsDay(data.day || '')
   setAutoAdsGeneratedAt(data.generated_at || '')
+  setAutoAdsSlotKey(data.slot_key || data.day || '')
+  setAutoAdsSlotStartAt(data.slot_started_at || '')
+  setAutoAdsNextRefreshAt(data.next_refresh_at || '')
   setAdModeReady(true)
   setAdModeError('')
 }, [])
@@ -302,6 +337,26 @@ useEffect(() => {
   loadAdControl().catch((error) => {
     setAdModeError(error.message)
   })
+}, [loadAdControl])
+
+// Refresh once at the new 6-hour time boundary (not each second).
+useEffect(() => {
+  if (!adModeReady || adMode !== 'auto' || !autoAdsNextRefreshAt) return undefined
+  const boundary = Date.parse(autoAdsNextRefreshAt)
+  if (!Number.isFinite(boundary)) return undefined
+  const timer = window.setTimeout(() => {
+    loadAdControl().catch((error) => setAdModeError(error.message))
+  }, Math.max(1000, boundary - Date.now() + 1200))
+  return () => window.clearTimeout(timer)
+}, [adModeReady, adMode, autoAdsNextRefreshAt, loadAdControl])
+
+// A sleeping browser may miss the boundary; refresh when the tab becomes visible.
+useEffect(() => {
+  const refresh = () => {
+    if (!document.hidden) loadAdControl().catch((error) => setAdModeError(error.message))
+  }
+  document.addEventListener('visibilitychange', refresh)
+  return () => document.removeEventListener('visibilitychange', refresh)
 }, [loadAdControl])
 
 async function changeAdMode(nextMode) {
@@ -1728,84 +1783,67 @@ async function changeAdMode(nextMode) {
           ) : null}
 
           <section
-  style={{
-    background: '#FFFFFF',
-    border: '1px solid #E2E8F0',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-  }}
->
-  <h2 style={{ fontSize: 18, fontWeight: 800 }}>
-    Discover Ad Control
-  </h2>
-
-  <p style={{
-    color: '#64748B',
-    fontSize: 12,
-    marginTop: 6,
-    marginBottom: 16,
-  }}>
-    Select one promotion system. Only the active
-    system delivers ads to Discover.
-  </p>
-
-  <div style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: 12,
-  }}>
-    {[
-      { id: 'manual', title: 'Manual Ad', icon: '📣' },
-      { id: 'auto', title: 'Auto Ad', icon: '📚' },
-    ].map((option) => {
-      const active = adModeReady && adMode === option.id
-
-      return (
-        <button
-          key={option.id}
-          type="button"
-          disabled={!adModeReady || adModeBusy}
-          onClick={() => changeAdMode(option.id)}
-          style={{
-            padding: 18,
-            borderRadius: 14,
-            border: active
-              ? '2px solid #4F46E5'
-              : '1px solid #E2E8F0',
-            background: active ? '#EEF2FF' : '#F8FAFC',
-            color: '#0F172A',
-            fontSize: 13,
-            fontWeight: 800,
-            cursor: adModeReady ? 'pointer' : 'not-allowed',
-          }}
-        >
-          <div style={{ fontSize: 24, marginBottom: 8 }}>
-            {option.icon}
-          </div>
-          {option.title}
-          <div style={{
-            marginTop: 7,
-            fontSize: 11,
-            color: active ? '#4F46E5' : '#64748B',
-          }}>
-            {active ? '● Active' : '○ Inactive'}
-          </div>
-        </button>
-      )
-    })}
-  </div>
-
-  {adModeError ? (
-    <p style={{
-      color: '#DC2626',
-      fontSize: 12,
-      marginTop: 12,
-    }}>
-      {adModeError}
-    </p>
-  ) : null}
-</section>
+            style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 20, padding: 20, marginBottom: 20 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 220, flex: 1 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Discover Auto Ads</h2>
+                <p style={{ color: '#64748B', fontSize: 12, marginTop: 7 }}>
+                  ON: Random 10 stories every 6 hours. OFF: Manual Ads.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <strong style={{ color: adModeReady && adMode === 'auto' ? '#15803D' : '#64748B', fontSize: 13 }}>
+                  {!adModeReady ? 'Loading…' : adModeBusy ? 'Saving…' : adMode === 'auto' ? 'ON · Auto Ad' : 'OFF · Manual Ad'}
+                </strong>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-label="Enable Auto Ads"
+                  aria-checked={adModeReady && adMode === 'auto'}
+                  disabled={!adModeReady || adModeBusy}
+                  onClick={() => changeAdMode(adMode === 'auto' ? 'manual' : 'auto')}
+                  style={{
+                    position: 'relative', width: 64, height: 36, borderRadius: 999,
+                    border: 0, background: adModeReady && adMode === 'auto' ? '#16A34A' : '#94A3B8',
+                    cursor: adModeReady && !adModeBusy ? 'pointer' : 'not-allowed',
+                    opacity: adModeBusy ? .6 : 1,
+                    transition: 'background .15s ease',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 4, left: adModeReady && adMode === 'auto' ? 32 : 4,
+                    width: 28, height: 28, borderRadius: '50%', background: '#FFFFFF',
+                    boxShadow: '0 1px 4px #0003', transition: 'left .15s ease',
+                  }} />
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
+              <span style={{ padding: '9px 12px', background: '#F1F5F9', borderRadius: 10, fontSize: 12 }}>
+                Serving: <strong>{!adModeReady ? '—' : adMode === 'auto' ? 'Auto Ad' : 'Manual Ad'}</strong>
+              </span>
+              {adModeReady && adMode === 'auto' ? (
+                <>
+                  <span style={{ padding: '9px 12px', background: '#F0FDF4', color: '#166534', borderRadius: 10, fontSize: 12 }}>
+                    <strong>{autoAds.length}/10</strong> stories · 6-hour rotation
+                  </span>
+                  <span style={{ padding: '9px 12px', background: '#F1F5F9', borderRadius: 10, fontSize: 12 }}>
+                    Last change: <strong>{formatAutoAdCambodiaTime(autoAdsGeneratedAt)}</strong>
+                  </span>
+                  <span style={{ padding: '9px 12px', background: '#F1F5F9', borderRadius: 10, fontSize: 12 }}>
+                    Next change: <strong>{formatAutoAdCambodiaTime(autoAdsNextRefreshAt)}</strong>
+                  </span>
+                  <span style={{ padding: '9px 12px', background: '#F1F5F9', borderRadius: 10, fontSize: 12 }}>
+                    Countdown: <strong><AutoAdCountdown nextRefreshAt={autoAdsNextRefreshAt} /></strong>
+                  </span>
+                </>
+              ) : null}
+            </div>
+            {adModeError ? (
+              <p role="alert" style={{ color: '#DC2626', fontSize: 12, marginTop: 12 }}>{adModeError}</p>
+            ) : null}
+          </section>
 
 {adModeReady && adMode === 'auto' ? (
   <section
@@ -1828,10 +1866,10 @@ async function changeAdMode(nextMode) {
     >
       <div>
         <h2 style={{ fontSize: 18, fontWeight: 800 }}>
-          Daily Auto Ads ({autoAds.length}/10)
+          6-Hour Auto Ads ({autoAds.length}/10)
         </h2>
         <p style={{ fontSize: 12, color: '#64748B' }}>
-          Low-view and new stories · 6+ episodes or completed
+          Eligible new / low-view stories · 6+ episodes or completed · Cambodia time
         </p>
       </div>
 
@@ -1855,9 +1893,13 @@ async function changeAdMode(nextMode) {
     </div>
 
     <p style={{ fontSize: 12, color: '#64748B' }}>
-      Date: {autoAdsDay || '—'}
+      Slot: {autoAdsSlotKey || autoAdsDay || '—'}
       {' · '}
-      Generated: {autoAdsGeneratedAt || '—'}
+      Window starts: {formatAutoAdCambodiaTime(autoAdsSlotStartAt)}
+      {' · '}
+      Last generated: {formatAutoAdCambodiaTime(autoAdsGeneratedAt)}
+      {' · '}
+      Next: {formatAutoAdCambodiaTime(autoAdsNextRefreshAt)}
     </p>
 
     <div
