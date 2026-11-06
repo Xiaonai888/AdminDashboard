@@ -136,18 +136,6 @@ function cleanOwnedPreviewUrl(value, registry) {
   }
 }
 
-function safeFramePreviewUrl(preview, fallback) {
-  if (typeof preview === 'string' && preview.startsWith('blob:')) {
-    try {
-      const url = new URL(preview)
-      if (url.origin === window.location.origin) return url.href
-    } catch {
-      return cleanUrl(fallback)
-    }
-  }
-  return cleanUrl(fallback)
-}
-
 function SafeFrameImage({ src, alt, loading, ownedBlobUrls }) {
   const safeSrc = ownedBlobUrls
     ? cleanOwnedPreviewUrl(src, ownedBlobUrls)
@@ -522,7 +510,7 @@ export default function AdminFrameManagementPage() {
                 {batchCount && batchRef.current.saved.has(i) ? <small>✓ Saved</small> : null}
               </div>)}</div>
             </>}
-            {!picked.length && form.id && cleanUrl(form.image_url) && <div className="sfm-selected"><div className="sfm-selected-item"><img src={cleanUrl(form.image_url)} alt={form.name || 'Current frame'}/><small>Current frame image</small></div></div>}
+            {!picked.length && form.id && cleanUrl(form.image_url) && <div className="sfm-selected"><div className="sfm-selected-item"><SafeFrameImage src={form.image_url} alt={form.name || 'Current frame'} loading="lazy"/><small>Current frame image</small></div></div>}
           </div>
           <div>
             {form.id && <><label className="sfm-label" htmlFor="sfm-name">Frame Name</label><input id="sfm-name" className="sfm-field" maxLength={100} required value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))}/></>}
@@ -550,7 +538,7 @@ export default function AdminFrameManagementPage() {
           <select className="sfm-field" style={{ width: 135 }} aria-label="Frame status" value={status} onChange={event => { setStatus(event.target.value); setPage(1) }}><option value="all">All statuses</option><option value="active">Active</option><option value="hidden">Hidden</option></select>
         </div>
         {loading ? <div className="sfm-empty">Loading 9 frames…</div> : error ? <div className="sfm-empty">Could not load frames. Try Refresh.</div> : rows.length ? <div className="sfm-grid">{rows.map(item => <article className="sfm-card" key={item.id}>
-          <div className="sfm-thumb">{cleanUrl(item.image_url) ? <img src={cleanUrl(item.image_url)} loading="lazy" alt={item.name || 'Frame'}/> : <Icon name="image" size={35}/>}</div>
+          <div className="sfm-thumb">{cleanUrl(item.image_url) ? <SafeFrameImage src={item.image_url} loading="lazy" alt={item.name || 'Frame'}/> : <Icon name="image" size={35}/>}</div>
           <div className="sfm-card-body">
             <p className="sfm-card-name" title={item.name}>{item.name}</p>
             <span className={`sfm-badge ${item.access_tier || 'free'}`}>{accessLabel(item)}</span>
