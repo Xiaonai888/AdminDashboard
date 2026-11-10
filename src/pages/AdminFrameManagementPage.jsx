@@ -137,13 +137,23 @@ function cleanOwnedPreviewUrl(value, registry) {
 }
 
 function SafeFrameImage({ src, alt, loading, ownedBlobUrls }) {
+  const imageRef = useRef(null)
   const safeSrc = ownedBlobUrls
     ? cleanOwnedPreviewUrl(src, ownedBlobUrls)
     : cleanUrl(src)
 
+  useEffect(() => {
+    const element = imageRef.current
+    if (!element || !safeSrc) return undefined
+
+    // Set the validated URL as a DOM property, never as HTML markup.
+    element.src = safeSrc
+    return () => element.removeAttribute('src')
+  }, [safeSrc])
+
   if (!safeSrc) return null
 
-  return <img src={safeSrc} alt={alt || 'Frame'}
+  return <img ref={imageRef} alt={alt || 'Frame'}
     loading={loading} decoding="async"
     referrerPolicy="no-referrer" />
 }
