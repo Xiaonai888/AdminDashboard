@@ -67,7 +67,7 @@ export default function AdminReaderHealthPanel() {
     }
     setLoading(true)
     setError('')
-    fetch(`${API_URL}/api/admin/system-control/reader-health?hours=${hours}&refresh=${refreshIndex ? 1 : 0}`, {
+    fetch(`${API_URL}/api/admin/system-control/reader-health?hours=${hours}`, {
       credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
@@ -88,9 +88,6 @@ export default function AdminReaderHealthPanel() {
   }, [hours, refreshIndex])
 
   const totals = report?.totals || {}
-  const population = Number(totals.sampled_sessions) || 0
-  const affected = Number(totals.affected_sampled_sessions) || 0
-  const sampleRate = population >= 20 ? `${Math.min(100, affected / population * 100).toFixed(1)}%` : '—'
   const categories = Array.isArray(report?.categories) ? report.categories : []
   const pages = Array.isArray(report?.pages) ? report.pages : []
   const browsers = Array.isArray(report?.browsers) ? report.browsers : []
@@ -103,7 +100,7 @@ export default function AdminReaderHealthPanel() {
           <span className="sc-icon blue">RH</span>
           <div>
             <div className="sc-block-title">Reader Health Monitoring</div>
-            <div className="sc-block-subtitle">Real browser evidence · 10% routine sampling · Critical JavaScript errors observed across sessions</div>
+            <div className="sc-block-subtitle">Issue-only reports · No idle heartbeat · 10% sampled performance signals</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -133,7 +130,6 @@ export default function AdminReaderHealthPanel() {
             <Metric label="Observed affected sessions" value={count(totals.affected_sessions_observed)} description="Reported issues, sampled and critical; not a count of people" />
             <Metric label="Confirmed error sessions" value={count(totals.confirmed_error_sessions)} description="JavaScript, promise or app file errors" />
             <Metric label="Slowdown signal sessions" value={count(totals.slowdown_signal_sessions)} description="Timing warnings; may not be true freezes" />
-            <Metric label="Sampled affected rate" value={sampleRate} description={`${count(affected)} of ${count(population)} sampled sessions · ≥20 required for rate`} />
             <Metric label="Suspected stall events" value={count(totals.suspected_freeze_events)} description="Browser event-loop delays, not verified hard freezes" />
           </div>
           <DataTable title="Issue categories" columns={['Signal', 'Events', 'Affected sessions', 'Longest']} rows={categories}
@@ -145,7 +141,7 @@ export default function AdminReaderHealthPanel() {
           <DataTable title="Repeated error fingerprints" columns={['Type', 'Page', 'Fingerprint', 'Sessions']} rows={signatures}
             render={(row) => [EVENT_LABELS[row.event_type] || row.event_type, row.page_group, row.fingerprint || '—', count(row.affected_sessions)]} />
           <div style={{ color: MUTED, fontSize: 11, lineHeight: 1.7 }}>
-            Session counts are not unique people. Routine signals are sampled at 10%; critical JavaScript signals are captured outside that sample. The affected-rate numerator and denominator use sampled sessions only. Browser reports can be lost if a tab or device stops responding entirely. Error fingerprints contain no raw messages or private page IDs. Reports are retained for up to 14 days after periodic cleanup.
+            Session counts are not unique people. No routine session records are sent, so an affected-user percentage cannot be calculated from this dataset alone. Performance signals are sampled at 10%, and critical JavaScript errors are captured outside the sample, with per-tab daily limits. Browser reports can be lost when a tab or device freezes completely. Error fingerprints contain no raw messages or private page IDs. Reports are retained until cleanup after subsequent incident writes.
           </div>
           <div style={{ color: MUTED, fontSize: 10 }}>
             Ingestion queue: {count(report.ingestion?.queued)} · Dropped since Backend restart: {count(report.ingestion?.events_dropped_since_restart)}
