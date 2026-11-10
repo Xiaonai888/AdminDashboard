@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout'
 import AdminRequestEvidencePanel from '../components/AdminRequestEvidencePanel'
 import AdminPerformanceDiagnosticsPanel from '../components/AdminPerformanceDiagnosticsPanel'
 import AdminImageDiagnosticsPanel from '../components/AdminImageDiagnosticsPanel'
+import AdminReaderHealthPanel from '../components/AdminReaderHealthPanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -2164,6 +2165,7 @@ export default function AdminSystemControlPage() {
         <GuestRequestControlPanel snapshot={guestRequestSnapshot} loading={loading} />
         <AdminPerformanceDiagnosticsPanel diagnostics={performanceDiagnostics} />
         <AdminImageDiagnosticsPanel diagnostics={imageDiagnostics} />
+        <AdminReaderHealthPanel />
         <AdminRequestEvidencePanel evidence={requestEvidence} />
         <section className="sc-block">
           <div className="sc-block-head">
