@@ -36,7 +36,7 @@ const styles = `
 `
 
 function getAdminToken(){return sessionStorage.getItem('shadow_admin_token')||localStorage.getItem('shadow_admin_token')||''}
-function normalizeSettings(settings){return{enabled:Boolean(settings?.enabled),mode:settings?.mode==='auto'?'auto':'manual',manualAdId:settings?.manual_ad_id||null,rotateEverySeconds:Math.max(60,Number(settings?.rotate_every_seconds||3600)),maxAds:Math.max(1,Number(settings?.max_ads||1)),rotationStartedAt:settings?.rotation_started_at||null}}
+function normalizeSettings(settings){return{enabled:Boolean(settings?.enabled),mode:['manual','auto','auto_system'].includes(settings?.mode)?settings.mode:'manual',manualAdId:settings?.manual_ad_id||null,rotateEverySeconds:Math.max(60,Number(settings?.rotate_every_seconds||3600)),maxAds:Math.max(1,Number(settings?.max_ads||1)),rotationStartedAt:settings?.rotation_started_at||null}}
 function createEditor(title){return{id:null,name:`New ${title}`,enabled:true,imageUrl:'',linkUrl:'',badge:'NEW',durationSeconds:5,closeAfterSeconds:3,frequency:'once_per_session',inLoop:false,sortOrder:null,isArchived:false}}
 function itemToEditor(item,title){if(!item)return createEditor(title);return{id:item.id,name:item.name||`${title} ${item.id}`,enabled:Boolean(item.enabled),imageUrl:item.image_url||'',linkUrl:item.link_url||'',badge:item.badge||'',durationSeconds:Number(item.duration_seconds??5),closeAfterSeconds:Number(item.close_after_seconds??3),frequency:item.frequency||'once_per_session',inLoop:Boolean(item.in_loop),sortOrder:Number(item.sort_order||1),isArchived:Boolean(item.is_archived)}}
 function intervalParts(seconds){const value=Math.max(60,Number(seconds||3600));if(value%3600===0)return{value:value/3600,unit:'hours'};return{value:Math.max(1,Math.round(value/60)),unit:'minutes'}}
@@ -169,21 +169,28 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   }
 
   useEffect(()=>{loadRotation()},[apiPrefix,page,perPage,libraryTab,filter,search])
-  useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer)},[])
+  useEffect(()=>{if(settings.mode==='auto_system')return undefined;const timer=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(timer)},[settings.mode])
   useEffect(()=>()=>{if(previewUrl?.startsWith('blob:'))URL.revokeObjectURL(previewUrl);if(cropImage?.startsWith('blob:'))URL.revokeObjectURL(cropImage)},[previewUrl,cropImage])
   useEffect(()=>{if(!manageOpen)return;const root=document.documentElement;const targets=[document.body,root,...document.querySelectorAll('.shadow-admin-main,.main-content')];const unique=[...new Set(targets.filter(Boolean))];const previous=unique.map(element=>({element,overflow:element.style.overflow,overflowY:element.style.overflowY,overscrollBehavior:element.style.overscrollBehavior}));const bodyPaddingRight=document.body.style.paddingRight;const scrollbar=Math.max(0,window.innerWidth-root.clientWidth);unique.forEach(element=>{element.style.overflow='hidden';element.style.overflowY='hidden';element.style.overscrollBehavior='none'});if(scrollbar)document.body.style.paddingRight=`${scrollbar}px`;return()=>{previous.forEach(({element,overflow,overflowY,overscrollBehavior})=>{element.style.overflow=overflow;element.style.overflowY=overflowY;element.style.overscrollBehavior=overscrollBehavior});document.body.style.paddingRight=bodyPaddingRight}},[manageOpen])
   useEffect(()=>{const handlePointerDown=event=>{if(!event.target.closest?.('.arm-more'))setOpenMoreId(null)};const handleKeyDown=event=>{if(event.key==='Escape')setOpenMoreId(null)};document.addEventListener('pointerdown',handlePointerDown);document.addEventListener('keydown',handleKeyDown);return()=>{document.removeEventListener('pointerdown',handlePointerDown);document.removeEventListener('keydown',handleKeyDown)}},[])
   useEffect(()=>{if(!hasChanges)return;const handler=event=>{event.preventDefault();event.returnValue=''};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler)},[hasChanges])
 
   function switchMode(mode){
-    if(saving||loading||settings.mode===mode||!['manual','auto'].includes(mode))return
-    stageSettings({mode})
-    setSettings(previous=>({...previous,mode}))
-    setEditorOpen(false)
-    setSelectedId(null)
-    setMessage('Mode changed locally. Click Save Changes to publish.')
-    setError('')
+  const supported=mode==='manual'||mode==='auto'||(placement==='freeUnlock'&&mode==='auto_system')
+  if(saving||loading||settings.mode===mode||!supported)return
+  const pending=getDraft()
+  if((mode==='auto_system'||settings.mode==='auto_system')&&(pending.items.length||pending.moves.length)){
+    setError('Save or discard Ad library changes before switching Auto System.')
+    return
   }
+  stageSettings({mode})
+  setSettings(previous=>({...previous,mode}))
+  setPreviewItem(null)
+  setEditorOpen(false)
+  setSelectedId(null)
+  setMessage('Mode changed locally. Click Save Changes to publish.')
+  setError('')
+}
 
   function updateLocalSettings(field,value){
     const key={enabled:'enabled',maxAds:'max_ads',manualAdId:'manual_ad_id'}[field]
@@ -335,11 +342,11 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
 
   const pageNumbers=Array.from({length:Math.min(5,pagination.total_pages)},(_,index)=>{const start=Math.max(1,Math.min(pagination.page-2,pagination.total_pages-4));return start+index}).filter(number=>number<=pagination.total_pages)
 
-  return <><style>{styles}</style><div className="arm-shell">
+  return <><style>{styles}</style><div className="arm-shell" style={{gridTemplateColumns:settings.mode==='auto_system'?'minmax(0,1fr)':undefined}}>
     <section className="arm-card"><div className="arm-head"><div><h3>{title} Settings</h3><p>Manual LIVE and Auto Loop use separate selection controls. Ad images and availability belong to the shared library.</p></div><span className={`arm-status ${settings.enabled?'':'off'}`}><span className="arm-dot"/>{settings.enabled?'Active':'Disabled'}</span></div>
     <div className="arm-body"><div className="arm-settings">
       <div className="arm-toggle-row"><div><div className="arm-title">Enable {title}</div><div className="arm-help">Master switch for this placement.</div></div><button type="button" className={`arm-switch ${settings.enabled?'on':''}`} onClick={()=>updateLocalSettings('enabled',!settings.enabled)}><span/></button></div>
-      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Each mode keeps its own selection. Switching modes does not replace the other selection.</div><div className="arm-mode" style={{marginTop:8}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button></div></div>
+      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Each mode keeps its own selection. Switching modes does not replace the other selection.</div><div className="arm-mode" style={{marginTop:8,gridTemplateColumns:placement==='freeUnlock'?'repeat(3,minmax(0,1fr))':undefined}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button> {placement==='freeUnlock'?<button type="button" className={settings.mode==='auto_system'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto_system')}>Auto System</button>:null}</div></div>
       {settings.mode==='auto'?<div className="arm-grid"><div className="arm-field"><label>Rotate Every</label><div className="arm-interval"><input className="arm-input" type="number" min="1" value={intervalValue} onChange={event=>updateRotateInterval(Math.max(1,Number(event.target.value||1)),intervalUnit)}/><select className="arm-input" value={intervalUnit} onChange={event=>updateRotateInterval(intervalValue,event.target.value)}><option value="minutes">Minutes</option><option value="hours">Hours</option></select></div></div><div className="arm-field"><label>Max Ads in Loop</label><input className="arm-input" type="number" min="1" value={settings.maxAds} onChange={event=>updateLocalSettings('maxAds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Next Change</label><input className="arm-input" value={remainingLabel||'—'} readOnly/></div></div>:null}
       <div className="arm-current-grid"><MiniStatusCard label={settings.mode==='manual'?'Manual LIVE Ad':'Auto Current Ad'} item={currentItem}/>{settings.mode==='auto'?<MiniStatusCard label="Auto Next Ad" item={nextItem}/>:null}</div>
       {settings.mode==='auto'&&settings.enabled&&loopItems.length===0?<div className="arm-warning">Auto is enabled but no eligible Ad is in the loop. No fallback Ad will show.</div>:null}
