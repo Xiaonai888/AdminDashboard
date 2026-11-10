@@ -67,7 +67,7 @@ export default function AdminReaderHealthPanel() {
     }
     setLoading(true)
     setError('')
-    fetch(`${API_URL}/api/admin/system-control/reader-health?hours=${hours}`, {
+    fetch(`${API_URL}/api/admin/reader-health?hours=${hours}`, {
       credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
