@@ -176,7 +176,7 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
   useEffect(()=>{if(!hasChanges)return;const handler=event=>{event.preventDefault();event.returnValue=''};window.addEventListener('beforeunload',handler);return()=>window.removeEventListener('beforeunload',handler)},[hasChanges])
 
   function switchMode(mode){
-  const supported=mode==='manual'||mode==='auto'||(placement==='freeUnlock'&&mode==='auto_system')
+  const supported=mode==='manual'||mode==='auto'||(['opening','freeUnlock','me'].includes(placement)&&mode==='auto_system')
   if(saving||loading||settings.mode===mode||!supported)return
   const pending=getDraft()
   if((mode==='auto_system'||settings.mode==='auto_system')&&(pending.items.length||pending.moves.length)){
@@ -346,13 +346,13 @@ export default function AdvertisementRotationManager({title,apiPrefix,uploadFile
     <section className="arm-card"><div className="arm-head"><div><h3>{title} Settings</h3><p>Manual LIVE and Auto Loop use separate selection controls. Ad images and availability belong to the shared library.</p></div><span className={`arm-status ${settings.enabled?'':'off'}`}><span className="arm-dot"/>{settings.enabled?'Active':'Disabled'}</span></div>
     <div className="arm-body"><div className="arm-settings">
       <div className="arm-toggle-row"><div><div className="arm-title">Enable {title}</div><div className="arm-help">Master switch for this placement.</div></div><button type="button" className={`arm-switch ${settings.enabled?'on':''}`} onClick={()=>updateLocalSettings('enabled',!settings.enabled)}><span/></button></div>
-      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Each mode keeps its own selection. Switching modes does not replace the other selection.</div><div className="arm-mode" style={{marginTop:8,gridTemplateColumns:placement==='freeUnlock'?'repeat(3,minmax(0,1fr))':undefined}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button> {placement==='freeUnlock'?<button type="button" className={settings.mode==='auto_system'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto_system')}>Auto System</button>:null}</div></div>
+      <div><div className="arm-title">Ad Mode</div><div className="arm-help">Each mode keeps its own selection. Switching modes does not replace the other selection.</div><div className="arm-mode" style={{marginTop:8,gridTemplateColumns:['opening','freeUnlock','me'].includes(placement)?'repeat(3,minmax(0,1fr))':undefined}}><button type="button" className={settings.mode==='manual'?'active':''} disabled={saving||loading} onClick={()=>switchMode('manual')}>Manual</button><button type="button" className={settings.mode==='auto'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto')}>Auto Rotation</button> {['opening','freeUnlock','me'].includes(placement)?<button type="button" className={settings.mode==='auto_system'?'active':''} disabled={saving||loading} onClick={()=>switchMode('auto_system')}>Auto System</button>:null}</div></div>
       {settings.mode==='auto'?<div className="arm-grid"><div className="arm-field"><label>Rotate Every</label><div className="arm-interval"><input className="arm-input" type="number" min="1" value={intervalValue} onChange={event=>updateRotateInterval(Math.max(1,Number(event.target.value||1)),intervalUnit)}/><select className="arm-input" value={intervalUnit} onChange={event=>updateRotateInterval(intervalValue,event.target.value)}><option value="minutes">Minutes</option><option value="hours">Hours</option></select></div></div><div className="arm-field"><label>Max Ads in Loop</label><input className="arm-input" type="number" min="1" value={settings.maxAds} onChange={event=>updateLocalSettings('maxAds',Math.max(1,Number(event.target.value||1)))}/></div><div className="arm-field"><label>Next Change</label><input className="arm-input" value={remainingLabel||'—'} readOnly/></div></div>:null}
       {settings.mode==='auto_system'?(
   <div className="arm-warning">
     <strong>Shared Smart Ad Engine</strong>
-    <p>10 personalized Story Cover Ads per reader.</p>
-    <p>Queue refreshes every 6 hours (Cambodia time).</p>
+    <p>{placement==='freeUnlock'?'10 personalized Story Cover Ads per reader.':'One personalized Story Cover Ad per eligible display.'}</p>
+    <p>{placement==='freeUnlock'?'Queue refreshes every 6 hours (Cambodia time).':'Selection follows placement frequency and the shared catalog.'}</p>
     <p>Manual and Auto Rotation are preserved.</p>
   </div>
 ):null}
