@@ -116,11 +116,27 @@ function canManage() {
 }
 
 function cleanUrl(value) {
-  if (typeof value !== 'string' || !value.trim()) return ''
+  if (typeof value !== 'string' || !value.trim() || /[\u0000-\u001f\u007f<>]/.test(value)) return ''
   try {
     const url = new URL(value.trim())
     return url.protocol === 'https:' && !url.username && !url.password ? url.href : ''
   } catch { return '' }
+}
+
+function plainFrameText(value, limit = 100) {
+  return typeof value === 'string'
+    ? value.replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, limit)
+    : ''
+}
+
+function safeFrameRow(item) {
+  if (!item || typeof item !== 'object') return null
+  return {
+    ...item,
+    name: plainFrameText(item.name),
+    image_url: cleanUrl(item.image_url),
+    access_tier: ['free', 'premium', 'coins', 'diamonds'].includes(item.access_tier) ? item.access_tier : 'free',
+  }
 }
 
 // Permit preview images only when this page created their Blob URLs itself.
@@ -212,7 +228,9 @@ function loadFolders() {
   if (scope.pending) return scope.pending
   const pending = request('/folders', { token }).then(data => {
     if (!Array.isArray(data.folders)) throw new Error('Folder list is unavailable')
-    const folders = data.folders.some(item => item.id === null) ? data.folders : [{ id: null, name: 'General' }, ...data.folders]
+    const folders = (data.folders.some(item => item.id === null) ? data.folders : [{ id: null, name: 'General' }, ...data.folders])
+      .filter(item => item && typeof item === 'object')
+      .map(item => ({ ...item, name: plainFrameText(item.name, 80) || 'General' }))
     if (scope === folderCache) { scope.folders = folders; scope.at = Date.now() }
     return folders
   }).finally(() => { if (scope === folderCache) scope.pending = null })
@@ -236,7 +254,7 @@ function validateFrame(file) {
   })
 }
 
-function imageName(file) { return file.name.replace(/\.(png|webp)$/i, '').replace(/[_-]+/g, ' ').trim().slice(0, 100) || 'New Frame' }
+function imageName(file) { return plainFrameText(file.name.replace(/\.(png|webp)$/i, '').replace(/[_-]+/g, ' ')) || 'New Frame' }
 function newForm() { return { id: '', name: '', folder_id: '', access_tier: 'free', coin_price: '', diamond_price: '', is_active: true, sort_order: 0 } }
 function accessLabel(item) {
   if (item.access_tier === 'premium') return '♛ PREMIUM'
@@ -312,7 +330,7 @@ export default function AdminFrameManagementPage() {
     loadFrames(query).then(data => {
       if (id !== requestId.current) return
       const items = Array.isArray(data.items) ? data.items : Array.isArray(data.frames) ? data.frames : []
-      setRows(items.slice(0, PAGE_SIZE))
+      setRows(items.slice(0, PAGE_SIZE).map(safeFrameRow).filter(Boolean))
       setPagination(data.pagination || { page, total_pages: page, total: items.length, has_more: items.length === PAGE_SIZE })
     }).catch(err => { if (id === requestId.current) setError(err.message || 'Unable to load frames') })
       .finally(() => { if (id === requestId.current) setLoading(false) })
@@ -374,7 +392,7 @@ export default function AdminFrameManagementPage() {
 
   const createFolder = async event => {
     event.preventDefault()
-    const name = folderName.trim()
+    const name = plainFrameText(folderName, 80)
     if (!name || name.length > 80) { setError('Folder name must be 1–80 characters'); return }
     if (busy) return
     setBusy(true); setError('')
@@ -394,7 +412,7 @@ export default function AdminFrameManagementPage() {
     if (busy) return
     const proposed = window.prompt('Rename folder', folder.name)
     if (proposed === null || proposed.trim() === folder.name) return
-    const name = proposed.trim()
+    const name = plainFrameText(proposed, 80)
     if (!name || name.length > 80) { setError('Folder name must be 1–80 characters'); return }
     setBusy(true); setError('')
     try { await request(`/folders/${encodeURIComponent(folder.id)}`, { method: 'PATCH', body: { name } }); await reloadFolders(); setNotice('Folder renamed') }
@@ -431,12 +449,12 @@ export default function AdminFrameManagementPage() {
     event.preventDefault()
     if (!allowed || busy) return
     if (!form.id && (!picked.length || picked.length > MAX_FILES)) { setError('Choose 1–20 images'); return }
-    if (form.id && !form.name.trim()) { setError('Frame name is required'); return }
+    if (form.id && !plainFrameText(form.name)) { setError('Frame name is required'); return }
     const coinPrice = form.access_tier === 'coins' ? Number(form.coin_price) : 0
     const diamondPrice = form.access_tier === 'diamonds' ? Number(form.diamond_price) : 0
     if (form.access_tier === 'coins' && (!Number.isSafeInteger(coinPrice) || coinPrice < 1 || coinPrice > 1000000000)) { setError('Enter a valid Coin price'); return }
     if (form.access_tier === 'diamonds' && (!Number.isSafeInteger(diamondPrice) || diamondPrice < 1 || diamondPrice > 1000000000)) { setError('Enter a valid Diamond price'); return }
-    if (!form.id && picked.some(item => !item.name.trim() || item.name.trim().length > 100)) { setError('Each frame needs a name of 1–100 characters'); return }
+    if (!form.id && picked.some(item => !plainFrameText(item.name) || item.name.trim().length > 100)) { setError('Each frame needs a name of 1–100 characters'); return }
     if (form.folder_id && !folders.some(item => item.id === form.folder_id)) { setError('Select an existing folder'); return }
     setBusy(true); setError(''); setNotice('')
     const token = getToken()
@@ -450,13 +468,13 @@ export default function AdminFrameManagementPage() {
       const common = { folder_id: form.folder_id || null, access_tier: form.access_tier, coin_price: coinPrice, diamond_price: diamondPrice, is_active: form.is_active, sort_order: Number(form.sort_order) || 0 }
       if (form.id) {
         await request(`/${encodeURIComponent(form.id)}`, { method: 'PATCH', token, body: {
-          ...common, name: form.name.trim(), ...(picked.length ? { image_url: batchRef.current.uploads[0].image_url, storage_key: batchRef.current.uploads[0].storage_key } : {}),
+          ...common, name: plainFrameText(form.name), ...(picked.length ? { image_url: batchRef.current.uploads[0].image_url, storage_key: batchRef.current.uploads[0].storage_key } : {}),
         } })
       } else {
         for (let i = 0; i < picked.length; i += 1) {
           if (batchRef.current.saved.has(i)) continue
           const image = batchRef.current.uploads[i]
-          await request('', { method: 'POST', token, body: { ...common, name: picked[i].name.trim(), sort_order: Math.min(100000, Number(common.sort_order) + i), image_url: image.image_url, storage_key: image.storage_key } })
+          await request('', { method: 'POST', token, body: { ...common, name: plainFrameText(picked[i].name), sort_order: Math.min(100000, Number(common.sort_order) + i), image_url: image.image_url, storage_key: image.storage_key } })
           batchRef.current.saved.add(i)
           setBatchCount(batchRef.current.saved.size)
         }
