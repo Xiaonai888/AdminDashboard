@@ -11,11 +11,17 @@ const DEFAULT_RULES = {
   kh: { app: true, game: true, physicalBooks: true, binancePay: false, payway: true, premiumPayway: true, premiumBinancePay: false, pdfPayway: true, pdfBinancePay: false, shadowMall: true, readerMall: true, payoutBank: true, payoutBinance: false, payoutPhone: true, storyLanguage: 'km', shopTarget: 'shadow_mall' },
   international: { app: false, game: false, physicalBooks: false, binancePay: true, payway: false, premiumPayway: false, premiumBinancePay: false, pdfPayway: false, pdfBinancePay: false, shadowMall: false, readerMall: false, payoutBank: false, payoutBinance: false, payoutPhone: true, storyLanguage: 'en', shopTarget: 'diamonds' },
 }
+
+
+DEFAULT_RULES.kh.readerPaymentBinance = false
+DEFAULT_RULES.international.readerPaymentBinance = true
+
 const FEATURES = [
   { key: 'app', title: 'Mine > App', detail: 'Display the App entry and its available tools.', icon: '▦', tone: 'violet' },
   { key: 'game', title: 'Mine > Game', detail: 'Control Game availability by country.', icon: '♟', tone: 'violet' },
   { key: 'physicalBooks', title: 'Physical Books', detail: 'Allow access to physical book shopping.', icon: '▤', tone: 'rose' },
   { key: 'binancePay', title: 'Diamonds · Binance Pay', detail: 'Allow Binance for Diamond purchases only.', icon: '◆', tone: 'amber' },
+  { key: 'readerPaymentBinance', title: 'Reader Payment Profile · Binance', detail: 'Show Binance Name and UID in Reader Wallet Payment Profile and first Diamond purchase.', icon: '◆', tone: 'amber' },
   { key: 'payway', title: 'Diamonds · ABA / PayWay', detail: 'Allow ABA / PayWay for Diamond purchases only.', icon: '▣', tone: 'blue' },
   { key: 'premiumBinancePay', title: 'Premium · Binance Pay', detail: 'Allow verified Binance Premium checkout. OFF by default until Admin enables it.', icon: '◆', tone: 'amber' },
   { key: 'premiumPayway', title: 'Premium · ABA / PayWay', detail: 'Allow ABA / PayWay for Premium subscriptions. Independent of Diamonds.', icon: '▣', tone: 'blue' },
@@ -48,6 +54,7 @@ const DEFAULT_OVERRIDE = {
   game: 'inherit',
   physicalBooks: 'inherit',
   binancePay: 'inherit',
+  readerPaymentBinance: 'inherit',
   payway: 'inherit',
   premiumPayway: 'inherit',
   premiumBinancePay: 'inherit',
@@ -255,7 +262,7 @@ function normalizeRules(rules) {
     normalized[region] = {}
     for (const key of [...knownKeys, ...extraKeys]) {
       const flag = rules[region][key]
-      const optionalLegacy = ['game', 'shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone', 'premiumPayway', 'premiumBinancePay', 'pdfPayway', 'pdfBinancePay'].includes(key)
+      const optionalLegacy = ['game', 'shadowMall', 'readerMall', 'payoutBank', 'payoutBinance', 'payoutPhone', 'premiumPayway', 'premiumBinancePay', 'pdfPayway', 'pdfBinancePay', 'readerPaymentBinance'].includes(key)
       if (flag !== undefined && typeof flag !== 'boolean') throw new Error('Invalid feature rule')
       if (flag === undefined && !optionalLegacy) throw new Error('Missing feature rule')
       normalized[region][key] = flag === undefined
