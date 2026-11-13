@@ -35,6 +35,16 @@ async function apiError(response) {
   return new Error(body.message || `Resource & Cost request failed (${response.status}).`)
 }
 
+export async function loadResourceCostHealth(signal) {
+  const response = await fetch(`${ROOT}/health`, requestOptions(signal))
+  if (!response.ok) throw await apiError(response)
+  const result = await response.json().catch(() => null)
+  if (result?.ok !== true || !result.health || !result.health.sources) {
+    throw new Error('Resource & Cost health check returned incomplete data.')
+  }
+  return result.health
+}
+
 export async function loadResourceCostSummary(options = {}, signal) {
   const response = await fetch(`${ROOT}/summary?${queryString(options)}`, requestOptions(signal))
   if (!response.ok) throw await apiError(response)
