@@ -58,6 +58,7 @@ import AdminBoostDashboardPage from './pages/AdminBoostDashboardPage';
 import AdminCountrySettingsPage from './pages/AdminCountrySettingsPage';
 import AdminReaderClassificationPage from './pages/AdminReaderClassificationPage';
 import AdminSystemControlPage from './pages/AdminSystemControlPage';
+import AdminResourceCostPage from './pages/AdminResourceCostPage';
 import AdminSystemUsageAnalyticsPage from './pages/AdminSystemUsageAnalyticsPage';
 import AdminSystemRenderDetailPage from './pages/AdminSystemRenderDetailPage';
 import AdminSystemSupabaseDetailPage from './pages/AdminSystemSupabaseDetailPage';
@@ -287,6 +288,7 @@ export default function App() {
         <Route path="/country-settings" element={<ProtectedPage permission="system_control.manage"><AdminCountrySettingsPage /></ProtectedPage>} />
         <Route path="/reader-classification" element={<ProtectedPage permission="system_control.manage"><AdminReaderClassificationPage /></ProtectedPage>} />
         <Route path="/alerts/system-control" element={<ProtectedPage permission="system_control.view"><AdminSystemControlPage /></ProtectedPage>} />
+        <Route path="/alerts/resource-cost" element={<ProtectedPage permission="system_control.view"><AdminResourceCostPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/usage" element={<ProtectedPage permission="system_control.view"><AdminSystemUsageAnalyticsPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/render" element={<ProtectedPage permission="system_control.view"><AdminSystemRenderDetailPage /></ProtectedPage>} />
         <Route path="/alerts/system-control/supabase" element={<ProtectedPage permission="system_control.view"><AdminSystemSupabaseDetailPage /></ProtectedPage>} />
