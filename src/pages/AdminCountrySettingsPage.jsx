@@ -361,7 +361,7 @@ export default function AdminCountrySettingsPage() {
         if (!data.rules) throw new Error('Country rules API is not ready')
         const next = normalizeRules(data.rules)
         setRules(next)
-        setSavedRules(next)
+        setSavedRules(data.rules)
         setConnected(true)
       })
       .catch(error => {
