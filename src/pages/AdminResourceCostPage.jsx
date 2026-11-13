@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import { ResourceCostTrend, ResourceCostTrafficSplit, ResourceCostTopDrivers } from '../components/ResourceCostVisuals'
-import { loadResourceCostSummary, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
+import { loadResourceCostSummary, loadResourceCostHealth, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
 import '../styles/adminResourceCost.css'
+import '../styles/adminResourceCostHealth.css'
 
 const periods = [
   { value: 'today', label: 'Today' },
@@ -54,6 +55,93 @@ function InfoCard({ title, value, note, tone = 'purple' }) {
   </div>
 }
 
+const sourceDetails = [
+  { key: 'render', title: 'Render bandwidth' },
+  { key: 'supabase', title: 'Supabase usage' },
+  { key: 'cloudflare_r2', title: 'Cloudflare R2' },
+  { key: 'upload_audit', title: 'Upload audit' },
+  { key: 'application', title: 'Application records' },
+]
+
+function healthStatus(source, provider) {
+  const sync = provider?.sync_status
+  if (source?.status === 'table_missing') return { label: 'SQL missing', tone: 'investigate' }
+  if (source?.status === 'query_failed') return { label: 'Cannot read', tone: 'investigate' }
+  if (sync === 'not_configured') return { label: 'Not configured', tone: 'watch' }
+  if (sync === 'error') return { label: 'Sync error', tone: 'investigate' }
+  if (source?.status === 'delayed') return { label: 'Delayed', tone: 'watch' }
+  if (source?.status === 'no_measurements') return { label: 'No measurements', tone: 'watch' }
+  if (sync === 'partial' || sync === 'empty') return { label: 'Partial sync', tone: 'watch' }
+  if (source?.status === 'recent') return { label: 'Recent', tone: 'good' }
+  if (source?.status === 'recorded') return { label: 'Recorded', tone: 'good' }
+  if (source?.status === 'no_recorded_events') return { label: 'No recorded events', tone: 'neutral' }
+  return { label: 'Not verified', tone: 'neutral' }
+}
+
+function warningText(code) {
+  const special = {
+    database_setup_incomplete: 'One or more required SQL tables are missing.',
+    database_source_unavailable: 'One or more database sources cannot be read.',
+    upload_audit_save_failures: 'Some upload audit saves failed.',
+    upload_audit_not_yet_persisted: 'Upload audit records are still waiting to be saved.',
+    upload_audit_overflow: 'Some upload audit routes were grouped as overflow.',
+  }
+  if (special[code]) return special[code]
+  const match = String(code).match(/^(render|supabase|cloudflare_r2)_(measurements_delayed|measurements_missing|not_configured|provider_sync_error)$/)
+  if (!match) return 'Resource & Cost source requires review.'
+  const name = { render: 'Render', supabase: 'Supabase', cloudflare_r2: 'Cloudflare R2' }[match[1]]
+  const issue = {
+    measurements_delayed: 'data is delayed',
+    measurements_missing: 'has no stored measurements',
+    not_configured: 'provider access is not configured',
+    provider_sync_error: 'provider sync failed',
+  }[match[2]]
+  return `${name}: ${issue}.`
+}
+
+function HealthPanel({ health, loading, error }) {
+  const warnings = Array.isArray(health?.warnings) ? health.warnings : []
+  const status = !health ? { label: 'Not checked', tone: 'neutral' }
+    : health.database_readable === false ? { label: 'Database review needed', tone: 'investigate' }
+      : warnings.length > 0 ? { label: 'Review needed', tone: 'watch' }
+        : { label: 'Sources reachable', tone: 'good' }
+  const pending = Number(health?.upload_queue?.pending_attempts) || 0
+  const failed = Number(health?.upload_queue?.failed_flushes) || 0
+  return <section className="rc-panel rc-health-panel" aria-label="Resource and Cost collection health" aria-live="polite">
+    <div className="rc-panel-head rc-health-heading">
+      <div>
+        <h2>Collection Health</h2>
+        <p>Saved provider measurements, database access and upload audit · not billing verification</p>
+      </div>
+      <Badge state={status.tone}>{loading ? 'Checking…' : status.label}</Badge>
+    </div>
+    {error && <div className="rc-health-unavailable" role="status">Health check unavailable: {error}. Report totals below are separate from this check.</div>}
+    {loading && !health && <div className="rc-health-unavailable">Checking stored data sources…</div>}
+    {health && <>
+      <div className="rc-health-grid">
+        {sourceDetails.map(({ key, title }) => {
+          const source = health.sources?.[key]
+          const provider = health.providers?.[key]
+          const info = healthStatus(source, provider)
+          return <div className="rc-health-source" key={key}>
+            <div className="rc-health-source-top"><strong>{title}</strong><Badge state={info.tone}>{info.label}</Badge></div>
+            <span className="rc-health-source-meta">{source?.latest_at ? `Latest: ${new Date(source.latest_at).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })} ICT` : 'No recorded timestamp'}</span>
+          </div>
+        })}
+      </div>
+      <div className="rc-health-footer">
+        <div className="rc-health-queue"><strong>Upload queue</strong><span>{pending.toLocaleString()} pending attempts · {failed.toLocaleString()} failed saves</span></div>
+        <span className="rc-health-source-meta">Checked: {new Date(health.generated_at).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })} ICT</span>
+      </div>
+      {warnings.length > 0 && <div className="rc-health-warnings" role="status">
+        {warnings.slice(0, 4).map((warning, index) => <span key={`${warning}-${index}`}>• {warningText(warning)}</span>)}
+        {warnings.length > 4 && <span>+ {warnings.length - 4} more warnings</span>}
+      </div>}
+      <p className="rc-health-caveat">Recent or recorded does not mean complete coverage. Direct R2 uploads not finalized and provider network overhead may remain unmeasured.</p>
+    </>}
+  </section>
+}
+
 export default function AdminResourceCostPage() {
   const [period, setPeriod] = useState('today')
   const [from, setFrom] = useState(resourceCostDateToday)
@@ -66,6 +154,9 @@ export default function AdminResourceCostPage() {
   const [exportOpen, setExportOpen] = useState(false)
   const [showAllDays, setShowAllDays] = useState(false)
   const [providerFilter, setProviderFilter] = useState('all')
+  const [health, setHealth] = useState(null)
+  const [healthLoading, setHealthLoading] = useState(true)
+  const [healthError, setHealthError] = useState('')
 
   const request = useMemo(() => ({ period, from, to }), [period, from, to])
   const validDates = period !== 'custom' || Boolean(from && to && from <= to)
@@ -87,6 +178,22 @@ export default function AdminResourceCostPage() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [request, reload, validDates])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setHealthLoading(true)
+    setHealthError('')
+    loadResourceCostHealth(controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setHealth(data) })
+      .catch((problem) => {
+        if (!controller.signal.aborted) {
+          setHealth(null)
+          setHealthError(problem?.message || 'Unable to read collection health')
+        }
+      })
+      .finally(() => { if (!controller.signal.aborted) setHealthLoading(false) })
+    return () => controller.abort()
+  }, [reload])
 
   const report = result?.report || null
   const days = report?.days || []
@@ -178,6 +285,7 @@ export default function AdminResourceCostPage() {
         </div>
       </div>
 
+      <HealthPanel health={health} loading={healthLoading} error={healthError} />
       {error && <div className="rc-error" role="alert">{error}</div>}
       {!report && <div className="rc-loading">{loading ? 'Loading stored provider summaries…' : 'Resource & Cost report is unavailable.'}</div>}
       {report && <>
