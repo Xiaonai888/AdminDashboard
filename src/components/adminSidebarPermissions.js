@@ -57,6 +57,7 @@ const PATH_PERMISSION = {
   '/admin-login-guard': 'admin_guard.view',
   '/admin/activity-logs': 'activity_logs.view',
   '/alerts/system-control': 'system_control.view',
+  '/alerts/resource-cost': 'system_control.view',
 }
 
 function getStoredAdminUser() {
