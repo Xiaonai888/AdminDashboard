@@ -519,6 +519,39 @@ function getOrderFirstType(order) {
   return String(items[0]?.product_type || items[0]?.type || '').toLowerCase()
 }
 
+
+function PurchaseSourceInfo({ order }) {
+  const attribution = order?.checkout_attribution
+  const items = Array.isArray(attribution?.items) ? attribution.items : []
+  const labels = {
+    stories: 'Stories Page',
+    manga: 'Manga Page',
+    discover: 'Discover Page',
+    author_store: 'Author Store',
+    mixed: 'Multiple Pages',
+  }
+  const source = String(attribution?.purchase_source || '')
+  const displaySource = labels[source]
+    || (attribution?.source === 'author_store' ? labels.author_store : 'Not recorded (older order)')
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="small">
+        Purchase Source: <span className="strong">{displaySource}</span>
+      </div>
+      {source === 'mixed' ? items.map((item, index) => (
+        <div className="small" key={`${item.product_id || index}-${index}`}>
+          {item.title || item.product_id || 'Product'}: <span className="strong">
+            {labels[item.purchase_source]
+              || (item.source === 'author_store' ? labels.author_store : 'Not recorded')}
+          </span>
+        </div>
+      )) : null}
+    </div>
+  )
+}
+
+
 function BuyerInfo({ buyer }) {
   return (
     <div>
@@ -849,6 +882,7 @@ export default function AuthorStoreReviewPage() {
                     <div>
                       <div className="order-id">{orderId}</div>
                       <div className={`status-pill status-${currentStatus}`}>{statusLabel(currentStatus)}</div>
+                      <PurchaseSourceInfo order={order} />
                       <div className="small">ABA Trx: <span className="strong">{order.aba_transaction_id || '-'}</span></div>
                       <div className="small">Paid: <span className="strong">{formatDate(order.paid_at)}</span></div>
                       <div className="small">Created: <span className="strong">{formatDate(order.created_at)}</span></div>
