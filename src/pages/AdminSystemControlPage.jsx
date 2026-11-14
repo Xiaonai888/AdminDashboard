@@ -1681,6 +1681,10 @@ export default function AdminSystemControlPage() {
           ? `${selectedRangeLabel} · Partial history (${formatNumber(historyReport.coverage?.missing_minutes || 0)} minutes missing)`
           : selectedRangeLabel
 
+    const passiveHistory = !historyLoading && !customDirty
+    ? historyReport?.passive_request_monitor || null
+    : null
+
   const canDownloadHistory = !historyLoading && Boolean(historyReport) && !customDirty && (rangeKey !== 'custom' || customReady)
 
   const anomalyStatus = String(
@@ -2167,6 +2171,97 @@ export default function AdminSystemControlPage() {
 
         <GuestRequestControlPanel snapshot={guestRequestSnapshot} loading={loading} />
         <AdminPassiveRequestMonitorPanel snapshot={passiveRequestSnapshot} loading={loading} />
+
+        <section className="sc-block">
+          <div className="sc-block-head">
+            <div className="sc-block-title-wrap">
+              <span className="sc-icon blue">H</span>
+              <div>
+                <div className="sc-block-title">Historical Passive Request Monitor</div>
+                <div className="sc-block-subtitle">
+                  {selectedRangeLabel} · Stored 15-minute snapshots · Read-only
+                </div>
+              </div>
+            </div>
+            <span className="sc-pill low">History</span>
+          </div>
+
+          {historyLoading ? (
+            <div className="sc-empty">Loading existing history…</div>
+          ) : passiveHistory?.stored_windows > 0 ? (
+            <div style={{ padding: 14, display: 'grid', gap: 14 }}>
+              <div className="sc-block-subtitle">
+                {`Stored intervals: ${passiveHistory.stored_windows} · Covered: ${passiveHistory.window_minutes} minutes`}
+                {passiveHistory.partial ? ' · Partial history' : ''}
+                {passiveHistory.detail_capped ? ' · Detail capped' : ''}
+              </div>
+
+              <div className="sua-summary">
+                {[
+                  ['Requests', passiveHistory.totals?.requests],
+                  ['Hidden', passiveHistory.totals?.client_reported_hidden_requests],
+                  ['Rapid repeats', passiveHistory.totals?.rapid_repeat_requests],
+                  ['Supabase calls', passiveHistory.totals?.supabase_calls],
+                ].map(([label, value]) => (
+                  <div className="sua-card" key={label}>
+                    <div className="sua-card-label">{label}</div>
+                    <div className="sua-card-value">
+                      {formatNumber(value || 0)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="sua-table-wrap">
+                <table className="sua-table">
+                  <thead>
+                    <tr>
+                      <th>Page / API Route</th>
+                      <th>Requests</th>
+                      <th>Hidden</th>
+                      <th>Repeats</th>
+                      <th>Supabase</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(passiveHistory.rows || []).map((row) => (
+                      <tr key={`${row.page}:${row.route}`}>
+                        <td>
+                          <strong>{row.page}</strong>
+                          <div style={{ fontSize: 11 }}>{row.route}</div>
+                        </td>
+                        <td>{formatNumber(row.requests)}</td>
+                        <td>{formatNumber(row.client_reported_hidden_requests)}</td>
+                        <td>{formatNumber(row.rapid_repeat_requests)}</td>
+                        <td>{formatNumber(row.supabase_calls)}</td>
+                        <td>{row.classification === 'REVIEW'
+                          ? (row.signals || []).join(', ') || 'Review'
+                          : 'Observed'}</td>
+                      </tr>
+                    ))}
+                    {!passiveHistory.rows?.length && (
+                      <tr>
+                        <td colSpan={6}>No route details stored for this range.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="sc-block-subtitle">
+                Review signals are not proof of wasted requests.
+                Older archived rollups and capped route details may be missing.
+              </div>
+            </div>
+          ) : (
+            <div className="sc-empty">
+              No passive monitoring history available for this range.
+              This does not mean that no requests occurred.
+            </div>
+          )}
+        </section>
+
         <AdminPerformanceDiagnosticsPanel diagnostics={performanceDiagnostics} />
         <AdminImageDiagnosticsPanel diagnostics={imageDiagnostics} />
         <AdminReaderHealthPanel />
