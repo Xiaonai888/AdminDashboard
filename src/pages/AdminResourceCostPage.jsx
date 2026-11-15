@@ -331,11 +331,11 @@ export default function AdminResourceCostPage() {
         </div>
 
         <div className="rc-main-charts">
-          <ResourceCostSourceDetails days={days} />
           <section className="rc-panel rc-trend-panel"><div className="rc-panel-head"><div><h2>Daily Render Trend</h2><p>Provider outbound usage in the selected reporting range</p></div><Badge state={render?.coverage === 'complete' ? 'good' : 'watch'}>{renderCoverage(render?.coverage)}</Badge></div><ResourceCostTrend days={days} /></section>
           <section className="rc-panel"><div className="rc-panel-head"><div><h2>Render Traffic Split</h2><p>Measured outgoing categories, not provider totals added together</p></div></div><ResourceCostTrafficSplit render={render} hasSource={renderRecorded} /></section>
           <section className="rc-panel"><div className="rc-panel-head"><div><h2>Top API Drivers</h2><p>Ranked by observed payload bytes</p></div></div><ResourceCostTopDrivers days={days} attributionStatus={report.sources?.application?.status} /></section>
         </div>
+                <ResourceCostSourceDetails days={days} />
 
         <section className="rc-panel"><div className="rc-panel-head"><div><h2>Usage Insights</h2><p>Important signals only · No per-minute activity feed</p></div>{coverage !== null ? <Badge state={coverage === 100 ? 'good' : 'watch'}>{coverage}% Render hours covered</Badge> : <Badge state="watch">Coverage unknown</Badge>}</div><div className="rc-insights">{insights.map((item) => <div className="rc-insight" key={item.title}><div className="rc-insight-top"><strong>{item.title}</strong><Badge state={item.state}>{item.state === 'good' ? 'Recorded' : item.state === 'investigate' ? 'Investigate' : item.state === 'watch' ? 'Review' : 'Info'}</Badge></div><p>{item.note}</p></div>)}</div></section>
 
