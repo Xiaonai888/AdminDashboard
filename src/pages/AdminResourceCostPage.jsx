@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import { ResourceCostTrend, ResourceCostTrafficSplit, ResourceCostTopDrivers } from '../components/ResourceCostVisuals'
-import ResourceCostYesterdaySnapshot from '../components/ResourceCostYesterdaySnapshot'
+import ResourceCostYesterdaySnapshot from '../components/ResourceCostYesterdaySnapshot' import ResourceCostOverview from '../components/ResourceCostOverview'
 import { loadResourceCostSummary, loadResourceCostHealth, loadResourceCostYesterdaySnapshot, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
 import '../styles/adminResourceCost.css'
 import '../styles/adminResourceCostHealth.css'
@@ -314,6 +314,7 @@ export default function AdminResourceCostPage() {
         </div>
       </div>
 
+      <ResourceCostOverview refreshKey={reload} />
       <HealthPanel health={health} loading={healthLoading} error={healthError} />
       {error && <div className="rc-error" role="alert">{error}</div>}
       {!report && <div className="rc-loading">{loading ? 'Loading stored provider summaries…' : 'Resource & Cost report is unavailable.'}</div>}
