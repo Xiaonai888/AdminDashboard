@@ -926,10 +926,7 @@ export default function AdminSystemProblemReportsPage() {
         setLoadError('Admin token is missing.')
         return
       }
-              if (rangeKey === 'all') {
-          setError('Select a date range before downloading a server report.')
-          return
-        }
+  
 
       const range = currentRange()
       const rangeError = validateRange(range)
@@ -1209,6 +1206,11 @@ export default function AdminSystemProblemReportsPage() {
           setError(
             'Admin token is missing.'
           )
+          return
+        }
+
+                if (rangeKey === 'all') {
+          setError('Select a date range before downloading a server report.')
           return
         }
 
