@@ -1,4 +1,4 @@
-import { validateAdminFinancialMonth } from '../utils/adminFinancialReportsDates'
+import { validateAdminFinancialMonth, getSafeAdminFinancialSheetUrl } from '../utils/adminFinancialReportsDates'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const ENDPOINT = `${API_URL}/api/admin/income/financial-reports`
@@ -45,8 +45,14 @@ export function getAdminFinancialReportsStatus(options = {}) {
   return requestFinancialReport('/status', options)
 }
 
-export function connectAdminFinancialReportsSheet(options = {}) {
-  return requestFinancialReport('/connect', { ...options, method: 'POST' })
+export function connectAdminFinancialReportsSheet(spreadsheetUrl, options = {}) {
+  const url = getSafeAdminFinancialSheetUrl(spreadsheetUrl)
+  if (!url) throw new Error('Enter a valid Google Sheets link.')
+  return requestFinancialReport('/connect', {
+    ...options,
+    method: 'POST',
+    body: { spreadsheet_url: url },
+  })
 }
 
 export function syncAdminFinancialReportsMonth(month, options = {}) {
