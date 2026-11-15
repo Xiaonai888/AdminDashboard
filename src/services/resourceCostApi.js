@@ -45,6 +45,16 @@ export async function loadResourceCostHealth(signal) {
   return result.health
 }
 
+export async function loadResourceCostYesterdaySnapshot(signal) {
+  const response = await fetch(`${ROOT}/yesterday-snapshot`, requestOptions(signal))
+  if (!response.ok) throw await apiError(response)
+  const result = await response.json().catch(() => null)
+  if (result?.ok !== true || !Object.prototype.hasOwnProperty.call(result, 'snapshot')) {
+    throw new Error('Yesterday Snapshot returned incomplete data.')
+  }
+  return result.snapshot
+}
+
 export async function loadResourceCostSummary(options = {}, signal) {
   const response = await fetch(`${ROOT}/summary?${queryString(options)}`, requestOptions(signal))
   if (!response.ok) throw await apiError(response)
