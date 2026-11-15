@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   connectAdminFinancialReportsSheet,
   getAdminFinancialReportsStatus,
@@ -11,67 +12,108 @@ import {
   validateAdminFinancialMonth,
 } from '../utils/adminFinancialReportsDates'
 
-export default function AdminFinancialReportsPanel() {
+const css = `
+  .shadow-financial-overlay { position:fixed; inset:0; z-index:100000; background:rgba(8,13,34,.72); display:flex; align-items:center; justify-content:center; padding:18px; overflow-y:auto; }
+  .shadow-financial-dialog { box-sizing:border-box; width:min(560px,100%); max-height:calc(100vh - 36px); overflow-y:auto; border-radius:20px; border:1px solid #dae0ed; background:#fff; color:#182033; padding:22px; box-shadow:0 28px 90px rgba(0,0,0,.32); }
+  .shadow-financial-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .shadow-financial-title { margin:0; font-size:21px; font-weight:800; }
+  .shadow-financial-subtitle { margin:7px 0 0; font-size:13px; color:#64748b; line-height:1.6; }
+  .shadow-financial-close { flex-shrink:0; background:transparent; border:1px solid #cbd5e1; border-radius:10px; width:34px; height:34px; color:inherit; cursor:pointer; font-size:23px; line-height:1; }
+  .shadow-financial-status { display:inline-flex; margin-top:17px; border-radius:999px; padding:6px 10px; font-size:12px; font-weight:800; background:#f0f4ff; color:#31358e; }
+  .shadow-financial-status.off { color:#8b4513; background:#fff2e4; }
+  .shadow-financial-label { display:block; margin:20px 0 7px; font-size:13px; font-weight:800; }
+  .shadow-financial-input { box-sizing:border-box; width:100%; height:43px; border:1px solid #cbd5e1; border-radius:11px; background:#fff; padding:0 12px; color:#182033; font-size:14px; }
+  .shadow-financial-actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; }
+  .shadow-financial-btn { min-height:42px; padding:10px 16px; border-radius:11px; border:1px solid #cbd5e1; background:#fff; color:#252d44; font-size:13px; font-weight:800; cursor:pointer; }
+  .shadow-financial-btn.primary { background:#4338ca; border-color:#4338ca; color:#fff; }
+  .shadow-financial-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .shadow-financial-line { height:1px; background:#e2e8f0; margin:20px 0; }
+  .shadow-financial-hint { font-size:12px; line-height:1.6; color:#64748b; margin:8px 0 0; }
+  .shadow-financial-result { margin-top:12px; padding:12px; border-radius:10px; font-size:13px; line-height:1.5; background:#eef9f1; color:#176239; }
+  .shadow-financial-result.error { background:#fff0ef; color:#a12f2a; }
+  .shadow-financial-details { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:16px; }
+  .shadow-financial-details > div { border:1px solid #e2e8f0; border-radius:10px; padding:10px; font-size:12px; line-height:1.5; }
+  .shadow-financial-details strong { display:block; margin-bottom:3px; }
+  .shadow-financial-link { display:inline-block; margin-top:13px; font-size:13px; color:#4338ca; font-weight:800; text-decoration:underline; }
+  .dark .shadow-financial-dialog { background:#151b2e; border-color:#39445a; color:#f7f9ff; }
+  .dark .shadow-financial-subtitle, .dark .shadow-financial-hint { color:#b5bfd4; }
+  .dark .shadow-financial-close, .dark .shadow-financial-btn:not(.primary) { background:#222d43; border-color:#4b5871; color:#f7f9ff; }
+  .dark .shadow-financial-input { background:#20293e; border-color:#4b5871; color:#f7f9ff; }
+  .dark .shadow-financial-line { background:#39445a; }
+  .dark .shadow-financial-details > div { border-color:#39445a; }
+  .dark .shadow-financial-link { color:#b6b6ff; }
+  @media (max-width:480px) { .shadow-financial-dialog { padding:17px; } .shadow-financial-details { grid-template-columns:1fr; } }
+`
+
+export default function AdminFinancialReportsPanel({ onClose }) {
   const [month, setMonth] = useState(() => getAdminFinancialCurrentMonth())
   const [status, setStatus] = useState(null)
-  const [sheetUrl, setSheetUrl] = useState('')
+  const [sheetLink, setSheetLink] = useState('')
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const mounted = useRef(true)
+  const mounted = useRef(false)
   const pending = useRef(false)
+  const linkInput = useRef(null)
 
   useEffect(() => {
     mounted.current = true
     const controller = new AbortController()
     getAdminFinancialReportsStatus({ signal: controller.signal })
-      .then((data) => {
-        if (mounted.current) setStatus(data)
+      .then((result) => {
+        if (!mounted.current) return
+        setStatus(result)
+        setSheetLink((current) => current || getSafeAdminFinancialSheetUrl(result.spreadsheet_url))
       })
       .catch((failure) => {
         if (mounted.current && failure?.name !== 'AbortError') setError(failure.message)
       })
-      .finally(() => {
-        if (mounted.current) setLoading(false)
-      })
-    return () => {
-      mounted.current = false
-      controller.abort()
-    }
+      .finally(() => { if (mounted.current) setLoading(false) })
+    linkInput.current?.focus()
+    return () => { mounted.current = false; controller.abort() }
   }, [])
 
-  async function run(operation) {
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === 'Escape' && !pending.current) onClose?.()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function run(action) {
     if (pending.current) return
+    if (action === 'connect' && !getSafeAdminFinancialSheetUrl(sheetLink)) {
+      setError('Please enter a valid Google Sheets link first.')
+      return
+    }
     pending.current = true
-    setWorking(operation)
+    setWorking(action)
     setError('')
     setNotice('')
     try {
-      if (operation === 'status') {
-        const data = await getAdminFinancialReportsStatus()
-        if (mounted.current) setStatus(data)
-      } else if (operation === 'connect') {
-        const data = await connectAdminFinancialReportsSheet()
+      if (action === 'status') {
+        const result = await getAdminFinancialReportsStatus()
+        if (mounted.current) setStatus(result)
+      } else if (action === 'connect') {
+        const result = await connectAdminFinancialReportsSheet(sheetLink)
         if (mounted.current) {
-          setSheetUrl(getSafeAdminFinancialSheetUrl(data.spreadsheet_url))
-          setNotice('Google Sheet connection checked successfully.')
-          const current = await getAdminFinancialReportsStatus()
-          if (mounted.current) setStatus(current)
+          setSheetLink(getSafeAdminFinancialSheetUrl(result.spreadsheet_url) || sheetLink)
+          setNotice('Google Sheet connected and tested successfully.')
         }
-      } else if (operation === 'sync') {
-        const selected = validateAdminFinancialMonth(month)
-        const data = await syncAdminFinancialReportsMonth(selected)
-        if (mounted.current) {
-          setNotice(data.reused
-            ? 'This month was synced recently. No new request was needed.'
-            : `Sync completed: ${Number(data.processed || 0)} rows processed, ${Number(data.appended || 0)} added, ${Number(data.updated || 0)} updated, ${Number(data.skipped || 0)} unchanged.`)
-          const current = await getAdminFinancialReportsStatus()
-          if (mounted.current) setStatus(current)
-        }
+        const latest = await getAdminFinancialReportsStatus()
+        if (mounted.current) setStatus(latest)
+      } else if (action === 'sync') {
+        const result = await syncAdminFinancialReportsMonth(validateAdminFinancialMonth(month))
+        if (mounted.current) setNotice(result.reused
+          ? 'This month was synced recently. No duplicate request was sent.'
+          : `Sync completed: ${Number(result.processed || 0)} rows, ${Number(result.appended || 0)} added, ${Number(result.updated || 0)} updated.`)
+        const latest = await getAdminFinancialReportsStatus()
+        if (mounted.current) setStatus(latest)
       }
     } catch (failure) {
-      if (mounted.current) setError(failure?.message || 'Unable to complete the request.')
+      if (mounted.current) setError(failure?.message || 'Unable to complete this request.')
     } finally {
       pending.current = false
       if (mounted.current) setWorking('')
@@ -79,64 +121,55 @@ export default function AdminFinancialReportsPanel() {
   }
 
   const configured = Boolean(status?.configured)
-  const disabled = loading || Boolean(working) || !configured || status?.busy
-  const lastSync = status?.last_sync
-  const url = getSafeAdminFinancialSheetUrl(sheetUrl)
-
-  return (
-    <section aria-label="Admin Google Sheets financial reports" className="rounded-2xl border border-slate-200 bg-white px-4 py-5 shadow-sm sm:px-6 dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Google Sheets · Financial Reports</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Admin-only report · Manual sync · Diamond Top-Up, Episode, Gift, PDF and Book</p>
+  const busy = loading || Boolean(working) || Boolean(status?.busy)
+  const connected = Boolean(status?.connected_in_this_process)
+  const resolvedLink = getSafeAdminFinancialSheetUrl(status?.spreadsheet_url || sheetLink)
+  const body = (
+    <div className="shadow-financial-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending.current) onClose?.() }}>
+      <style>{css}</style>
+      <section className="shadow-financial-dialog" role="dialog" aria-modal="true" aria-labelledby="shadow-financial-modal-title">
+        <div className="shadow-financial-head">
+          <div>
+            <h2 className="shadow-financial-title" id="shadow-financial-modal-title">Google Sheets · Financial Reports</h2>
+            <p className="shadow-financial-subtitle">Connect the Admin financial sheet and sync transactions when needed.</p>
+          </div>
+          <button className="shadow-financial-close" type="button" aria-label="Close" onClick={onClose} disabled={Boolean(working)}>×</button>
         </div>
-        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${loading ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200' : configured ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>
-          {loading ? 'Checking…' : configured ? 'Backend configured' : 'Setup required'}
+        <span className={`shadow-financial-status ${!configured ? 'off' : ''}`}>
+          {loading ? 'Checking configuration…' : !configured ? 'Backend setup required' : connected ? 'Connected' : 'Backend configured'}
         </span>
-      </div>
-
-      {!loading && !configured ? (
-        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          Configure SHADOW_ADMIN_FINANCIAL_WEB_APP_URL, SHADOW_ADMIN_FINANCIAL_SECRET and SHADOW_ADMIN_FINANCIAL_SHEET_ID in Render first. Do not put secrets in Admin frontend code.
-        </p>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <div className="min-w-[165px] flex-1 sm:flex-none">
-          <label htmlFor="admin-financial-report-month" className="mb-1 block text-xs font-semibold text-slate-700 dark:text-slate-300">Reporting month (Cambodia)</label>
-          <input
-            id="admin-financial-report-month"
-            type="month"
-            value={month}
-            max={getAdminFinancialCurrentMonth()}
-            onChange={(event) => setMonth(event.target.value)}
-            disabled={Boolean(working)}
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-          />
+        <label className="shadow-financial-label" htmlFor="shadow-financial-sheet-url">Google Sheets link</label>
+        <input ref={linkInput} id="shadow-financial-sheet-url" className="shadow-financial-input" inputMode="url" type="url" spellCheck={false} autoComplete="off" placeholder="https://docs.google.com/spreadsheets/d/.../edit" value={sheetLink} onChange={(event) => setSheetLink(event.target.value)} disabled={Boolean(working)} />
+        <p className="shadow-financial-hint">The sheet must match SHADOW_ADMIN_FINANCIAL_SHEET_ID configured on Render. A different sheet requires updating that setting first.</p>
+        <div className="shadow-financial-actions">
+          <button className="shadow-financial-btn primary" type="button" onClick={() => run('connect')} disabled={busy || !configured}>
+            {working === 'connect' ? 'Connecting…' : 'Connect / Test Sheet'}
+          </button>
+          <button className="shadow-financial-btn" type="button" onClick={() => run('status')} disabled={busy}>
+            {working === 'status' ? 'Checking…' : 'Refresh Status'}
+          </button>
         </div>
-        <button type="button" disabled={disabled} onClick={() => run('connect')} className="rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-          {working === 'connect' ? 'Connecting…' : 'Connect / Test Sheet'}
-        </button>
-        <button type="button" disabled={disabled} onClick={() => run('sync')} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-600">
-          {working === 'sync' ? 'Syncing…' : 'Sync Now'}
-        </button>
-        <button type="button" disabled={loading || Boolean(working)} onClick={() => run('status')} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200">
-          {working === 'status' ? 'Checking…' : 'Refresh Status'}
-        </button>
-        {url ? <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-indigo-700 underline dark:text-indigo-300">Open Google Sheet</a> : null}
-      </div>
-
-      {error ? <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">{error}</p> : null}
-      {notice ? <p role="status" className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">{notice}</p> : null}
-
-      {status ? (
-        <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 text-xs text-slate-600 sm:grid-cols-3 dark:border-slate-700 dark:text-slate-300">
-          <div><span className="block font-bold text-slate-800 dark:text-white">Last connection test</span>{formatAdminFinancialTime(status.last_connected_at)}</div>
-          <div><span className="block font-bold text-slate-800 dark:text-white">Last sync on this server</span>{formatAdminFinancialTime(lastSync?.synced_at)}</div>
-          <div><span className="block font-bold text-slate-800 dark:text-white">Rows in last sync</span>{Number(lastSync?.processed || 0).toLocaleString()}</div>
+        <div className="shadow-financial-line" />
+        <label className="shadow-financial-label" htmlFor="shadow-financial-month" style={{ marginTop: 0 }}>Reporting month (Cambodia)</label>
+        <input id="shadow-financial-month" className="shadow-financial-input" type="month" value={month} max={getAdminFinancialCurrentMonth()} onChange={(event) => setMonth(event.target.value)} disabled={Boolean(working)} />
+        <div className="shadow-financial-actions">
+          <button type="button" className="shadow-financial-btn primary" disabled={busy || !configured || !connected} onClick={() => run('sync')}>
+            {working === 'sync' ? 'Syncing…' : 'Sync Now'}
+          </button>
         </div>
-      ) : null}
-      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">Only button clicks start Connect or Sync. Report status resets when the Backend restarts. Shipping is not platform earnings; Diamond spending is not new cash.</p>
-    </section>
+        <p className="shadow-financial-hint">Income data keeps its existing automatic refresh. Only Connect and Sync send requests to Google Sheets.</p>
+        {error ? <div role="alert" className="shadow-financial-result error">{error}</div> : null}
+        {notice ? <div role="status" className="shadow-financial-result">{notice}</div> : null}
+        {status ? (
+          <div className="shadow-financial-details">
+            <div><strong>Last connection</strong>{formatAdminFinancialTime(status.last_connected_at)}</div>
+            <div><strong>Last sync</strong>{formatAdminFinancialTime(status.last_sync?.synced_at)}</div>
+            <div><strong>Rows in last sync</strong>{Number(status.last_sync?.processed || 0).toLocaleString()}</div>
+          </div>
+        ) : null}
+        {resolvedLink ? <a className="shadow-financial-link" target="_blank" rel="noopener noreferrer" href={resolvedLink}>Open Google Sheet</a> : null}
+      </section>
+    </div>
   )
+  return createPortal(body, document.body)
 }
