@@ -3,6 +3,7 @@ import AdminLayout from '../components/AdminLayout'
 import { ResourceCostTrend, ResourceCostTrafficSplit, ResourceCostTopDrivers } from '../components/ResourceCostVisuals'
 import ResourceCostYesterdaySnapshot from '../components/ResourceCostYesterdaySnapshot'
 import ResourceCostOverview from '../components/ResourceCostOverview'
+import ResourceCostSourceDetails from '../components/ResourceCostSourceDetails'
 import { loadResourceCostSummary, loadResourceCostHealth, loadResourceCostYesterdaySnapshot, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
 import '../styles/adminResourceCost.css'
 import '../styles/adminResourceCostHealth.css'
@@ -329,6 +330,7 @@ export default function AdminResourceCostPage() {
         </div>
 
         <div className="rc-main-charts">
+          <ResourceCostSourceDetails days={days} />
           <section className="rc-panel rc-trend-panel"><div className="rc-panel-head"><div><h2>Daily Render Trend</h2><p>Provider outbound usage in the selected reporting range</p></div><Badge state={render?.coverage === 'complete' ? 'good' : 'watch'}>{renderCoverage(render?.coverage)}</Badge></div><ResourceCostTrend days={days} /></section>
           <section className="rc-panel"><div className="rc-panel-head"><div><h2>Render Traffic Split</h2><p>Measured outgoing categories, not provider totals added together</p></div></div><ResourceCostTrafficSplit render={render} hasSource={renderRecorded} /></section>
           <section className="rc-panel"><div className="rc-panel-head"><div><h2>Top API Drivers</h2><p>Ranked by observed payload bytes</p></div></div><ResourceCostTopDrivers days={days} attributionStatus={report.sources?.application?.status} /></section>
