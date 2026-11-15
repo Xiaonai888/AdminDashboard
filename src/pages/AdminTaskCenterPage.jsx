@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import AdminSidebar from '../components/AdminSidebar'
 import TaskCenterReadingModePanel from '../components/TaskCenterReadingModePanel'
 import TaskCenterReaderActivityPanel from '../components/TaskCenterReaderActivityPanel'
+import TaskCenterSelectionHistoryPanel from '../components/TaskCenterSelectionHistoryPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const USE_LEGACY_SIDEBAR = false
@@ -648,6 +649,14 @@ export default function AdminTaskCenterPage() {
               >
                 Reader Activity
               </button>
+
+              <button
+                type="button"
+                className={`task-tab ${activeTab === 'history' ? 'active' : ''}`}
+                onClick={() => setActiveTab('history')}
+              >
+                Selection History
+              </button>
             </div>
 
             <div className={activeTab === 'cover' ? 'shell' : 'shell task-shell-full'}>
@@ -1095,8 +1104,8 @@ export default function AdminTaskCenterPage() {
     </>
   )}
 </div>
-
-                {activeTab === 'activity' ? <TaskCenterReaderActivityPanel /> : null}
+{activeTab === 'activity' ? <TaskCenterReaderActivityPanel /> : null}
+{activeTab === 'history' ? <TaskCenterSelectionHistoryPanel /> : null}
               </div>
 
               <aside className="preview-panel" style={{ display: activeTab === 'cover' ? 'block' : 'none' }}>
