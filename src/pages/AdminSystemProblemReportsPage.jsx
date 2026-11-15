@@ -765,6 +765,7 @@ export default function AdminSystemProblemReportsPage() {
     useState('')
 
     const [reportGroup, setReportGroup] = useState('ACTIVE')
+    const [showErrorLogs, setShowErrorLogs] = useState(false)
 
   const [
     statusFilter,
@@ -863,7 +864,9 @@ export default function AdminSystemProblemReportsPage() {
     }
   }, [recentMinutes])
 
-  useEffect(() => {
+   useEffect(() => {
+    if (!showErrorLogs) return undefined
+
     void loadRecent()
     const onVisible = () => {
       if (document.visibilityState === 'visible' &&
@@ -876,7 +879,7 @@ export default function AdminSystemProblemReportsPage() {
       document.removeEventListener('visibilitychange', onVisible)
       recentAbortRef.current?.abort()
     }
-  }, [loadRecent])
+  }, [loadRecent, showErrorLogs])
 
   const currentRange = useCallback(() => {
     return getRange(
@@ -1433,6 +1436,18 @@ export default function AdminSystemProblemReportsPage() {
           ))}
         </div>
 
+                <div className="pr-tools">
+          <button
+            type="button"
+            className="pr-btn"
+            onClick={() => setShowErrorLogs((value) => !value)}
+          >
+            {showErrorLogs
+              ? 'Hide Raw Error Logs'
+              : 'View Raw Error Logs'}
+          </button>
+        </div>
+
         <div className="pr-top">
           <div className="pr-tools">
             <input
@@ -1702,6 +1717,9 @@ export default function AdminSystemProblemReportsPage() {
           )}
         </div>
 
+         {showErrorLogs ? (
+          <>
+            
         <section className="pr-block" aria-label="Recent request errors">
           <div className="pr-head">
             <div>
@@ -1792,6 +1810,8 @@ export default function AdminSystemProblemReportsPage() {
         </section>
 
         <AdminStoredErrorHistory />
+                      </>
+        ) : null}
 
         <section className="pr-block">
           <div className="pr-head">
