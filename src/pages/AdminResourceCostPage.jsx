@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminLayout from '../components/AdminLayout'
 import { ResourceCostTrend, ResourceCostTrafficSplit, ResourceCostTopDrivers } from '../components/ResourceCostVisuals'
-import { loadResourceCostSummary, loadResourceCostHealth, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
+import ResourceCostYesterdaySnapshot from '../components/ResourceCostYesterdaySnapshot'
+import { loadResourceCostSummary, loadResourceCostHealth, loadResourceCostYesterdaySnapshot, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
 import '../styles/adminResourceCost.css'
 import '../styles/adminResourceCostHealth.css'
 
@@ -157,6 +158,9 @@ export default function AdminResourceCostPage() {
   const [health, setHealth] = useState(null)
   const [healthLoading, setHealthLoading] = useState(true)
   const [healthError, setHealthError] = useState('')
+  const [yesterdaySnapshot, setYesterdaySnapshot] = useState(null)
+  const [yesterdayLoading, setYesterdayLoading] = useState(true)
+  const [yesterdayError, setYesterdayError] = useState('')
 
   const request = useMemo(() => ({ period, from, to }), [period, from, to])
   const validDates = period !== 'custom' || Boolean(from && to && from <= to)
@@ -192,6 +196,26 @@ export default function AdminResourceCostPage() {
         }
       })
       .finally(() => { if (!controller.signal.aborted) setHealthLoading(false) })
+    return () => controller.abort()
+  }, [reload])
+
+    useEffect(() => {
+    const controller = new AbortController()
+    setYesterdayLoading(true)
+    setYesterdayError('')
+    loadResourceCostYesterdaySnapshot(controller.signal)
+      .then((snapshot) => {
+        if (!controller.signal.aborted) setYesterdaySnapshot(snapshot)
+      })
+      .catch((problem) => {
+        if (!controller.signal.aborted) {
+          setYesterdaySnapshot(null)
+          setYesterdayError(problem?.message || 'Snapshot unavailable')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setYesterdayLoading(false)
+      })
     return () => controller.abort()
   }, [reload])
 
@@ -262,6 +286,11 @@ export default function AdminResourceCostPage() {
 
   return <AdminLayout title="Resource & Cost" subtitle="Daily, weekly and monthly infrastructure usage summaries with downloadable evidence.">
     <div className="rc-page">
+      <ResourceCostYesterdaySnapshot
+        snapshot={yesterdaySnapshot}
+        loading={yesterdayLoading}
+        error={yesterdayError}
+      />
       <div className="rc-toolbar">
         <div className="rc-range-controls">
           <label className="rc-field-label" htmlFor="rc-period">Reporting period</label>
