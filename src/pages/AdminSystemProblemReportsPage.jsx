@@ -22,6 +22,7 @@ const RANGE_MS = {
 }
 
 const RANGE_LABELS = {
+  all: 'All Incident Dates',
   '1h': 'Last 1 Hour',
   '6h': 'Last 6 Hours',
   '24h': 'Last 24 Hours',
@@ -39,6 +40,11 @@ const STATUS_OPTIONS = [
   { key: 'RESOLVED', label: 'Resolved' },
   { key: 'ARCHIVED', label: 'Archived' },
 ]
+
+const INCIDENT_GROUP_STATUSES = {
+  ACTIVE: ['OPEN', 'INVESTIGATING', 'FIX_APPLIED'],
+  HISTORY: ['VERIFIED', 'RESOLVED', 'ARCHIVED'],
+}
 
 function getToken() {
   return (
@@ -758,13 +764,15 @@ export default function AdminSystemProblemReportsPage() {
   const [query, setQuery] =
     useState('')
 
+    const [reportGroup, setReportGroup] = useState('ACTIVE')
+
   const [
     statusFilter,
     setStatusFilter,
   ] = useState('ALL')
 
   const [rangeKey, setRangeKey] =
-    useState('24h')
+    useState('all')
 
   const [
     customFrom,
@@ -918,6 +926,10 @@ export default function AdminSystemProblemReportsPage() {
         setLoadError('Admin token is missing.')
         return
       }
+              if (rangeKey === 'all') {
+          setError('Select a date range before downloading a server report.')
+          return
+        }
 
       const range = currentRange()
       const rangeError = validateRange(range)
@@ -936,8 +948,15 @@ export default function AdminSystemProblemReportsPage() {
 
         const params = new URLSearchParams({
           limit: '200',
-          from: new Date(range.from).toISOString(),
+          group: reportGroup,
         })
+
+        if (rangeKey !== 'all') {
+          params.set(
+            'from',
+            new Date(range.from).toISOString()
+          )
+        }
 
         if (rangeKey === 'custom') {
           params.set('to', new Date(range.to).toISOString())
@@ -1012,7 +1031,7 @@ export default function AdminSystemProblemReportsPage() {
         }
       }
     },
-    [currentRange, validateRange, rangeKey]
+    [currentRange, validateRange, rangeKey, reportGroup]
   )
 
   useEffect(() => {
@@ -1106,6 +1125,12 @@ export default function AdminSystemProblemReportsPage() {
     statusFilter,
     loadError,
   ])
+
+    const groupStatusOptions = STATUS_OPTIONS.filter(
+    (option) =>
+      option.key === 'ALL' ||
+      INCIDENT_GROUP_STATUSES[reportGroup].includes(option.key)
+  )
 
   const selectedLabel =
     STATUS_OPTIONS.find(
@@ -1280,9 +1305,10 @@ export default function AdminSystemProblemReportsPage() {
           setDownloading('')
         }
       },
-      [
+            [
         currentRange,
         validateRange,
+        rangeKey,
       ]
     )
 
@@ -1376,6 +1402,35 @@ export default function AdminSystemProblemReportsPage() {
       <style>{css}</style>
 
       <div className="pr-page">
+        <div
+          className="pr-tools"
+          role="tablist"
+          aria-label="Problem report groups"
+        >
+          {[
+            ['ACTIVE', 'Active Problems'],
+            ['HISTORY', 'Resolved History'],
+          ].map(([group, label]) => (
+            <button
+              key={group}
+              type="button"
+              role="tab"
+              aria-selected={reportGroup === group}
+              className={`pr-btn ${
+                reportGroup === group ? 'primary' : ''
+              }`}
+              onClick={() => {
+                if (reportGroup === group) return
+                setItems([])
+                setStatusFilter('ALL')
+                setReportGroup(group)
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="pr-top">
           <div className="pr-tools">
             <input
@@ -1400,7 +1455,7 @@ export default function AdminSystemProblemReportsPage() {
               }
               aria-label="Problem report status"
             >
-              {STATUS_OPTIONS.map(
+              {groupStatusOptions.map(
                 (option) => (
                   <option
                     key={option.key}
@@ -1422,6 +1477,9 @@ export default function AdminSystemProblemReportsPage() {
               }
               aria-label="Problem report time range"
             >
+                            <option value="all">
+                All Incident Dates
+              </option>
               <option value="1h">
                 Last 1 Hour
               </option>
@@ -1611,7 +1669,7 @@ export default function AdminSystemProblemReportsPage() {
         ) : null}
 
         <div className="pr-cards">
-          {STATUS_OPTIONS.map(
+          {groupStatusOptions.map(
             (option) => (
               <button
                 type="button"
@@ -1737,7 +1795,9 @@ export default function AdminSystemProblemReportsPage() {
           <div className="pr-head">
             <div>
               <div className="pr-head-title">
-                Incident Archive
+                 {reportGroup === 'ACTIVE'
+                  ? 'Active Problems'
+                  : 'Resolved History'}
               </div>
 
               <div className="pr-head-sub">
