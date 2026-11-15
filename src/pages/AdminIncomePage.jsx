@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import useAdminIncomeEventRefreshKey from '../hooks/useAdminIncomeEventRefreshKey'
+import AdminFinancialReportsPanel from '../components/AdminFinancialReportsPanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -1559,6 +1560,8 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
               </div>
             </div>
           </section>
+
+          <AdminFinancialReportsPanel />
 
           {message ? (
             <div className="income-message">
