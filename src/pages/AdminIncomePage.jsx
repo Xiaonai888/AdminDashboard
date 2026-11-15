@@ -1015,6 +1015,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
   const [payoutActionId, setPayoutActionId] =
     useState('')
   const [selectedPayout, setSelectedPayout] = useState(null)
+  const [financialReportsOpen, setFinancialReportsOpen] = useState(false)
   const awaitingReceiptRows = useMemo(() => payouts.filter((payout) => payout.status === 'awaiting_receipt'), [payouts])
   const awaitingReceiptCount = payoutSummary.awaiting_receipt_count ?? awaitingReceiptRows.length
   const awaitingReceiptUsd = payoutSummary.awaiting_receipt_usd ?? awaitingReceiptRows.reduce((total, payout) => total + (Number(payout.net_payout_usd) || 0), 0)
@@ -1362,6 +1363,21 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
     )
   }
 
+    useEffect(() => {
+    if (rangeKey !== 'custom' || !customFrom || !customTo) return
+
+    const timer = setTimeout(() => {
+      const start = Date.parse(customBoundary(customFrom))
+      const end = Date.parse(customBoundary(customTo))
+
+      if (Number.isFinite(start) && Number.isFinite(end) && start < end) {
+        handleIncomeRefresh()
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [rangeKey, customFrom, customTo])
+
   async function refreshAll() {
   setSuccess('')
   await fetchIncome(null, 'mount')
@@ -1408,6 +1424,12 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
           ])
         }}
       />
+
+            {financialReportsOpen ? (
+        <AdminFinancialReportsPanel
+          onClose={() => setFinancialReportsOpen(false)}
+        />
+      ) : null}
 
       <div className="income-page">
         <div className="income-wrap">
@@ -1483,13 +1505,12 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
                 </button>
 
                 <button
-                  className="income-button"
-                  type="button"
-                  onClick={handleIncomeRefresh}
-                  disabled={loading}
-                >
-                  {loading ? 'Loading...' : 'Refresh'}
-                </button>
+  className="income-button"
+  type="button"
+  onClick={() => setFinancialReportsOpen(true)}
+>
+  Google Sheets
+</button>
 
                 {rangeKey === 'custom' ? (
                   <div className="income-custom-range">
@@ -1561,7 +1582,7 @@ const [to, setTo] = useState(() => getIncomePresetRange('today').to)
             </div>
           </section>
 
-          <AdminFinancialReportsPanel />
+          
 
           {message ? (
             <div className="income-message">
