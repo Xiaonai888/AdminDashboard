@@ -30,7 +30,7 @@ const css = `
   .shadow-financial-line { height:1px; background:#e2e8f0; margin:20px 0; }
   .shadow-financial-hint { font-size:12px; line-height:1.6; color:#64748b; margin:8px 0 0; }
   .shadow-financial-result { margin-top:12px; padding:12px; border-radius:10px; font-size:13px; line-height:1.5; background:#eef9f1; color:#176239; }
-  .shadow-financial-result.error { background:#fff0ef; color:#a12f2a; }
+  .shadow-financial-result.error { background:#fff0ef; color:#a12f2a; white-space:pre-wrap; overflow-wrap:anywhere; }
   .shadow-financial-details { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:16px; }
   .shadow-financial-details > div { border:1px solid #e2e8f0; border-radius:10px; padding:10px; font-size:12px; line-height:1.5; }
   .shadow-financial-details strong { display:block; margin-bottom:3px; }
