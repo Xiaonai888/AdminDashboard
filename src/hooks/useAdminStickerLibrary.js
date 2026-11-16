@@ -3,9 +3,10 @@ import { uploadMediaLibraryWithProgress } from '../utils/uploadMediaLibraryWithP
 import { prepareStickerBatch, prepareStickerImage } from '../utils/stickerImageOptimizer'
 
 const API_URL = (import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com').replace(/\/+$/, '')
-// Separate REST namespace and DB records from the Character library.
 const BASE = '/api/admin/sticker-library'
 const MAX_AGE = 10 * 60 * 1000
+const DEFAULT_FOLDER_COLOR = '#6366F1'
+const FOLDER_SAVE_TIMEOUT_MS = 30000
 let store = { account: '', folders: null, foldersAt: 0, pages: new Map() }
 
 const token = () => sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -16,8 +17,6 @@ function cache() {
 }
 function safeURL(value) {
   const raw = typeof value === 'string' ? value.trim() : ''
-  // URL('', API_URL) resolves to the backend homepage. A missing folder
-  // cover must instead remain blank, so the folder icon can be displayed.
   if (!raw) return ''
   try {
     const u = new URL(raw, API_URL)
@@ -28,7 +27,8 @@ function safeURL(value) {
 }
 const folderModel = (x) => ({
   id: String(x.id), name: x.name || '', icon: x.icon || '📁',
-  description: x.description || '', coverUrl: safeURL(x.cover_image_url),
+  description: x.description || '', color: /^#[0-9a-fA-F]{6}$/.test(x.color || '') ? x.color.toUpperCase() : DEFAULT_FOLDER_COLOR,
+  coverUrl: safeURL(x.cover_image_url), coverStorageKey: x.cover_storage_key || '',
   sortOrder: Number(x.sort_order || 0), active: x.is_active !== false,
 })
 const imageModel = (x) => ({
@@ -40,19 +40,29 @@ const imageModel = (x) => ({
   animationRepeat: x.animation_repeat || 'loop',
 })
 
-async function api(path, { method = 'GET', body } = {}) {
+async function api(path, { method = 'GET', body, timeoutMs = 0 } = {}) {
   const account = token()
   if (!account) throw new Error('Sign in to Admin again.')
   const isForm = body instanceof FormData
-  const response = await fetch(`${API_URL}${BASE}${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${account}`, ...(body && !isForm ? { 'Content-Type': 'application/json' } : {}) },
-    ...(body ? { body: isForm ? body : JSON.stringify(body) } : {}),
-  })
-  const result = await response.json().catch(() => ({}))
-  if (!response.ok || result.ok === false) throw new Error(result.message || `Sticker request failed (${response.status})`)
-  if (account !== token()) throw new Error('Admin account changed. Reopen this page.')
-  return result
+  const controller = timeoutMs ? new AbortController() : null
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
+  try {
+    const response = await fetch(`${API_URL}${BASE}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${account}`, ...(body && !isForm ? { 'Content-Type': 'application/json' } : {}) },
+      ...(body ? { body: isForm ? body : JSON.stringify(body) } : {}),
+      ...(controller ? { signal: controller.signal } : {}),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok || result.ok === false) throw new Error(result.message || `Sticker request failed (${response.status})`)
+    if (account !== token()) throw new Error('Admin account changed. Reopen this page.')
+    return result
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Folder save took too long. Check the folder list before retrying.')
+    throw error
+  } finally {
+    if (timer !== null) clearTimeout(timer)
+  }
 }
 
 export function useAdminStickerLibrary() {
@@ -70,6 +80,8 @@ export function useAdminStickerLibrary() {
   const preparedUploads = useRef(new Map())
   const uploadedFiles = useRef(new Map())
   const savedUploads = useRef(new Map())
+  const preparedCovers = useRef(new WeakMap())
+  const coverReferences = useRef(new WeakMap())
   folderIdRef.current = folderId
 
   const loadFolders = useCallback(async (force = false) => {
@@ -157,47 +169,66 @@ export function useAdminStickerLibrary() {
   }
 
   const saveFolder = (draft) => run(async () => {
-    // Validate/compress a selected cover before creating the DB record.
-    // Animation remains independent of image compression.
-    const preparedCover = draft.coverFile
-      ? await prepareStickerImage(draft.coverFile, { cover: true })
-      : null
     const existing = Boolean(draft.id)
     const path = existing ? `/folders/${encodeURIComponent(draft.id)}` : '/folders'
-    const data = await api(path, { method: existing ? 'PATCH' : 'POST', body: {
-      name: draft.name.trim(), icon: draft.icon || '📁', description: draft.description.trim(),
+    const body = {
+      name: draft.name.trim(), icon: draft.icon || '📁', description: (draft.description || '').trim(),
+      color: draft.color || DEFAULT_FOLDER_COLOR,
       sort_order: Number(draft.sortOrder || 0), is_active: Boolean(draft.active),
-    } })
-    let updated = folderModel(data.folder)
-    try {
-      if (preparedCover) {
-        const form = new FormData()
-        form.append('cover', preparedCover)
-        updated = folderModel((await api(`/folders/${updated.id}/cover`, { method: 'POST', body: form })).folder)
-      } else if (draft.removeCover) {
-        updated = folderModel((await api(`/folders/${updated.id}/cover`, { method: 'DELETE' })).folder)
-      }
-    } catch (error) {
-      // A failed cover upload must not leave an invisible newly-created
-      // folder that gets duplicated when the admin retries Save.
-      if (!existing) {
-        try {
-          await api(`/folders/${encodeURIComponent(updated.id)}`, { method: 'DELETE' })
-        } catch (cleanupError) {
-          cache().folders = null
-          await loadFolders(true)
-          throw new Error(`Folder was created but its cover failed. It could not be rolled back: ${cleanupError.message}. Please edit or delete the folder before retrying.`)
-        }
-      } else {
-        cache().folders = null
-        await loadFolders(true)
-      }
-      throw error
     }
+    if (draft.removeCover) {
+      body.cover_image_url = null
+      body.cover_storage_key = null
+    }
+    let updated
+    const saveMetadata = async () => {
+      const data = await api(path, {
+        method: existing ? 'PATCH' : 'POST',
+        body,
+        timeoutMs: FOLDER_SAVE_TIMEOUT_MS,
+      })
+      updated = folderModel(data.folder)
+      return updated
+    }
+    if (draft.coverFile && !draft.removeCover) {
+      let prepared = preparedCovers.current.get(draft.coverFile)
+      if (!prepared) {
+        prepared = await prepareStickerImage(draft.coverFile, { cover: true })
+        preparedCovers.current.set(draft.coverFile, prepared)
+      }
+      let reference = coverReferences.current.get(draft.coverFile)
+      if (reference) {
+        body.cover_image_url = reference.image_url
+        body.cover_storage_key = reference.storage_key
+        await saveMetadata()
+      } else {
+        await uploadMediaLibraryWithProgress({
+          apiUrl: API_URL,
+          token: token(),
+          files: [prepared],
+          onProcess: async (uploaded) => {
+            const item = uploaded[0]
+            if (!item?.image_url || !item?.storage_key) throw new Error('Cloudflare folder cover reference is missing.')
+            reference = item
+            coverReferences.current.set(draft.coverFile, item)
+            body.cover_image_url = item.image_url
+            body.cover_storage_key = item.storage_key
+            await saveMetadata()
+          },
+        })
+      }
+    } else {
+      await saveMetadata()
+    }
+    if (draft.coverFile && !draft.removeCover) {
+      preparedCovers.current.delete(draft.coverFile)
+      coverReferences.current.delete(draft.coverFile)
+    }
+    const entry = cache()
     const rows = existing ? folders.map((f) => f.id === updated.id ? updated : f) : [...folders, updated]
     setFolders(rows)
-    cache().folders = rows
-    cache().foldersAt = Date.now()
+    entry.folders = rows
+    entry.foldersAt = Date.now()
     setFolderId(updated.id)
     return updated
   })
@@ -230,8 +261,6 @@ export function useAdminStickerLibrary() {
       cache().folders = next
       cache().foldersAt = Date.now()
     } catch (e) {
-      // Some reorder PATCH requests may have already succeeded. Refetch
-      // server order instead of displaying a stale optimistic rollback.
       cache().folders = null
       try { await loadFolders(true) } catch { setFolders(previous) }
       throw e
@@ -246,9 +275,6 @@ export function useAdminStickerLibrary() {
 
   const uploadImages = (drafts) => run(async () => {
     if (!drafts.length || drafts.length > 20) throw new Error('Choose between 1 and 20 images.')
-
-    // Keep successfully saved records when a later image fails. Retrying the
-    // same selection must not create a duplicate row or repeat an R2 upload.
     const unsaved = drafts.filter((draft) => !savedUploads.current.has(draft.id))
     const unprepared = unsaved.filter((draft) => !preparedUploads.current.has(draft.id))
     if (unprepared.length) {
@@ -258,8 +284,6 @@ export function useAdminStickerLibrary() {
 
     if (unsaved.length) {
       const files = unsaved.map((draft) => preparedUploads.current.get(draft.id))
-      // The same shared upload popup now stays in Processing until the
-      // Sticker database rows have been saved. Character calls are unchanged.
       await uploadMediaLibraryWithProgress({
         apiUrl: API_URL,
         token: token(),
