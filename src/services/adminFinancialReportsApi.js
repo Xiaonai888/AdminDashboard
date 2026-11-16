@@ -105,6 +105,10 @@ export function getAdminFinancialReportsStatus(options = {}) {
   return requestFinancialReport('/status', options)
 }
 
+export function getAdminFinancialReportsHistoryRange(options = {}) {
+  return requestFinancialReport('/history-range', options)
+}
+
 export function connectAdminFinancialReportsSheet(spreadsheetUrl, options = {}) {
   const url = getSafeAdminFinancialSheetUrl(spreadsheetUrl)
   if (!url) throw new Error('Enter a valid Google Sheets link.')
