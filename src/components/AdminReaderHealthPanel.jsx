@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import AdminStoryCreationErrorsPanel from './AdminStoryCreationErrorsPanel'
+import AdminReaderLoginIssuesPanel from './AdminReaderLoginIssuesPanel'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const TEXT = '#0F172A'
@@ -150,6 +151,7 @@ export default function AdminReaderHealthPanel() {
         </div>
       ) : null}
       <AdminStoryCreationErrorsPanel hours={hours} refreshIndex={refreshIndex} />
+      <AdminReaderLoginIssuesPanel />
     </section>
   )
 }
