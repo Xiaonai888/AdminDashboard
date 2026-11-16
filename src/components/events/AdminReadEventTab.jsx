@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import AdminReadEventLanguageControl from './AdminReadEventLanguageControl'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const API_PATH = '/api/admin/events/read-event'
@@ -188,6 +189,8 @@ export default function AdminReadEventTab() {
           <button type="button" className="rde-btn" onClick={() => setRefreshNumber((n) => n + 1)} disabled={loading || preparing}>Refresh</button>
         </div>
       </section>
+
+      <AdminReadEventLanguageControl />
 
       {error && <div className="rde-alert error" role="alert">{error}</div>}
       {notice && <div className="rde-alert" role="status">{notice}</div>}
