@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../components/AdminLayout'
 import ImageDropZone from '../components/common/ImageDropZone'
+import StickerFolderCoverPicker, { DEFAULT_STICKER_FOLDER_COLOR } from '../components/sticker/StickerFolderCoverPicker'
 import { useAdminStickerLibrary } from '../hooks/useAdminStickerLibrary'
-import { STICKER_COVER_LIMIT, STICKER_FILE_LIMIT } from '../utils/stickerImageOptimizer'
+import { STICKER_FILE_LIMIT } from '../utils/stickerImageOptimizer'
 
 const TYPES = ['none', 'bounce', 'shake', 'pulse', 'float']
 const SPEEDS = ['slow', 'normal', 'fast']
@@ -12,25 +13,18 @@ const MAX_FILES = 20
 const accepted = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
 const titleCase = (text) => text.charAt(0).toUpperCase() + text.slice(1)
 const blankAnimation = { animationType: 'none', animationSpeed: 'normal', animationRepeat: 'loop' }
-const newFolder = () => ({ name: '', icon: '📁', description: '', sortOrder: 0, active: true, coverFile: null, removeCover: false })
+const newFolder = () => ({ name: '', icon: '📁', description: '', color: DEFAULT_STICKER_FOLDER_COLOR, sortOrder: 0, active: true, coverFile: null, coverUrl: '', removeCover: false })
 
-// Accept only browser-safe image URLs. Never pass data:, javascript: or other
-// executable/unexpected schemes from stored records to an image element.
 function safeStickerSrc(value) {
   if (typeof value !== 'string' || !value.trim()) return undefined
   try {
     const url = new URL(value.trim(), window.location.origin)
     if (url.username || url.password) return undefined
-    if (url.protocol === 'blob:') {
-      return url.origin === window.location.origin ? url.href : undefined
-    }
+    if (url.protocol === 'blob:') return url.origin === window.location.origin ? url.href : undefined
     if (url.protocol === 'https:') return url.href
-    // Allow HTTP image URLs only while developing on localhost.
     const local = ['localhost', '127.0.0.1'].includes(window.location.hostname)
     if (local && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) return url.href
-  } catch {
-    // Ignore malformed URL values rather than rendering them.
-  }
+  } catch { return undefined }
   return undefined
 }
 
@@ -101,7 +95,7 @@ const STYLES = `
 .sticker-folders{display:grid;gap:9px;margin:0;padding:0;list-style:none}
 .sticker-folder{display:flex;align-items:center;gap:9px;border:1px solid #e2e8f0;background:#fff;border-radius:12px;padding:8px;min-width:0}
 .sticker-folder.selected{border-color:#818cf8;background:#eef2ff}.sticker-folder[draggable=true]{cursor:grab}
-.sticker-folder-cover{width:46px;height:46px;flex-shrink:0;border-radius:9px;display:grid;place-items:center;background:#f1f5f9;overflow:hidden;font-size:23px}
+.sticker-folder-cover{width:46px;height:46px;flex-shrink:0;border-radius:9px;display:grid;place-items:center;overflow:hidden;font-size:23px}
 .sticker-folder-cover img{width:100%;height:100%;object-fit:cover}
 .sticker-folder-open{border:0;background:transparent;flex:1;min-width:0;text-align:left;padding:1px;color:inherit}
 .sticker-folder-open strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
@@ -177,7 +171,7 @@ export default function AdminStickerLibraryPage() {
       await callback()
       if (done) { setNotice(done); setTimeout(() => setNotice(''), 3200) }
       return true
-    } catch { return false } // Hook displays the precise API error.
+    } catch { return false }
   }
 
   const addFiles = (files) => {
@@ -210,7 +204,7 @@ export default function AdminStickerLibraryPage() {
     if (await doAction(() => lib.uploadImages(pending), 'Sticker images saved.')) clearPending()
   }
   const saveFolder = async () => {
-    if (!folderDraft.name.trim()) { lib.setError('Folder name is required.'); return }
+    if (!folderDraft?.name?.trim()) { lib.setError('Folder name is required.'); return }
     if (await doAction(() => lib.saveFolder(folderDraft), 'Folder saved.')) setFolderDraft(null)
   }
   const reorder = async (toId) => {
@@ -241,13 +235,13 @@ export default function AdminStickerLibraryPage() {
           <div><h2>Sticker Library</h2><p>Original image compression + independent CSS animation settings</p></div>
           <button type="button" className="sticker-button" onClick={() => navigate('/media-library')}>← All Libraries</button>
         </div>
-        {lib.error && <div className="sticker-error" role="alert">{lib.error}</div>}
+        {lib.error && !folderDraft && !imageDraft && !uploadsOpen && <div className="sticker-error" role="alert">{lib.error}</div>}
         {notice && <div className="sticker-notice" role="status">{notice}</div>}
         <div className="sticker-shell">
           <aside className="sticker-panel">
             <div className="sticker-panel-title">
               <h3>Folders {lib.loadingFolders ? '…' : ''}</h3>
-              <button type="button" className="sticker-button small primary" disabled={lib.busy} onClick={() => setFolderDraft({ ...newFolder(), sortOrder: ordered.length + 1 })}>+ Folder</button>
+              <button type="button" className="sticker-button small primary" disabled={lib.busy} onClick={() => { lib.setError(''); setFolderDraft({ ...newFolder(), sortOrder: ordered.length + 1 }) }}>+ Folder</button>
             </div>
             {ordered.length ? (
               <ul className="sticker-folders">
@@ -260,12 +254,14 @@ export default function AdminStickerLibraryPage() {
                   onDrop={(e) => { e.preventDefault(); reorder(f.id) }}
                   className={`sticker-folder ${f.id === lib.folderId ? 'selected' : ''}`}
                 >
-                  <div className="sticker-folder-cover">{safeStickerSrc(f.coverUrl) ? <img src={safeStickerSrc(f.coverUrl)} alt="" /> : f.icon}</div>
+                  <div className="sticker-folder-cover" style={{ backgroundColor: f.color || DEFAULT_STICKER_FOLDER_COLOR }}>
+                    {safeStickerSrc(f.coverUrl) ? <img src={safeStickerSrc(f.coverUrl)} alt="" /> : f.icon}
+                  </div>
                   <button type="button" className="sticker-folder-open" onClick={() => { lib.setFolderId(f.id); setSearch('') }}>
                     <strong>{f.name}</strong><small>{f.active ? `#${f.sortOrder} · Visible` : `#${f.sortOrder} · Hidden`}</small>
                   </button>
                   <div className="sticker-folder-actions">
-                    <button type="button" disabled={lib.busy} aria-label={`Edit ${f.name}`} onClick={() => setFolderDraft({ ...f, coverFile: null, removeCover: false })}>Edit</button>
+                    <button type="button" disabled={lib.busy} aria-label={`Edit ${f.name}`} onClick={() => { lib.setError(''); setFolderDraft({ ...f, color: f.color || DEFAULT_STICKER_FOLDER_COLOR, coverFile: null, removeCover: false }) }}>Edit</button>
                     <button type="button" disabled={lib.busy} onClick={() => doAction(() => lib.toggleFolder(f))}>{f.active ? 'Hide' : 'Show'}</button>
                     <button type="button" disabled={lib.busy} aria-label={`Move ${f.name} up`} onClick={() => stepFolder(f.id, -1)}>↑</button>
                     <button type="button" disabled={lib.busy} aria-label={`Move ${f.name} down`} onClick={() => stepFolder(f.id, 1)}>↓</button>
@@ -281,7 +277,7 @@ export default function AdminStickerLibraryPage() {
               <div><h3>{folder ? `${folder.icon} ${folder.name}` : 'Select a Folder'}</h3><p>{folder?.description || 'Organize your stickers by folder.'}</p></div>
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                 <button type="button" className="sticker-button small" disabled={lib.loadingImages} onClick={() => lib.refresh()}>Refresh</button>
-                <button type="button" className="sticker-button primary" disabled={!folder || lib.busy} onClick={() => setUploadsOpen(true)}>+ Add Images</button>
+                <button type="button" className="sticker-button primary" disabled={!folder || lib.busy} onClick={() => { lib.setError(''); setUploadsOpen(true) }}>+ Add Images</button>
               </div>
             </div>
             <input className="sticker-search" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search loaded images in this folder..." aria-label="Search stickers" />
@@ -293,7 +289,7 @@ export default function AdminStickerLibraryPage() {
                     <strong title={image.title}>{image.title}</strong>
                     <small>Sort {image.sortOrder} · {titleCase(image.animationType)}</small>
                     <div className="sticker-card-tools">
-                      <button type="button" className="sticker-button small" disabled={lib.busy} onClick={() => setImageDraft({ ...image })}>Edit</button>
+                      <button type="button" className="sticker-button small" disabled={lib.busy} onClick={() => { lib.setError(''); setImageDraft({ ...image }) }}>Edit</button>
                       <button type="button" className="sticker-button small" disabled={lib.busy} onClick={() => doAction(() => lib.saveImage({ ...image, active: !image.active }))}>{image.active ? 'Hide' : 'Show'}</button>
                       <button type="button" className="sticker-button small danger" disabled={lib.busy} onClick={() => { if (window.confirm(`Delete "${image.title}"?`)) doAction(() => lib.deleteImage(image), 'Sticker deleted.') }}>Delete</button>
                     </div>
@@ -305,22 +301,21 @@ export default function AdminStickerLibraryPage() {
           </section>
         </div>
 
-        {folderDraft && <Dialog title={folderDraft.id ? 'Edit Folder' : 'Create Folder'} busy={lib.busy} onClose={() => setFolderDraft(null)}>
-          <label className="sticker-field">Folder Name<input value={folderDraft.name} maxLength={120} onChange={(e) => setFolderDraft((d) => ({ ...d, name: e.target.value }))} /></label>
-          <label className="sticker-field">Icon<input value={folderDraft.icon} onChange={(e) => setFolderDraft((d) => ({ ...d, icon: e.target.value }))} /></label>
-          <label className="sticker-field">Description<textarea value={folderDraft.description} onChange={(e) => setFolderDraft((d) => ({ ...d, description: e.target.value }))} /></label>
-          <label className="sticker-field">Sort Order<input type="number" min="0" value={folderDraft.sortOrder} onChange={(e) => setFolderDraft((d) => ({ ...d, sortOrder: Math.max(0, Number(e.target.value) || 0) }))} /></label>
-          <label className="sticker-field">Folder Cover (optional, max 5 MB)
-            <ImageDropZone onFiles={(files) => { const file = files[0]; if (file?.size > STICKER_COVER_LIMIT) { lib.setError('Folder cover must be 5 MB or smaller.'); return } setFolderDraft((d) => ({ ...d, coverFile: file, removeCover: false })) }}>
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > STICKER_COVER_LIMIT) { lib.setError('Folder cover must be 5 MB or smaller.'); return } setFolderDraft((d) => ({ ...d, coverFile: file, removeCover: false })) }} />
-            </ImageDropZone>
-          </label>
-          {(folderDraft.coverFile || folderDraft.coverUrl) && <label className="sticker-check"><input type="checkbox" checked={folderDraft.removeCover} onChange={(e) => setFolderDraft((d) => ({ ...d, removeCover: e.target.checked, coverFile: e.target.checked ? null : d.coverFile }))} />Remove existing cover</label>}
-          <label className="sticker-check"><input type="checkbox" checked={folderDraft.active} onChange={(e) => setFolderDraft((d) => ({ ...d, active: e.target.checked }))} />Show this folder to users</label>
-          <div className="sticker-dialog-actions"><button className="sticker-button" type="button" disabled={lib.busy} onClick={() => setFolderDraft(null)}>Cancel</button><button className="sticker-button primary" disabled={lib.busy} type="button" onClick={saveFolder}>{lib.busy ? 'Saving…' : 'Save Folder'}</button></div>
+        {folderDraft && <Dialog title={folderDraft.id ? 'Edit Folder' : 'Create Folder'} busy={lib.busy} onClose={() => { lib.setError(''); setFolderDraft(null) }}>
+          <label className="sticker-field">Folder Name<input value={folderDraft.name} maxLength={100} disabled={lib.busy} onChange={(e) => setFolderDraft((d) => ({ ...d, name: e.target.value }))} /></label>
+          <label className="sticker-field">Icon<input value={folderDraft.icon} disabled={lib.busy} onChange={(e) => setFolderDraft((d) => ({ ...d, icon: e.target.value }))} /></label>
+          <label className="sticker-field">Description<textarea value={folderDraft.description} disabled={lib.busy} onChange={(e) => setFolderDraft((d) => ({ ...d, description: e.target.value }))} /></label>
+          <label className="sticker-field">Sort Order<input type="number" min="0" disabled={lib.busy} value={folderDraft.sortOrder} onChange={(e) => setFolderDraft((d) => ({ ...d, sortOrder: Math.max(0, Number(e.target.value) || 0) }))} /></label>
+          <StickerFolderCoverPicker draft={folderDraft} disabled={lib.busy} onPatch={(patch) => { lib.setError(''); setFolderDraft((d) => ({ ...d, ...patch })) }} />
+          <label className="sticker-check"><input type="checkbox" checked={folderDraft.active} disabled={lib.busy} onChange={(e) => setFolderDraft((d) => ({ ...d, active: e.target.checked }))} />Show this folder to users</label>
+          {lib.error && <div className="sticker-error" role="alert">{lib.error}</div>}
+          <div className="sticker-dialog-actions">
+            <button className="sticker-button" type="button" disabled={lib.busy} onClick={() => { lib.setError(''); setFolderDraft(null) }}>Cancel</button>
+            <button className="sticker-button primary" disabled={lib.busy || !folderDraft.name.trim()} type="button" onClick={saveFolder}>{lib.busy ? 'Saving…' : 'Save Folder'}</button>
+          </div>
         </Dialog>}
 
-        {imageDraft && <Dialog title="Edit Sticker" busy={lib.busy} onClose={() => setImageDraft(null)}>
+        {imageDraft && <Dialog title="Edit Sticker" busy={lib.busy} onClose={() => { lib.setError(''); setImageDraft(null) }}>
           <div className="sticker-mini-preview"><AnimatedSticker item={imageDraft} /></div>
           <label className="sticker-field">Title<input maxLength={120} value={imageDraft.title} onChange={(e) => setImageDraft((d) => ({ ...d, title: e.target.value }))} /></label>
           <label className="sticker-field">Alt Text<input maxLength={180} value={imageDraft.altText} onChange={(e) => setImageDraft((d) => ({ ...d, altText: e.target.value }))} /></label>
@@ -329,7 +324,8 @@ export default function AdminStickerLibraryPage() {
           <AnimationFields draft={imageDraft} onChange={(patch) => setImageDraft((d) => ({ ...d, ...patch }))} />
           <label className="sticker-check"><input type="checkbox" checked={imageDraft.active} onChange={(e) => setImageDraft((d) => ({ ...d, active: e.target.checked }))} />Show Sticker</label>
           <p className="sticker-tiny">Change animation whenever you like. The compressed image never needs re-uploading.</p>
-          <div className="sticker-dialog-actions"><button className="sticker-button" disabled={lib.busy} type="button" onClick={() => setImageDraft(null)}>Cancel</button><button className="sticker-button primary" disabled={lib.busy || !imageDraft.title.trim()} type="button" onClick={async () => { if (await doAction(() => lib.saveImage(imageDraft), 'Sticker updated.')) setImageDraft(null) }}>{lib.busy ? 'Saving…' : 'Save Changes'}</button></div>
+          {lib.error && <div className="sticker-error" role="alert">{lib.error}</div>}
+          <div className="sticker-dialog-actions"><button className="sticker-button" disabled={lib.busy} type="button" onClick={() => { lib.setError(''); setImageDraft(null) }}>Cancel</button><button className="sticker-button primary" disabled={lib.busy || !imageDraft.title.trim()} type="button" onClick={async () => { if (await doAction(() => lib.saveImage(imageDraft), 'Sticker updated.')) setImageDraft(null) }}>{lib.busy ? 'Saving…' : 'Save Changes'}</button></div>
         </Dialog>}
 
         {uploadsOpen && <Dialog title="Add Sticker Images" busy={lib.busy} onClose={clearPending}>
@@ -353,6 +349,7 @@ export default function AdminStickerLibraryPage() {
               </div>
             </div>)}
           </div>
+          {lib.error && <div className="sticker-error" role="alert">{lib.error}</div>}
           <div className="sticker-dialog-actions"><button className="sticker-button" type="button" disabled={lib.busy} onClick={clearPending}>Cancel</button><button className="sticker-button primary" type="button" disabled={lib.busy || !pending.length || pending.some((x) => !x.folderId)} onClick={submitUploads}>{lib.busy ? 'Uploading…' : `Upload ${pending.length} Images`}</button></div>
         </Dialog>}
       </div>
