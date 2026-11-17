@@ -137,6 +137,31 @@ function HealthPanel({ health, loading, error }) {
         <div className="rc-health-queue"><strong>Upload queue</strong><span>{pending.toLocaleString()} pending attempts · {failed.toLocaleString()} failed saves</span></div>
         <span className="rc-health-source-meta">Checked: {new Date(health.generated_at).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })} ICT</span>
       </div>
+
+            <details className="rc-health-source">
+        <summary><strong>Render Sync Diagnostics</strong></summary>
+        {(() => {
+          const render = health.providers?.render || {}
+          const d = render.sync_diagnostics
+          const history = render.hourly_history
+          return <div>
+            <p>Sync status: {render.sync_status || 'Unknown'}</p>
+            <p>Services: {(render.service_ids || []).join(', ') || 'Not configured'}</p>
+            {d ? <>
+              <p>Bandwidth series received: {d.bandwidth_series_received ?? '—'}</p>
+              <p>Unmatched services: {d.unmatched_service_series ?? '—'}</p>
+              <p>Unsupported units: {d.unsupported_unit_series ?? '—'}</p>
+              <p>Missing values series: {d.missing_values_series ?? '—'}</p>
+              <p>Skipped points (including outside the time window): {d.ignored_points ?? '—'}</p>
+              <p>Parsed hourly rows: {d.hourly_rows_after_parse ?? '—'}</p>
+              <p>Hours without breakdown: {d.hours_without_breakdown ?? '—'}</p>
+              <p>Breakdown API: {d.breakdown_endpoint_available ? 'Available' : 'Unavailable'}</p>
+            </> : <p>No sync diagnostics available yet.</p>}
+            <p>Database save: {history?.status || 'Unknown'} · Rows: {history?.saved ?? '—'}</p>
+          </div>
+        })()}
+      </details>
+      
       {warnings.length > 0 && <div className="rc-health-warnings" role="status">
         {warnings.slice(0, 4).map((warning, index) => <span key={`${warning}-${index}`}>• {warningText(warning)}</span>)}
         {warnings.length > 4 && <span>+ {warnings.length - 4} more warnings</span>}
