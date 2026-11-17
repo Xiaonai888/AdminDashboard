@@ -91,6 +91,11 @@ export default function AdminReadEventTab() {
   const [loading, setLoading] = useState(true)
   const [preparing, setPreparing] = useState(false)
   const [changingStatus, setChangingStatus] = useState(false)
+  const [autoCycleEnabled, setAutoCycleEnabled] = useState(null)
+  const [autoCycleLoading, setAutoCycleLoading] = useState(true)
+  const [autoCycleSaving, setAutoCycleSaving] = useState(false)
+  const [autoCycleError, setAutoCycleError] = useState('')
+  const [autoCycleNotice, setAutoCycleNotice] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -105,6 +110,42 @@ export default function AdminReadEventTab() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [startsOn, refreshNumber])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    request('/auto-cycle-settings', { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return
+        if (typeof result.auto_enabled !== 'boolean') {
+          throw new Error('Invalid automatic event setting')
+        }
+        setAutoCycleEnabled(result.auto_enabled)
+      })
+      .catch((err) => { if (!controller.signal.aborted) setAutoCycleError(err.message) })
+      .finally(() => { if (!controller.signal.aborted) setAutoCycleLoading(false) })
+    return () => controller.abort()
+  }, [])
+
+  async function changeAutoCycle() {
+    if (autoCycleLoading || autoCycleSaving || typeof autoCycleEnabled !== 'boolean') return
+    const enabled = !autoCycleEnabled
+    if (!enabled && !window.confirm('Turn OFF automatic event cycles? Currently enabled events will remain enabled.')) return
+    setAutoCycleSaving(true)
+    setAutoCycleError('')
+    setAutoCycleNotice('')
+    try {
+      const result = await request('/auto-cycle-settings', {
+        method: 'PATCH', body: JSON.stringify({ enabled }),
+      })
+      if (result.auto_enabled !== enabled) throw new Error('Invalid automatic event save response')
+      setAutoCycleEnabled(enabled)
+      setAutoCycleNotice(enabled ? 'Automatic Read Event cycles enabled.' : 'Automatic Read Event cycles disabled.')
+    } catch (err) {
+      setAutoCycleError(err.message || 'Unable to update automatic event setting')
+    } finally {
+      setAutoCycleSaving(false)
+    }
+  }
 
   const missions = useMemo(() =>
     (Array.isArray(data?.missions) ? data.missions : []).filter((m) => m.day_number === dayNumber),
@@ -188,6 +229,23 @@ export default function AdminReadEventTab() {
           <button type="button" className="rde-btn" onClick={() => navigate(1)} disabled={loading || preparing}>Next</button>
           <button type="button" className="rde-btn" onClick={() => setRefreshNumber((n) => n + 1)} disabled={loading || preparing}>Refresh</button>
         </div>
+      </section>
+
+      <section className="rde-panel rde-stack" aria-label="Automatic Read Event Cycle">
+        <div className="rde-row">
+          <h3>Automatic Event Cycle</h3>
+          <button type="button" role="switch" aria-label="Automatic Read Event Cycle"
+            aria-checked={autoCycleEnabled === true}
+            className={`rde-btn ${autoCycleEnabled === true ? 'primary' : ''}`}
+            disabled={autoCycleLoading || autoCycleSaving || typeof autoCycleEnabled !== 'boolean'}
+            onClick={changeAutoCycle}>
+            {autoCycleLoading ? 'Loading...' : autoCycleSaving ? 'Saving...' : autoCycleEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <p className="rde-muted">Prepare 2 days early and automatically enable a new 7-day Read Event every 14 days.</p>
+        <p className="rde-muted">This master switch does not disable an already running Event. Manual Disable Event remains effective for the rest of that cycle.</p>
+        {autoCycleError && <div className="rde-alert error" role="alert">{autoCycleError}</div>}
+        {autoCycleNotice && <div className="rde-alert" role="status">{autoCycleNotice}</div>}
       </section>
 
       <AdminReadEventLanguageControl />
