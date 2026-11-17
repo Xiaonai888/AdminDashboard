@@ -16,7 +16,7 @@ const periods = [
   { value: 'last30', label: 'Last 30 Days' },
   { value: 'custom', label: 'Custom Dates' },
 ]
-const exports = [
+const exportOptions = [
   { value: 'full-zip', title: 'Complete Report', subtitle: 'ZIP · All available evidence' },
   { value: 'daily-csv', title: 'Daily Breakdown', subtitle: 'CSV · Daily provider totals' },
   { value: 'weekly-csv', title: 'Weekly Breakdown', subtitle: 'CSV · Weekly usage totals' },
@@ -105,12 +105,36 @@ function warningText(code) {
 
 function HealthPanel({ health, loading, error }) {
   const warnings = Array.isArray(health?.warnings) ? health.warnings : []
+  const renderProvider = health?.providers?.render || {}
+  const diagnostics = renderProvider.sync_diagnostics
+  const history = renderProvider.hourly_history
+  const renderProblem = Boolean(
+    diagnostics?.breakdown_fetch_error ||
+    history?.status === 'error' ||
+    diagnostics?.breakdown_endpoint_available === false && Number(diagnostics?.bandwidth_series_received) > 0 ||
+    ['unmatched_service_series', 'unsupported_unit_series', 'hours_without_breakdown', 'breakdown_unmatched_service_series']
+      .some((key) => Number(diagnostics?.[key]) > 0)
+  )
   const status = !health ? { label: 'Not checked', tone: 'neutral' }
     : health.database_readable === false ? { label: 'Database review needed', tone: 'investigate' }
-      : warnings.length > 0 ? { label: 'Review needed', tone: 'watch' }
+      : warnings.length > 0 || renderProblem ? { label: 'Review needed', tone: 'watch' }
         : { label: 'Sources reachable', tone: 'good' }
   const pending = Number(health?.upload_queue?.pending_attempts) || 0
   const failed = Number(health?.upload_queue?.failed_flushes) || 0
+  const metrics = diagnostics ? [
+    ['Bandwidth series received', diagnostics.bandwidth_series_received],
+    ['Unmatched service series', diagnostics.unmatched_service_series],
+    ['Unsupported unit series', diagnostics.unsupported_unit_series],
+    ['Missing values series', diagnostics.missing_values_series],
+    ['Ignored points (includes time-filtered)', diagnostics.ignored_points],
+    ['Parsed hourly rows', diagnostics.hourly_rows_after_parse],
+    ['Breakdown series received', diagnostics.breakdown_series_received],
+    ['Unmatched breakdown services', diagnostics.breakdown_unmatched_service_series],
+    ['Unknown breakdown traffic types', diagnostics.breakdown_unrecognized_traffic_source_series],
+    ['Invalid breakdown points', diagnostics.breakdown_unusable_points],
+    ['Hours without breakdown', diagnostics.hours_without_breakdown],
+  ] : []
+
   return <section className="rc-panel rc-health-panel" aria-label="Resource and Cost collection health" aria-live="polite">
     <div className="rc-panel-head rc-health-heading">
       <div>
@@ -127,8 +151,10 @@ function HealthPanel({ health, loading, error }) {
           const source = health.sources?.[key]
           const provider = health.providers?.[key]
           const info = healthStatus(source, provider)
+          const visible = key === 'render' && renderProblem && info.tone === 'good'
+            ? { label: 'Review breakdown', tone: 'watch' } : info
           return <div className="rc-health-source" key={key}>
-            <div className="rc-health-source-top"><strong>{title}</strong><Badge state={info.tone}>{info.label}</Badge></div>
+            <div className="rc-health-source-top"><strong>{title}</strong><Badge state={visible.tone}>{visible.label}</Badge></div>
             <span className="rc-health-source-meta">{source?.latest_at ? `Latest: ${new Date(source.latest_at).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })} ICT` : 'No recorded timestamp'}</span>
           </div>
         })}
@@ -137,46 +163,32 @@ function HealthPanel({ health, loading, error }) {
         <div className="rc-health-queue"><strong>Upload queue</strong><span>{pending.toLocaleString()} pending attempts · {failed.toLocaleString()} failed saves</span></div>
         <span className="rc-health-source-meta">Checked: {new Date(health.generated_at).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })} ICT</span>
       </div>
-
-            <details className="rc-health-source">
-        <summary><strong>Render Sync Diagnostics</strong></summary>
-        {(() => {
-          const render = health.providers?.render || {}
-          const d = render.sync_diagnostics
-          const history = render.hourly_history
-          return <div>
-            <p>Sync status: {render.sync_status || 'Unknown'}</p>
-            <p>Services: {(render.service_ids || []).join(', ') || 'Not configured'}</p>
-            {d ? <>
-              <p>Bandwidth series received: {d.bandwidth_series_received ?? '—'}</p>
-              <p>Unmatched services: {d.unmatched_service_series ?? '—'}</p>
-              <p>Unsupported units: {d.unsupported_unit_series ?? '—'}</p>
-              <p>Missing values series: {d.missing_values_series ?? '—'}</p>
-              <p>Skipped points (including outside the time window): {d.ignored_points ?? '—'}</p>
-              <p>Parsed hourly rows: {d.hourly_rows_after_parse ?? '—'}</p>
-              <p>Hours without breakdown: {d.hours_without_breakdown ?? '—'}</p>
-              <p>Breakdown response: {d.breakdown_response_shape || 'Unknown'}</p>
-<p>Unmatched breakdown services: {d.breakdown_unmatched_service_series ?? '—'}</p>
-{d.breakdown_fetch_error && (
-  <p role="alert" style={{ color: '#dc2626', overflowWrap: 'anywhere' }}>
-    Breakdown API Error: {d.breakdown_fetch_error}
-  </p>
-)}
-{!d.breakdown_fetch_error && d.breakdown_endpoint_available === false && (
-  <p>Breakdown data is unavailable. Check the response format.</p>
-)}
-              <p>Breakdown API: {d.breakdown_endpoint_available ? 'Available' : 'Unavailable'}</p>
-            </> : <p>No sync diagnostics available yet.</p>}
-            <p>Database save: {history?.status || 'Unknown'} · Rows: {history?.saved ?? '—'}</p>
-          </div>
-        })()}
+      <details className="rc-health-source" style={{ marginTop: 14 }}>
+        <summary><strong>Render Sync Diagnostics</strong> · {renderProblem ? 'Review required' : 'Last provider sync'}</summary>
+        <div style={{ marginTop: 12 }}>
+          <p>Sync status: {renderProvider.sync_status || 'Unknown'}</p>
+          <p>Last checked: {renderProvider.last_checked_at ? `${new Date(renderProvider.last_checked_at).toLocaleString('en-US', { timeZone: 'Asia/Phnom_Penh' })} ICT` : 'Unknown'}</p>
+          <p>Requested services: {(renderProvider.service_ids || []).join(', ') || 'Not configured or unavailable'}</p>
+          <p>Breakdown response: {diagnostics?.breakdown_response_shape || 'Unknown'}</p>
+          <p>Breakdown endpoint: {diagnostics?.breakdown_endpoint_available === true ? 'Available' : diagnostics?.breakdown_endpoint_available === false ? 'Unavailable' : 'Not checked'}</p>
+          {diagnostics && <div className="rc-health-grid" style={{ marginTop: 12 }}>
+            {metrics.map(([label, value]) => <div className="rc-health-source" key={label}>
+              <strong>{label}</strong>
+              <span>{value === null || value === undefined ? '—' : formatResourceCount(value)}</span>
+            </div>)}
+          </div>}
+          {!diagnostics && <p>Sync diagnostics are unavailable until the Backend provides them.</p>}
+          {diagnostics?.breakdown_fetch_error && <p role="alert" style={{ color: '#b91c1c', overflowWrap: 'anywhere' }}>Breakdown API error: {diagnostics.breakdown_fetch_error}</p>}
+          {history?.status === 'error' && <p role="alert" style={{ color: '#b91c1c', overflowWrap: 'anywhere' }}>Render hourly database save failed: {history.error || 'Unknown error'}</p>}
+          <p>Hourly database save: {history?.status || 'Unknown'} · {history?.saved == null ? '—' : formatResourceCount(history.saved)} rows</p>
+          {history?.full_backfill !== undefined && <p>Seven-day backfill attempted: {history.full_backfill ? 'Yes' : 'No, recent hours only'}</p>}
+        </div>
       </details>
-      
       {warnings.length > 0 && <div className="rc-health-warnings" role="status">
         {warnings.slice(0, 4).map((warning, index) => <span key={`${warning}-${index}`}>• {warningText(warning)}</span>)}
         {warnings.length > 4 && <span>+ {warnings.length - 4} more warnings</span>}
       </div>}
-      <p className="rc-health-caveat">Recent or recorded does not mean complete coverage. Direct R2 uploads not finalized and provider network overhead may remain unmeasured.</p>
+      <p className="rc-health-caveat">A recent record does not prove complete coverage. Render sync diagnostics describe the latest sync in memory. Unmeasured hours are unknown, not zero.</p>
     </>}
   </section>
 }
@@ -262,6 +274,12 @@ export default function AdminResourceCostPage() {
   const totals = report?.totals || null
   const render = totals?.render || null
   const renderRecorded = Number(report?.sources?.render?.rows) > 0
+  const renderSource = report?.sources?.render || {}
+  const renderServiceDiagnostics = Array.isArray(renderSource.service_hour_diagnostics) ? renderSource.service_hour_diagnostics : []
+  const configuredRenderServices = Array.isArray(renderSource.configured_service_ids) ? renderSource.configured_service_ids : []
+  const observedRenderServices = Array.isArray(renderSource.observed_service_ids) ? renderSource.observed_service_ids : []
+  const missingConfiguredRenderServices = Array.isArray(renderSource.configured_without_measurements) ? renderSource.configured_without_measurements : []
+  const otherRecordedRenderServices = Array.isArray(renderSource.observed_not_configured) ? renderSource.observed_not_configured : []
   const supabase = metricValue(report, 'supabase', (metric) => metric.unit === 'bytes' && /egress|bandwidth/i.test(metric.metric))
   const r2Storage = metricValue(report, 'cloudflare_r2', (metric) => metric.unit === 'bytes' && /storage/i.test(metric.metric))
   const proxyRoutes = days.flatMap((day) => day.upload_audit?.by_route || []).filter((route) => route.upload_mode === 'proxy')
@@ -346,7 +364,7 @@ export default function AdminResourceCostPage() {
           <button type="button" className="rc-btn rc-btn-primary" disabled={!report || downloading || loading} onClick={() => handleDownload('full-zip')}>{downloading === 'full-zip' ? 'Preparing…' : '↓ Download ZIP'}</button>
           <div className="rc-export-wrap">
             <button type="button" className="rc-btn" disabled={!report || Boolean(downloading) || loading} onClick={() => setExportOpen((value) => !value)}>Export options ▾</button>
-            {exportOpen && <div className="rc-export-menu">{exports.map((item) => <button type="button" key={item.value} onClick={() => handleDownload(item.value)}><strong>{item.title}</strong><small>{item.subtitle}</small></button>)}</div>}
+            {exportOpen && <div className="rc-export-menu">{exportOptions.map((item) => <button type="button" key={item.value} onClick={() => handleDownload(item.value)}><strong>{item.title}</strong><small>{item.subtitle}</small></button>)}</div>}
           </div>
           <button type="button" className="rc-btn" onClick={() => setReload((value) => value + 1)} disabled={loading}>↻ Refresh view</button>
         </div>
@@ -372,49 +390,49 @@ export default function AdminResourceCostPage() {
         </div>
 
         <section className="rc-panel">
-  <div className="rc-panel-head">
-    <div>
-      <h2>Render Service-Hour Coverage</h2>
-      <p>Missing provider records · Cambodia time (ICT)</p>
-    </div>
-  </div>
-  <div className="rc-table-scroll">
-    <table className="rc-table">
-      <thead>
-        <tr><th>Service ID</th><th>Recorded / Expected</th><th>Missing Hours</th><th>Incomplete Breakdown</th></tr>
-      </thead>
-      <tbody>
-        {(report.sources?.render?.service_hour_diagnostics || []).map((service) => (
-          <tr key={service.service_id}>
-            <td><strong>{service.service_id}</strong></td>
-            <td>{service.observed_hours} / {service.expected_hours}</td>
-            {['missing_hour_utc', 'incomplete_breakdown_hour_utc'].map((field) => (
-              <td key={field}>
-                <details>
-                  <summary>{service[field]?.length || 0} hours</summary>
-                  <div style={{ maxHeight: 220, overflowY: 'auto', whiteSpace: 'pre-line' }}>
-                    {(service[field] || []).map((hour) => new Date(hour).toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh', dateStyle: 'short', timeStyle: 'short' })).join('\n') || 'No missing hours'}
-                  </div>
-                </details>
-              </td>
-            ))}
-          </tr>
-        ))}
-        {!report.sources?.render?.service_hour_diagnostics?.length && (
-          <tr><td colSpan="4">No service-hour diagnostics available. Check Render Service IDs and provider sync.</td></tr>
-        )}
-      </tbody>
-    </table>
-  </div>
-  <p className="rc-subtle">Missing measurements are unknown, not zero. These records do not prove additional billed bandwidth.</p>
-</section>
-        
-                <ResourceCostSourceDetails days={days} />
+          <div className="rc-panel-head">
+            <div><h2>Render Service-Hour Coverage</h2><p>Configured services and missing provider records · Cambodia time (ICT)</p></div>
+            <Badge state={missingConfiguredRenderServices.length || otherRecordedRenderServices.length || renderSource.sync_service_limit_exceeded ? 'watch' : 'neutral'}>
+              {observedRenderServices.length} observed / {configuredRenderServices.length} configured IDs
+            </Badge>
+          </div>
+          {missingConfiguredRenderServices.length > 0 && <p className="rc-subtle">Configured but no measurements in this range: {missingConfiguredRenderServices.join(', ')}</p>}
+          {otherRecordedRenderServices.length > 0 && <p className="rc-subtle">Recorded but not currently configured: {otherRecordedRenderServices.join(', ')}</p>}
+          {renderSource.sync_service_limit_exceeded && <p className="rc-subtle">More than 20 service IDs configured. The current Backend sync has a 20-service limit.</p>}
+          <div className="rc-table-scroll">
+            <table className="rc-table">
+              <thead><tr><th>Service ID</th><th>Recorded / Expected</th><th>Missing Hours</th><th>Incomplete Breakdown</th></tr></thead>
+              <tbody>
+                {renderServiceDiagnostics.map((service) => <tr key={service.service_id}>
+                  <td><strong>{service.service_id}</strong></td>
+                  <td>{formatResourceCount(service.observed_hours)} / {formatResourceCount(service.expected_hours)}</td>
+                  {['missing_hour_utc', 'incomplete_breakdown_hour_utc'].map((field) => {
+                    const hours = Array.isArray(service[field]) ? service[field] : []
+                    const recent = hours.slice(-24).reverse()
+                    return <td key={field}>
+                      <details>
+                        <summary>{formatResourceCount(hours.length)} hours</summary>
+                        <div style={{ maxHeight: 220, overflowY: 'auto', whiteSpace: 'pre-line' }}>
+                          {recent.length ? recent.map((hour) => new Date(hour).toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh', dateStyle: 'short', timeStyle: 'short' })).join('\n') : 'No missing hours'}
+                          {hours.length > recent.length ? `\nShowing latest ${recent.length} of ${hours.length} hours; download evidence for the full list.` : ''}
+                        </div>
+                      </details>
+                    </td>
+                  })}
+                </tr>)}
+                {!renderServiceDiagnostics.length && <tr><td colSpan="4" className="rc-no-rows">No service-hour diagnostics available. Check Render service configuration and provider sync.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <p className="rc-subtle">Only mature hours are checked. Missing measurements are unknown, not zero. Service inventory has not been verified against Render billing.</p>
+        </section>
+
+        <ResourceCostSourceDetails days={days} />
 
         <section className="rc-panel"><div className="rc-panel-head"><div><h2>Usage Insights</h2><p>Important signals only · No per-minute activity feed</p></div>{coverage !== null ? <Badge state={coverage === 100 ? 'good' : 'watch'}>{coverage}% Render hours covered</Badge> : <Badge state="watch">Coverage unknown</Badge>}</div><div className="rc-insights">{insights.map((item) => <div className="rc-insight" key={item.title}><div className="rc-insight-top"><strong>{item.title}</strong><Badge state={item.state}>{item.state === 'good' ? 'Recorded' : item.state === 'investigate' ? 'Investigate' : item.state === 'watch' ? 'Review' : 'Info'}</Badge></div><p>{item.note}</p></div>)}</div></section>
 
         <div className="rc-lower-grid"><section className="rc-panel"><div className="rc-panel-head"><div><h2>Upload Route Audit</h2><p>Direct R2, Render proxy and background operations</p></div><Badge state={uploadAudited ? 'good' : 'watch'}>{uploadAudited ? 'Observed' : 'No audit records'}</Badge></div><div className="rc-table-scroll"><table className="rc-table"><thead><tr><th>Feature / Route</th><th>Mode</th><th>Attempts</th><th>Incoming</th><th>Object bytes</th></tr></thead><tbody>{allRoutes.map((row) => <tr key={`${row.feature}-${row.route}-${row.upload_mode}`}><td><strong>{row.feature}</strong><small>{row.route}</small></td><td><Badge state={row.upload_mode === 'proxy' ? 'investigate' : row.upload_mode === 'direct' ? 'good' : 'neutral'}>{row.upload_mode}</Badge></td><td>{formatResourceCount(row.attempts)}</td><td>{formatResourceBytes(row.ingress_bytes)}</td><td>{formatResourceBytes(row.object_bytes)}</td></tr>)}{!allRoutes.length && <tr><td colSpan="5" className="rc-no-rows">No upload events have been connected to the new audit yet.</td></tr>}</tbody></table></div></section>
-        <section className="rc-panel"><div className="rc-panel-head"><div><h2>Downloadable Reports</h2><p>Export concise evidence for independent review</p></div></div><div className="rc-download-list">{exports.slice(1, 8).map((item) => <button type="button" key={item.value} disabled={Boolean(downloading)} onClick={() => handleDownload(item.value)}><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="rc-download-icon">↓</span></button>)}</div></section></div>
+        <section className="rc-panel"><div className="rc-panel-head"><div><h2>Downloadable Reports</h2><p>Export concise evidence for independent review</p></div></div><div className="rc-download-list">{exportOptions.slice(1, 8).map((item) => <button type="button" key={item.value} disabled={Boolean(downloading)} onClick={() => handleDownload(item.value)}><span><strong>{item.title}</strong><small>{item.subtitle}</small></span><span className="rc-download-icon">↓</span></button>)}</div></section></div>
 
         <section className="rc-panel"><div className="rc-panel-head"><div><h2>Daily Breakdown</h2><p>Cambodia dates · Render bytes are not summed with Supabase or R2 bytes</p></div><span className="rc-subtle">{days.length} days</span></div><div className="rc-table-scroll"><table className="rc-table"><thead><tr><th>Date</th><th>Render total</th><th>HTTP responses</th><th>Service-initiated</th><th>Coverage</th><th>Upload attempts</th><th>Report</th></tr></thead><tbody>{visibleDays.map((day) => <tr key={day.date}><td><strong>{day.date}</strong></td><td>{valueForRender(day)}</td><td>{valueForRender(day, 'http_response_bytes')}</td><td>{valueForRender(day, 'service_initiated_bytes')}</td><td><Badge state={day.render.coverage === 'complete' ? 'good' : 'watch'}>{renderCoverage(day.render.coverage)}</Badge></td><td>{uploadAudited ? formatResourceCount(day.upload_audit?.attempts) : '—'}</td><td><button className="rc-text-btn" type="button" disabled={Boolean(downloading)} onClick={() => handleDownload('full-zip', { period: 'custom', from: day.date, to: day.date })}>↓ ZIP</button></td></tr>)}</tbody></table></div>{days.length > 8 && <button type="button" className="rc-more" onClick={() => setShowAllDays((value) => !value)}>{showAllDays ? 'Show fewer days' : `Show all ${days.length} days`}</button>}</section>
 
