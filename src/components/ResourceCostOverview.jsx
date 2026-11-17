@@ -33,8 +33,8 @@ function validAmount(value) {
 
 function chartMode(rows, source) {
   if (rows.some((item) => validAmount(item?.sources?.[source]?.verified_cost_usd) !== null)) return 'cost'
-  if (rows.some((item) => validAmount(item?.sources?.[source]?.observed_api_bytes) !== null)) return 'api'
   if (source === 'all' && rows.some((item) => validAmount(item?.render_outbound_bytes) !== null)) return 'render'
+  if (rows.some((item) => validAmount(item?.sources?.[source]?.observed_api_bytes) !== null)) return 'api'
   return 'missing'
 }
 
@@ -55,14 +55,14 @@ function Chart({ rows, source }) {
   return <div className="rco-chart-wrap">
     <div className="rco-chart-heading">
       <strong>{heading}</strong>
-      <span>{rows.length ? `${rows[0].label} – ${rows[rows.length - 1].label}` : 'No completed days'}</span>
+      <span>{rows.length ? `${rows[0].label} – ${rows[rows.length - 1].label}` : 'No periods available'}</span>
     </div>
     {mode === 'missing' ? <div className="rco-chart-empty">No verified cost or source usage available for this period.</div>
       : <div className="rco-chart-scroll">
         <div className={`rco-chart-bars${rows.length > 14 ? ' rco-chart-dense' : ''}`} role="img" aria-label={`${heading}: available recorded periods only`}>
           {rows.map((row, index) => {
             const value = values[index]
-            const percent = value === null ? 0 : max > 0 ? Math.max(3, value / max * 100) : 3
+            const percent = value === null || value === 0 || max === 0 ? 0 : Math.max(2, value / max * 100)
             const display = mode === 'cost' ? formatUsd(value) : formatResourceBytes(value)
             return <div key={row.date} className="rco-chart-column" title={`${row.label}: ${display}`}>
               <div className="rco-chart-value">{rows.length <= 12 ? display : '\u00a0'}</div>
@@ -93,6 +93,7 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
     const controller = new AbortController()
     setLoading(true)
     setError('')
+    setOverview(null)
     loadResourceCostOverview(period, controller.signal)
       .then((data) => { if (!controller.signal.aborted) setOverview(data) })
       .catch((problem) => {
@@ -108,8 +109,8 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
   const total = overview?.totals?.[source]
   const shared = overview?.totals?.shared
   const rows = overview?.series || []
-  const renderRows = rows.filter((row) => row?.render_outbound_bytes != null && Number.isFinite(Number(row.render_outbound_bytes)))
-  const renderBytes = renderRows.length ? renderRows.reduce((sum, row) => sum + Number(row.render_outbound_bytes), 0) : null
+  const renderRows = rows.filter((row) => validAmount(row?.render_outbound_bytes) !== null)
+  const renderBytes = renderRows.length ? renderRows.reduce((sum, row) => sum + validAmount(row.render_outbound_bytes), 0) : null
   const selectedPeriod = PERIODS.find((item) => item.key === period)?.label || period
   const isKnownCost = validAmount(total?.verified_cost_usd) !== null
   return <section className="rco-panel" aria-label="Cost Overview">
@@ -137,7 +138,7 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
           </div>
           <div className="rco-usage-aux"><span>Observed API payload</span><strong>{formatResourceBytes(total?.observed_api_bytes)}</strong></div>
           {source === 'all' && <div className="rco-usage-aux"><span>Render outbound (recorded)</span><strong>{renderBytes === null ? '—' : formatResourceBytes(renderBytes)}</strong></div>}
-{source === 'all' && <div className="rco-total-note">Render measured: {renderRows.length}/{rows.length} periods. API payload and Render outbound are not directly comparable. Missing data is not zero.</div>}
+          {source === 'all' && <div className="rco-total-note">Render measured: {renderRows.length}/{rows.length} periods. Provider outbound is not a verified bill and must not be added to observed API payload. Missing days are not zero.</div>}
           <div className="rco-usage-aux"><span>Observed operations</span><strong>{total?.observed_operations == null ? '—' : formatResourceCount(total.observed_operations)}</strong></div>
           {source === 'all' && <div className="rco-shared-line">Shared / unattributed API payload: {formatResourceBytes(shared?.observed_api_bytes)}</div>}
           <div className="rco-total-note">{total?.observed_days || 0} of {total?.expected_days || 0} days have source observations</div>
