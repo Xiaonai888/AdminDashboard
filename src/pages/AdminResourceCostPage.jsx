@@ -155,6 +155,16 @@ function HealthPanel({ health, loading, error }) {
               <p>Skipped points (including outside the time window): {d.ignored_points ?? '—'}</p>
               <p>Parsed hourly rows: {d.hourly_rows_after_parse ?? '—'}</p>
               <p>Hours without breakdown: {d.hours_without_breakdown ?? '—'}</p>
+              <p>Breakdown response: {d.breakdown_response_shape || 'Unknown'}</p>
+<p>Unmatched breakdown services: {d.breakdown_unmatched_service_series ?? '—'}</p>
+{d.breakdown_fetch_error && (
+  <p role="alert" style={{ color: '#dc2626', overflowWrap: 'anywhere' }}>
+    Breakdown API Error: {d.breakdown_fetch_error}
+  </p>
+)}
+{!d.breakdown_fetch_error && d.breakdown_endpoint_available === false && (
+  <p>Breakdown data is unavailable. Check the response format.</p>
+)}
               <p>Breakdown API: {d.breakdown_endpoint_available ? 'Available' : 'Unavailable'}</p>
             </> : <p>No sync diagnostics available yet.</p>}
             <p>Database save: {history?.status || 'Unknown'} · Rows: {history?.saved ?? '—'}</p>
