@@ -335,6 +335,45 @@ export default function AdminResourceCostPage() {
           <section className="rc-panel"><div className="rc-panel-head"><div><h2>Render Traffic Split</h2><p>Measured outgoing categories, not provider totals added together</p></div></div><ResourceCostTrafficSplit render={render} hasSource={renderRecorded} /></section>
           <section className="rc-panel"><div className="rc-panel-head"><div><h2>Top API Drivers</h2><p>Ranked by observed payload bytes</p></div></div><ResourceCostTopDrivers days={days} attributionStatus={report.sources?.application?.status} /></section>
         </div>
+
+        <section className="rc-panel">
+  <div className="rc-panel-head">
+    <div>
+      <h2>Render Service-Hour Coverage</h2>
+      <p>Missing provider records · Cambodia time (ICT)</p>
+    </div>
+  </div>
+  <div className="rc-table-scroll">
+    <table className="rc-table">
+      <thead>
+        <tr><th>Service ID</th><th>Recorded / Expected</th><th>Missing Hours</th><th>Incomplete Breakdown</th></tr>
+      </thead>
+      <tbody>
+        {(report.sources?.render?.service_hour_diagnostics || []).map((service) => (
+          <tr key={service.service_id}>
+            <td><strong>{service.service_id}</strong></td>
+            <td>{service.observed_hours} / {service.expected_hours}</td>
+            {['missing_hour_utc', 'incomplete_breakdown_hour_utc'].map((field) => (
+              <td key={field}>
+                <details>
+                  <summary>{service[field]?.length || 0} hours</summary>
+                  <div style={{ maxHeight: 220, overflowY: 'auto', whiteSpace: 'pre-line' }}>
+                    {(service[field] || []).map((hour) => new Date(hour).toLocaleString('en-GB', { timeZone: 'Asia/Phnom_Penh', dateStyle: 'short', timeStyle: 'short' })).join('\n') || 'No missing hours'}
+                  </div>
+                </details>
+              </td>
+            ))}
+          </tr>
+        ))}
+        {!report.sources?.render?.service_hour_diagnostics?.length && (
+          <tr><td colSpan="4">No service-hour diagnostics available. Check Render Service IDs and provider sync.</td></tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+  <p className="rc-subtle">Missing measurements are unknown, not zero. These records do not prove additional billed bandwidth.</p>
+</section>
+        
                 <ResourceCostSourceDetails days={days} />
 
         <section className="rc-panel"><div className="rc-panel-head"><div><h2>Usage Insights</h2><p>Important signals only · No per-minute activity feed</p></div>{coverage !== null ? <Badge state={coverage === 100 ? 'good' : 'watch'}>{coverage}% Render hours covered</Badge> : <Badge state="watch">Coverage unknown</Badge>}</div><div className="rc-insights">{insights.map((item) => <div className="rc-insight" key={item.title}><div className="rc-insight-top"><strong>{item.title}</strong><Badge state={item.state}>{item.state === 'good' ? 'Recorded' : item.state === 'investigate' ? 'Investigate' : item.state === 'watch' ? 'Review' : 'Info'}</Badge></div><p>{item.note}</p></div>)}</div></section>
