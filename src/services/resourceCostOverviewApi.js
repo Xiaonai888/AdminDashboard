@@ -1,15 +1,25 @@
 const ROOT = `${import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'}/api/admin/resource-cost/overview`
-const ALLOWED_PERIODS = new Set(['yesterday', 'last7', 'week', 'month', 'last30', 'last12months'])
+const ALLOWED_PERIODS = new Set(['yesterday', 'last7', 'week', 'month', 'last30', 'last12months', 'custom'])
 
 function adminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
 }
 
-export async function loadResourceCostOverview(period = 'last7', signal) {
+export async function loadResourceCostOverview(period = 'last7', signal, dates = null) {
   if (!ALLOWED_PERIODS.has(period)) throw new Error('Unsupported Cost Overview period.')
   const token = adminToken()
   if (!token) throw new Error('Admin session is missing. Sign in again.')
-  const response = await fetch(`${ROOT}?period=${encodeURIComponent(period)}`, {
+  const params = new URLSearchParams({ period })
+  if (period === 'custom') {
+    const from = dates?.from
+    const to = dates?.to
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from || '') || !/^\d{4}-\d{2}-\d{2}$/.test(to || '') || from > to) {
+      throw new Error('Select a valid Custom Date range.')
+    }
+    params.set('from', from)
+    params.set('to', to)
+  }
+  const response = await fetch(`${ROOT}?${params}`, {
     signal,
     credentials: 'include',
     headers: { Authorization: `Bearer ${token}` },
