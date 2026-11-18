@@ -3,6 +3,7 @@ import AdminLayout from '../components/AdminLayout'
 import DailyReadersSection from '../components/DailyReadersSection'
 import ReaderRankingSection from '../components/ReaderRankingSection'
 import ReaderPeriodSection from '../components/ReaderPeriodSection'
+import StoryAnalyticsSection from '../components/StoryAnalyticsSection'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 20
@@ -423,7 +424,7 @@ export default function AdminReadersTodayPage() {
   }, [search])
 
   useEffect(() => {
-    if (activeTab === 'daily' || activeTab === 'ranking' || !showTodayDetails) {
+    if (activeTab === 'daily' || activeTab === 'ranking' || activeTab === 'analytics' || !showTodayDetails) {
       setLoading(false)
       setError('')
       return undefined
@@ -506,6 +507,7 @@ export default function AdminReadersTodayPage() {
   const isStoryTab = activeTab === 'story'
   const isDailyTab = activeTab === 'daily'
   const isRankingTab = activeTab === 'ranking'
+  const isAnalyticsTab = activeTab === 'analytics'
 
   return (
     <AdminLayout
@@ -574,9 +576,16 @@ export default function AdminReadersTodayPage() {
           >
             ↕ Ranking
           </button>
+          <button
+  type="button"
+  className={isAnalyticsTab ? 'active' : ''}
+  onClick={() => switchTab('analytics')}
+>
+  ▥ Story Analytics
+</button>
         </div>
 
-        {!isDailyTab && !isRankingTab ? (
+        {!isDailyTab && !isRankingTab && !isAnalyticsTab ? (
           <div className="readers-today-mode-switch">
             <button type="button" className={!showTodayDetails ? 'active' : ''} onClick={() => { setShowTodayDetails(false); setSelectedItem(null) }}>Period Comparison</button>
             <button type="button" className={showTodayDetails ? 'active' : ''} onClick={() => { setShowTodayDetails(true); setSelectedItem(null) }}>Today's Details</button>
@@ -586,8 +595,10 @@ export default function AdminReadersTodayPage() {
         {isDailyTab ? (
           <DailyReadersSection />
         ) : isRankingTab ? (
-          <ReaderRankingSection />
-        ) : !showTodayDetails ? (
+  <ReaderRankingSection />
+) : isAnalyticsTab ? (
+  <StoryAnalyticsSection />
+) : !showTodayDetails ? (
           <ReaderPeriodSection key={activeTab} scope={activeTab} />
         ) : (
         <div className="readers-today-panel">
@@ -846,7 +857,7 @@ const styles = `
   .readers-today-summary-label { color: #64748B; font-size: 12px; font-weight: 900; }
   .readers-today-summary-value { margin-top: 8px; color: #0F172A; font-size: 27px; font-weight: 950; }
   .readers-today-summary-text { margin-top: 4px; color: #64748B; font-size: 12px; font-weight: 750; }
-  .readers-today-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 175px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
+  .readers-today-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 175px)); width: fit-content; max-width: 100%; gap: 6px; padding: 5px; border: 1px solid #E2E8F0; border-radius: 14px; background: #F8FAFC; }
   .readers-today-tabs button { min-height: 38px; border: 0; border-radius: 10px; background: transparent; color: #64748B; padding: 0 18px; font-size: 12px; font-weight: 900; cursor: pointer; }
   .readers-today-tabs button.active { background: #4F46E5; color: #FFFFFF; box-shadow: 0 6px 14px rgba(79, 70, 229, 0.18); }
   .readers-today-tabs button:disabled { cursor: default; opacity: 0.55; }
