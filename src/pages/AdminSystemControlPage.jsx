@@ -1179,6 +1179,8 @@ export default function AdminSystemControlPage() {
   const [guestRequestSnapshot, setGuestRequestSnapshot] = useState(null)
   const [passiveRequestSnapshot, setPassiveRequestSnapshot] = useState(null)
   const [historyReport, setHistoryReport] = useState(null)
+  const [sharedRenderUsage, setSharedRenderUsage] = useState(null)
+  const [sharedRenderLoading, setSharedRenderLoading] = useState(false)
   const [rangeKey, setRangeKey] = useState('24h')
   const [customFrom, setCustomFrom] = useState(initialCustomFrom)
   const [customTo, setCustomTo] = useState(initialCustomTo)
@@ -1509,6 +1511,44 @@ export default function AdminSystemControlPage() {
     loadHistory()
   }, [loadHistory])
 
+  useEffect(() => {
+    const from = historyReport?.range?.requested_from
+    const to = historyReport?.range?.effective_to
+    const token = getToken()
+    if (!from || !to || !token) {
+      setSharedRenderUsage(null)
+      setSharedRenderLoading(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const query = new URLSearchParams({ from, to })
+    setSharedRenderUsage(null)
+    setSharedRenderLoading(true)
+    fetch(`${API_URL}/api/admin/system-control/shared/provider-usage?${query}`, {
+      credentials: 'include',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok || result?.ok !== true || !result?.shared_provider_usage) {
+          throw new Error('Shared Render provider history unavailable')
+        }
+        return result.shared_provider_usage
+      })
+      .then((value) => {
+        if (!controller.signal.aborted) setSharedRenderUsage(value)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setSharedRenderUsage(null)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSharedRenderLoading(false)
+      })
+    return () => controller.abort()
+  }, [historyReport?.range?.requested_from, historyReport?.range?.effective_to])
+
   useEffect(() => () => {
     historyRequestRef.current += 1
     historyControllerRef.current?.abort()
@@ -1571,8 +1611,12 @@ export default function AdminSystemControlPage() {
   const renderBilling =
     providerState?.render?.billing_breakdown || null
 
-  const renderDisplayMb =
-    renderBilling?.total_mb ?? renderMb
+  const sharedRender = sharedRenderUsage?.render || null
+  const sharedRenderBytes = Number.isSafeInteger(sharedRender?.total_bytes) &&
+    Number(sharedRender?.observed_service_hours || 0) > 0
+      ? sharedRender.total_bytes
+      : null
+  const renderDisplayMb = sharedRenderBytes === null ? null : sharedRenderBytes / (1024 * 1024)
 
   const cloudflareR2 =
     providerState?.cloudflare_r2 || null
@@ -1877,11 +1921,13 @@ export default function AdminSystemControlPage() {
             tone="blue"
             icon="☁"
             label="Render Usage"
-            value={formatUsage(renderDisplayMb)}
+            value={renderDisplayMb === null ? '—' : formatUsage(renderDisplayMb)}
             note={
-              renderBilling
-                ? 'Official Render outbound · provider period, not selected range'
-                : `Measured request payloads · ${selectedRangeLabel} · top saved rows`
+              sharedRenderLoading
+                ? `${selectedRangeLabel} · Loading shared provider history`
+                : renderDisplayMb !== null
+                  ? `${selectedRangeLabel} · Shared Render outbound · ${sharedRender?.status === 'complete' ? 'recorded service-hours complete' : `coverage: ${sharedRender?.status || 'unknown'}`}`
+                  : `${selectedRangeLabel} · Shared data unavailable; legacy ${renderBilling ? 'latest-hour provider' : 'request payload'} ${formatUsage(renderBilling?.total_mb ?? renderMb)} is not comparable`
             }
             spark={sparkBase.map(
               (value, index) =>
