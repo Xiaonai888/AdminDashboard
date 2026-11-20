@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { addAdminStoryLanguageParam } from '../hooks/useAdminStoryLanguage'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 10
@@ -42,13 +43,25 @@ function lifecycleClass(value) {
   return 'new'
 }
 
-export default function StoryLibraryPanel({ onSelectStory }) {
+export default function StoryLibraryPanel({ onSelectStory, language = 'all' }) {
   const [lifecycle, setLifecycle] = useState('new')
   const [sort, setSort] = useState('newest')
   const [storyType, setStoryType] = useState('all')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const [pageState, setPageState] = useState({ language, value: 1 })
+  const page = pageState.language === language ? pageState.value : 1
+
+  function setPage(nextPage) {
+    setPageState((current) => {
+      const currentPage = current.language === language ? current.value : 1
+      const value = typeof nextPage === 'function'
+        ? nextPage(currentPage)
+        : nextPage
+      return { language, value }
+    })
+  }
+
   const [refreshKey, setRefreshKey] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -85,8 +98,10 @@ export default function StoryLibraryPanel({ onSelectStory }) {
           story_type: storyType,
           q: debouncedSearch,
           page: String(page),
-          limit: String(PAGE_SIZE),
+           limit: String(PAGE_SIZE),
         })
+
+        addAdminStoryLanguageParam(params, language)
 
         const response = await fetch(`${API_URL}/api/admin/stories?${params.toString()}`, {
           headers: { Authorization: `Bearer ${getAdminToken()}` },
@@ -126,7 +141,7 @@ export default function StoryLibraryPanel({ onSelectStory }) {
     return () => {
       alive = false
     }
-  }, [lifecycle, sort, storyType, debouncedSearch, page, refreshKey])
+  }, [lifecycle, sort, storyType, debouncedSearch, page, language, refreshKey])
 
   const stories = data.stories || []
 
