@@ -1,7 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
-const CACHE_KEY = 'shadow_admin_story_growth_daily_v1'
+const CACHE_KEY = 'shadow_admin_story_growth_daily_v2'
+
+const LANGUAGE_CODES = Object.freeze({
+  all: 'all',
+  khmer: 'km',
+  english: 'en',
+  chinese: 'zh',
+  japanese: 'ja',
+  korean: 'ko',
+})
 const CAMBODIA_OFFSET_MS = 7 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 const SNAPSHOT_DAYS = 365
@@ -38,15 +47,24 @@ function adminToken() {
 }
 
 // Separate cache for admin sessions, without storing the token itself as a cache key.
-function sessionKey(token) {
+function sessionKey(token, language = 'all') {
   let hash = 2166136261
   for (let i = 0; i < token.length; i += 1) {
     hash = Math.imul(hash ^ token.charCodeAt(i), 16777619)
   }
-  return `${CACHE_KEY}_${(hash >>> 0).toString(16)}`
+  const code = LANGUAGE_CODES[language] || 'all'
+  return `${CACHE_KEY}_${(hash >>> 0).toString(16)}_${code}`
 }
 
-function normalizeSnapshot(data, expectedDay) {
+function normalizeSnapshot(data, expectedDay, language = 'all') {
+  const expectedLanguage = LANGUAGE_CODES[language] || 'all'
+
+  if (
+    (expectedLanguage !== 'all' && data?.language !== expectedLanguage) ||
+    (expectedLanguage === 'all' && data?.language && data.language !== 'all')
+  ) {
+    throw new Error('Language-specific Story Growth data is not available on the backend')
+  }
   if (!data || data.as_of !== shiftDay(expectedDay, -1) ||
       !Array.isArray(data.days) || data.days.length !== SNAPSHOT_DAYS) {
     throw new Error('Invalid or incomplete Story Growth daily snapshot')
@@ -68,19 +86,23 @@ function normalizeSnapshot(data, expectedDay) {
       days.some((row, index) => index > 0 && row.date !== shiftDay(days[index - 1].date, 1))) {
     throw new Error('Story Growth snapshot has missing or duplicate dates')
   }
-  return { as_of: data.as_of, days }
+  return {
+    as_of: data.as_of,
+    days,
+    language: LANGUAGE_CODES[language] || 'all',
+  }
 }
 
-function readCache(token, day) {
+function readCache(token, day, language = 'all') {
   if (!token) return null
-  const cacheKey = sessionKey(token)
+  const cacheKey = sessionKey(token, language)
   if (memoryCache?.key === cacheKey && memoryCache.day === day) {
     return memoryCache.snapshot
   }
   try {
     const saved = JSON.parse(sessionStorage.getItem(cacheKey) || 'null')
     if (saved?.day !== day) return null
-    const snapshot = normalizeSnapshot(saved.snapshot, day)
+    const snapshot = normalizeSnapshot(saved.snapshot, day, language)
     memoryCache = { key: cacheKey, day, snapshot }
     return snapshot
   } catch {
@@ -88,19 +110,19 @@ function readCache(token, day) {
   }
 }
 
-async function fetchDailySnapshot() {
+async function fetchDailySnapshot(language = 'all') {
   const token = adminToken()
   if (!token) throw new Error('Admin session required')
   const day = todayKH()
-  const cached = readCache(token, day)
+  const cached = readCache(token, day, language)
   if (cached) return cached
 
-  const cacheKey = sessionKey(token)
+  const cacheKey = sessionKey(token, language)
   const requestKey = `${cacheKey}_${day}`
   if (inFlight?.key === requestKey) return inFlight.promise
 
   const promise = (async () => {
-    const response = await fetch(`${API_URL}/api/admin/stories/growth/daily`, {
+    const response = await fetch(`${API_URL}/api/admin/stories/growth/daily?language=${encodeURIComponent(language)}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
@@ -119,7 +141,7 @@ async function fetchDailySnapshot() {
     if (!response.ok || data.ok === false) {
       throw new Error(data.message || `Story Growth request failed (${response.status})`)
     }
-    const snapshot = normalizeSnapshot(data, day)
+    const snapshot = normalizeSnapshot(data, day, language)
     memoryCache = { key: cacheKey, day, snapshot }
     try {
       sessionStorage.setItem(cacheKey, JSON.stringify({ day, snapshot }))
@@ -196,33 +218,57 @@ const STYLES = `
   @media(max-width:650px){.sg-root{padding:13px}.sg-cards{grid-template-columns:1fr}}
 `
 
-export default function StoryGrowthSection() {
-  const [snapshot, setSnapshot] = useState(() => readCache(adminToken(), todayKH()))
-  const [loading, setLoading] = useState(() => !readCache(adminToken(), todayKH()))
+export default function StoryGrowthSection({ language = 'all' }) {
+  const [snapshot, setSnapshot] = useState(() => readCache(adminToken(), todayKH(), language))
+  const [loading, setLoading] = useState(() => !readCache(adminToken(), todayKH(), language))
   const [error, setError] = useState('')
   const [period, setPeriod] = useState('7d')
   const [metric, setMetric] = useState('updated_stories')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
-  useEffect(() => {
+    useEffect(() => {
     let active = true
-    const stored = readCache(adminToken(), todayKH())
+    const stored = readCache(adminToken(), todayKH(), language)
+
+    setError('')
+
     if (stored) {
       setSnapshot(stored)
       setLoading(false)
     } else {
+      setSnapshot(null)
       setLoading(true)
-      fetchDailySnapshot()
-        .then((data) => { if (active) { setSnapshot(data); setError('') } })
-        .catch((reason) => { if (active) setError(reason.message || 'Failed to load Story Growth') })
-        .finally(() => { if (active) setLoading(false) })
-    }
-    return () => { active = false }
-  }, [])
 
-  const days = snapshot?.days || []
-  const asOf = snapshot?.as_of || ''
+      fetchDailySnapshot(language)
+        .then((data) => {
+          if (active) {
+            setSnapshot(data)
+            setError('')
+          }
+        })
+        .catch((reason) => {
+          if (active) {
+            setError(reason.message || 'Failed to load Story Growth')
+          }
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    }
+
+    return () => {
+      active = false
+    }
+  }, [language])
+
+  const visibleSnapshot =
+    snapshot?.language === (LANGUAGE_CODES[language] || 'all')
+      ? snapshot
+      : null
+
+  const days = visibleSnapshot?.days || []
+  const asOf = visibleSnapshot?.as_of || ''
   const firstDay = days[0]?.date || ''
   const periodLabel = PERIODS.find((item) => item.key === period)?.label || 'Selected period'
   const from = period === 'custom' ? (customFrom || shiftDay(asOf, -6)) : periodStart(period, asOf || '2000-01-01')
@@ -273,7 +319,7 @@ export default function StoryGrowthSection() {
       {loading ? <p className="sg-muted" role="status">Loading Story Growth snapshot...</p> : null}
       {error ? <div className="sg-error" role="alert">{error}</div> : null}
 
-      {snapshot ? (
+      {visibleSnapshot ? (
         <>
           <div className="sg-periods" aria-label="Story growth date range">
             {PERIODS.map((item) => (
