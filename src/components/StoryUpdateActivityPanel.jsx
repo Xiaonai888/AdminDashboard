@@ -72,16 +72,38 @@ function EmptyState() {
   )
 }
 
-export default function StoryUpdateActivityPanel() {
+export default function StoryUpdateActivityPanel({ language = 'all' }) {
   const [period, setPeriod] = useState('today')
   const [offset, setOffset] = useState(0)
   const [sort, setSort] = useState('episodes')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [storyType, setStoryType] = useState('all')
-  const [language, setLanguage] = useState('all')
   const [genre, setGenre] = useState('all')
-  const [page, setPage] = useState(1)
+
+  const [pageState, setPageState] = useState({
+    language,
+    value: 1,
+  })
+
+  const page = pageState.language === language
+    ? pageState.value
+    : 1
+
+  function setPage(nextValue) {
+    setPageState((current) => {
+      const currentPage = current.language === language
+        ? current.value
+        : 1
+
+      return {
+        language,
+        value: typeof nextValue === 'function'
+          ? nextValue(currentPage)
+          : nextValue,
+      }
+    })
+  }
   const [refreshKey, setRefreshKey] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -234,10 +256,6 @@ export default function StoryUpdateActivityPanel() {
           <option value="all">All Story Types</option>
           {(filterOptions.story_types || []).map((item) => <option key={item} value={item}>{storyTypeLabel(item)}</option>)}
         </select>
-        <select value={language} onChange={(event) => changeFilter(setLanguage, event.target.value)}>
-          <option value="all">All Languages</option>
-          {(filterOptions.languages || []).map((item) => <option key={item} value={String(item).toLowerCase()}>{item}</option>)}
-        </select>
         <select value={genre} onChange={(event) => changeFilter(setGenre, event.target.value)}>
           <option value="all">All Genres</option>
           {(filterOptions.genres || []).map((item) => <option key={item} value={String(item).toLowerCase()}>{item}</option>)}
@@ -365,7 +383,7 @@ const styles = `
   .story-update-card-label { color: #64748B; font-size: 11px; font-weight: 950; }
   .story-update-card-value { margin-top: 7px; color: #0F172A; font-size: 22px; font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .story-update-card-text { margin-top: 4px; color: #64748B; font-size: 11px; font-weight: 750; }
-  .story-update-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 145px 145px 150px auto; gap: 9px; padding: 14px 20px; border-top: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0; background: #FCFCFD; }
+  .story-update-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 145px 150px auto; gap: 9px; padding: 14px 20px; border-top: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0; background: #FCFCFD; }
   .story-update-toolbar input, .story-update-toolbar select { min-width: 0; border: 1px solid #E2E8F0; border-radius: 11px; background: #FFFFFF; color: #0F172A; padding: 10px 11px; font-weight: 750; outline: none; }
   .story-update-toolbar input:focus, .story-update-toolbar select:focus { border-color: #6D4AFF; box-shadow: 0 0 0 3px rgba(109, 74, 255, 0.1); }
   .story-update-toolbar button, .story-update-pagination button { border: 0; border-radius: 11px; background: #F2EEFF; color: #6D4AFF; padding: 10px 13px; font-weight: 900; cursor: pointer; }
