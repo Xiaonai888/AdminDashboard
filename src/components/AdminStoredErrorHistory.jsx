@@ -146,8 +146,17 @@ export default function AdminStoredErrorHistory() {
       if (filter === '4xx' && (status < 400 || status >= 500)) return false
       if (filter === 'provider' && safeCount(entry.external_error_count) === 0) return false
       if (!search) return true
-      return [entry.route, entry.response_code, entry.error_class, entry.provider, entry.target, entry.sample_error]
-        .some((value) => String(value || '').toLowerCase().includes(search))
+      return [
+  entry.route,
+  entry.response_code,
+  entry.root_cause_code,
+  entry.diagnostic_stage,
+  entry.provider_http_status,
+  entry.error_class,
+  entry.provider,
+  entry.target,
+  entry.sample_error,
+].some((value) => String(value ?? '').toLowerCase().includes(search))
     })
   }, [active, query, filter])
 
@@ -207,7 +216,14 @@ export default function AdminStoredErrorHistory() {
                       <td>
                         <div className="seh-route">{entry.route || 'UNKNOWN'}</div>
                         <div className="seh-mini">{entry.error_class || '—'}</div>
-                        {entry.sample_error ? <div className="seh-detail">{entry.sample_error}</div> : null}
+                        <div className="seh-mini">Root cause: {entry.root_cause_code || '—'}</div>
+                        <div className="seh-mini">Failure stage: {entry.diagnostic_stage || 'unknown'}</div>
+                        <div className="seh-mini">
+  Provider HTTP: {Number(entry.provider_http_status) > 0
+    ? Number(entry.provider_http_status)
+    : '—'}
+</div>
+{entry.sample_error ? <div className="seh-detail">{entry.sample_error}</div> : null}
                         <div className="seh-mini">Request: {entry.sample_request_id || '—'} · Duration: {entry.sample_duration_ms == null ? '—' : `${Math.round(safeCount(entry.sample_duration_ms))} ms`}</div>
                       </td>
                       <td>{entry.provider || '—'}<div className="seh-mini">{entry.target || '—'}</div><div className="seh-mini">External failures: {countText(entry.external_error_count)}</div></td>
