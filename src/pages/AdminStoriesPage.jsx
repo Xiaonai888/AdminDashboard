@@ -4,6 +4,8 @@ import AdminLayout from '../components/AdminLayout'
 import StoryUpdateActivityPanel from '../components/StoryUpdateActivityPanel'
 import StoryLibraryPanel from '../components/StoryLibraryPanel'
 import StoryGrowthSection from '../components/StoryGrowthSection'
+import StoryLanguagePicker from '../components/StoryLanguagePicker'
+import useAdminStoryLanguage, { addAdminStoryLanguageParam } from '../hooks/useAdminStoryLanguage'
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'
 const PAGE_SIZE = 10
@@ -844,6 +846,7 @@ export default function AdminStoriesPage() {
   const [genre, setGenre] = useState('all')
   const [storyType, setStoryType] = useState('all')
   const [page, setPage] = useState(1)
+  const { language, selectLanguage } = useAdminStoryLanguage()
   const [summary, setSummary] = useState({})
   const [stories, setStories] = useState([])
   const [pagination, setPagination] = useState({ page: 1, total: 0, total_pages: 1, has_next: false, has_prev: false })
@@ -857,6 +860,18 @@ export default function AdminStoriesPage() {
   const [modalStory, setModalStory] = useState(null)
   const [saving, setSaving] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+    function handleStoryLanguageChange(nextLanguage) {
+    if (nextLanguage === language) return
+    selectLanguage(nextLanguage)
+    setPage(1)
+    setGenre('all')
+    setSearch('')
+    setDebouncedSearch('')
+    setSummary({})
+    setError('')
+    setSelectedStory(null)
+    setDetails(null)
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -874,7 +889,8 @@ export default function AdminStoriesPage() {
       try {
         setSummaryLoading(true)
         const token = getAdminToken()
-        const { response, data } = await getCachedStoriesData(`${API_URL}/api/admin/stories/overview`, token)
+        const summaryParams = addAdminStoryLanguageParam(new URLSearchParams(), language)
+        const { response, data } = await getCachedStoriesData(`${API_URL}/api/admin/stories/overview?${summaryParams.toString()}`, token)
         if (handleExpiredAdminToken(response, data)) return
 if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed to load overview')
         if (!alive) return
@@ -892,7 +908,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     return () => {
       alive = false
     }
-  }, [refreshKey])
+  }, [language, refreshKey])
 
   useEffect(() => {
     let alive = true
@@ -917,6 +933,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
           story_type: storyType,
           q: debouncedSearch,
         })
+        addAdminStoryLanguageParam(params, language)
 
         const { response, data } = await getCachedStoriesData(`${API_URL}/api/admin/stories?${params.toString()}`, token)
         if (handleExpiredAdminToken(response, data)) return
@@ -945,7 +962,7 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
     return () => {
       alive = false
     }
-  }, [activeTab, page, status, visibility, genre, storyType, debouncedSearch, refreshKey])
+  }, [activeTab, page, status, visibility, genre, storyType, debouncedSearch, language, refreshKey])
 
   useEffect(() => {
     if (!selectedStory?.id) return
@@ -1088,8 +1105,10 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
       <div className="story-admin-page">
         {error ? <div className="story-admin-alert">{error}</div> : null}
 
+        <StoryLanguagePicker value={language} onChange={handleStoryLanguageChange} />
+
         <div className="story-admin-summary">
-          <SummaryCard label="Total Stories" value={summaryLoading ? 0 : summary.total_stories} text="All author stories" />
+          <SummaryCard label="Total Stories" value={summaryLoading ? 0 : summary.total_stories} text={language === 'all' ? 'All author stories' : 'Stories in selected language'} />
           <SummaryCard label="Active Stories" value={summaryLoading ? 0 : summary.active_stories} tone="green" text="Currently available in system" />
           <SummaryCard label="Deleted by Authors" value={summaryLoading ? 0 : summary.deleted_by_authors} tone="yellow" text="Protected archive period" />
           <SummaryCard label="Restricted / Disabled" value={summaryLoading ? 0 : Number(summary.restricted_stories || 0) + Number(summary.disabled_stories || 0)} tone="red" text="Policy enforcement" />
@@ -1130,10 +1149,11 @@ if (!response.ok || data.ok === false) throw new Error(data.message || 'Failed t
             </div>
           ) : null}
 
-          {activeTab === 'updates' ? <StoryUpdateActivityPanel /> : null}
-          {activeTab === 'growth' ? <StoryGrowthSection /> : null}
+          {activeTab === 'updates' ? <StoryUpdateActivityPanel language={language} /> : null}
+          {activeTab === 'growth' ? <StoryGrowthSection language={language} /> : null}
           {activeTab === 'library' ? (
   <StoryLibraryPanel
+    language={language}
     onSelectStory={(story) => {
       setSelectedStory(story)
       setDetails(null)
