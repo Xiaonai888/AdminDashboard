@@ -1797,6 +1797,9 @@ export default function AdminSystemProblemReportsPage() {
                       <div><strong>Target:</strong> {entry.target || '—'}</div>
                       <div><strong>External failures:</strong> {Number(entry.external_error_count || 0).toLocaleString()}</div>
                       <div><strong>Response code:</strong> {entry.response_code || '—'}</div>
+                      <div><strong>Root cause:</strong> {entry.root_cause_code || '—'}</div>
+                      <div><strong>Failure stage:</strong> {entry.diagnostic_stage || 'unknown'}</div>
+                      <div><strong>Provider HTTP:</strong> {Number(entry.provider_http_status) > 0 ? entry.provider_http_status : '—'}</div>
                       <div><strong>Request duration:</strong> {entry.sample_duration_ms == null ? '—' : `${Math.round(Number(entry.sample_duration_ms))} ms`}</div>
                       <div><strong>Sample request ID:</strong> {entry.sample_request_id || '—'}</div>
                       <div><strong>Sample error:</strong></div>
