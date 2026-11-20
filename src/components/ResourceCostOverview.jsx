@@ -16,15 +16,32 @@ const SOURCES = [
   { key: 'web', label: 'Web' },
   { key: 'admin', label: 'Admin' },
 ]
-function cambodiaToday() {
-  return new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)
-}
-
 const PROVIDERS = [
   { key: 'render', label: 'Render' },
   { key: 'supabase', label: 'Supabase' },
   { key: 'cloudflare_r2', label: 'Cloudflare R2' },
 ]
+const CHARTS = {
+  cost: {
+    heading: 'Verified expense (USD)',
+    note: 'Only invoice-verified amounts are shown. Missing periods are not zero.',
+    color: 'linear-gradient(180deg,#34b58e 0%,#087e66 100%)',
+  },
+  render: {
+    heading: 'Render outbound (not USD)',
+    note: 'Provider-measured Render traffic. Partial periods are not full-day totals and cannot be added to API observations.',
+    color: 'linear-gradient(180deg,#8b8bfd 0%,#5547ee 100%)',
+  },
+  api: {
+    heading: 'Observed API traffic (not USD)',
+    note: 'Application payload observations only. This is not provider billing or a complete Web/Admin traffic split.',
+    color: 'linear-gradient(180deg,#ffa957 0%,#ed8231 100%)',
+  },
+}
+
+function cambodiaToday() {
+  return new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10)
+}
 
 function formatUsd(value) {
   if (value === null || value === undefined || !Number.isFinite(Number(value)) || Number(value) < 0) return '—'
@@ -35,54 +52,58 @@ function validAmount(value) {
   return value !== null && value !== undefined && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null
 }
 
-function chartMode(rows, source) {
-  if (rows.some((item) => validAmount(item?.sources?.[source]?.verified_cost_usd) !== null)) return 'cost'
-  if (rows.some((item) => validAmount(item?.sources?.[source]?.observed_api_bytes) !== null)) return 'api'
-  if (source === 'all' && rows.some((item) => validAmount(item?.render_outbound_bytes) !== null)) return 'render'
-  return 'missing'
-}
-
-function graphValue(row, source, mode) {
-  if (mode === 'render') return validAmount(row?.render_outbound_bytes)
-  if (mode === 'api') return validAmount(row?.sources?.[source]?.observed_api_bytes)
-  if (mode === 'cost') return validAmount(row?.sources?.[source]?.verified_cost_usd)
+function graphValue(row, source, metric) {
+  if (metric === 'render') return validAmount(row?.render_outbound_bytes)
+  if (metric === 'api') return validAmount(row?.sources?.[source]?.observed_api_bytes)
+  if (metric === 'cost') return validAmount(row?.sources?.[source]?.verified_cost_usd)
   return null
 }
 
-function Chart({ rows, source }) {
-  const mode = useMemo(() => chartMode(rows, source), [rows, source])
-  const values = useMemo(() => rows.map((row) => graphValue(row, source, mode)), [rows, source, mode])
+function graphStatus(row, source, metric, value) {
+  if (value === null) return 'Missing'
+  if (metric === 'render') {
+    const status = String(row?.coverage?.render_status || '').toLowerCase()
+    return status === 'complete' ? 'Complete' : 'Partial'
+  }
+  if (metric === 'api') {
+    const coverage = String(row?.coverage?.observed_usage_status || '').toLowerCase()
+    return coverage === 'complete' ? 'Complete' : 'Observed'
+  }
+  return 'Verified'
+}
+
+function Chart({ rows, source, metric }) {
+  const config = CHARTS[metric]
+  const values = useMemo(() => rows.map((row) => graphValue(row, source, metric)), [rows, source, metric])
   const max = Math.max(0, ...values.filter((value) => value !== null))
-  const heading = mode === 'cost' ? 'Daily expense (USD)'
-    : mode === 'api' ? 'Observed API traffic (not USD)'
-      : mode === 'render' ? 'Render outbound (not USD)' : 'Daily expense (USD)'
+  const available = values.filter((value) => value !== null).length
+  const minWidth = Math.max(400, rows.length * 68)
   return <div className="rco-chart-wrap">
     <div className="rco-chart-heading">
-      <strong>{heading}</strong>
-      <span>{rows.length ? `${rows[0].label} – ${rows[rows.length - 1].label}` : 'No completed days'}</span>
+      <strong>{config.heading}</strong>
+      <span>{rows.length ? `${rows[0].label} – ${rows[rows.length - 1].label}` : 'No periods'} · {available}/{rows.length} recorded</span>
     </div>
-    {mode === 'missing' ? <div className="rco-chart-empty">No verified cost or source usage available for this period.</div>
-      : <div className="rco-chart-scroll">
-        <div className={`rco-chart-bars${rows.length > 14 ? ' rco-chart-dense' : ''}`} role="img" aria-label={`${heading}: available recorded periods only`}>
-          {rows.map((row, index) => {
-            const value = values[index]
-            const percent = value === null ? 0 : max > 0 ? Math.max(3, value / max * 100) : 3
-            const display = mode === 'cost' ? formatUsd(value) : formatResourceBytes(value)
-            return <div key={row.date} className="rco-chart-column" title={`${row.label}: ${display}`}>
-              <div className="rco-chart-value">{rows.length <= 12 ? display : '\u00a0'}</div>
-              <div className="rco-chart-column-height">
-                {value === null ? <span className="rco-chart-unavailable">—</span>
-                  : <span className="rco-chart-bar" style={{ height: `${percent}%` }} />}
-              </div>
-              <span className="rco-chart-label">{row.label}</span>
+    {rows.length ? <div className="rco-chart-scroll">
+      <div className={`rco-chart-bars${rows.length > 14 ? ' rco-chart-dense' : ''}`} style={{ minWidth }} role="img" aria-label={`${config.heading}: ${available} of ${rows.length} periods recorded; missing values are not zero`}>
+        {rows.map((row, index) => {
+          const value = values[index]
+          const percent = value === null ? 0 : max > 0 ? Math.max(3, value / max * 100) : 3
+          const display = metric === 'cost' ? formatUsd(value) : formatResourceBytes(value)
+          const status = graphStatus(row, source, metric, value)
+          const statusColor = status === 'Missing' ? '#a34a55' : status === 'Partial' ? '#986414' : '#76849c'
+          return <div key={row.date} className="rco-chart-column" title={`${row.date}: ${display} · ${status}`}>
+            <div className="rco-chart-value">{display}</div>
+            <div className="rco-chart-column-height">
+              {value === null ? <span className="rco-chart-unavailable">—</span>
+                : <span className="rco-chart-bar" style={{ height: `${percent}%`, background: config.color }} />}
             </div>
-          })}
-        </div>
-      </div>}
-    <p className="rco-chart-note">{mode === 'cost' ? 'Verified daily amounts only. Missing days are not zero.'
-      : mode === 'api' ? 'API payload observation is not provider billing or complete client attribution.'
-        : mode === 'render' ? 'Measured Render bandwidth is not a monetary expense or a Web/Admin split.'
-          : 'Costs stay unknown until billing evidence is recorded.'}</p>
+            <span className="rco-chart-label">{row.label}</span>
+            <span style={{ fontSize: 9, color: statusColor, lineHeight: 1.2 }}>{status}</span>
+          </div>
+        })}
+      </div>
+    </div> : <div className="rco-chart-empty">No reporting periods available.</div>}
+    <p className="rco-chart-note">{config.note}</p>
   </div>
 }
 
@@ -104,9 +125,7 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
     loadResourceCostOverview(period, controller.signal, period === 'custom' ? customRange : null)
       .then((data) => { if (!controller.signal.aborted) setOverview(data) })
       .catch((problem) => {
-        if (!controller.signal.aborted) {
-          setError(problem?.message || 'Cost Overview unavailable.')
-        }
+        if (!controller.signal.aborted) setError(problem?.message || 'Cost Overview unavailable.')
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
@@ -115,8 +134,9 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
   const total = overview?.totals?.[source]
   const shared = overview?.totals?.shared
   const rows = overview?.series || []
-  const renderRows = rows.filter((row) => row?.render_outbound_bytes != null && Number.isFinite(Number(row.render_outbound_bytes)))
+  const renderRows = rows.filter((row) => validAmount(row?.render_outbound_bytes) !== null)
   const renderBytes = renderRows.length ? renderRows.reduce((sum, row) => sum + Number(row.render_outbound_bytes), 0) : null
+  const hasVerifiedDailyCost = rows.some((row) => graphValue(row, source, 'cost') !== null)
   const selectedPeriod = overview?.period?.mode === 'custom'
     ? `${overview.period.from_date} – ${overview.period.through_date}`
     : PERIODS.find((item) => item.key === (overview?.period?.mode || period))?.label || period
@@ -135,7 +155,7 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
   const isKnownCost = validAmount(total?.verified_cost_usd) !== null
   return <section className="rco-panel" aria-label="Cost Overview">
     <div className="rco-heading">
-      <div><h2>Cost Overview</h2><p>Daily snapshots · Cambodia time · stored observations</p></div>
+      <div><h2>Cost Overview</h2><p>Daily / monthly periods · Cambodia time · stored observations</p></div>
       <span className={`rco-status${isKnownCost ? ' rco-status-recorded' : ''}`}>{loading ? 'Loading' : isKnownCost ? 'Verified cost' : 'Billing not verified'}</span>
     </div>
     <div className="rco-source-filters" role="group" aria-label="Expense source">
@@ -158,7 +178,11 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
     {loading && !overview && <div className="rco-loading" role="status">Reading saved Cost Overview records…</div>}
     {overview && <>
       <div className="rco-grid" aria-busy={loading}>
-        <div className="rco-card rco-graph-card"><Chart rows={rows} source={source} /></div>
+        <div className="rco-card rco-graph-card" style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
+          {hasVerifiedDailyCost && <Chart rows={rows} source={source} metric="cost" />}
+          {source === 'all' && <Chart rows={rows} source={source} metric="render" />}
+          <Chart rows={rows} source={source} metric="api" />
+        </div>
         <div className="rco-card rco-total-card">
           <div className="rco-subtitle">Total expense · {selectedPeriod} · {source === 'all' ? 'All' : source === 'web' ? 'Web' : 'Admin'}</div>
           <strong className="rco-total-amount">{formatUsd(total?.verified_cost_usd)}</strong>
@@ -168,7 +192,7 @@ export default function ResourceCostOverview({ refreshKey = 0 }) {
           </div>
           <div className="rco-usage-aux"><span>Observed API payload</span><strong>{formatResourceBytes(total?.observed_api_bytes)}</strong></div>
           {source === 'all' && <div className="rco-usage-aux"><span>Render outbound (recorded)</span><strong>{renderBytes === null ? '—' : formatResourceBytes(renderBytes)}</strong></div>}
-{source === 'all' && <div className="rco-total-note">Render measured: {renderRows.length}/{rows.length} periods. API payload and Render outbound are not directly comparable. Missing data is not zero.</div>}
+          {source === 'all' && <div className="rco-total-note">Render measured: {renderRows.length}/{rows.length} periods. API payload and Render outbound are different measurements and must not be added. Missing data is not zero.</div>}
           <div className="rco-usage-aux"><span>Observed operations</span><strong>{total?.observed_operations == null ? '—' : formatResourceCount(total.observed_operations)}</strong></div>
           {source === 'all' && <div className="rco-shared-line">Shared / unattributed API payload: {formatResourceBytes(shared?.observed_api_bytes)}</div>}
           <div className="rco-total-note">{total?.observed_days || 0} of {total?.expected_days || 0} days have source observations</div>
