@@ -1,5 +1,5 @@
 const ROOT = `${import.meta.env.VITE_API_URL || 'https://shadow-backend-kucw.onrender.com'}/api/admin/resource-cost/overview`
-const ALLOWED_PERIODS = new Set(['yesterday', 'last7', 'week', 'month', 'last30', 'last12months', 'custom'])
+const ALLOWED_PERIODS = new Set(['today', 'yesterday', 'last7', 'week', 'month', 'last30', 'last12months', 'custom'])
 
 function adminToken() {
   return sessionStorage.getItem('shadow_admin_token') || localStorage.getItem('shadow_admin_token') || ''
@@ -28,6 +28,9 @@ export async function loadResourceCostOverview(period = 'last7', signal, dates =
   if (!response.ok) throw new Error(payload?.message || `Cost Overview unavailable (${response.status}).`)
   if (payload?.ok !== true || !payload.overview || !Array.isArray(payload.overview.series) || !payload.overview.totals) {
     throw new Error('Cost Overview returned incomplete data.')
+  }
+  if ((period === 'today' || period === 'yesterday') && !Array.isArray(payload.overview.hourly_series)) {
+    throw new Error('Hourly Cost Overview is unavailable. Deploy the updated Backend first.')
   }
   return payload.overview
 }
