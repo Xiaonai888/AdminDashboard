@@ -4,6 +4,7 @@ import { ResourceCostTrend, ResourceCostTrafficSplit, ResourceCostTopDrivers } f
 import ResourceCostYesterdaySnapshot from '../components/ResourceCostYesterdaySnapshot'
 import ResourceCostOverview from '../components/ResourceCostOverview'
 import ResourceCostSourceDetails from '../components/ResourceCostSourceDetails'
+import ResourceCostDiagnostics from '../components/ResourceCostDiagnostics'
 import { loadResourceCostSummary, loadResourceCostHealth, loadResourceCostYesterdaySnapshot, downloadResourceCostReport, formatResourceBytes, formatResourceCount, resourceCostDateToday } from '../services/resourceCostApi'
 import '../styles/adminResourceCost.css'
 import '../styles/adminResourceCostHealth.css'
@@ -372,6 +373,7 @@ export default function AdminResourceCostPage() {
 
       <ResourceCostOverview refreshKey={reload} />
       <HealthPanel health={health} loading={healthLoading} error={healthError} />
+      <ResourceCostDiagnostics health={health} loading={healthLoading} error={healthError} />
       {error && <div className="rc-error" role="alert">{error}</div>}
       {!report && <div className="rc-loading">{loading ? 'Loading stored provider summaries…' : 'Resource & Cost report is unavailable.'}</div>}
       {report && <>
