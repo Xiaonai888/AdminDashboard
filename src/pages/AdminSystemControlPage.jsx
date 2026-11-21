@@ -6,6 +6,7 @@ import AdminPerformanceDiagnosticsPanel from '../components/AdminPerformanceDiag
 import AdminImageDiagnosticsPanel from '../components/AdminImageDiagnosticsPanel'
 import AdminReaderHealthPanel from '../components/AdminReaderHealthPanel'
 import AdminPassiveRequestMonitorPanel from '../components/AdminPassiveRequestMonitorPanel'
+import AdminRequestOriginDiagnosticsPanel from '../components/AdminRequestOriginDiagnosticsPanel'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -1178,6 +1179,7 @@ export default function AdminSystemControlPage() {
   const [imageDiagnostics, setImageDiagnostics] = useState(null)
   const [guestRequestSnapshot, setGuestRequestSnapshot] = useState(null)
   const [passiveRequestSnapshot, setPassiveRequestSnapshot] = useState(null)
+  const [requestOriginSnapshot, setRequestOriginSnapshot] = useState(null)
   const [historyReport, setHistoryReport] = useState(null)
   const [sharedRenderUsage, setSharedRenderUsage] = useState(null)
   const [sharedRenderLoading, setSharedRenderLoading] = useState(false)
@@ -1234,6 +1236,7 @@ export default function AdminSystemControlPage() {
       setImageDiagnostics(data.image_diagnostics || null)
       setGuestRequestSnapshot(data.guest_requests || null)
       setPassiveRequestSnapshot(data.passive_request_monitor || null)
+      setRequestOriginSnapshot(data.request_origin_diagnostics || null)
       setProviderState(data.providers || null)
       setUpdatedAt(Date.now())
       setError('')
@@ -2217,6 +2220,7 @@ export default function AdminSystemControlPage() {
 
         <GuestRequestControlPanel snapshot={guestRequestSnapshot} loading={loading} />
         <AdminPassiveRequestMonitorPanel snapshot={passiveRequestSnapshot} loading={loading} />
+        <AdminRequestOriginDiagnosticsPanel snapshot={requestOriginSnapshot} loading={loading} />
 
         <section className="sc-block">
           <div className="sc-block-head">
